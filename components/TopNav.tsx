@@ -26,10 +26,10 @@ export default function TopNav({ theme = "dark" }: Props) {
           className="mr-3 flex items-center gap-1.5 shrink-0"
         >
           <span className="flex h-7 w-7 items-center justify-center rounded-md bg-blue-600 text-[13px] font-black text-white">
-            pf
+            GF
           </span>
           <span className="text-[17px] font-extrabold tracking-tight text-white">
-            pftool
+            GORAFI
           </span>
         </Link>
 
