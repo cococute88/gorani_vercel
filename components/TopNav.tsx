@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { Lock, Bell } from "lucide-react";
 import { NAV_ITEMS } from "@/lib/mockData";
@@ -20,16 +21,20 @@ export default function TopNav({ theme = "dark" }: Props) {
   return (
     <header className={`sticky top-0 z-50 w-full ${barBg} border-b ${border}`}>
       <div className="flex h-14 items-center gap-1 px-5">
-        {/* 로고 */}
+                {/* 로고 */}
         <Link
           href="/qld-dashboard"
           className="mr-3 flex items-center gap-1.5 shrink-0"
         >
-          <span className="flex h-7 w-7 items-center justify-center rounded-md bg-blue-600 text-[13px] font-black text-white">
-            GF
-          </span>
+          <Image
+            src="/gorani-logo.png"
+            alt="GORANI logo"
+            width={28}
+            height={28}
+            className="h-7 w-7 rounded-full object-contain"
+          />
           <span className="text-[17px] font-extrabold tracking-tight text-white">
-            GORAFI
+            GORANI
           </span>
         </Link>
 
