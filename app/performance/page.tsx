@@ -1,0 +1,88 @@
+"use client";
+
+import { useState } from "react";
+import { Copy, Plus } from "lucide-react";
+import TopNav from "@/components/TopNav";
+import MetricCard from "@/components/MetricCard";
+import PerformanceChart from "@/components/PerformanceChart";
+import { PERFORMANCE_KPIS } from "@/lib/mockData";
+
+// 스크린샷 3: 다크모드 투자 성과
+export default function PerformancePage() {
+  const [tab, setTab] = useState<"status" | "sim">("status");
+
+  return (
+    <div className="min-h-screen bg-[#181c1d] text-slate-200">
+      <TopNav theme="dark" />
+      <main className="mx-auto max-w-[1640px] px-8 py-6">
+        {/* 제목줄 */}
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <h1 className="flex items-center gap-2 text-[22px] font-extrabold text-white">
+            📈 투자 성과
+          </h1>
+          <div className="flex items-center gap-2">
+            <button className="flex items-center gap-1.5 rounded-lg border border-[#2a3336] bg-[#1e2324] px-3 py-1.5 text-[13px] font-medium text-slate-300 hover:bg-[#252b2c]">
+              <Copy size={14} /> MD 복사
+            </button>
+            <button className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-[13px] font-semibold text-white hover:bg-blue-700">
+              <Plus size={15} /> 데이터 입력
+            </button>
+          </div>
+        </div>
+
+        {/* KPI 6개 */}
+        <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+          {PERFORMANCE_KPIS.map((k) => (
+            <MetricCard
+              key={k.label}
+              label={k.label}
+              value={k.value}
+              sub={k.sub}
+              tone={k.tone}
+              valueColor={
+                k.tone === "green"
+                  ? "#4ade80"
+                  : k.tone === "orange"
+                    ? "#fb923c"
+                    : undefined
+              }
+            />
+          ))}
+        </div>
+
+        {/* 탭 */}
+        <div className="mb-4 flex items-center gap-1 border-b border-[#2a3336]">
+          <button
+            onClick={() => setTab("status")}
+            className={`relative px-4 py-2 text-[14px] font-semibold transition-colors ${
+              tab === "status"
+                ? "text-white"
+                : "text-slate-500 hover:text-slate-300"
+            }`}
+          >
+            현황
+            {tab === "status" && (
+              <span className="absolute inset-x-0 -bottom-px h-0.5 bg-blue-500" />
+            )}
+          </button>
+          <button
+            onClick={() => setTab("sim")}
+            className={`relative px-4 py-2 text-[14px] font-semibold transition-colors ${
+              tab === "sim"
+                ? "text-white"
+                : "text-slate-500 hover:text-slate-300"
+            }`}
+          >
+            시뮬레이션 · 목표
+            {tab === "sim" && (
+              <span className="absolute inset-x-0 -bottom-px h-0.5 bg-blue-500" />
+            )}
+          </button>
+        </div>
+
+        {/* 대형 차트 */}
+        <PerformanceChart />
+      </main>
+    </div>
+  );
+}

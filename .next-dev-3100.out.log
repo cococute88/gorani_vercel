@@ -1,0 +1,15 @@
+
+> pftool-dashboard@1.0.0 dev
+> next dev -p 3100
+
+  ▲ Next.js 14.2.5
+  - Local:        http://localhost:3100
+
+ ✓ Starting...
+ ✓ Ready in 1198ms
+ ○ Compiling / ...
+ ✓ Compiled / in 700ms (443 modules)
+ GET / 307 in 855ms
+ ○ Compiling /qld-dashboard ...
+ ✓ Compiled /qld-dashboard in 678ms (1572 modules)
+ GET /qld-dashboard 200 in 847ms

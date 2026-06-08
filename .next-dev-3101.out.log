@@ -1,0 +1,9 @@
+
+> pftool-dashboard@1.0.0 dev
+> next dev --port 3101
+
+  ▲ Next.js 14.2.5
+  - Local:        http://localhost:3101
+
+ ✓ Starting...
+ ✓ Ready in 1303ms
