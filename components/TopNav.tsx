@@ -34,7 +34,7 @@ export default function TopNav({ theme = "dark" }: Props) {
             className="h-7 w-7 rounded-full object-contain"
           />
           <span className="text-[17px] font-extrabold tracking-tight text-white">
-            GORANI
+            GORAFI
           </span>
         </Link>
 
