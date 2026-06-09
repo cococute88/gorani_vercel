@@ -32,7 +32,7 @@ export default function AssetTable({ assets }: Props) {
           <thead>
             <tr className="border-b border-[#2a3336] text-left text-slate-400">
               <th className="px-3 py-2 font-medium">항목(그룹)</th>
-              <th className="px-3 py-2 font-medium">상품명</th>
+              <th className="px-3 py-2 font-medium">상품명 / 태그</th>
               <th className="px-3 py-2 text-right font-medium">금액</th>
               <th className="px-3 py-2 font-medium">태그</th>
               <th className="px-3 py-2 font-medium">분류</th>
@@ -48,8 +48,16 @@ export default function AssetTable({ assets }: Props) {
               <tr key={a.id} className="border-b border-[#1c2426] hover:bg-white/[0.02]">
                 <td className="px-3 py-2.5 text-slate-300">{a.groupName || "—"}</td>
                 <td className="px-3 py-2.5 text-slate-200">
-                  {a.productName}
-                  {a.isDebt && <span className="ml-1.5 text-[11px] text-red-400">(부채)</span>}
+                  <div>
+                    {a.cleanName ?? a.productName}
+                    {a.isDebt && <span className="ml-1.5 text-[11px] text-red-400">(부채)</span>}
+                  </div>
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {a.symbolGroup && <span className="rounded bg-blue-500/10 px-1.5 py-0.5 text-[10.5px] text-blue-300">① {a.symbolGroup}</span>}
+                    {a.accountGroup && <span className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10.5px] text-emerald-300">② {a.accountGroup}</span>}
+                    {a.purposeGroup && <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[10.5px] text-amber-300">③ {a.purposeGroup}</span>}
+                    {a.statusGroup && <span className="rounded bg-purple-500/10 px-1.5 py-0.5 text-[10.5px] text-purple-300">④ {a.statusGroup}</span>}
+                  </div>
                 </td>
                 <td className="num px-3 py-2.5 text-right text-slate-200">{formatWon(a.amountKRW)}</td>
                 <td className="px-3 py-2.5">

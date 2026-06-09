@@ -1,5 +1,5 @@
 // =============================================================
-// 뤅크샐러드 엑셀 파서 (백엔드 없이 브라우저에서 xlsx 파싱).
+// 뱅크샐러드 엑셀 파서 (백엔드 없이 브라우저에서 xlsx 파싱).
 //
 // 설계 원칙:
 // - 행 번호 고정 금지. 제목 텍스트("3.재무현황", "5.투자현황")을 찾아 그 아래 표를 파싱.
@@ -11,6 +11,11 @@
 // =============================================================
 import * as XLSX from "xlsx";
 import { extractTag, guessTicker, needsTickerReview } from "./ticker-mapper";
+import {
+  decorateFinanceAssetWithTags,
+  decorateHoldingWithTags,
+  parsePortfolioTags,
+} from "./portfolio-tags";
 import type {
   AssetCategory,
   FinanceAsset,
@@ -41,6 +46,9 @@ export interface ParseResult {
   preview: ParsePreview;
   warnings: string[];
   errors: string[];
+  excludedSmallCount: number;
+  excludedBelowMinimumCount: number;
+  excludedHoldingValueKRW: number;
 }
 
 let idSeq = 0;
@@ -66,7 +74,11 @@ export function normalizeNumber(v: Cell): number | null {
   if (typeof v === "number") return isFinite(v) ? v : null;
   if (typeof v === "boolean") return null;
   if (v instanceof Date) return null;
-  const s = String(v).replace(/[,\s\u20a9%]/g, "").replace(/[\uffe6\u0024]/g, "").trim();
+  const s = String(v)
+    .replace(/[()]/g, "")
+    .replace(/[,\s\u20a9%]/g, "")
+    .replace(/[\uffe6\u0024]/g, "")
+    .trim();
   if (!s) return null;
   const n = Number(s);
   return isFinite(n) ? n : null;
@@ -258,7 +270,7 @@ function parseFinance(
       const amount = normalizeNumber(row[assetAmountCol]);
       if (product && amount !== null && amount > 0) {
         const tag = extractTag(product);
-        result.financeAssets.push({
+        result.financeAssets.push(decorateFinanceAssetWithTags({
           id: makeId("fa"),
           groupName: assetGroup,
           productName: product,
@@ -266,7 +278,7 @@ function parseFinance(
           inferredTag: tag,
           category: classifyAsset(assetGroup, product, tag),
           isDebt: false,
-        });
+        }));
       }
     }
 
@@ -280,7 +292,7 @@ function parseFinance(
       const amount = normalizeNumber(row[debtAmountCol]);
       if (product && amount !== null && amount > 0) {
         const tag = extractTag(product);
-        result.financeAssets.push({
+        result.financeAssets.push(decorateFinanceAssetWithTags({
           id: makeId("fa"),
           groupName: debtGroup,
           productName: product,
@@ -288,7 +300,7 @@ function parseFinance(
           inferredTag: tag,
           category: "기타",
           isDebt: true,
-        });
+        }));
       }
     }
   }
@@ -359,23 +371,38 @@ function parseInvestment(rows: Row[], result: ParseResult): void {
       result.preview.investmentRows.push(row.map(txt));
     }
 
+    const amountForFilter = value ?? principal ?? 0;
+    const parsedTags = parsePortfolioTags(product);
+    if (parsedTags.isSmallExcluded) {
+      result.excludedSmallCount += 1;
+      result.excludedHoldingValueKRW += amountForFilter;
+      continue;
+    }
+    if (Math.abs(amountForFilter) < 10000) {
+      result.excludedBelowMinimumCount += 1;
+      result.excludedHoldingValueKRW += amountForFilter;
+      continue;
+    }
+
     const guess = guessTicker(product);
+    const normalizedGuess = guess.ticker ?? (/(비트코인|bitcoin|btc|코인)/i.test(product) ? "BTC" : undefined);
+    const normalizedConfidence = normalizedGuess === "BTC" && !guess.ticker ? "medium" : guess.confidence;
     const ret = cReturn >= 0 ? normalizeNumber(row[cReturn]) : null;
-    result.holdings.push({
+    result.holdings.push(decorateHoldingWithTags({
       id: makeId("h"),
       broker: cBroker >= 0 ? txt(row[cBroker]) : "",
       assetType: cType >= 0 ? txt(row[cType]) || "기타" : "기타",
       productName: product,
-      ticker: guess.ticker ?? undefined,
-      tickerConfidence: guess.confidence,
-      needsReview: needsTickerReview(guess.confidence),
+      ticker: normalizedGuess,
+      tickerConfidence: normalizedConfidence,
+      needsReview: needsTickerReview(normalizedConfidence),
       tag: extractTag(product),
       principalKRW: principal ?? 0,
       valueKRW: value ?? 0,
       returnPct: ret ?? undefined,
       joinDate: cJoin >= 0 ? formatDate(row[cJoin]) : undefined,
       maturityDate: cMaturity >= 0 ? formatDate(row[cMaturity]) : undefined,
-    });
+    }));
   }
 
   result.investmentPrincipalKRW = result.holdings.reduce((s, h) => s + h.principalKRW, 0);
@@ -411,11 +438,14 @@ export function parseBanksaladWorkbook(wb: XLSX.WorkBook, fileName: string): Par
     },
     warnings: [],
     errors: [],
+    excludedSmallCount: 0,
+    excludedBelowMinimumCount: 0,
+    excludedHoldingValueKRW: 0,
   };
 
   try {
     const sheetName =
-      wb.SheetNames.find((n) => norm(n).includes("뤅샐현황")) ?? wb.SheetNames[0];
+      wb.SheetNames.find((n) => norm(n).includes("뱅샐현황")) ?? wb.SheetNames[0];
     result.sheetName = sheetName || "";
     const ws = sheetName ? wb.Sheets[sheetName] : undefined;
     if (!ws) {
@@ -457,6 +487,9 @@ export async function parseBanksaladFile(file: File): Promise<ParseResult> {
       preview: { financeHeader: [], financeRows: [], investmentHeader: [], investmentRows: [] },
       warnings: [],
       errors: [`파일 읽기 실패: ${e instanceof Error ? e.message : String(e)}`],
+      excludedSmallCount: 0,
+      excludedBelowMinimumCount: 0,
+      excludedHoldingValueKRW: 0,
     };
   }
 }

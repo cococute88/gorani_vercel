@@ -24,7 +24,7 @@ export default function HoldingsTable({ holdings, selected, onToggle, onTickerCh
               <th className="px-2 py-2 font-medium"></th>
               <th className="px-3 py-2 font-medium">금융사</th>
               <th className="px-3 py-2 font-medium">종류</th>
-              <th className="px-3 py-2 font-medium">상품명</th>
+              <th className="px-3 py-2 font-medium">상품명 / 태그</th>
               <th className="px-3 py-2 font-medium">티커</th>
               <th className="px-3 py-2 text-right font-medium">원금</th>
               <th className="px-3 py-2 text-right font-medium">평가금액</th>
@@ -51,8 +51,14 @@ export default function HoldingsTable({ holdings, selected, onToggle, onTickerCh
                 <td className="px-3 py-2.5 text-slate-300">{h.broker}</td>
                 <td className="px-3 py-2.5 text-slate-400">{h.assetType}</td>
                 <td className="px-3 py-2.5 text-slate-200">
-                  {h.productName}
-                  {h.tag && <span className="ml-1.5 text-[11px] text-blue-400">#{h.tag}</span>}
+                  <div>{h.cleanName ?? h.productName}</div>
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {h.symbolGroup && <span className="rounded bg-blue-500/10 px-1.5 py-0.5 text-[10.5px] text-blue-300">① {h.symbolGroup}</span>}
+                    {h.accountGroup && <span className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10.5px] text-emerald-300">② {h.accountGroup}</span>}
+                    {h.purposeGroup && <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[10.5px] text-amber-300">③ {h.purposeGroup}</span>}
+                    {h.statusGroup && <span className="rounded bg-purple-500/10 px-1.5 py-0.5 text-[10.5px] text-purple-300">④ {h.statusGroup}</span>}
+                    {h.tag && <span className="rounded bg-white/5 px-1.5 py-0.5 text-[10.5px] text-slate-300">#{h.tag}</span>}
+                  </div>
                 </td>
                 <td className="px-3 py-2.5">
                   <input

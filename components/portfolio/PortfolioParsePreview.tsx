@@ -51,7 +51,7 @@ export default function PortfolioParsePreview({ result }: Props) {
     return (
       <div className={card}>
         <h2 className="text-[15px] font-bold text-slate-300">파싱 결과 요약</h2>
-        <p className="mt-2 text-[13px] text-slate-500">아직 파싱된 결과가 없습니다. 파일을 업로드하고 झ파싱 실행झ을 눌러주세요.</p>
+        <p className="mt-2 text-[13px] text-slate-500">아직 파싱된 결과가 없습니다. 파일을 업로드하고 “파싱 실행”을 눌러주세요.</p>
       </div>
     );
   }
@@ -79,6 +79,7 @@ export default function PortfolioParsePreview({ result }: Props) {
         <Metric label="수익금" value={formatWon(result.returnAmountKRW)} tone={result.returnAmountKRW >= 0 ? "text-red-400" : "text-blue-400"} />
         <Metric label="수익률" value={formatPercent(result.returnPct, 1)} tone={result.returnPct >= 0 ? "text-red-400" : "text-blue-400"} />
         <Metric label="인식 보유종목" value={`${result.holdings.length}개 (확인필요 ${reviewCount})`} />
+        <Metric label="제외 항목" value={`#소액 ${result.excludedSmallCount}개 · 1만원 미만 ${result.excludedBelowMinimumCount}개`} />
       </div>
 
       {(result.warnings.length > 0 || result.errors.length > 0) && (

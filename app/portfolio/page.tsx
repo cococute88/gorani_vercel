@@ -19,11 +19,16 @@ import {
   TAG_ALLOCATION_DARK,
   PORTFOLIO_SUMMARY_DARK,
 } from "@/lib/mockData";
+import { usePortfolioView } from "@/lib/use-portfolio-view";
 
 // 스크린샷 4: 다크모드 포트폴리오 현황 + 트리맵
 export default function PortfolioPage() {
   const [period, setPeriod] = useState("1분");
-  const d = PORTFOLIO_SUMMARY_DARK;
+  const portfolioView = usePortfolioView();
+  const d = portfolioView.summary;
+  const accountAllocation = portfolioView.hasLiveData ? portfolioView.accountAllocation : ACCOUNT_ALLOCATION;
+  const stockAllocation = portfolioView.hasLiveData ? portfolioView.stockAllocation : STOCK_ALLOCATION;
+  const purposeAllocation = portfolioView.hasLiveData ? portfolioView.purposeAllocation : TAG_ALLOCATION_DARK;
 
   return (
     <div className="min-h-screen bg-[#111516] text-slate-200">
@@ -51,7 +56,7 @@ export default function PortfolioPage() {
               ))}
             </div>
             <span className="text-[12.5px] text-slate-500">
-              05/15 09:03 기준
+              {portfolioView.snapshot ? `${portfolioView.snapshot.snapshotDate} 스냅샷 기준` : "05/15 09:03 기준"}
             </span>
             <span className="num text-[12.5px] text-slate-400">
               $1 = {d.fxUsd.toLocaleString()}원 · ¥100 ={" "}
@@ -68,6 +73,16 @@ export default function PortfolioPage() {
           </div>
         </div>
 
+        {portfolioView.hasLiveData ? (
+          <div className="mb-4 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-2 text-[12.5px] text-emerald-200">
+            포트폴리오 관리에서 저장한 최신 스냅샷 실데이터를 표시하고 있습니다.
+          </div>
+        ) : (
+          <div className="mb-4 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-2 text-[12.5px] text-amber-200">
+            저장된 스냅샷이 없어 목업 데이터로 표시합니다. /portfolio-manager에서 엑셀을 등록하면 실데이터로 전환됩니다.
+          </div>
+        )}
+
         {/* 요약 영역 */}
         <section className="mb-6">
           <PortfolioSummary theme="dark" />
@@ -77,18 +92,18 @@ export default function PortfolioPage() {
         <section className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
           <DonutChartCard
             title="계좌별 비중"
-            data={ACCOUNT_ALLOCATION}
+            data={accountAllocation}
             theme="dark"
           />
           <DonutChartCard
             title="종목별 비중 상위 15개"
-            data={STOCK_ALLOCATION}
+            data={stockAllocation}
             theme="dark"
             maxLegend={15}
           />
           <DonutChartCard
-            title="태그별 비중"
-            data={TAG_ALLOCATION_DARK}
+            title="목적별 비중"
+            data={purposeAllocation}
             theme="dark"
           />
         </section>
