@@ -27,7 +27,7 @@ export default function PortfolioPage() {
   return (
     <div className="min-h-screen bg-[#111516] text-slate-200">
       <TopNav theme="dark" />
-      <main className="mx-auto max-w-[1640px] px-8 py-6">
+      <main className="mx-auto min-w-0 max-w-[1640px] overflow-x-hidden px-4 py-6 sm:px-6 lg:px-8">
         {/* 제목줄 */}
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-4">
@@ -97,9 +97,12 @@ export default function PortfolioPage() {
           <MonthlyIncomeChart theme="dark" />
         </section>
 
-        {/* 하단 2열: 좌측 메인 + 우측 트리맵 */}
-        <section className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_minmax(0,360px)]">
-          <div className="flex flex-col gap-5">
+        {/* 하단 영역: 트리맵은 본문 폭을 사용하고, 나머지 위젯은 아래에 배치 */}
+        <section className="grid min-w-0 grid-cols-1 gap-5 overflow-x-hidden">
+          <div className="min-w-0 w-full max-w-full">
+            <TreemapMock />
+          </div>
+          <div className="flex min-w-0 flex-col gap-5">
             {/* 핀 차트 */}
             <div>
               <h2 className="mb-3 text-[15px] font-bold text-slate-300">
@@ -118,9 +121,6 @@ export default function PortfolioPage() {
               </h2>
               <AssetAccountCards theme="dark" />
             </div>
-          </div>
-          <div className="xl:sticky xl:top-20 xl:self-start">
-            <TreemapMock />
           </div>
         </section>
       </main>

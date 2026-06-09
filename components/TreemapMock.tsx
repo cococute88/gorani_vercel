@@ -12,35 +12,38 @@ function rateColor(rate: number): string {
 
 function Group({ title, items }: { title: string; items: TreemapItem[] }) {
   const total = items.reduce((s, i) => s + i.value, 0);
+
   return (
-    <div className="flex flex-col">
+    <div className="min-w-0 w-full max-w-full flex flex-col box-border">
       <div className="mb-1.5 text-[12px] font-semibold text-slate-400">
         {title}
       </div>
-      <div className="flex flex-wrap gap-1">
+      <div className="flex min-w-0 w-full max-w-full flex-wrap gap-1 overflow-hidden">
         {items.map((it) => {
           const pct = (it.value / total) * 100;
-          const basis = `calc(${pct.toFixed(1)}% - 4px)`;
           const tileStyle = {
             backgroundColor: rateColor(it.rate),
-            flexBasis: basis,
+            flex: `${it.value} 1 clamp(96px, ${pct.toFixed(1)}%, 100%)`,
             minHeight: it.value >= 8 ? 78 : 58,
           };
+
           return (
             <div
               key={it.name}
-              className="flex grow flex-col justify-between overflow-hidden rounded-md p-2 text-white"
+              className="box-border flex min-w-0 max-w-full flex-col justify-between overflow-hidden rounded-md p-2 text-white"
               style={tileStyle}
             >
               <span className="truncate text-[12px] font-bold leading-tight">
                 {it.name}
               </span>
-              <div className="leading-tight">
-                <div className="num text-[12px] font-extrabold">
+              <div className="min-w-0 leading-tight">
+                <div className="num truncate text-[12px] font-extrabold">
                   {it.rate > 0 ? "+" : ""}
                   {it.rate.toFixed(1)}%
                 </div>
-                <div className="num text-[10px] text-white/80">{it.amount}</div>
+                <div className="num truncate text-[10px] text-white/80">
+                  {it.amount}
+                </div>
               </div>
             </div>
           );
@@ -53,12 +56,13 @@ function Group({ title, items }: { title: string; items: TreemapItem[] }) {
 export default function TreemapMock() {
   const dividend = TREEMAP_DATA.filter((d) => d.group === "배당");
   const growth = TREEMAP_DATA.filter((d) => d.group === "성장");
+
   return (
-    <div className="rounded-2xl border border-[#2a3336] bg-[#191f20] p-4">
+    <div className="box-border min-h-[300px] w-full max-w-full min-w-0 overflow-x-hidden rounded-2xl border border-[#2a3336] bg-[#191f20] p-4 sm:min-h-[320px]">
       <div className="mb-3 text-[14px] font-bold text-slate-100">
         배당 / 성장 트리맵
       </div>
-      <div className="flex flex-col gap-4">
+      <div className="flex min-w-0 w-full max-w-full flex-col gap-4">
         <Group title="배당" items={dividend} />
         <Group title="성장" items={growth} />
       </div>
