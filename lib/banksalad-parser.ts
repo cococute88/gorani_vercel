@@ -84,6 +84,45 @@ export function normalizeNumber(v: Cell): number | null {
   return isFinite(n) ? n : null;
 }
 
+function isCountSummaryText(value: string): boolean {
+  return /^총\s*\d+\s*개$/.test(value.trim());
+}
+
+function isInvestmentSummaryRow(row: Row, product: string, assetType: string): boolean {
+  const flat = row.map(norm);
+  const normalizedProduct = norm(product);
+  const normalizedAssetType = norm(assetType);
+  const summaryKeywords = [
+    "총계",
+    "합계",
+    "보유상품개수",
+    "총투자원금",
+    "총평가금액",
+    "총수익률",
+  ];
+
+  if (summaryKeywords.some((keyword) => normalizedProduct.includes(keyword))) return true;
+  if (normalizedAssetType.includes("총계") || normalizedAssetType.includes("합계")) return true;
+  if (isCountSummaryText(product)) return true;
+
+  return flat.some((cell) => summaryKeywords.some((keyword) => cell.includes(keyword)));
+}
+
+function recordExcludedIfNeeded(result: ParseResult, product: string, amount: number): boolean {
+  const parsedTags = parsePortfolioTags(product);
+  if (parsedTags.isSmallExcluded) {
+    result.excludedSmallCount += 1;
+    result.excludedHoldingValueKRW += amount;
+    return true;
+  }
+  if (Math.abs(amount) < 10000) {
+    result.excludedBelowMinimumCount += 1;
+    result.excludedHoldingValueKRW += amount;
+    return true;
+  }
+  return false;
+}
+
 function formatDate(v: Cell): string | undefined {
   if (v === null || v === undefined || v === "") return undefined;
   if (v instanceof Date) {
@@ -226,6 +265,8 @@ function parseFinance(
   let totalAsset: number | null = null;
   let totalDebt: number | null = null;
   let netAsset: number | null = null;
+  let excludedAssetKRW = 0;
+  let excludedDebtKRW = 0;
   let prevWasNetLabel = false;
 
   for (let r = headerRow + 1; r < end; r++) {
@@ -269,16 +310,20 @@ function parseFinance(
       const product = txt(row[assetProductCol]);
       const amount = normalizeNumber(row[assetAmountCol]);
       if (product && amount !== null && amount > 0) {
-        const tag = extractTag(product);
-        result.financeAssets.push(decorateFinanceAssetWithTags({
-          id: makeId("fa"),
-          groupName: assetGroup,
-          productName: product,
-          amountKRW: amount,
-          inferredTag: tag,
-          category: classifyAsset(assetGroup, product, tag),
-          isDebt: false,
-        }));
+        if (recordExcludedIfNeeded(result, product, amount)) {
+          excludedAssetKRW += amount;
+        } else {
+          const tag = extractTag(product);
+          result.financeAssets.push(decorateFinanceAssetWithTags({
+            id: makeId("fa"),
+            groupName: assetGroup,
+            productName: product,
+            amountKRW: amount,
+            inferredTag: tag,
+            category: classifyAsset(assetGroup, product, tag),
+            isDebt: false,
+          }));
+        }
       }
     }
 
@@ -291,16 +336,20 @@ function parseFinance(
       const product = txt(row[debtProductCol]);
       const amount = normalizeNumber(row[debtAmountCol]);
       if (product && amount !== null && amount > 0) {
-        const tag = extractTag(product);
-        result.financeAssets.push(decorateFinanceAssetWithTags({
-          id: makeId("fa"),
-          groupName: debtGroup,
-          productName: product,
-          amountKRW: amount,
-          inferredTag: tag,
-          category: "기타",
-          isDebt: true,
-        }));
+        if (recordExcludedIfNeeded(result, product, amount)) {
+          excludedDebtKRW += amount;
+        } else {
+          const tag = extractTag(product);
+          result.financeAssets.push(decorateFinanceAssetWithTags({
+            id: makeId("fa"),
+            groupName: debtGroup,
+            productName: product,
+            amountKRW: amount,
+            inferredTag: tag,
+            category: "기타",
+            isDebt: true,
+          }));
+        }
       }
     }
   }
@@ -312,9 +361,9 @@ function parseFinance(
     .filter((f) => f.isDebt)
     .reduce((s, f) => s + f.amountKRW, 0);
 
-  result.totalAssetKRW = totalAsset ?? sumAssets;
-  result.totalDebtKRW = totalDebt ?? sumDebts;
-  result.netAssetKRW = netAsset ?? result.totalAssetKRW - result.totalDebtKRW;
+  result.totalAssetKRW = totalAsset !== null ? totalAsset - excludedAssetKRW : sumAssets;
+  result.totalDebtKRW = totalDebt !== null ? totalDebt - excludedDebtKRW : sumDebts;
+  result.netAssetKRW = result.totalAssetKRW - result.totalDebtKRW;
 }
 
 // ---- 5.투자현황 파싱 ----
@@ -354,12 +403,18 @@ function parseInvestment(rows: Row[], result: ParseResult): void {
 
   const end = nextNumberedSection(rows, headerRow + 1);
 
+  let inInvestmentSummaryBlock = false;
+
   for (let r = headerRow + 1; r < end; r++) {
     const row = rows[r] || [];
-    const flat = row.map(norm);
-    if (flat.some((x) => x.includes("총계") || x.includes("합계"))) continue;
-
     const product = cProduct >= 0 ? txt(row[cProduct]) : "";
+    const assetType = cType >= 0 ? txt(row[cType]) : "";
+
+    if (inInvestmentSummaryBlock || isInvestmentSummaryRow(row, product, assetType)) {
+      inInvestmentSummaryBlock = true;
+      continue;
+    }
+
     if (!product) continue;
 
     const principal = cPrincipal >= 0 ? normalizeNumber(row[cPrincipal]) : null;
@@ -373,20 +428,12 @@ function parseInvestment(rows: Row[], result: ParseResult): void {
 
     const amountForFilter = value ?? principal ?? 0;
     const parsedTags = parsePortfolioTags(product);
-    if (parsedTags.isSmallExcluded) {
-      result.excludedSmallCount += 1;
-      result.excludedHoldingValueKRW += amountForFilter;
-      continue;
-    }
-    if (Math.abs(amountForFilter) < 10000) {
-      result.excludedBelowMinimumCount += 1;
-      result.excludedHoldingValueKRW += amountForFilter;
-      continue;
-    }
+    if (recordExcludedIfNeeded(result, product, amountForFilter)) continue;
 
     const guess = guessTicker(product);
     const normalizedGuess = guess.ticker ?? (/(비트코인|bitcoin|btc|코인)/i.test(product) ? "BTC" : undefined);
     const normalizedConfidence = normalizedGuess === "BTC" && !guess.ticker ? "medium" : guess.confidence;
+    const isIntentionalOther = parsedTags.symbolGroup?.startsWith("기타") ?? false;
     const ret = cReturn >= 0 ? normalizeNumber(row[cReturn]) : null;
     result.holdings.push(decorateHoldingWithTags({
       id: makeId("h"),
@@ -395,7 +442,7 @@ function parseInvestment(rows: Row[], result: ParseResult): void {
       productName: product,
       ticker: normalizedGuess,
       tickerConfidence: normalizedConfidence,
-      needsReview: needsTickerReview(normalizedConfidence),
+      needsReview: isIntentionalOther ? false : needsTickerReview(normalizedConfidence),
       tag: extractTag(product),
       principalKRW: principal ?? 0,
       valueKRW: value ?? 0,
