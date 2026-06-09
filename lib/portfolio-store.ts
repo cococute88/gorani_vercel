@@ -15,12 +15,46 @@ import type {
   PortfolioSummary,
   SnapshotHistoryRow,
 } from "./portfolio-types";
+import { filterAggregateHoldings } from "./portfolio-summary-row";
 
 const STORAGE_KEY = "qld2.portfolio.snapshots.v1";
 
 let cache: PortfolioSnapshot[] | null = null;
 const listeners = new Set<() => void>();
 const EMPTY: PortfolioSnapshot[] = [];
+
+function recalcInvestment(holdings: Holding[]): Pick<
+  PortfolioSnapshot,
+  "investmentPrincipalKRW" | "investmentValueKRW" | "returnAmountKRW" | "returnPct"
+> {
+  const investmentPrincipalKRW = holdings.reduce((sum, holding) => sum + holding.principalKRW, 0);
+  const investmentValueKRW = holdings.reduce((sum, holding) => sum + holding.valueKRW, 0);
+  const returnAmountKRW = investmentValueKRW - investmentPrincipalKRW;
+  const returnPct =
+    investmentPrincipalKRW > 0 ? (returnAmountKRW / investmentPrincipalKRW) * 100 : 0;
+
+  return {
+    investmentPrincipalKRW,
+    investmentValueKRW,
+    returnAmountKRW,
+    returnPct,
+  };
+}
+
+function sanitizeSnapshot(snapshot: PortfolioSnapshot): PortfolioSnapshot {
+  const holdings = filterAggregateHoldings(snapshot.holdings ?? []);
+  if (holdings.length === (snapshot.holdings ?? []).length) return snapshot;
+
+  return {
+    ...snapshot,
+    ...recalcInvestment(holdings),
+    holdings,
+  };
+}
+
+function sanitizeSnapshots(snapshots: PortfolioSnapshot[]): PortfolioSnapshot[] {
+  return snapshots.map(sanitizeSnapshot);
+}
 
 function read(): PortfolioSnapshot[] {
   if (typeof window === "undefined") return EMPTY;
@@ -32,7 +66,7 @@ function read(): PortfolioSnapshot[] {
       return cache;
     }
     const parsed = JSON.parse(raw);
-    cache = Array.isArray(parsed) ? (parsed as PortfolioSnapshot[]) : [];
+    cache = Array.isArray(parsed) ? sanitizeSnapshots(parsed as PortfolioSnapshot[]) : [];
   } catch {
     cache = [];
   }
@@ -82,8 +116,9 @@ export function hasSnapshotDate(date: string): boolean {
 
 /** 스냅샷 저장. 같은 snapshotDate 는 덮어쓴다. */
 export function saveSnapshot(snapshot: PortfolioSnapshot): void {
-  const rest = read().filter((s) => s.snapshotDate !== snapshot.snapshotDate);
-  write([...rest, snapshot]);
+  const cleanSnapshot = sanitizeSnapshot(snapshot);
+  const rest = read().filter((s) => s.snapshotDate !== cleanSnapshot.snapshotDate);
+  write([...rest, cleanSnapshot]);
 }
 
 /** 스냅샷 삭제. */
@@ -103,7 +138,7 @@ export function getLatestSnapshot(): PortfolioSnapshot | null {
 
 /** 현재(최신 스냅샷) 보유종목. */
 export function getCurrentHoldings(): Holding[] {
-  return getLatestSnapshot()?.holdings ?? [];
+  return filterAggregateHoldings(getLatestSnapshot()?.holdings ?? []);
 }
 
 /** 특정 ticker 의 보유종목 (대소문자 무시). */
@@ -149,16 +184,19 @@ export function summaryOf(snap: PortfolioSnapshot | null): PortfolioSummary {
       holdingCount: 0,
     };
   }
+  const holdings = filterAggregateHoldings(snap.holdings ?? []);
+  const investment = recalcInvestment(holdings);
+
   return {
     snapshotDate: snap.snapshotDate,
     totalAssetKRW: snap.totalAssetKRW,
     totalDebtKRW: snap.totalDebtKRW,
     netAssetKRW: snap.netAssetKRW,
-    investmentPrincipalKRW: snap.investmentPrincipalKRW,
-    investmentValueKRW: snap.investmentValueKRW,
-    returnAmountKRW: snap.returnAmountKRW,
-    returnPct: snap.returnPct,
-    holdingCount: snap.holdings.length,
+    investmentPrincipalKRW: investment.investmentPrincipalKRW,
+    investmentValueKRW: investment.investmentValueKRW,
+    returnAmountKRW: investment.returnAmountKRW,
+    returnPct: investment.returnPct,
+    holdingCount: holdings.length,
   };
 }
 
