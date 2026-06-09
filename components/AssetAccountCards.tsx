@@ -1,10 +1,23 @@
+"use client";
+
 import { ACCOUNT_CARDS } from "@/lib/mockData";
 import { formatWon, formatWonSigned, formatPercent } from "@/lib/format";
+import { usePortfolioView } from "@/lib/use-portfolio-view";
+
+import type { LiveAccountCard } from "@/lib/portfolio-aggregate";
 
 type Props = { theme?: "dark" | "light" };
 
 // 하단 계좌 카드 grid (다크에서는 제목 패널 래핑 + 조밀한 카드).
 export default function AssetAccountCards({ theme = "light" }: Props) {
+  const { hasLiveData, accountCards } = usePortfolioView();
+  const cards: LiveAccountCard[] = hasLiveData
+    ? accountCards
+    : ACCOUNT_CARDS.map((card) => ({
+        ...card,
+        statusGroup: card.type,
+        holdingCount: 0,
+      }));
   const isLight = theme === "light";
   const cardCls = isLight
     ? "bg-white border border-slate-200 shadow-sm"
@@ -15,7 +28,7 @@ export default function AssetAccountCards({ theme = "light" }: Props) {
 
   const grid = (
     <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-4">
-      {ACCOUNT_CARDS.map((a) => {
+      {cards.map((a) => {
         const profitStyle = { color: a.profit >= 0 ? "#e5484d" : "#3b82f6" };
         const taxCls =
           a.tax === "비과세"
@@ -30,7 +43,7 @@ export default function AssetAccountCards({ theme = "light" }: Props) {
               <span
                 className={`shrink-0 rounded px-1 py-0.5 text-[9.5px] font-medium ${taxCls}`}
               >
-                {a.tax}
+                {hasLiveData ? a.statusGroup : a.tax}
               </span>
             </div>
             <div className="space-y-0.5">
@@ -69,8 +82,9 @@ export default function AssetAccountCards({ theme = "light" }: Props) {
 
   return (
     <div className="rounded-2xl border border-[#2a3336] bg-[#191f20] p-4">
-      <div className="mb-2.5 text-[14px] font-bold text-slate-200">
-        계좌 현황
+      <div className="mb-2.5 flex items-center justify-between gap-2 text-[14px] font-bold text-slate-200">
+        <span>계좌 현황</span>
+        {hasLiveData && <span className="text-[11px] font-medium text-emerald-300">④현황 기준</span>}
       </div>
       {grid}
     </div>

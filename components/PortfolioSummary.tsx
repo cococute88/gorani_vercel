@@ -7,6 +7,7 @@ import {
   formatPercent,
   formatEok,
 } from "@/lib/format";
+import { usePortfolioView } from "@/lib/use-portfolio-view";
 
 type Props = { theme?: "dark" | "light" };
 
@@ -78,7 +79,7 @@ function TagTargetRow({
 }
 
 function DarkSummary() {
-  const d = PORTFOLIO_SUMMARY_DARK;
+  const { summary: d, hasLiveData } = usePortfolioView();
   const upStyle = { color: UP };
   const schdGoal = d.schdGoal;
   const schdRate = Math.min((schdGoal.achieved / schdGoal.target) * 100, 100);
@@ -119,7 +120,7 @@ function DarkSummary() {
 
           {/* 2) 연간 배당소득 */}
           <div className="flex flex-col xl:px-5">
-            <span className={label}>연간 배당소득(예상)</span>
+            <span className={label}>{hasLiveData ? "최근 스냅샷 투자 요약" : "연간 배당소득(예상)"}</span>
             <span className={`${big} mt-1 text-[19px]`}>
               {formatWon(d.annualIncome)}
             </span>
@@ -221,20 +222,16 @@ function DarkSummary() {
           </span>
           <span className="text-[10.5px] text-slate-500">주식 / 현금</span>
         </div>
-        <TagTargetRow
-          name={d.stockCashTargets[0].name}
-          current={d.stockCashTargets[0].current}
-          target={d.stockCashTargets[0].target}
-          color="#3b82f6"
-        />
-        <div className="mt-3">
-          <TagTargetRow
-            name={d.stockCashTargets[1].name}
-            current={d.stockCashTargets[1].current}
-            target={d.stockCashTargets[1].target}
-            color="#f59e0b"
-          />
-        </div>
+        {(d.stockCashTargets.length > 0 ? d.stockCashTargets : PORTFOLIO_SUMMARY_DARK.stockCashTargets).slice(0, 2).map((item, index) => (
+          <div key={item.name} className={index > 0 ? "mt-3" : undefined}>
+            <TagTargetRow
+              name={item.name}
+              current={item.current}
+              target={item.target}
+              color={index === 0 ? "#3b82f6" : "#f59e0b"}
+            />
+          </div>
+        ))}
         <div className="mt-3 text-[10px] leading-snug text-slate-600">
           현재비율 / 목표 차이 (5%p 이상 강조)
         </div>

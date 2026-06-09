@@ -54,9 +54,9 @@ export default function ExcelUploadCard({
       >
         <UploadCloud size={28} className="text-slate-400" />
         <div className="mt-2 text-[13.5px] text-slate-300">
-          뤅크샐러드 엑셀(.xlsx) 파일을 끌어다 놓거나 클릭해서 선택
+          뱅크샐러드 엑셀(.xlsx) 파일을 끌어다 놓거나 클릭해서 선택
         </div>
-        <div className="mt-1 text-[11.5px] text-slate-500">여러 개 업로드 가능 · 시트 झ뤅샐현황झ</div>
+        <div className="mt-1 text-[11.5px] text-slate-500">여러 개 업로드 가능 · 시트 “뱅샐현황”</div>
         <input
           ref={inputRef}
           type="file"

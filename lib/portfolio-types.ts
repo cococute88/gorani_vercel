@@ -17,6 +17,7 @@ export interface Holding {
   accountName?: string; // 계좌명 (옵션)
   assetType: string; // 투자상품종류 (주식/펀드 등)
   productName: string; // 상품명 (원본)
+  cleanName?: string; // 태그를 제거한 표시명
   ticker?: string; // 추정 티커 (대문자) — CASH/CASH_LIKE 포함 가능
   tag?: string; // 상품명에서 추출한 #태그
   principalKRW: number; // 투자원금
@@ -25,6 +26,11 @@ export interface Holding {
   quantity?: number; // 수량 (옵션)
   currency?: string; // 통화 (옵션)
   category?: string; // 분류 (옵션)
+  symbolGroup?: string; // ①종목 태그 그룹
+  accountGroup?: string; // ②계좌 태그 그룹
+  purposeGroup?: string; // ③목적 태그 그룹
+  statusGroup?: string; // ④현황 태그 그룹
+  parsedTags?: import("./portfolio-tags").PortfolioTags;
   // --- 파서 보조 필드 (Codex 가 로직 이어붙이기 쉽게 분리) ---
   tickerConfidence?: TickerConfidence;
   needsReview?: boolean; // 확인 필요 여부
@@ -37,10 +43,16 @@ export interface FinanceAsset {
   id: string;
   groupName: string; // 자산 영역 (예: 자유입출금 자산)
   productName: string; // 상품명
+  cleanName?: string; // 태그를 제거한 표시명
   amountKRW: number; // 금액
   inferredTag?: string; // 상품명에서 추출한 태그 (#현금, #예적금 등)
   category?: AssetCategory; // 현금/예적금/투자성/기타
   isDebt?: boolean; // 부채 영역 여부
+  symbolGroup?: string; // ①종목 태그 그룹
+  accountGroup?: string; // ②계좌 태그 그룹
+  purposeGroup?: string; // ③목적 태그 그룹
+  statusGroup?: string; // ④현황 태그 그룹
+  parsedTags?: import("./portfolio-tags").PortfolioTags;
 }
 
 // 한 시점의 포트폴리오 스냅샷 (엑셀 1개 = 스냅샷 1개)
@@ -58,6 +70,13 @@ export interface PortfolioSnapshot {
   holdings: Holding[];
   financeAssets: FinanceAsset[];
   createdAt: string; // ISO
+  metadata?: {
+    parserVersion: string;
+    excludedSmallCount: number;
+    excludedBelowMinimumCount: number;
+    excludedHoldingValueKRW: number;
+    liveViewVersion?: string;
+  };
 }
 
 // store 요약 (getPortfolioSummary 반환)

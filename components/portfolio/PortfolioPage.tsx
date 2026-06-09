@@ -40,6 +40,9 @@ function snapshotToResult(s: PortfolioSnapshot): ParseResult {
     preview: { financeHeader: [], financeRows: [], investmentHeader: [], investmentRows: [] },
     warnings: ["목업 데이터로 불러온 결과입니다."],
     errors: [],
+    excludedSmallCount: s.metadata?.excludedSmallCount ?? 0,
+    excludedBelowMinimumCount: s.metadata?.excludedBelowMinimumCount ?? 0,
+    excludedHoldingValueKRW: s.metadata?.excludedHoldingValueKRW ?? 0,
   };
 }
 
@@ -58,6 +61,13 @@ function resultToSnapshot(r: ParseResult, holdings: Holding[]): PortfolioSnapsho
     holdings,
     financeAssets: r.financeAssets,
     createdAt: new Date().toISOString(),
+    metadata: {
+      parserVersion: "stage2-tags-v1",
+      excludedSmallCount: r.excludedSmallCount,
+      excludedBelowMinimumCount: r.excludedBelowMinimumCount,
+      excludedHoldingValueKRW: r.excludedHoldingValueKRW,
+      liveViewVersion: "stage2-live-v1",
+    },
   };
 }
 
@@ -103,6 +113,9 @@ export default function PortfolioPage() {
         preview: { financeHeader: [], financeRows: [], investmentHeader: [], investmentRows: [] },
         warnings: [],
         errors: [`파싱 중 오류가 발생했습니다: ${String(e)}`],
+        excludedSmallCount: 0,
+        excludedBelowMinimumCount: 0,
+        excludedHoldingValueKRW: 0,
       });
     } finally {
       setParsing(false);
