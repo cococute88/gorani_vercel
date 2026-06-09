@@ -1,6 +1,7 @@
 import type { Slice } from "./mockData";
 import { ACCOUNT_CARDS, PORTFOLIO_SUMMARY_DARK } from "./mockData";
 import type { FinanceAsset, Holding, PortfolioSnapshot } from "./portfolio-types";
+import { filterAggregateHoldings } from "./portfolio-summary-row";
 
 const COLORS = [
   "#3b82f6",
@@ -107,11 +108,11 @@ export function buildPortfolioViewModel(snapshot: PortfolioSnapshot | null): Por
     };
   }
 
-  const holdings = snapshot.holdings ?? [];
-  const investmentValue = snapshot.investmentValueKRW || holdings.reduce((sum, h) => sum + h.valueKRW, 0);
-  const principal = snapshot.investmentPrincipalKRW || holdings.reduce((sum, h) => sum + h.principalKRW, 0);
-  const profit = snapshot.returnAmountKRW || investmentValue - principal;
-  const rate = principal > 0 ? (profit / principal) * 100 : snapshot.returnPct;
+  const holdings = filterAggregateHoldings(snapshot.holdings ?? []);
+  const investmentValue = holdings.reduce((sum, h) => sum + h.valueKRW, 0);
+  const principal = holdings.reduce((sum, h) => sum + h.principalKRW, 0);
+  const profit = investmentValue - principal;
+  const rate = principal > 0 ? (profit / principal) * 100 : 0;
   const accountSet = new Set(holdings.map(accountName));
 
   const accountTotals = new Map<string, { value: number; principal: number; count: number; statusGroup: string }>();

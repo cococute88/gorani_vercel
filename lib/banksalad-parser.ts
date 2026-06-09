@@ -10,6 +10,7 @@
 // TODO(codex): 증권사별 양식 추가, 수량/통화 추출 고도화.
 // =============================================================
 import * as XLSX from "xlsx";
+import { isAggregateRowName } from "./portfolio-summary-row";
 import { extractTag, guessTicker, needsTickerReview } from "./ticker-mapper";
 import {
   decorateFinanceAssetWithTags,
@@ -84,10 +85,6 @@ export function normalizeNumber(v: Cell): number | null {
   return isFinite(n) ? n : null;
 }
 
-function isCountSummaryText(value: string): boolean {
-  return /^총\s*\d+\s*개$/.test(value.trim());
-}
-
 function isInvestmentSummaryRow(row: Row, product: string, assetType: string): boolean {
   const flat = row.map(norm);
   const normalizedProduct = norm(product);
@@ -103,7 +100,7 @@ function isInvestmentSummaryRow(row: Row, product: string, assetType: string): b
 
   if (summaryKeywords.some((keyword) => normalizedProduct.includes(keyword))) return true;
   if (normalizedAssetType.includes("총계") || normalizedAssetType.includes("합계")) return true;
-  if (isCountSummaryText(product)) return true;
+  if (isAggregateRowName(product)) return true;
 
   return flat.some((cell) => summaryKeywords.some((keyword) => cell.includes(keyword)));
 }

@@ -12,6 +12,7 @@ import { parseBanksaladFile } from "@/lib/banksalad-parser";
 import type { ParseResult } from "@/lib/banksalad-parser";
 import { MOCK_LATEST_SNAPSHOT } from "@/lib/mock-portfolio-data";
 import type { Holding, PortfolioSnapshot } from "@/lib/portfolio-types";
+import { filterAggregateHoldings } from "@/lib/portfolio-summary-row";
 import ExcelUploadCard from "./ExcelUploadCard";
 import PortfolioParsePreview from "./PortfolioParsePreview";
 import HoldingsTable from "./HoldingsTable";
@@ -47,6 +48,13 @@ function snapshotToResult(s: PortfolioSnapshot): ParseResult {
 }
 
 function resultToSnapshot(r: ParseResult, holdings: Holding[]): PortfolioSnapshot {
+  const cleanHoldings = filterAggregateHoldings(holdings);
+  const investmentPrincipalKRW = cleanHoldings.reduce((sum, h) => sum + h.principalKRW, 0);
+  const investmentValueKRW = cleanHoldings.reduce((sum, h) => sum + h.valueKRW, 0);
+  const returnAmountKRW = investmentValueKRW - investmentPrincipalKRW;
+  const returnPct =
+    investmentPrincipalKRW > 0 ? (returnAmountKRW / investmentPrincipalKRW) * 100 : 0;
+
   return {
     id: `snap-${r.snapshotDate}-${Date.now().toString(36)}`,
     snapshotDate: r.snapshotDate,
@@ -54,11 +62,11 @@ function resultToSnapshot(r: ParseResult, holdings: Holding[]): PortfolioSnapsho
     totalAssetKRW: r.totalAssetKRW,
     totalDebtKRW: r.totalDebtKRW,
     netAssetKRW: r.netAssetKRW,
-    investmentPrincipalKRW: r.investmentPrincipalKRW,
-    investmentValueKRW: r.investmentValueKRW,
-    returnAmountKRW: r.returnAmountKRW,
-    returnPct: r.returnPct,
-    holdings,
+    investmentPrincipalKRW,
+    investmentValueKRW,
+    returnAmountKRW,
+    returnPct,
+    holdings: cleanHoldings,
     financeAssets: r.financeAssets,
     createdAt: new Date().toISOString(),
     metadata: {
@@ -81,10 +89,24 @@ export default function PortfolioPage() {
   const [selected, setSelected] = useState<Record<string, boolean>>({});
 
   const applyResult = (r: ParseResult) => {
-    setResult(r);
-    setHoldings(r.holdings);
+    const cleanHoldings = filterAggregateHoldings(r.holdings);
+    const investmentPrincipalKRW = cleanHoldings.reduce((sum, h) => sum + h.principalKRW, 0);
+    const investmentValueKRW = cleanHoldings.reduce((sum, h) => sum + h.valueKRW, 0);
+    const returnAmountKRW = investmentValueKRW - investmentPrincipalKRW;
+    const returnPct =
+      investmentPrincipalKRW > 0 ? (returnAmountKRW / investmentPrincipalKRW) * 100 : 0;
+
+    setResult({
+      ...r,
+      holdings: cleanHoldings,
+      investmentPrincipalKRW,
+      investmentValueKRW,
+      returnAmountKRW,
+      returnPct,
+    });
+    setHoldings(cleanHoldings);
     const sel: Record<string, boolean> = {};
-    r.holdings.forEach((h) => (sel[h.id] = true));
+    cleanHoldings.forEach((h) => (sel[h.id] = true));
     setSelected(sel);
   };
 
@@ -126,7 +148,7 @@ export default function PortfolioPage() {
 
   const handleRegister = () => {
     if (!result || !result.ok) return;
-    const chosen = holdings.filter((h) => selected[h.id] ?? true);
+    const chosen = filterAggregateHoldings(holdings.filter((h) => selected[h.id] ?? true));
     const snap = resultToSnapshot(result, chosen);
     if (hasSnapshotDate(snap.snapshotDate)) {
       const ok = window.confirm(
