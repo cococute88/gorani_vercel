@@ -6,10 +6,11 @@ import TopNav from "@/components/TopNav";
 import MiniTickerCard from "@/components/MiniTickerCard";
 import PortfolioSummary from "@/components/PortfolioSummary";
 import DonutChartCard from "@/components/DonutChartCard";
-import MonthlyIncomeChart from "@/components/MonthlyIncomeChart";
 import WatchlistRow from "@/components/WatchlistRow";
 import AssetAccountCards from "@/components/AssetAccountCards";
 import TreemapMock from "@/components/TreemapMock";
+import QldAccountBarChart from "@/components/qld/QldAccountBarChart";
+import QldValueFxChart from "@/components/qld/QldValueFxChart";
 import {
   PIN_TICKERS,
   PERIOD_BUTTONS,
@@ -92,28 +93,32 @@ export default function PortfolioPage() {
           />
         </section>
 
-        {/* 월별 소득 */}
-        <section className="mb-6">
-          <MonthlyIncomeChart theme="dark" />
+        {/* 하단 주요 대시보드: 계좌별 평가금액 / 총 평가금액 및 환율 추이 / 핀 차트 */}
+        <section className="mb-6 grid min-w-0 grid-cols-1 gap-4 overflow-x-hidden xl:grid-cols-[minmax(0,1.05fr)_minmax(0,1.55fr)_minmax(300px,0.95fr)]">
+          <div className="min-w-0">
+            <QldAccountBarChart compact />
+          </div>
+          <div className="min-w-0">
+            <QldValueFxChart compact />
+          </div>
+          <div className="min-w-0 rounded-[18px] border border-[#242938] bg-[#12151e] p-3">
+            <h2 className="mb-2 text-[13px] font-bold text-slate-100">
+              📌 핀 차트
+            </h2>
+            <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+              {PIN_TICKERS.map((t) => (
+                <MiniTickerCard key={t.name} ticker={t} theme="dark" />
+              ))}
+            </div>
+          </div>
         </section>
 
-        {/* 하단 영역: 트리맵은 본문 폭을 사용하고, 나머지 위젯은 아래에 배치 */}
+        {/* 기존 하단 콘텐츠 */}
         <section className="grid min-w-0 grid-cols-1 gap-5 overflow-x-hidden">
           <div className="min-w-0 w-full max-w-full">
             <TreemapMock />
           </div>
           <div className="flex min-w-0 flex-col gap-5">
-            {/* 핀 차트 */}
-            <div>
-              <h2 className="mb-3 text-[15px] font-bold text-slate-300">
-                📌 핀 차트
-              </h2>
-              <div className="flex gap-2.5 overflow-x-auto pb-1 no-scrollbar">
-                {PIN_TICKERS.map((t) => (
-                  <MiniTickerCard key={t.name} ticker={t} theme="dark" />
-                ))}
-              </div>
-            </div>
             <WatchlistRow theme="dark" />
             <div>
               <h2 className="mb-3 text-[15px] font-bold text-slate-300">

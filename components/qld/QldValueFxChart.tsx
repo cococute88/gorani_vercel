@@ -57,7 +57,7 @@ function ChartTooltip({ active, payload, label }: TooltipProps<number, string>) 
 }
 
 // 스크린샷 1 오른쪽 카드: 평가금액 area/line + 환율 line 복합 차트 + 기간 버튼 + annotation + 요약
-export default function QldValueFxChart() {
+export default function QldValueFxChart({ compact = false }: { compact?: boolean } = {}) {
   const [period, setPeriod] = useState<string>("1일");
   const data = QLD_VALUE_FX_SERIES;
   const s = QLD_SUMMARY;
@@ -79,8 +79,8 @@ export default function QldValueFxChart() {
   ];
 
   return (
-    <div className="flex h-full flex-col rounded-[18px] border border-[#242938] bg-[#12151e] p-5">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+    <div className={`flex h-full flex-col rounded-[18px] border border-[#242938] bg-[#12151e] ${compact ? "p-3" : "p-5"}`}>
+      <div className={`${compact ? "mb-2" : "mb-3"} flex flex-wrap items-center justify-between gap-2`}>
         <span className="text-[15px] font-bold text-slate-100">총 평가금액 및 환율 추이</span>
         <div className="flex flex-wrap items-center gap-1 rounded-lg bg-[#0c0e16] p-1">
           {QLD_PERIOD_BUTTONS.map((p) => {
@@ -92,7 +92,7 @@ export default function QldValueFxChart() {
               <button
                 key={p}
                 onClick={() => setPeriod(p)}
-                className={`rounded-md px-2 py-1 text-[11.5px] font-medium transition-colors ${btnCls}`}
+                className={`rounded-md ${compact ? "px-1.5 py-0.5 text-[10.5px]" : "px-2 py-1 text-[11.5px]"} font-medium transition-colors ${btnCls}`}
               >
                 {p}
               </button>
@@ -101,7 +101,7 @@ export default function QldValueFxChart() {
         </div>
       </div>
 
-      <div className="h-[300px] w-full">
+      <div className={`${compact ? "h-[210px]" : "h-[300px]"} w-full`}>
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={data} margin={chartMargin}>
             <defs>
@@ -176,14 +176,14 @@ export default function QldValueFxChart() {
         </ResponsiveContainer>
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+      <div className={`${compact ? "mt-2" : "mt-4"} grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5`}>
         {summaryCards.map((c) => {
           const toneCls =
             c.tone === "up" ? "text-emerald-400" : c.tone === "down" ? "text-rose-400" : "text-slate-100";
           return (
-            <div key={c.label} className="rounded-xl border border-[#1f2433] bg-[#0e111a] px-3 py-2.5">
+            <div key={c.label} className={`rounded-xl border border-[#1f2433] bg-[#0e111a] ${compact ? "px-2 py-1.5" : "px-3 py-2.5"}`}>
               <div className="text-[11px] text-slate-500">{c.label}</div>
-              <div className={`num mt-0.5 text-[14px] font-bold ${toneCls}`}>{c.value}</div>
+              <div className={`num mt-0.5 ${compact ? "text-[12px]" : "text-[14px]"} font-bold ${toneCls}`}>{c.value}</div>
               {c.sub && <div className="num mt-0.5 truncate text-[10px] text-slate-600">{c.sub}</div>}
             </div>
           );

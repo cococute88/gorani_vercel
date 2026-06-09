@@ -129,6 +129,18 @@ export const PORTFOLIO_SUMMARY_DARK = {
   nonTaxable: 12078389,
   taxLimitRemaining: 2412332,
   taxLimitUsedRate: 88,
+  annualDividendWithdrawalEstimates: [
+    { name: "SCHD 절세(ISA) 인출 예상", value: 29666057 },
+    { name: "VOO 절세(연금) 인출 예상", value: 19920000 },
+  ],
+  schdGoal: {
+    target: 10000000,
+    achieved: 7630995,
+  },
+  stockCashTargets: [
+    { name: "주식", current: 64.3, target: 60 },
+    { name: "현금", current: 35.7, target: 40 },
+  ],
   cumPrincipal: 624000000,
   cumPerformance: 337000000,
   cumReturnRate: 53.99,

@@ -48,15 +48,15 @@ function AccountTooltip({ active, payload, label }: TooltipProps<number, string>
 const fmtXAxis = (v: number) => `${Math.round(v / 100_000_000)}억`;
 
 // 스크린샷 2: 계좌별 평가금액 (종목별 색상 stacked horizontal bar) + 종목 legend chip
-export default function QldAccountBarChart() {
+export default function QldAccountBarChart({ compact = false }: { compact?: boolean } = {}) {
   const keys = QLD_ACCOUNT_STACK_KEYS;
   const lastKey = keys[keys.length - 1].key;
 
   return (
-    <div className="flex h-full flex-col rounded-[18px] border border-[#242938] bg-[#12151e] p-5">
-      <div className="mb-3 text-[15px] font-bold text-slate-100">계좌별 평가금액</div>
+    <div className={`flex h-full flex-col rounded-[18px] border border-[#242938] bg-[#12151e] ${compact ? "p-3" : "p-5"}`}>
+      <div className={`${compact ? "mb-2 text-[13px]" : "mb-3 text-[15px]"} font-bold text-slate-100`}>계좌별 평가금액</div>
 
-      <div className="h-[300px] w-full">
+      <div className={`${compact ? "h-[210px]" : "h-[300px]"} w-full`}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={QLD_ACCOUNT_ROWS} layout="vertical" margin={chartMargin} barCategoryGap={6}>
             <CartesianGrid strokeDasharray="3 3" stroke="#1c2233" horizontal={false} />
@@ -94,13 +94,13 @@ export default function QldAccountBarChart() {
         </ResponsiveContainer>
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-1.5">
+      <div className={`${compact ? "mt-2 gap-1" : "mt-4 gap-1.5"} flex flex-wrap`}>
         {keys.map((k) => {
           const dot = { backgroundColor: k.color };
           return (
             <span
               key={k.key}
-              className="inline-flex items-center gap-1.5 rounded-full border border-[#242938] bg-[#0e111a] px-2.5 py-1 text-[11px] text-slate-300"
+              className={`inline-flex items-center gap-1.5 rounded-full border border-[#242938] bg-[#0e111a] ${compact ? "px-2 py-0.5 text-[10px]" : "px-2.5 py-1 text-[11px]"} text-slate-300`}
             >
               <span className="h-2 w-2 rounded-full" style={dot} />
               <span className="font-semibold text-slate-200">{k.label}</span>

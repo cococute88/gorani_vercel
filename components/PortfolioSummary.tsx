@@ -80,7 +80,9 @@ function TagTargetRow({
 function DarkSummary() {
   const d = PORTFOLIO_SUMMARY_DARK;
   const upStyle = { color: UP };
-  const barStyle = { width: `${d.taxLimitUsedRate}%` };
+  const schdGoal = d.schdGoal;
+  const schdRate = Math.min((schdGoal.achieved / schdGoal.target) * 100, 100);
+  const schdRemaining = Math.max(schdGoal.target - schdGoal.achieved, 0);
   const principalEok = (d.cumPrincipal / 100000000).toFixed(2);
   const label = "text-[11px] text-slate-500";
   const big = "num font-extrabold text-white";
@@ -115,9 +117,9 @@ function DarkSummary() {
             </span>
           </div>
 
-          {/* 2) 연간 소득 */}
+          {/* 2) 연간 배당소득 */}
           <div className="flex flex-col xl:px-5">
-            <span className={label}>연간 소득 (배당+임대)</span>
+            <span className={label}>연간 배당소득(예상)</span>
             <span className={`${big} mt-1 text-[19px]`}>
               {formatWon(d.annualIncome)}
             </span>
@@ -133,65 +135,52 @@ function DarkSummary() {
                 </span>
               </span>
             </div>
-            <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[10.5px] text-slate-500">
-              <span>
-                월소득{" "}
-                <span className="num text-slate-300">
-                  {formatWon(d.monthlyIncome)}
-                </span>
-              </span>
-              <span>
-                월배당{" "}
-                <span className="num text-slate-300">
-                  {formatWon(d.monthlyDividend)}
-                </span>
-              </span>
-              <span>
-                년배당{" "}
-                <span className="num text-slate-300">
-                  {formatWon(d.yearlyDividend)}
-                </span>
-              </span>
-              <span>
-                임대료{" "}
-                <span className="num text-slate-300">
-                  {formatWon(d.rentIncome)}
-                </span>
-              </span>
+            <div className="mt-2 space-y-1 text-[10.5px] text-slate-500">
+              {d.annualDividendWithdrawalEstimates.map((item) => (
+                <div key={item.name} className="flex justify-between gap-3">
+                  <span>{item.name}</span>
+                  <span className="num text-slate-300">
+                    {formatWon(item.value)}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
 
-          {/* 3) 과세 / 비과세 */}
+          {/* 3) SCHD 목표 달성률 */}
           <div className="flex flex-col xl:px-5">
-            <span className={label}>과세 / 비과세</span>
-            <div className="mt-1 flex gap-4">
-              <div>
-                <div className="text-[10.5px] text-slate-500">과세</div>
-                <div className="num text-[15px] font-bold text-white">
-                  {formatWon(d.taxable)}
-                </div>
-              </div>
-              <div>
-                <div className="text-[10.5px] text-slate-500">비과세</div>
-                <div className="num text-[15px] font-bold text-emerald-400">
-                  {formatWon(d.nonTaxable)}
-                </div>
-              </div>
+            <span className={label}>SCHD 목표 달성률</span>
+            <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1 text-[10.5px] text-slate-500">
+              <span>
+                목표 금액
+                <span className="num mt-0.5 block text-[14px] font-bold text-white">
+                  {formatWon(schdGoal.target)}
+                </span>
+              </span>
+              <span>
+                달성 금액
+                <span className="num mt-0.5 block text-[14px] font-bold text-emerald-400">
+                  {formatWon(schdGoal.achieved)}
+                </span>
+              </span>
             </div>
             <div className="mt-2">
-              <div className="mb-1 text-[10.5px] text-slate-500">
-                종합과세 한도 (₩ 20,000,000)
+              <div className="mb-1 flex justify-between text-[10.5px] text-slate-500">
+                <span>달성률</span>
+                <span className="num font-semibold text-orange-400">
+                  {schdRate.toFixed(1)}%
+                </span>
               </div>
               <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#2a3336]">
                 <div
                   className="h-full rounded-full bg-orange-500"
-                  style={barStyle}
+                  style={{ width: `${schdRate}%` }}
                 />
               </div>
               <div className="mt-1 text-[10.5px] text-slate-500">
-                잔여{" "}
+                잔여 금액{" "}
                 <span className="num text-slate-300">
-                  {formatWon(d.taxLimitRemaining)}
+                  {formatWon(schdRemaining)}
                 </span>
               </div>
             </div>
@@ -224,25 +213,25 @@ function DarkSummary() {
         </div>
       </div>
 
-      {/* 오른쪽 태그 목표 비율 카드 */}
+      {/* 오른쪽 주식 현금 비중 카드 */}
       <div className="w-full rounded-2xl border border-[#2a3336] bg-[#191f20] p-4 xl:w-[230px]">
         <div className="mb-3 flex items-center justify-between">
           <span className="text-[12px] font-bold text-slate-200">
-            태그 목표 비율
+            주식 현금 비중
           </span>
-          <span className="text-[10.5px] text-slate-500">배당 / 성장</span>
+          <span className="text-[10.5px] text-slate-500">주식 / 현금</span>
         </div>
         <TagTargetRow
-          name="배당"
-          current={d.tagTargets[0].current}
-          target={d.tagTargets[0].target}
+          name={d.stockCashTargets[0].name}
+          current={d.stockCashTargets[0].current}
+          target={d.stockCashTargets[0].target}
           color="#3b82f6"
         />
         <div className="mt-3">
           <TagTargetRow
-            name="성장"
-            current={d.tagTargets[1].current}
-            target={d.tagTargets[1].target}
+            name={d.stockCashTargets[1].name}
+            current={d.stockCashTargets[1].current}
+            target={d.stockCashTargets[1].target}
             color="#f59e0b"
           />
         </div>
