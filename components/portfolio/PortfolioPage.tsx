@@ -1,13 +1,17 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import TopNav from "@/components/TopNav";
+import StorageModeBadge from "@/components/common/StorageModeBadge";
 import {
   usePortfolioSnapshots,
   saveSnapshot,
   deleteSnapshot,
   hasSnapshotDate,
+  replaceSnapshots,
 } from "@/lib/portfolio-store";
+import { useFirebaseAuth } from "@/lib/firebase/auth";
+import { deletePortfolioSnapshot, loadPortfolioSnapshots, savePortfolioSnapshot, warnFirestoreFallback } from "@/lib/firebase/firestore-repositories";
 import { parseBanksaladFile } from "@/lib/banksalad-parser";
 import type { ParseResult } from "@/lib/banksalad-parser";
 import { MOCK_LATEST_SNAPSHOT } from "@/lib/mock-portfolio-data";
@@ -78,6 +82,7 @@ function resultToSnapshot(r: ParseResult, holdings: Holding[]): PortfolioSnapsho
 
 export default function PortfolioPage() {
   const snapshots = usePortfolioSnapshots();
+  const { user, configured } = useFirebaseAuth();
 
   const [files, setFiles] = useState<File[]>([]);
   const [parsing, setParsing] = useState(false);
@@ -143,7 +148,16 @@ export default function PortfolioPage() {
 
   const handleLoadMock = () => applyResult(snapshotToResult(MOCK_LATEST_SNAPSHOT));
 
-  const handleRegister = () => {
+  useEffect(() => {
+    if (!user) return;
+    loadPortfolioSnapshots(user.uid)
+      .then((cloudSnapshots) => {
+        if (cloudSnapshots.length > 0) replaceSnapshots(cloudSnapshots);
+      })
+      .catch((err) => warnFirestoreFallback("portfolioSnapshots.load", err));
+  }, [user]);
+
+  const handleRegister = async () => {
     if (!result || !result.ok) return;
     const chosen = filterAggregateHoldings(holdings.filter((h) => selected[h.id] ?? true));
     const snap = resultToSnapshot(result, chosen);
@@ -154,6 +168,20 @@ export default function PortfolioPage() {
       if (!ok) return;
     }
     saveSnapshot(snap);
+    if (user) {
+      await savePortfolioSnapshot(user.uid, snap).catch((err) =>
+        warnFirestoreFallback("portfolioSnapshots.save", err),
+      );
+    }
+  };
+
+  const handleDeleteSnapshot = async (id: string) => {
+    deleteSnapshot(id);
+    if (user) {
+      await deletePortfolioSnapshot(user.uid, id).catch((err) =>
+        warnFirestoreFallback("portfolioSnapshots.delete", err),
+      );
+    }
   };
 
   const onToggle = (id: string) =>
@@ -167,7 +195,17 @@ export default function PortfolioPage() {
     <div className="min-h-screen bg-[#111516] text-slate-200">
       <TopNav theme="dark" />
       <main className="mx-auto max-w-[1640px] px-8 py-6">
-        <h1 className="mb-4 text-[20px] font-extrabold text-white">포트폴리오 관리</h1>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-[20px] font-extrabold text-white">포트폴리오 관리</h1>
+          <StorageModeBadge />
+        </div>
+        <p className="mb-4 rounded-2xl border border-[#273032] bg-[#171d1e] px-4 py-3 text-[13px] text-slate-400">
+          {user
+            ? "로그인 상태에서는 Firestore에 저장돼요."
+            : configured
+              ? "로그아웃 상태에서는 이 브라우저에만 임시 저장돼요."
+              : "Firebase 설정이 없어 로컬 미리보기 모드로 동작합니다."}
+        </p>
 
         <section className="mb-6 grid grid-cols-1 gap-5 xl:grid-cols-2">
           <ExcelUploadCard
@@ -205,7 +243,7 @@ export default function PortfolioPage() {
         </section>
 
         <section className="mb-6">
-          <SnapshotHistory snapshots={snapshots} onDelete={deleteSnapshot} />
+          <SnapshotHistory snapshots={snapshots} onDelete={handleDeleteSnapshot} />
         </section>
 
         <section className="mb-6">

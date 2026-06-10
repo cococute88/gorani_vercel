@@ -126,6 +126,11 @@ export function deleteSnapshot(id: string): void {
   write(read().filter((s) => s.id !== id));
 }
 
+/** Firestore 등 외부 저장소에서 읽은 스냅샷으로 현재 캐시를 교체한다. */
+export function replaceSnapshots(snapshots: PortfolioSnapshot[]): void {
+  write(sanitizeSnapshots(snapshots));
+}
+
 /** 전체 삭제. */
 export function clearSnapshots(): void {
   write([]);
