@@ -10,7 +10,6 @@ import CalendarGrid from "./CalendarGrid";
 import CalendarEventDialog from "./CalendarEventDialog";
 import CalendarEventList from "./CalendarEventList";
 import DividendSchedulePreview from "./DividendSchedulePreview";
-import FavoritesPanel from "./FavoritesPanel";
 import PortfolioSelectorMock from "./PortfolioSelectorMock";
 import SelectedDateList from "./SelectedDateList";
 import TaxSavingTable from "./TaxSavingTable";
@@ -82,40 +81,24 @@ export default function DividendCalendarPage({ tickers, tickerManager }: Props) 
       </section>
 
       <section className="mb-5 grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
-        <div className="space-y-5 xl:contents">
-          <div className="xl:order-1">
-            <CalendarGrid
-              month={month}
-              events={filteredEvents}
-              selectedDate={selectedDate}
-              todayIso={todayIso}
-              onSelectDate={setSelectedDate}
-              onOpenEvent={setActiveEvent}
-              onPrevMonth={() => moveMonth(-1)}
-              onNextMonth={() => moveMonth(1)}
-              onToday={goToday}
-            />
-          </div>
+        <div className="space-y-5">
+          <CalendarGrid
+            month={month}
+            events={filteredEvents}
+            selectedDate={selectedDate}
+            todayIso={todayIso}
+            onSelectDate={setSelectedDate}
+            onOpenEvent={setActiveEvent}
+            onPrevMonth={() => moveMonth(-1)}
+            onNextMonth={() => moveMonth(1)}
+            onToday={goToday}
+          />
+          <SelectedDateList selectedDate={selectedDate} events={selectedEvents} todayIso={todayIso} onOpenEvent={setActiveEvent} />
         </div>
-        <aside className="space-y-5 xl:order-2">
-          <div className="xl:hidden">
-            <CalendarEventList title="이번 달 주요 일정" events={keyEvents} todayIso={todayIso} onOpenEvent={setActiveEvent} />
-          </div>
-          <div className="hidden xl:block">
-            <TaxSavingTable rows={taxRows} />
-          </div>
-          <div className="hidden xl:block">
-            <CalendarEventList title="이번 달 주요 일정" events={keyEvents} todayIso={todayIso} onOpenEvent={setActiveEvent} />
-          </div>
-          <FavoritesPanel events={events} />
-        </aside>
-      </section>
-
-      <section className="mb-5 grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
-        <SelectedDateList selectedDate={selectedDate} events={selectedEvents} todayIso={todayIso} onOpenEvent={setActiveEvent} />
-        <div className="xl:hidden">
+        <aside className="space-y-5">
           <TaxSavingTable rows={taxRows} />
-        </div>
+          <CalendarEventList title="이번 달 주요 일정" events={keyEvents} todayIso={todayIso} onOpenEvent={setActiveEvent} />
+        </aside>
       </section>
 
       <section className="mb-5">

@@ -118,7 +118,7 @@ export default function PortfolioPage() {
         </section>
 
         {/* 배당 / 성장 트리맵 + 계좌현황 */}
-        <section className="grid min-w-0 grid-cols-1 gap-5 overflow-x-hidden xl:grid-cols-[minmax(0,1.65fr)_minmax(320px,0.75fr)]">
+        <section className="grid min-w-0 grid-cols-1 gap-5 overflow-x-hidden xl:grid-cols-[minmax(0,3fr)_minmax(320px,2fr)]">
           <div className="min-w-0 w-full max-w-full">
             <TreemapMock />
           </div>
