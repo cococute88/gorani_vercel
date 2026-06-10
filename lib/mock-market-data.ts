@@ -1,7 +1,7 @@
 // =============================================================
 // 시장현황 목업 데이터 (raw mock).
 // market-data.ts 어댑터가 이 파일을 읽어 공급한다.
-// TODO(codex): 서버 API route(CNN Fear&Greed, 지수/환율/원자재, yfinance RSI) 연결 시 교체.
+// Preview 화면 검증용 고정 데이터이며 외부 데이터 호출 없이 사용한다.
 // =============================================================
 
 export type MarketRange = "6개월" | "1년" | "3년" | "5년" | "전체";
@@ -129,3 +129,30 @@ export function buildVixSeries(range: MarketRange): SeriesPoint[] {
 }
 
 export const TEMPERATURE_TICKERS = TEMP_TICKERS;
+
+export const MARKET_TEMPERATURE_SUMMARY = {
+  score: 62,
+  status: "보통",
+  description: "위험 선호가 과열은 아니지만 RSI와 변동성은 함께 확인해야 하는 중립 구간입니다.",
+  bands: ["매우 차가움", "차가움", "보통", "뜨거움", "매우 뜨거움"],
+};
+
+export const MARKET_RISK_CARDS = [
+  { label: "QQQ RSI", value: "58", sub: "중립 상단", tone: "blue" as const },
+  { label: "SCHD RSI", value: "47", sub: "중립", tone: "gray" as const },
+  { label: "SPY RSI", value: "55", sub: "중립", tone: "green" as const },
+  { label: "VIX", value: "14.2", sub: "낮은 변동성", tone: "orange" as const },
+];
+
+export const MARKET_RSI_TREND = [
+  { date: "T-10", QQQ: 44, SCHD: 42, SPY: 46 },
+  { date: "T-9", QQQ: 47, SCHD: 44, SPY: 48 },
+  { date: "T-8", QQQ: 51, SCHD: 45, SPY: 50 },
+  { date: "T-7", QQQ: 54, SCHD: 47, SPY: 52 },
+  { date: "T-6", QQQ: 56, SCHD: 48, SPY: 53 },
+  { date: "T-5", QQQ: 61, SCHD: 50, SPY: 56 },
+  { date: "T-4", QQQ: 63, SCHD: 49, SPY: 58 },
+  { date: "T-3", QQQ: 59, SCHD: 46, SPY: 55 },
+  { date: "T-2", QQQ: 57, SCHD: 48, SPY: 54 },
+  { date: "T-1", QQQ: 58, SCHD: 47, SPY: 55 },
+];
