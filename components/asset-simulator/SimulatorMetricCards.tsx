@@ -1,17 +1,17 @@
 import MetricCard from "@/components/MetricCard";
 import type { SimulatorSummary } from "@/lib/asset-simulator-types";
-import { formatKoreanMoney } from "@/lib/format";
+import { formatManwonMoney } from "@/lib/format";
 
 type Props = { summary: SimulatorSummary };
 
 export default function SimulatorMetricCards({ summary }: Props) {
   const cards = [
-    { label: "최종 명목 자산", value: formatKoreanMoney(summary.finalNominalAssets), sub: "Preview nominal", tone: "blue" as const },
-    { label: "최종 실질 자산", value: formatKoreanMoney(summary.finalRealAssets), sub: "물가 반영", tone: "green" as const },
-    { label: "은퇴 예상 연도", value: `${summary.expectedRetirementYear}년`, sub: "8년 적립 + 지연", tone: "orange" as const },
-    { label: "월 예상 인출액", value: formatKoreanMoney(summary.monthlyWithdrawal), sub: "첫 인출 연도 기준", tone: "gray" as const },
-    { label: "총 적립액", value: formatKoreanMoney(summary.totalContribution), sub: "계획표 합산", tone: "green" as const },
-    { label: "총 인출액", value: formatKoreanMoney(summary.totalWithdrawal), sub: "Preview 합산", tone: "orange" as const },
+    { label: "최종 명목 잔고(인출X)", value: formatManwonMoney(summary.finalNominalWithoutWithdrawal), sub: "절세계좌 기준", tone: "blue" as const },
+    { label: "최종 실질 잔고(인출X)", value: formatManwonMoney(summary.finalRealWithoutWithdrawal), sub: "물가 반영", tone: "green" as const },
+    { label: "합산 명목 잔고(절세+배당위탁)", value: formatManwonMoney(summary.combinedNominalBalance), sub: "절세계좌 + 위탁", tone: "orange" as const },
+    { label: "합산 실질 잔고(절세+배당위탁)", value: formatManwonMoney(summary.combinedRealBalance), sub: "물가 반영", tone: "green" as const },
+    { label: "은퇴년도", value: `${summary.retirementYear}년`, sub: "계획표 기준", tone: "gray" as const },
+    { label: "연금저축 한도", value: formatManwonMoney(summary.pensionLimit), sub: "연간 납입 한도", tone: "blue" as const },
   ];
 
   return (
