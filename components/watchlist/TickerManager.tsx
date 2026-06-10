@@ -16,7 +16,7 @@ interface Props {
 
 const card = "rounded-2xl border border-[#2a3336] bg-[#191f20] p-5";
 
-// 워치리스트/포트폴리오 선택 + 티커 관리 카드
+// 배당캘린더/포트폴리오 선택 + 티커 관리 카드
 export default function TickerManager({
   tickers,
   portfolioName,
@@ -39,7 +39,7 @@ export default function TickerManager({
   return (
     <div className={card}>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-[15px] font-bold text-slate-300">워치리스트</h2>
+        <h2 className="text-[15px] font-bold text-slate-300">배당캘린더</h2>
         {fromPortfolio && (
           <span className="rounded-md bg-emerald-500/10 px-2 py-0.5 text-[11.5px] text-emerald-400">
             포트폴리오 보유종목 연동됨
@@ -49,7 +49,7 @@ export default function TickerManager({
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <label className="block">
-          <span className="text-[12.5px] text-slate-400">포트폴리오 / 워치리스트명</span>
+          <span className="text-[12.5px] text-slate-400">포트폴리오 / 배당캘린더명</span>
           <select
             value={portfolioName}
             onChange={(e) => onSelectPortfolio(e.target.value)}
@@ -60,7 +60,7 @@ export default function TickerManager({
                 {p}
               </option>
             ))}
-            <option value="__new__">+ 새 워치리스트 생성</option>
+            <option value="__new__">+ 새 캘린더 생성</option>
           </select>
         </label>
 

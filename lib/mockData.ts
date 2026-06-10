@@ -9,10 +9,8 @@ export const NAV_ITEMS: NavItem[] = [
   { icon: "📋", label: "전체 종목", href: "/portfolio" },
   { icon: "💰", label: "배당", href: "/dividends" },
   { icon: "📈", label: "투자 성과", href: "/performance" },
-  { icon: "🚀", label: "QLD 대시보드", href: "/qld-dashboard" },
-  { icon: "⭐", label: "워치리스트", href: "/watchlist" },
+  { icon: "🗓️", label: "배당캘린더", href: "/watchlist" },
   { icon: "🧙", label: "시장 현황", href: "/market" },
-  { icon: "🗺️", label: "자산 맵", href: "/asset-map" },
   { icon: "⚙️", label: "포트폴리오 관리", href: "/portfolio-manager" },
 ];
 

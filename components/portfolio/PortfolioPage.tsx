@@ -19,9 +19,6 @@ import HoldingsTable from "./HoldingsTable";
 import AssetTable from "./AssetTable";
 import SnapshotHistory from "./SnapshotHistory";
 import PortfolioPerformanceChart from "./PortfolioPerformanceChart";
-import QldAssetSummaryCard from "@/components/qld/QldAssetSummaryCard";
-import QldValueFxChart from "@/components/qld/QldValueFxChart";
-import QldHoldingsRankTable from "@/components/qld/QldHoldingsRankTable";
 
 function snapshotToResult(s: PortfolioSnapshot): ParseResult {
   return {
@@ -215,21 +212,6 @@ export default function PortfolioPage() {
           <PortfolioPerformanceChart snapshots={snapshots} />
         </section>
 
-        <section className="mt-8 border-t border-[#242938] pt-6">
-          <div className="mb-4">
-            <h2 className="text-[18px] font-extrabold text-white">QLD 평가 대시보드</h2>
-            <p className="mt-1 text-[12.5px] text-slate-500">
-              QLD 대시보드에서 사용하던 총 평가금액, 환율 추이, 종목 랭킹을 관리 화면 하단에서 확인합니다.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
-            <QldAssetSummaryCard />
-            <QldValueFxChart />
-          </div>
-          <div className="mt-4">
-            <QldHoldingsRankTable />
-          </div>
-        </section>
       </main>
     </div>
   );

@@ -31,6 +31,7 @@ import MarketTemperatureTable from "./MarketTemperatureTable";
 import RsiDrawdownChart from "./RsiDrawdownChart";
 import VixChart from "./VixChart";
 import TradingViewTreemap from "./TradingViewTreemap";
+import AssetMapSection from "./AssetMapSection";
 
 export default function MarketPage() {
   const [range, setRange] = useState<MarketRange>("1년");
@@ -96,6 +97,7 @@ export default function MarketPage() {
         <RsiDrawdownChart rsi={rsi} drawdown={drawdown} />
         <VixChart data={vix} />
         <TradingViewTreemap />
+        <AssetMapSection />
       </main>
     </div>
   );
