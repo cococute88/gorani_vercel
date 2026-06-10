@@ -38,15 +38,3 @@ export function formatEok(value: number, digits = 2): string {
   const sign = value > 0 ? "+" : value < 0 ? "-" : "";
   return `${sign}${(Math.abs(value) / 100000000).toFixed(digits)}\uc5b5`;
 }
-
-
-// 만원 단위 금액 표시 (예: 12345 -> 1억 2,345만원)
-export function formatManwonMoney(value: number): string {
-  const sign = value < 0 ? "-" : "";
-  const safe = Math.round(Math.abs(value));
-  const eok = Math.floor(safe / 10000);
-  const man = safe % 10000;
-  if (eok > 0 && man > 0) return `${sign}${eok.toLocaleString("ko-KR")}억 ${man.toLocaleString("ko-KR")}만원`;
-  if (eok > 0) return `${sign}${eok.toLocaleString("ko-KR")}억원`;
-  return `${sign}${man.toLocaleString("ko-KR")}만원`;
-}

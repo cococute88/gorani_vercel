@@ -1,109 +1,56 @@
-export type SimConfig = {
+export type SimulatorInputs = {
   startYear: number;
   years: number;
-  annualReturnRate: number;
-  inflationRate: number;
   initialIsa: number;
   initialPension: number;
-  reserveCash: number;
-  initialTaxableDividend: number;
+  initialTaxable: number;
+  annualReturnRate: number;
+  inflationRate: number;
   withdrawalRate: number;
   withdrawalGrowthRate: number;
   withdrawalDelayYears: number;
 };
 
-export type SimulatorInputs = SimConfig;
-
-export type YearPlan = {
+export type YearPlanRow = {
   year: number;
   monthlyContribution: number;
-  isaContribution: boolean;
-  pensionContribution: boolean;
-  isaToPensionTransfer: boolean;
-  status?: string;
-};
-
-export type YearPlanRow = YearPlan;
-
-export type YearResult = {
-  year: number;
-  status: string;
-  pensionContribution: number;
-  pensionBalance: number;
   isaContribution: number;
+  pensionContribution: number;
+  taxableContribution: number;
+  isaToPensionTransfer: number;
+  note: string;
+};
+
+export type SimulatorYearResult = {
+  year: number;
+  elapsedYear: number;
   isaBalance: number;
-  reserveUsed: number;
-  reserveBalance: number;
-  totalBalance: number;
-  nominalTaxSavingBalance: number;
-  realTaxSavingBalance: number;
+  pensionBalance: number;
+  taxableBalance: number;
+  nominalTotal: number;
+  realTotal: number;
+  annualContribution: number;
+  annualWithdrawal: number;
+  cashflow: number;
 };
-
-export type WithdrawRow = {
-  year: number;
-  category: string;
-  isaBalanceNominal: number;
-  pensionBalanceNominal: number;
-  monthlyNominal: number;
-  monthlyReal: number;
-};
-
-export type WithdrawPlan = {
-  rows: WithdrawRow[];
-  firstMonthlyWithdrawal: number;
-};
-
-export type TotalWithdrawRow = {
-  year: number;
-  taxSavingMonthlyNominal: number;
-  taxSavingMonthlyReal: number;
-  taxableMonthlyDividendNominal: number;
-  taxableMonthlyDividendReal: number;
-  totalMonthlyIncomeNominal: number;
-  totalMonthlyIncomeReal: number;
-};
-
-export type DividendBrokerageRow = {
-  year: number;
-  taxableDividendBalanceNominal: number;
-  taxableDividendBalanceReal: number;
-  afterTaxAnnualDividendNominal: number;
-  afterTaxAnnualDividendReal: number;
-  afterTaxMonthlyDividendNominal: number;
-  afterTaxMonthlyDividendReal: number;
-  totalMonthlyDividendNominal: number;
-  totalMonthlyDividendReal: number;
-};
-
-export type SimulatorChartRow = YearResult &
-  TotalWithdrawRow & {
-    taxableDividendBalanceNominal: number;
-    taxableDividendBalanceReal: number;
-    combinedNominalBalance: number;
-    combinedRealBalance: number;
-  };
 
 export type SimulatorSummary = {
-  finalNominalWithoutWithdrawal: number;
-  finalRealWithoutWithdrawal: number;
-  combinedNominalBalance: number;
-  combinedRealBalance: number;
-  retirementYear: number;
-  pensionLimit: number;
+  finalNominalAssets: number;
+  finalRealAssets: number;
+  expectedRetirementYear: number;
+  monthlyWithdrawal: number;
+  totalContribution: number;
+  totalWithdrawal: number;
 };
 
 export type SimulatorProjection = {
   inputs: SimulatorInputs;
   yearPlans: YearPlanRow[];
-  results: YearResult[];
-  chartRows: SimulatorChartRow[];
-  taxWithdrawRows: WithdrawRow[];
-  totalWithdrawRows: TotalWithdrawRow[];
-  dividendRows: DividendBrokerageRow[];
+  results: SimulatorYearResult[];
   summary: SimulatorSummary;
 };
 
 export type StoredSimulatorPreview = {
-  inputs: Partial<SimulatorInputs>;
+  inputs: SimulatorInputs;
   yearPlans: YearPlanRow[];
 };
