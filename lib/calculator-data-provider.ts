@@ -1,4 +1,4 @@
-import type { DividendPoint, PricePoint } from "@/lib/calculator-types";
+import type { DividendPoint, OhlcPoint, PricePoint } from "@/lib/calculator-types";
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
@@ -19,15 +19,20 @@ function formatDate(date: Date) {
 }
 
 export function getTickerHistory(ticker: string, start: string, end: string, basePrice?: number): PricePoint[] {
+  return getTickerOhlcHistory(ticker, start, end, basePrice).map(({ date, close }) => ({ date, close }));
+}
+
+export function getTickerOhlcHistory(ticker: string, start: string, end: string, basePrice?: number): OhlcPoint[] {
   const startDate = new Date(start);
   const endDate = new Date(end);
   if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime()) || startDate > endDate) return [];
 
   const seed = stableSeed(ticker.toUpperCase());
-  const points: PricePoint[] = [];
+  const points: OhlcPoint[] = [];
   const totalDays = Math.max(1, Math.ceil((endDate.getTime() - startDate.getTime()) / 86_400_000));
   const step = totalDays > 420 ? 7 : totalDays > 160 ? 3 : 1;
   const anchor = basePrice && basePrice > 0 ? basePrice : 60 + (seed % 90);
+  let previousClose = anchor;
 
   for (let day = 0; day <= totalDays; day += step) {
     const progress = day / totalDays;
@@ -35,14 +40,18 @@ export function getTickerHistory(ticker: string, start: string, end: string, bas
     const shorterCycle = Math.sin(progress * Math.PI * 13 + seed / 9) * 0.035;
     const trend = (progress - 0.45) * (((seed % 19) - 7) / 100);
     const shock = Math.sin(progress * Math.PI * 2 + 1.2) < -0.92 ? -0.08 : 0;
-    const close = anchor * (1 + cycle + shorterCycle + trend + shock);
-    points.push({ date: formatDate(addDays(startDate, day)), close: Number(Math.max(1, close).toFixed(2)) });
+    const close = Math.max(1, anchor * (1 + cycle + shorterCycle + trend + shock));
+    const open = Math.max(1, previousClose * (1 + Math.sin(day + seed) * 0.008));
+    const high = Math.max(open, close) * (1 + 0.006 + Math.abs(Math.sin(seed + day)) * 0.018);
+    const low = Math.min(open, close) * (1 - 0.006 - Math.abs(Math.cos(seed + day)) * 0.014);
+    points.push({ date: formatDate(addDays(startDate, day)), open: Number(open.toFixed(2)), high: Number(high.toFixed(2)), low: Number(low.toFixed(2)), close: Number(close.toFixed(2)) });
+    previousClose = close;
   }
 
   const finalDate = formatDate(endDate);
   if (points.at(-1)?.date !== finalDate) {
-    const previous = points.at(-1)?.close ?? anchor;
-    points.push({ date: finalDate, close: Number(previous.toFixed(2)) });
+    const previous = points.at(-1) ?? { open: anchor, high: anchor, low: anchor, close: anchor };
+    points.push({ date: finalDate, open: previous.close, high: previous.high, low: previous.low, close: previous.close });
   }
   return points;
 }
