@@ -6,6 +6,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { Lock, Bell } from "lucide-react";
 import { NAV_ITEMS } from "@/lib/mockData";
+import LoginButton from "@/components/auth/LoginButton";
 
 const MOBILE_PRIMARY_COUNT = 2;
 
@@ -77,9 +78,7 @@ export default function TopNav({ theme = "dark" }: Props) {
           <button className="flex h-8 w-8 items-center justify-center rounded-md text-slate-300 hover:bg-white/10">
             <Lock size={15} />
           </button>
-          <button className="hidden rounded-md bg-white/10 px-3 py-1.5 text-[13px] font-medium text-white hover:bg-white/20 sm:block">
-            관리
-          </button>
+          <LoginButton />
           <button className="relative flex h-8 w-8 items-center justify-center rounded-md text-slate-300 hover:bg-white/10">
             <Bell size={15} />
             <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-red-500" />

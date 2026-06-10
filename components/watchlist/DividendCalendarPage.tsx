@@ -1,10 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { formatIsoDate } from "@/lib/calendar-grid";
 import { DEFAULT_CALENDAR_FILTERS, buildMockCalendarEvents, buildTaxSavingRows } from "@/lib/mock-calendar-data";
 import type { CalendarEvent, CalendarEventType } from "@/lib/mock-calendar-data";
+import { useFirebaseAuth } from "@/lib/firebase/auth";
+import { loadCalendarEventMetas, saveCalendarEventMeta, warnFirestoreFallback, type CalendarEventMeta } from "@/lib/firebase/firestore-repositories";
 import { EVENT_VISUALS } from "@/lib/event-visuals";
 import CalendarGrid from "./CalendarGrid";
 import CalendarEventDialog from "./CalendarEventDialog";
@@ -19,17 +21,61 @@ interface Props {
   tickerManager: ReactNode;
 }
 
+const CALENDAR_EVENT_META_STORAGE_KEY = "gorani.dividend-calendar.event-meta.v1";
+
 const FILTER_ORDER: CalendarEventType[] = ["ex_div", "buy_by", "pay", "earnings"];
 
 export default function DividendCalendarPage({ tickers, tickerManager }: Props) {
+  const { user } = useFirebaseAuth();
   const today = new Date();
   const todayIso = formatIsoDate(today);
   const [month, setMonth] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
   const [selectedDate, setSelectedDate] = useState(todayIso);
   const [filters, setFilters] = useState<Record<CalendarEventType, boolean>>(DEFAULT_CALENDAR_FILTERS);
   const [activeEvent, setActiveEvent] = useState<CalendarEvent | null>(null);
+  const [eventMetas, setEventMetas] = useState<Record<string, CalendarEventMeta>>({});
 
-  const events = useMemo(() => buildMockCalendarEvents(month.getFullYear(), month.getMonth() + 1, tickers), [month, tickers]);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const stored = window.localStorage.getItem(CALENDAR_EVENT_META_STORAGE_KEY);
+      if (stored) setEventMetas(JSON.parse(stored) as Record<string, CalendarEventMeta>);
+    } catch {
+      window.localStorage.removeItem(CALENDAR_EVENT_META_STORAGE_KEY);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    loadCalendarEventMetas(user.uid)
+      .then((metas) => {
+        if (metas.length > 0) {
+          setEventMetas(Object.fromEntries(metas.map((meta) => [meta.eventId, meta])));
+        }
+      })
+      .catch((err) => warnFirestoreFallback("calendarEvents.load", err));
+  }, [user]);
+
+  const persistEventMeta = (event: CalendarEvent, meta: CalendarEventMeta) => {
+    const next = { ...eventMetas, [event.id]: meta };
+    setEventMetas(next);
+    if (typeof window !== "undefined") {
+      try {
+        window.localStorage.setItem(CALENDAR_EVENT_META_STORAGE_KEY, JSON.stringify(next));
+      } catch {
+        // localStorage 사용 불가 환경에서는 화면 상태만 유지한다.
+      }
+    }
+    if (user) {
+      void saveCalendarEventMeta(user.uid, event.id, meta).catch((err) => warnFirestoreFallback("calendarEvents.save", err));
+    }
+  };
+
+  const events = useMemo(() => buildMockCalendarEvents(month.getFullYear(), month.getMonth() + 1, tickers).map((event) => {
+    const meta = eventMetas[event.id];
+    if (!meta) return event;
+    return { ...event, favorite: meta.star ? "⭐" : meta.heart ? "💗" : event.favorite, note: meta.memo ?? event.note };
+  }), [month, tickers, eventMetas]);
   const filteredEvents = useMemo(() => events.filter((event) => filters[event.type]), [events, filters]);
   const selectedEvents = useMemo(() => filteredEvents.filter((event) => event.date === selectedDate), [filteredEvents, selectedDate]);
   const keyEvents = useMemo(() => filteredEvents.slice(0, 5), [filteredEvents]);
@@ -115,7 +161,7 @@ export default function DividendCalendarPage({ tickers, tickerManager }: Props) 
         <p className="mt-1">기존 티커 관리 흐름은 하단에 유지했습니다. 실제 저장/알림 연동은 이후 단계에서 연결합니다.</p>
       </section>
 
-      <CalendarEventDialog event={activeEvent} onClose={() => setActiveEvent(null)} />
+      <CalendarEventDialog event={activeEvent} meta={activeEvent ? eventMetas[activeEvent.id] : undefined} onSaveMeta={persistEventMeta} onClose={() => setActiveEvent(null)} />
     </>
   );
 }
