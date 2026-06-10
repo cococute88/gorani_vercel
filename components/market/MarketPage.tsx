@@ -32,6 +32,7 @@ import RsiDrawdownChart from "./RsiDrawdownChart";
 import VixChart from "./VixChart";
 import TradingViewTreemap from "./TradingViewTreemap";
 import AssetMapSection from "./AssetMapSection";
+import MarketTemperatureSection from "./MarketTemperatureSection";
 
 export default function MarketPage() {
   const [range, setRange] = useState<MarketRange>("1년");
@@ -88,6 +89,8 @@ export default function MarketPage() {
         </div>
 
         <MarketBriefingCards items={briefing} />
+
+        <MarketTemperatureSection />
 
         <section className="mb-6">
           <FearGreedCard data={fearGreed} />
