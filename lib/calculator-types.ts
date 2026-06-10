@@ -3,6 +3,12 @@ export type PricePoint = {
   close: number;
 };
 
+export type OhlcPoint = PricePoint & {
+  open: number;
+  high: number;
+  low: number;
+};
+
 export type DividendPoint = {
   exDate: string;
   amount: number;
@@ -11,25 +17,25 @@ export type DividendPoint = {
 export type DividendCaptureInput = {
   ticker: string;
   investmentAmount: number;
-  buyDate: string;
-  exDividendDate: string;
-  sellBasis: "recovery" | "days";
-  maxHoldingDays: number;
-  dividendPerShare: number;
+  buyType: "D-1 종가" | "D-1 시가" | "D-2 종가" | "D-2 시가";
+  sellWindow: number;
   taxRate: number;
+  recent5yOnly: boolean;
+  dividendPerShare: number;
   commissionRate: number;
   slippageRate: number;
   analysisMonths: number;
-  buyPrice: number;
-  postExLowPrice: number;
-  recoveryPrice: number;
+  referenceBuyPrice: number;
+  referenceExOpenPrice: number;
 };
 
 export type DividendCaptureRow = {
   round: string;
   exDate: string;
   buyPrice: number;
-  exLowPrice: number;
+  afterTaxDividend: number;
+  breakevenPrice: number;
+  maxHigh: number;
   sellPrice: number;
   shares: number;
   grossDividend: number;
@@ -37,9 +43,11 @@ export type DividendCaptureRow = {
   pricePnL: number;
   totalPnL: number;
   profitPct: number;
-  recoveryDays: number;
-  breakevenPrice: number;
   result: "성공" | "실패";
+  recoveryDate: string;
+  recoveryDays: number;
+  recoveryTradingDays: string;
+  recoveryCalendarDays: string;
   note: string;
 };
 
@@ -62,7 +70,8 @@ export type ConversionInput = {
   sellShares: number;
   sellPrice: number;
   buyPrice: number;
-  periodMonths: number;
+  startDate: string;
+  endDate: string;
   averageMonths: number;
   thresholdPct: number;
   sellFeeRate: number;

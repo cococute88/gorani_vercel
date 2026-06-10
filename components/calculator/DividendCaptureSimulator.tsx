@@ -23,22 +23,28 @@ export default function DividendCaptureSimulator({ input, onChange }: { input: D
         <div className="mt-4 grid gap-3 text-[13px] text-slate-300 sm:grid-cols-2 lg:grid-cols-4">
           <TextInput label="티커" value={input.ticker} onChange={(value) => update("ticker", value.toUpperCase())} />
           <NumberInput label="투자금($)" value={input.investmentAmount} onChange={(value) => update("investmentAmount", value)} />
-          <DateInput label="매수 기준일" value={input.buyDate} onChange={(value) => update("buyDate", value)} />
-          <DateInput label="배당락일" value={input.exDividendDate} onChange={(value) => update("exDividendDate", value)} />
-          <NumberInput label="매수 기준가($)" value={input.buyPrice} onChange={(value) => update("buyPrice", value)} />
-          <NumberInput label="배당락 후 저가($)" value={input.postExLowPrice} onChange={(value) => update("postExLowPrice", value)} />
-          <NumberInput label="회복/매도가($)" value={input.recoveryPrice} onChange={(value) => update("recoveryPrice", value)} />
+          <label className="rounded-xl border border-[#2a3336] bg-[#151a1b] px-4 py-3">
+            <span className="text-[12px] text-slate-500">매수가 기준</span>
+            <select value={input.buyType} onChange={(event) => update("buyType", event.target.value as DividendCaptureInput["buyType"])} className="mt-1 w-full bg-transparent font-bold text-slate-100 outline-none">
+              <option value="D-1 종가">D-1 종가</option>
+              <option value="D-1 시가">D-1 시가</option>
+              <option value="D-2 종가">D-2 종가</option>
+              <option value="D-2 시가">D-2 시가</option>
+            </select>
+          </label>
+          <NumberInput label="매도허용기간(N거래일)" value={input.sellWindow} onChange={(value) => update("sellWindow", value)} />
+          <NumberInput label="기준 매수가($)" value={input.referenceBuyPrice} onChange={(value) => update("referenceBuyPrice", value)} />
+          <NumberInput label="배당락 기준가($)" value={input.referenceExOpenPrice} onChange={(value) => update("referenceExOpenPrice", value)} />
           <NumberInput label="주당 배당($)" value={input.dividendPerShare} onChange={(value) => update("dividendPerShare", value)} />
           <NumberInput label="세율(%)" value={input.taxRate} onChange={(value) => update("taxRate", value)} />
           <NumberInput label="수수료(%)" value={input.commissionRate} onChange={(value) => update("commissionRate", value)} />
           <NumberInput label="슬리피지(%)" value={input.slippageRate} onChange={(value) => update("slippageRate", value)} />
           <NumberInput label="분석 기간(개월)" value={input.analysisMonths} onChange={(value) => update("analysisMonths", value)} />
-          <NumberInput label="최대 보유일" value={input.maxHoldingDays} onChange={(value) => update("maxHoldingDays", value)} />
           <label className="rounded-xl border border-[#2a3336] bg-[#151a1b] px-4 py-3">
-            <span className="text-[12px] text-slate-500">매도 기준</span>
-            <select value={input.sellBasis} onChange={(event) => update("sellBasis", event.target.value as DividendCaptureInput["sellBasis"])} className="mt-1 w-full bg-transparent font-bold text-slate-100 outline-none">
-              <option value="recovery">배당락 회복 시 매도</option>
-              <option value="days">지정 보유일 기준</option>
+            <span className="text-[12px] text-slate-500">최근 5년 데이터만 보기</span>
+            <select value={input.recent5yOnly ? "true" : "false"} onChange={(event) => update("recent5yOnly", event.target.value === "true")} className="mt-1 w-full bg-transparent font-bold text-slate-100 outline-none">
+              <option value="false">아니오</option>
+              <option value="true">예</option>
             </select>
           </label>
         </div>
@@ -75,8 +81,8 @@ export default function DividendCaptureSimulator({ input, onChange }: { input: D
         <h2 className="mb-4 text-[15px] font-bold text-white">회차별 상세 결과</h2>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[980px] text-left text-[13px]">
-            <thead className="text-slate-500"><tr className="border-b border-[#2a3336]"><th className="py-2">회차</th><th>배당락일</th><th>매수가</th><th>배당락 저가</th><th>매도가</th><th>세후 배당</th><th>가격손익</th><th>총손익</th><th>수익률</th><th>회복일</th><th>손익분기</th><th>결과</th><th>판정</th></tr></thead>
-            <tbody>{result.rows.map((row) => <tr key={row.exDate} className="border-b border-[#222a2c] text-slate-300 last:border-0"><td className="py-2 font-semibold text-white">{row.round}</td><td>{row.exDate}</td><td>${row.buyPrice}</td><td>${row.exLowPrice}</td><td>${row.sellPrice}</td><td>${row.netDividend}</td><td>${row.pricePnL}</td><td>${row.totalPnL}</td><td>{row.profitPct}%</td><td>{row.recoveryDays}일</td><td>${row.breakevenPrice}</td><td className={row.result === "성공" ? "text-green-400" : "text-red-400"}>{row.result}</td><td>{row.note}</td></tr>)}</tbody>
+            <thead className="text-slate-500"><tr className="border-b border-[#2a3336]"><th className="py-2">회차</th><th>배당락일</th><th>매수가</th><th>손익분기점</th><th>기간 내 최고가</th><th>매도가</th><th>세후 배당</th><th>가격손익</th><th>총손익</th><th>수익률</th><th>원금 회복 날짜</th><th>소요 기간(거래일)</th><th>소요 기간(달력)</th><th>결과</th><th>판정</th></tr></thead>
+            <tbody>{result.rows.map((row) => <tr key={row.exDate} className="border-b border-[#222a2c] text-slate-300 last:border-0"><td className="py-2 font-semibold text-white">{row.round}</td><td>{row.exDate}</td><td>${row.buyPrice}</td><td>${row.breakevenPrice}</td><td>${row.maxHigh}</td><td>${row.sellPrice}</td><td>${row.netDividend}</td><td>${row.pricePnL}</td><td>${row.totalPnL}</td><td>{row.profitPct}%</td><td>{row.recoveryDate}</td><td>{row.recoveryTradingDays}</td><td>{row.recoveryCalendarDays}</td><td className={row.result === "성공" ? "text-green-400" : "text-red-400"}>{row.result}</td><td>{row.note}</td></tr>)}</tbody>
           </table>
         </div>
       </div>

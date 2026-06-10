@@ -23,8 +23,9 @@ export default function ConversionCalculator({ input, onChange }: { input: Conve
           <NumberInput label="보유/매도 수량" value={input.sellShares} onChange={(value) => update("sellShares", value)} />
           <NumberInput label="매도 현재가($)" value={input.sellPrice} onChange={(value) => update("sellPrice", value)} />
           <NumberInput label="매수 현재가($)" value={input.buyPrice} onChange={(value) => update("buyPrice", value)} />
-          <NumberInput label="기준 기간(개월)" value={input.periodMonths} onChange={(value) => update("periodMonths", value)} />
-          <NumberInput label="평균 산출 기간" value={input.averageMonths} onChange={(value) => update("averageMonths", value)} />
+          <DateInput label="시작일" value={input.startDate} onChange={(value) => update("startDate", value)} />
+          <DateInput label="종료일" value={input.endDate} onChange={(value) => update("endDate", value)} />
+          <NumberInput label="평균 산출 기간(개월)" value={input.averageMonths} onChange={(value) => update("averageMonths", value)} />
           <NumberInput label="전환 기준 괴리율(%)" value={input.thresholdPct} onChange={(value) => update("thresholdPct", value)} />
           <NumberInput label="매도 수수료(%)" value={input.sellFeeRate} onChange={(value) => update("sellFeeRate", value)} />
           <NumberInput label="매수 수수료(%)" value={input.buyFeeRate} onChange={(value) => update("buyFeeRate", value)} />
@@ -33,7 +34,7 @@ export default function ConversionCalculator({ input, onChange }: { input: Conve
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="현재 전환비" value={`${result.currentRatio}x`} sub={`${submitted.sellTicker} 1주 → ${submitted.buyTicker} ${result.currentRatio}주`} tone="blue" />
-        <MetricCard label="기간 평균 전환비" value={`${result.averageRatio}x`} sub={`최근 ${submitted.averageMonths}개 샘플 평균`} tone="gray" />
+        <MetricCard label="기간 평균 전환비" value={`${result.averageRatio}x`} sub={`${submitted.startDate}~${submitted.endDate} 중 최근 ${submitted.averageMonths}개월 평균`} tone="gray" />
         <MetricCard label="평균 대비 괴리율" value={`${result.deviationPct}%`} sub={result.judgment} tone={result.deviationPct >= 0 ? "green" : "orange"} />
         <MetricCard label="매수 가능 수량" value={`${result.buyableShares.toLocaleString()}주`} sub={`순매도금 $${result.netSellAmount.toLocaleString()}`} tone="orange" />
       </div>
@@ -67,3 +68,4 @@ export default function ConversionCalculator({ input, onChange }: { input: Conve
 
 function TextInput({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) { return <label className="rounded-xl border border-[#2a3336] bg-[#151a1b] px-4 py-3"><span className="text-[12px] text-slate-500">{label}</span><input value={value} onChange={(event) => onChange(event.target.value)} className="mt-1 w-full bg-transparent font-bold text-slate-100 outline-none" /></label>; }
 function NumberInput({ label, value, onChange }: { label: string; value: number; onChange: (value: number) => void }) { return <label className="rounded-xl border border-[#2a3336] bg-[#151a1b] px-4 py-3"><span className="text-[12px] text-slate-500">{label}</span><input type="number" step="any" value={value} onChange={(event) => onChange(Number(event.target.value))} className="mt-1 w-full bg-transparent font-bold text-slate-100 outline-none" /></label>; }
+function DateInput({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) { return <label className="rounded-xl border border-[#2a3336] bg-[#151a1b] px-4 py-3"><span className="text-[12px] text-slate-500">{label}</span><input type="date" value={value} onChange={(event) => onChange(event.target.value)} className="mt-1 w-full bg-transparent font-bold text-slate-100 outline-none" /></label>; }
