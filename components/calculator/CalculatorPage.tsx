@@ -8,32 +8,19 @@ import DividendCaptureSimulator from "./DividendCaptureSimulator";
 import ConversionCalculator from "./ConversionCalculator";
 import MddCalculator from "./MddCalculator";
 import CalculatorPresetControls from "./CalculatorPresetControls";
-import { defaultConversionInput } from "@/lib/conversion-calculator";
-import { defaultDividendCaptureInput } from "@/lib/dividend-capture-calculator";
-import { defaultMddInput } from "@/lib/mdd-calculator";
-import type { ConversionInput, DividendCaptureInput, MddInput } from "@/lib/calculator-types";
+import { conversionInput, dividendCaptureInput, mddInput } from "@/lib/mock-calculator-data";
 
 const tabs = [
-  { key: "capture", label: "배당치기 시뮬", presetType: "dividend-capture" },
-  { key: "conversion", label: "매도전환 계산기", presetType: "conversion" },
-  { key: "mdd", label: "MDD 계산기", presetType: "mdd" },
+  { key: "capture", label: "배당치기 시뮬", presetType: "dividend-capture", values: dividendCaptureInput },
+  { key: "conversion", label: "매도전환 계산기", presetType: "conversion", values: conversionInput },
+  { key: "mdd", label: "MDD 계산기", presetType: "mdd", values: mddInput },
 ] as const;
 
 type TabKey = (typeof tabs)[number]["key"];
 
 export default function CalculatorPage() {
   const [activeTab, setActiveTab] = useState<TabKey>("capture");
-  const [captureInput, setCaptureInput] = useState<DividendCaptureInput>(defaultDividendCaptureInput);
-  const [conversionInput, setConversionInput] = useState<ConversionInput>(defaultConversionInput);
-  const [mddInput, setMddInput] = useState<MddInput>(defaultMddInput);
   const activePreset = tabs.find((tab) => tab.key === activeTab) ?? tabs[0];
-  const activeValues = activeTab === "capture" ? captureInput : activeTab === "conversion" ? conversionInput : mddInput;
-
-  const handleLoadPreset = (values: Record<string, unknown>) => {
-    if (activeTab === "capture") setCaptureInput({ ...defaultDividendCaptureInput, ...values } as DividendCaptureInput);
-    if (activeTab === "conversion") setConversionInput({ ...defaultConversionInput, ...values } as ConversionInput);
-    if (activeTab === "mdd") setMddInput({ ...defaultMddInput, ...values } as MddInput);
-  };
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#111516] text-slate-200">
@@ -45,7 +32,7 @@ export default function CalculatorPage() {
             <StorageModeBadge />
           </div>
           <p className="mt-2 text-[13.5px] text-slate-400">
-            Streamlit 원본 계산 흐름을 TypeScript로 포팅한 배당치기, 매도전환, MDD 계산기입니다.
+            배당캡쳐, 매도전환, MDD를 빠르게 가늠하는 미리보기 계산기입니다.
           </p>
         </div>
 
@@ -68,11 +55,11 @@ export default function CalculatorPage() {
           ))}
         </div>
 
-        <CalculatorPresetControls type={activePreset.presetType} values={activeValues as unknown as Record<string, unknown>} onLoad={handleLoadPreset} />
+        <CalculatorPresetControls type={activePreset.presetType} values={activePreset.values} />
 
-        {activeTab === "capture" && <DividendCaptureSimulator input={captureInput} onChange={setCaptureInput} />}
-        {activeTab === "conversion" && <ConversionCalculator input={conversionInput} onChange={setConversionInput} />}
-        {activeTab === "mdd" && <MddCalculator input={mddInput} onChange={setMddInput} />}
+        {activeTab === "capture" && <DividendCaptureSimulator />}
+        {activeTab === "conversion" && <ConversionCalculator />}
+        {activeTab === "mdd" && <MddCalculator />}
       </main>
     </div>
   );
