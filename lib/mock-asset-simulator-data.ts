@@ -25,7 +25,7 @@ export function buildDefaultYearPlans(
     monthlyContribution: index < 8 ? 300 : 0,
     isaContribution: index < 8,
     pensionContribution: index < 8,
-    isaToPensionTransfer: index === 3 || index === 6,
+    isaToPensionTransfer: false,
   }));
 }
 
