@@ -94,7 +94,7 @@ export default function WatchlistPage() {
     <div className="min-h-screen bg-[#111516] text-slate-200">
       <TopNav theme="dark" />
       <main className="mx-auto max-w-[1640px] px-8 py-6">
-        <h1 className="mb-4 text-[20px] font-extrabold text-white">워치리스트</h1>
+        <h1 className="mb-4 text-[20px] font-extrabold text-white">배당캘린더</h1>
 
         <section className="mb-6">
           <TickerManager

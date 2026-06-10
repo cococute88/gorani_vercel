@@ -56,7 +56,13 @@ export function paymentMonthsOf(ticker?: string): number[] {
 export interface MonthlyDividendPoint {
   month: number; // 1~12
   label: string; // "1월" ...
-  amount: number; // KRW
+  amount: number; // 월 합계 KRW
+  [ticker: string]: string | number;
+}
+
+export interface MonthlyDividendComposition {
+  data: MonthlyDividendPoint[];
+  tickers: string[];
 }
 
 export const MONTH_LABELS = [
@@ -78,23 +84,49 @@ export const MONTH_LABELS = [
 export function buildMonthlyDividends(
   holdings: Holding[],
   afterTax: boolean,
-): MonthlyDividendPoint[] {
-  const monthly = new Array<number>(12).fill(0);
+): MonthlyDividendComposition {
+  const factor = afterTax ? 1 - DIVIDEND_TAX_RATE : 1;
+  const byTicker = new Map<string, number[]>();
+
   for (const h of holdings) {
+    const ticker = (h.ticker || "기타").toUpperCase();
     const y = annualYieldPct(h.ticker);
     if (!y || !h.valueKRW) continue;
-    const annual = (h.valueKRW * y) / 100;
+    const annual = ((h.valueKRW * y) / 100) * factor;
     const months = paymentMonthsOf(h.ticker);
     if (months.length === 0) continue;
     const per = annual / months.length;
+    const monthly = byTicker.get(ticker) ?? new Array<number>(12).fill(0);
     for (const m of months) monthly[m - 1] += per;
+    byTicker.set(ticker, monthly);
   }
-  const factor = afterTax ? 1 - DIVIDEND_TAX_RATE : 1;
-  return monthly.map((amount, i) => ({
-    month: i + 1,
-    label: MONTH_LABELS[i],
-    amount: Math.round(amount * factor),
-  }));
+
+  const rankedTickers = Array.from(byTicker.entries())
+    .map(([ticker, values]) => ({ ticker, total: values.reduce((sum, v) => sum + v, 0) }))
+    .sort((a, b) => b.total - a.total)
+    .map((item) => item.ticker);
+  const topTickers = rankedTickers.slice(0, 6);
+  const overflowTickers = rankedTickers.slice(6);
+  const visibleTickers = overflowTickers.length > 0 ? [...topTickers, "기타"] : topTickers;
+
+  const data = MONTH_LABELS.map((label, i) => {
+    const point: MonthlyDividendPoint = { month: i + 1, label, amount: 0 };
+    for (const ticker of topTickers) {
+      const value = Math.round(byTicker.get(ticker)?.[i] ?? 0);
+      point[ticker] = value;
+      point.amount += value;
+    }
+    if (overflowTickers.length > 0) {
+      const other = Math.round(
+        overflowTickers.reduce((sum, ticker) => sum + (byTicker.get(ticker)?.[i] ?? 0), 0),
+      );
+      point["기타"] = other;
+      point.amount += other;
+    }
+    return point;
+  });
+
+  return { data, tickers: visibleTickers };
 }
 
 /** 종목별 예상 연배당 행 (배당 테이블용). */

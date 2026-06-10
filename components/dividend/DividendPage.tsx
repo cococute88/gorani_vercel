@@ -46,7 +46,7 @@ export default function DividendPage() {
   }, [snapshots]);
 
   const rows = useMemo(() => buildDividendHoldingRows(holdings, afterTax), [holdings, afterTax]);
-  const monthly = useMemo(() => buildMonthlyDividends(holdings, afterTax), [holdings, afterTax]);
+  const monthlyComposition = useMemo(() => buildMonthlyDividends(holdings, afterTax), [holdings, afterTax]);
 
   const evaluationKRW = holdings.reduce((s, h) => s + h.valueKRW, 0);
   const annualDividendKRW = rows.reduce((s, r) => s + r.annualDividendKRW, 0);
@@ -126,7 +126,11 @@ export default function DividendPage() {
           </div>
         </section>
 
-        <MonthlyDividendChart data={monthly} afterTax={afterTax} />
+        <MonthlyDividendChart
+          data={monthlyComposition.data}
+          tickers={monthlyComposition.tickers}
+          afterTax={afterTax}
+        />
         <DividendHoldingsTable rows={rows} />
         <DividendPerformanceSection series={DIVIDEND_PERFORMANCE_SERIES} />
       </main>

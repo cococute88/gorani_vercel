@@ -5,6 +5,9 @@ import { Copy, Plus } from "lucide-react";
 import TopNav from "@/components/TopNav";
 import MetricCard from "@/components/MetricCard";
 import PerformanceChart from "@/components/PerformanceChart";
+import QldAssetSummaryCard from "@/components/qld/QldAssetSummaryCard";
+import QldValueFxChart from "@/components/qld/QldValueFxChart";
+import QldHoldingsRankTable from "@/components/qld/QldHoldingsRankTable";
 import { PERFORMANCE_KPIS } from "@/lib/mockData";
 
 // 스크린샷 3: 다크모드 투자 성과
@@ -82,6 +85,22 @@ export default function PerformancePage() {
 
         {/* 대형 차트 */}
         <PerformanceChart />
+
+        <section className="mt-8 border-t border-[#242938] pt-6">
+          <div className="mb-4">
+            <h2 className="text-[18px] font-extrabold text-white">포트폴리오 평가 대시보드</h2>
+            <p className="mt-1 text-[12.5px] text-slate-500">
+              기존 QLD 평가 화면의 총 평가금액, 환율 추이, 종목 랭킹을 투자 성과 페이지에서 함께 확인합니다.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
+            <QldAssetSummaryCard />
+            <QldValueFxChart />
+          </div>
+          <div className="mt-4">
+            <QldHoldingsRankTable />
+          </div>
+        </section>
       </main>
     </div>
   );
