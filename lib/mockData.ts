@@ -12,6 +12,7 @@ export const NAV_ITEMS: NavItem[] = [
   { icon: "🗓️", label: "배당캘린더", href: "/watchlist" },
   { icon: "🧙", label: "시장 현황", href: "/market" },
   { icon: "🧮", label: "계산기", href: "/calculator" },
+  { icon: "🧭", label: "자산 시뮬레이터", href: "/asset-simulator" },
   { icon: "⚙️", label: "포트폴리오 관리", href: "/portfolio-manager" },
 ];
 
