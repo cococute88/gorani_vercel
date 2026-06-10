@@ -20,7 +20,7 @@ export type YearPlan = {
   isaContribution: boolean;
   pensionContribution: boolean;
   isaToPensionTransfer: boolean;
-  status?: string;
+  status?: "적립" | "은퇴" | "인출" | string;
 };
 
 export type YearPlanRow = YearPlan;
@@ -35,26 +35,81 @@ export type YearResult = {
   reserveUsed: number;
   reserveBalance: number;
   totalBalance: number;
+  fromPrevReserveForPension: number;
+  fromPrevReserveForIsa: number;
+  isaTransferred: number;
+  totalPensionDeposit: number;
+  totalIsaDeposit: number;
+  pensionNominal: number;
+  isaNominal: number;
+  reserveNominal: number;
+  totalNominal: number;
+  pensionReal: number;
+  isaReal: number;
+  reserveReal: number;
+  totalReal: number;
+  cumulativeInflation: number;
   nominalTaxSavingBalance: number;
   realTaxSavingBalance: number;
+};
+
+export type RealBalanceRow = {
+  year: number;
+  pensionReal: number;
+  isaReal: number;
+  reserveReal: number;
+  totalReal: number;
+  cumulativeInflation: number;
 };
 
 export type WithdrawRow = {
   year: number;
   category: string;
+  isDelay: boolean;
+  isaGross: number;
+  isaNet: number;
   isaBalanceNominal: number;
+  isaRemainingLimit: number | null;
+  pensionGross: number;
+  pensionNet: number;
   pensionBalanceNominal: number;
+  pensionRemainingLimit: number | null;
+  totalNet: number;
   monthlyNominal: number;
   monthlyReal: number;
+  isaTaxRate: number;
+  pensionTaxRate: number;
 };
 
 export type WithdrawPlan = {
+  retireYear: number;
+  actualStartYear: number;
+  yearsUntil2050: number;
+  isaBalanceAtStart: number;
+  pensionBalanceAtStart: number;
+  isaFirstWithdraw: number;
+  pensionFirstWithdraw: number;
+  isaConstraint: string;
+  pensionConstraint: string;
+  pensionDepositLimit: number;
+  isaLimitUntil2050: number;
   rows: WithdrawRow[];
-  firstMonthlyWithdrawal: number;
+  totalGrossIsa: number;
+  totalGrossPension: number;
+  totalNetIsa: number;
+  totalNetPension: number;
+  finalIsaBalance: number;
+  finalPensionBalance: number;
 };
 
 export type TotalWithdrawRow = {
   year: number;
+  totalNominal?: number;
+  withdraw?: number;
+  monthly?: number;
+  afterBalance?: number;
+  realWithdraw?: number;
+  isWithdraw?: boolean;
   taxSavingMonthlyNominal: number;
   taxSavingMonthlyReal: number;
   taxableMonthlyDividendNominal: number;
@@ -88,7 +143,8 @@ export type SimulatorSummary = {
   finalRealWithoutWithdrawal: number;
   combinedNominalBalance: number;
   combinedRealBalance: number;
-  retirementYear: number;
+  retirementYear: number | null;
+  actualWithdrawalStartYear: number | null;
   pensionLimit: number;
 };
 
@@ -96,10 +152,12 @@ export type SimulatorProjection = {
   inputs: SimulatorInputs;
   yearPlans: YearPlanRow[];
   results: YearResult[];
+  realData: RealBalanceRow[];
   chartRows: SimulatorChartRow[];
   taxWithdrawRows: WithdrawRow[];
   totalWithdrawRows: TotalWithdrawRow[];
   dividendRows: DividendBrokerageRow[];
+  withdrawPlan: WithdrawPlan | null;
   summary: SimulatorSummary;
 };
 

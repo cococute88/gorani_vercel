@@ -63,10 +63,10 @@ function WithdrawTable({ rows }: { rows: WithdrawRow[] }) {
           {rows.map((row) => (
             <tr key={row.year} className="border-t border-[#263033] text-slate-200 odd:bg-white/[0.015]">
               <td className="px-3 py-2 text-left font-bold text-slate-100">{row.year}</td>
-              <td className="px-3 py-2 text-right">{row.category}</td>
+              <td className="px-3 py-2 text-right">{row.isDelay ? "대기중" : row.category}</td>
               <td className="px-3 py-2 text-right">{money(row.isaBalanceNominal)}</td>
               <td className="px-3 py-2 text-right">{money(row.pensionBalanceNominal)}</td>
-              <td className="px-3 py-2 text-right font-semibold text-white">{decimalMoney(row.monthlyNominal)} / {decimalMoney(row.monthlyReal)}</td>
+              <td className="px-3 py-2 text-right font-semibold text-white">{row.isDelay ? "대기중" : `${decimalMoney(row.monthlyNominal)} (${decimalMoney(row.monthlyReal)})`}</td>
             </tr>
           ))}
         </tbody>
@@ -133,8 +133,8 @@ export default function SimulatorResultTabs({ projection }: Props) {
         ))}
       </div>
 
-      {activeTab === "잔고 추이 차트" && <SimulatorBalanceChart data={projection.chartRows} retirementYear={projection.summary.retirementYear} />}
-      {activeTab === "배당금 추이 차트" && <SimulatorCashflowChart data={projection.chartRows} retirementYear={projection.summary.retirementYear} />}
+      {activeTab === "잔고 추이 차트" && <SimulatorBalanceChart data={projection.chartRows} retirementYear={projection.summary.retirementYear ?? undefined} />}
+      {activeTab === "배당금 추이 차트" && <SimulatorCashflowChart data={projection.chartRows} retirementYear={projection.summary.retirementYear ?? undefined} />}
       {activeTab === "적립 현황" && <AccumulationTable rows={projection.results} />}
       {activeTab === "절세계좌인출(원금만)" && <WithdrawTable rows={projection.taxWithdrawRows} />}
       {activeTab === "위탁계좌(배당용) 잔고" && <DividendTable rows={projection.dividendRows} />}
