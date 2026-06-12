@@ -1,9 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import MetricCard from "@/components/MetricCard";
+import CalculatorDataStatus from "./CalculatorDataStatus";
+import CalculatorWarningPanel from "./CalculatorWarningPanel";
+import { TextInput, NumberInput, DateInput, SelectInput } from "./CalculatorInputField";
 import { fetchQuoteHistory } from "@/lib/calculator-data-provider";
 import { calculateMdd } from "@/lib/mdd-calculator";
 import type { MddInput, PricePoint } from "@/lib/calculator-types";
@@ -21,23 +24,9 @@ type MddQuoteState = {
 
 function toHistoryRequest(input: MddInput) {
   if (input.analysisPeriod === "custom") {
-    return {
-      ticker: input.ticker,
-      start: input.startDate,
-      end: input.endDate,
-    };
+    return { ticker: input.ticker, start: input.startDate, end: input.endDate };
   }
-
-  return {
-    ticker: input.ticker,
-    range: input.analysisPeriod,
-    end: input.endDate,
-  };
-}
-
-function sourceLabel(source?: QuoteSource) {
-  if (!source) return "loading";
-  return source.toUpperCase();
+  return { ticker: input.ticker, range: input.analysisPeriod, end: input.endDate };
 }
 
 function formatMoney(value: number, currency: MddInput["currency"]) {
@@ -82,10 +71,7 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
     }
 
     loadHistory();
-
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [submitted]);
 
   const result = useMemo(
@@ -105,78 +91,50 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
   ];
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
+      {/* Input form */}
       <form
         className={panel}
-        onSubmit={(event) => {
-          event.preventDefault();
-          setSubmitted(input);
-        }}
+        onSubmit={(event) => { event.preventDefault(); setSubmitted(input); }}
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-[15px] font-bold text-white">MDD inputs</h2>
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-[12px] text-slate-400">
-              <span className={`rounded-full border px-2 py-1 font-bold ${result.source === "sample" ? "border-amber-500/50 text-amber-200" : "border-blue-500/40 text-blue-200"}`}>
-                source: {sourceLabel(result.source)}
-              </span>
-              {loading && (
-                <span className="inline-flex items-center gap-1 text-blue-200">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  loading history
-                </span>
-              )}
-              {result.updatedAt && <span>updated: {new Date(result.updatedAt).toLocaleString()}</span>}
-            </div>
+            <CalculatorDataStatus source={result.source} loading={loading} updatedAt={result.updatedAt} loadingText="loading history" />
           </div>
-          <button type="submit" className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-[13px] font-bold text-white hover:bg-blue-700">
+          <button type="submit" disabled={loading} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-[13px] font-bold text-white transition-colors hover:bg-blue-700 disabled:opacity-50">
             <Search className="h-4 w-4" />
             Calculate
           </button>
         </div>
 
         <div className="mt-4 grid gap-3 text-[13px] text-slate-300 sm:grid-cols-2 lg:grid-cols-4">
-          <TextInput label="Ticker" value={input.ticker} onChange={(value) => update("ticker", value.toUpperCase())} />
-          <label className="rounded-xl border border-[#2a3336] bg-[#151a1b] px-4 py-3">
-            <span className="text-[12px] text-slate-500">Period</span>
-            <select value={input.analysisPeriod} onChange={(event) => update("analysisPeriod", event.target.value as MddInput["analysisPeriod"])} className="mt-1 w-full bg-transparent font-bold text-slate-100 outline-none">
-              <option value="6m">6 months</option>
-              <option value="1y">1 year</option>
-              <option value="3y">3 years</option>
-              <option value="5y">5 years</option>
-              <option value="custom">Custom</option>
-            </select>
-          </label>
-          <DateInput label="Start date" value={input.startDate} onChange={(value) => update("startDate", value)} />
-          <DateInput label="End date" value={input.endDate} onChange={(value) => update("endDate", value)} />
-          <label className="rounded-xl border border-[#2a3336] bg-[#151a1b] px-4 py-3">
-            <span className="text-[12px] text-slate-500">Currency</span>
-            <select value={input.currency} onChange={(event) => update("currency", event.target.value as MddInput["currency"])} className="mt-1 w-full bg-transparent font-bold text-slate-100 outline-none">
-              <option value="USD">USD</option>
-              <option value="KRW">KRW</option>
-            </select>
-          </label>
-          <NumberInput label="Initial amount" value={input.initialAmount} onChange={(value) => update("initialAmount", value)} />
-          <NumberInput label="Sample current price" value={input.currentPrice} onChange={(value) => update("currentPrice", value)} />
-          <NumberInput label="Sample high price" value={input.highPrice} onChange={(value) => update("highPrice", value)} />
-          <NumberInput label="Sample low price" value={input.lowPrice} onChange={(value) => update("lowPrice", value)} />
+          <TextInput label="Ticker" value={input.ticker} onChange={(v) => update("ticker", v.toUpperCase())} />
+          <SelectInput label="Period" value={input.analysisPeriod} onChange={(v) => update("analysisPeriod", v as MddInput["analysisPeriod"])}>
+            <option value="6m">6 months</option>
+            <option value="1y">1 year</option>
+            <option value="3y">3 years</option>
+            <option value="5y">5 years</option>
+            <option value="custom">Custom</option>
+          </SelectInput>
+          <DateInput label="Start date" value={input.startDate} onChange={(v) => update("startDate", v)} />
+          <DateInput label="End date" value={input.endDate} onChange={(v) => update("endDate", v)} />
+          <SelectInput label="Currency" value={input.currency} onChange={(v) => update("currency", v as MddInput["currency"])}>
+            <option value="USD">USD</option>
+            <option value="KRW">KRW</option>
+          </SelectInput>
+          <NumberInput label="Initial amount" value={input.initialAmount} onChange={(v) => update("initialAmount", v)} />
+          <NumberInput label="Sample current price" value={input.currentPrice} onChange={(v) => update("currentPrice", v)} />
+          <NumberInput label="Sample high price" value={input.highPrice} onChange={(v) => update("highPrice", v)} />
+          <NumberInput label="Sample low price" value={input.lowPrice} onChange={(v) => update("lowPrice", v)} />
         </div>
       </form>
 
-      {quoteState.error && <div className="rounded-2xl border border-red-500/30 bg-red-950/20 p-4 text-[13px] text-red-200">{quoteState.error}</div>}
+      {/* Warnings */}
+      <CalculatorWarningPanel warnings={displayWarnings} error={quoteState.error} />
 
-      {displayWarnings.length > 0 && (
-        <div className="rounded-2xl border border-amber-500/30 bg-amber-950/20 p-4 text-[12.5px] text-amber-100">
-          <p className="font-bold">Warnings</p>
-          <ul className="mt-2 list-disc space-y-1 pl-5">
-            {displayWarnings.map((warning) => (
-              <li key={warning}>{warning}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
+      {/* Metric cards */}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <MetricCard label="Latest price" value={formatMoney(result.currentPrice, submitted.currency)} sub={`${submitted.ticker.toUpperCase()} ${result.source} data`} tone="blue" />
         <MetricCard label="Period high" value={result.peakPrice.toLocaleString()} sub={result.highDate} tone="green" />
         <MetricCard label="Current drawdown" value={`${result.currentDrawdown}%`} sub="vs running high" tone="orange" />
@@ -185,15 +143,16 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
         <MetricCard label="Recovery date" value={result.recoveryDate ?? "Unrecovered"} sub={result.recoveryDays ? `${result.recoveryDays} days` : "Peak not recovered"} tone="blue" />
       </div>
 
+      {/* Chart */}
       <div className={panel}>
         <h2 className="mb-4 text-[15px] font-bold text-white">Drawdown chart</h2>
-        <div className="h-[340px] min-w-0">
+        <div className="h-[300px] min-w-0 sm:h-[340px]">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={result.series} margin={{ top: 12, right: 16, bottom: 8, left: 0 }}>
               <CartesianGrid stroke="#2a3336" strokeDasharray="3 3" />
-              <XAxis dataKey="date" stroke="#94a3b8" tick={{ fontSize: 12 }} minTickGap={24} />
-              <YAxis stroke="#94a3b8" tick={{ fontSize: 12 }} unit="%" />
-              <Tooltip contentStyle={{ background: "#111516", border: "1px solid #2a3336" }} />
+              <XAxis dataKey="date" stroke="#94a3b8" tick={{ fontSize: 11 }} minTickGap={32} />
+              <YAxis stroke="#94a3b8" tick={{ fontSize: 11 }} unit="%" />
+              <Tooltip contentStyle={{ background: "#111516", border: "1px solid #2a3336", fontSize: 12 }} />
               <ReferenceLine y={-10} stroke="#f59e0b" strokeDasharray="4 4" />
               <ReferenceLine y={-20} stroke="#fb923c" strokeDasharray="4 4" />
               <ReferenceLine y={-30} stroke="#ef4444" strokeDasharray="4 4" />
@@ -204,10 +163,11 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
         </div>
       </div>
 
+      {/* MDD segments table */}
       <div className={panel}>
         <h2 className="mb-4 text-[15px] font-bold text-white">MDD segments</h2>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[860px] text-left text-[13px]">
+        <div className="overflow-x-auto -mx-5 px-5">
+          <table className="w-full min-w-[700px] text-left text-[12.5px]">
             <thead className="text-slate-500">
               <tr className="border-b border-[#2a3336]">
                 <th className="py-2">Period</th>
@@ -234,10 +194,11 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
         </div>
       </div>
 
+      {/* Recent price table */}
       <div className={panel}>
         <h2 className="mb-4 text-[15px] font-bold text-white">Recent price and drawdown</h2>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px] text-left text-[13px]">
+        <div className="overflow-x-auto -mx-5 px-5">
+          <table className="w-full min-w-[600px] text-left text-[12.5px]">
             <thead className="text-slate-500">
               <tr className="border-b border-[#2a3336]">
                 <th className="py-2">Date</th>
@@ -262,32 +223,5 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
         </div>
       </div>
     </div>
-  );
-}
-
-function TextInput({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
-  return (
-    <label className="rounded-xl border border-[#2a3336] bg-[#151a1b] px-4 py-3">
-      <span className="text-[12px] text-slate-500">{label}</span>
-      <input value={value} onChange={(event) => onChange(event.target.value)} className="mt-1 w-full bg-transparent font-bold text-slate-100 outline-none" />
-    </label>
-  );
-}
-
-function NumberInput({ label, value, onChange }: { label: string; value: number; onChange: (value: number) => void }) {
-  return (
-    <label className="rounded-xl border border-[#2a3336] bg-[#151a1b] px-4 py-3">
-      <span className="text-[12px] text-slate-500">{label}</span>
-      <input type="number" step="any" value={value} onChange={(event) => onChange(Number(event.target.value))} className="mt-1 w-full bg-transparent font-bold text-slate-100 outline-none" />
-    </label>
-  );
-}
-
-function DateInput({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
-  return (
-    <label className="rounded-xl border border-[#2a3336] bg-[#151a1b] px-4 py-3">
-      <span className="text-[12px] text-slate-500">{label}</span>
-      <input type="date" value={value} onChange={(event) => onChange(event.target.value)} className="mt-1 w-full bg-transparent font-bold text-slate-100 outline-none" />
-    </label>
   );
 }

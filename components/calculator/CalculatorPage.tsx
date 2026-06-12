@@ -51,13 +51,13 @@ export default function CalculatorPage() {
 
         <PreviewNotice />
 
-        <div className="no-scrollbar my-5 flex max-w-full gap-2 overflow-x-auto rounded-2xl border border-[#273032] bg-[#171d1e] p-2">
+        <div className="no-scrollbar my-5 flex max-w-full gap-1.5 overflow-x-auto rounded-2xl border border-[#273032] bg-[#171d1e] p-1.5 sm:gap-2 sm:p-2">
           {tabs.map((tab) => (
             <button
               key={tab.key}
               type="button"
               onClick={() => setActiveTab(tab.key)}
-              className={`shrink-0 rounded-xl px-4 py-2 text-[13px] font-bold transition-colors ${
+              className={`shrink-0 rounded-xl px-3 py-2 text-[12.5px] font-bold transition-colors sm:px-4 sm:text-[13px] ${
                 activeTab === tab.key
                   ? "bg-blue-600 text-white shadow-lg shadow-blue-950/20"
                   : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
