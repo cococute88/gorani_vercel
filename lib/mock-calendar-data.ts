@@ -1,9 +1,14 @@
+import { buildGeneratedCalendarEventId, type CalendarEventSourceKind } from "@/lib/calendar-event-identity";
+
 export type CalendarEventType = "ex_div" | "buy_by" | "pay" | "earnings";
 export type CalendarEventStatus = "confirmed" | "estimated";
 export type CustomMark = "⭐" | "💗" | "⚠" | "※" | "ⓔ";
 
 export interface CalendarEvent {
   id: string;
+  canonicalEventId?: string;
+  legacyEventId?: string;
+  sourceKind?: CalendarEventSourceKind;
   ticker: string;
   type: CalendarEventType;
   date: string;
@@ -62,8 +67,18 @@ function makeEvent(
   paymentDate: string,
 ): CalendarEvent {
   const profile = TICKER_PROFILE[ticker] ?? { amount: 0.25, yield: 2.1, tax: 4.8 };
+  const legacyEventId = `${ticker}-${type}-${date}`;
+  const canonicalEventId = buildGeneratedCalendarEventId({
+    ticker,
+    eventType: type,
+    eventDate: date,
+    sourceKind: "sample",
+  });
   return {
-    id: `${ticker}-${type}-${date}`,
+    id: canonicalEventId,
+    canonicalEventId,
+    legacyEventId,
+    sourceKind: "sample",
     ticker,
     type,
     date,

@@ -15,9 +15,11 @@ interface Props {
 export default function CalendarEventDialog({ event, meta, onSaveMeta, onClose }: Props) {
   const [memo, setMemo] = useState("");
 
+  const canonicalEventId = event?.canonicalEventId ?? event?.id;
+
   useEffect(() => {
     setMemo(meta?.memo ?? event?.note ?? "");
-  }, [event?.id, event?.note, meta?.memo]);
+  }, [canonicalEventId, event?.note, meta?.memo]);
 
   if (!event) return null;
   const visual = EVENT_VISUALS[event.type];
@@ -25,13 +27,16 @@ export default function CalendarEventDialog({ event, meta, onSaveMeta, onClose }
   const heart = meta?.heart ?? false;
 
   const saveMeta = (patch: Partial<CalendarEventMeta>) => {
+    const targetEventId = event.canonicalEventId ?? event.id;
     onSaveMeta(event, {
-      eventId: event.id,
+      ...meta,
+      eventId: targetEventId,
+      canonicalEventId: targetEventId,
       ticker: event.ticker,
+      sourceKind: event.sourceKind ?? meta?.sourceKind,
       star,
       heart,
       memo,
-      ...meta,
       ...patch,
     });
   };

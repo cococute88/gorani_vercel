@@ -27,6 +27,22 @@ const CALENDAR_EVENT_META_STORAGE_KEY = STORAGE_KEYS.calendarEventMeta;
 
 const FILTER_ORDER: CalendarEventType[] = ["ex_div", "buy_by", "pay", "earnings"];
 
+function getCalendarEventMetaKey(event: CalendarEvent): string {
+  return event.canonicalEventId ?? event.id;
+}
+
+function getCalendarEventMetaLookupKeys(event: CalendarEvent): string[] {
+  return Array.from(new Set([event.canonicalEventId, event.legacyEventId, event.id].filter(Boolean) as string[]));
+}
+
+function resolveCalendarEventMeta(event: CalendarEvent, metas: Record<string, CalendarEventMeta>): CalendarEventMeta | undefined {
+  for (const key of getCalendarEventMetaLookupKeys(event)) {
+    const meta = metas[key];
+    if (meta) return meta;
+  }
+  return undefined;
+}
+
 export default function DividendCalendarPage({ tickers, tickerManager, headerAccessory }: Props) {
   const { user } = useFirebaseAuth();
   const today = new Date();
@@ -52,14 +68,27 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
     loadCalendarEventMetas(user.uid)
       .then((metas) => {
         if (metas.length > 0) {
-          setEventMetas(Object.fromEntries(metas.map((meta) => [meta.eventId, meta])));
+          const next: Record<string, CalendarEventMeta> = {};
+          for (const meta of metas) {
+            next[meta.eventId] = meta;
+            if (meta.canonicalEventId) next[meta.canonicalEventId] = meta;
+          }
+          setEventMetas(next);
         }
       })
       .catch((err) => warnFirestoreFallback("calendarEvents.load", err));
   }, [user]);
 
   const persistEventMeta = (event: CalendarEvent, meta: CalendarEventMeta) => {
-    const next = { ...eventMetas, [event.id]: meta };
+    const canonicalEventId = getCalendarEventMetaKey(event);
+    const canonicalMeta: CalendarEventMeta = {
+      ...meta,
+      eventId: canonicalEventId,
+      canonicalEventId,
+      ticker: event.ticker,
+      sourceKind: event.sourceKind ?? meta.sourceKind,
+    };
+    const next = { ...eventMetas, [canonicalEventId]: canonicalMeta };
     setEventMetas(next);
     if (typeof window !== "undefined") {
       try {
@@ -69,12 +98,12 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
       }
     }
     if (user) {
-      void saveCalendarEventMeta(user.uid, event.id, meta).catch((err) => warnFirestoreFallback("calendarEvents.save", err));
+      void saveCalendarEventMeta(user.uid, canonicalEventId, canonicalMeta).catch((err) => warnFirestoreFallback("calendarEvents.save", err));
     }
   };
 
   const events = useMemo(() => buildMockCalendarEvents(month.getFullYear(), month.getMonth() + 1, tickers).map((event) => {
-    const meta = eventMetas[event.id];
+    const meta = resolveCalendarEventMeta(event, eventMetas);
     if (!meta) return event;
     return { ...event, favorite: meta.star ? "⭐" : meta.heart ? "💗" : event.favorite, note: meta.memo ?? event.note };
   }), [month, tickers, eventMetas]);
@@ -166,7 +195,12 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
         <p className="mt-1">기존 티커 관리 흐름은 하단에 유지했습니다. 실제 저장/알림 연동은 이후 단계에서 연결합니다.</p>
       </section>
 
-      <CalendarEventDialog event={activeEvent} meta={activeEvent ? eventMetas[activeEvent.id] : undefined} onSaveMeta={persistEventMeta} onClose={() => setActiveEvent(null)} />
+      <CalendarEventDialog
+        event={activeEvent}
+        meta={activeEvent ? resolveCalendarEventMeta(activeEvent, eventMetas) : undefined}
+        onSaveMeta={persistEventMeta}
+        onClose={() => setActiveEvent(null)}
+      />
     </>
   );
 }

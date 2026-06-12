@@ -28,6 +28,8 @@ Step 4D calculator UI polish date: 2026-06-12 (`docs/STEP4D_CALCULATOR_UI_POLISH
 
 Step 5A-0 calendar event ID/cache schema date: 2026-06-12 (`docs/STEP5A0_CALENDAR_EVENT_ID_CACHE_SCHEMA.md`)
 
+Step 5A-1 calendar canonical ID apply date: 2026-06-13 (`docs/STEP5A1_CALENDAR_CANONICAL_ID_APPLY.md`)
+
 ## Project Root Decision
 
 - Actual working directory: `C:\gv\gorani_vercel`
