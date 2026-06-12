@@ -9,8 +9,9 @@ import {
   type CalculatorPreset,
   type CalculatorPresetType,
 } from "@/lib/firebase/firestore-repositories";
+import { STORAGE_KEYS } from "@/lib/storage-keys";
 
-const STORAGE_KEY = "gorani.calculator.presets.v1";
+const STORAGE_KEY = STORAGE_KEYS.calculatorPresets;
 
 function readLocalPresets(): CalculatorPreset[] {
   if (typeof window === "undefined") return [];

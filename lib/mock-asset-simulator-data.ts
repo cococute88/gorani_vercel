@@ -1,6 +1,7 @@
 import type { SimulatorInputs, YearPlanRow } from "./asset-simulator-types";
+import { STORAGE_KEYS } from "./storage-keys";
 
-export const ASSET_SIMULATOR_STORAGE_KEY = "gorani.asset-simulator.preview";
+export const ASSET_SIMULATOR_STORAGE_KEY = STORAGE_KEYS.assetSimulatorConfigs;
 
 export const DEFAULT_SIMULATOR_INPUTS: SimulatorInputs = {
   startYear: 2026,

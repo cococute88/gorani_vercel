@@ -7,6 +7,7 @@ import { DEFAULT_CALENDAR_FILTERS, buildMockCalendarEvents, buildTaxSavingRows }
 import type { CalendarEvent, CalendarEventType } from "@/lib/mock-calendar-data";
 import { useFirebaseAuth } from "@/lib/firebase/auth";
 import { loadCalendarEventMetas, saveCalendarEventMeta, warnFirestoreFallback, type CalendarEventMeta } from "@/lib/firebase/firestore-repositories";
+import { STORAGE_KEYS } from "@/lib/storage-keys";
 import { EVENT_VISUALS } from "@/lib/event-visuals";
 import CalendarGrid from "./CalendarGrid";
 import CalendarEventDialog from "./CalendarEventDialog";
@@ -19,13 +20,14 @@ import TaxSavingTable from "./TaxSavingTable";
 interface Props {
   tickers: string[];
   tickerManager: ReactNode;
+  headerAccessory?: ReactNode;
 }
 
-const CALENDAR_EVENT_META_STORAGE_KEY = "gorani.dividend-calendar.event-meta.v1";
+const CALENDAR_EVENT_META_STORAGE_KEY = STORAGE_KEYS.calendarEventMeta;
 
 const FILTER_ORDER: CalendarEventType[] = ["ex_div", "buy_by", "pay", "earnings"];
 
-export default function DividendCalendarPage({ tickers, tickerManager }: Props) {
+export default function DividendCalendarPage({ tickers, tickerManager, headerAccessory }: Props) {
   const { user } = useFirebaseAuth();
   const today = new Date();
   const todayIso = formatIsoDate(today);
@@ -94,7 +96,10 @@ export default function DividendCalendarPage({ tickers, tickerManager }: Props) 
   return (
     <>
       <div className="mb-5">
-        <h1 className="text-[24px] font-extrabold text-white sm:text-[28px]">배당캘린더</h1>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-[24px] font-extrabold text-white sm:text-[28px]">배당캘린더</h1>
+          {headerAccessory}
+        </div>
         <p className="mt-1 text-[13px] text-slate-400 sm:text-[14px]">배당락일·매수 마감·지급일·실적 발표를 mock 데이터로 한 화면에서 점검하는 preview입니다.</p>
       </div>
 

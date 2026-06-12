@@ -1,3 +1,5 @@
+import type { QuoteSource } from "@/lib/quote-types";
+
 export type PricePoint = {
   date: string;
   close: number;
@@ -131,6 +133,9 @@ export type MddSegment = {
 export type MddResult = {
   series: MddSeriesPoint[];
   segments: MddSegment[];
+  source: QuoteSource;
+  warnings: string[];
+  updatedAt?: string;
   currentPrice: number;
   peakPrice: number;
   currentDrawdown: number;

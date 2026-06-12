@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Lock, Bell } from "lucide-react";
+import { Bell } from "lucide-react";
 import { NAV_ITEMS } from "@/lib/mockData";
 import LoginButton from "@/components/auth/LoginButton";
 
@@ -29,7 +29,8 @@ export default function TopNav({ theme = "dark" }: Props) {
   const mobilePrimaryItems = NAV_ITEMS.slice(0, MOBILE_PRIMARY_COUNT);
 
   const isActive = (href: string) =>
-    href !== "#" && (href === "/" ? pathname === "/" : pathname.startsWith(href));
+    href !== "#" &&
+    (href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`));
 
   const linkClass = (active: boolean, mobilePanel = false) =>
     `flex shrink-0 items-center gap-1 rounded-md text-[13px] font-medium transition-colors ${
@@ -75,9 +76,6 @@ export default function TopNav({ theme = "dark" }: Props) {
 
         {/* 우측 */}
         <div className="order-2 ml-auto flex shrink-0 items-center gap-1.5 md:order-3 md:ml-2 md:gap-2">
-          <button className="flex h-8 w-8 items-center justify-center rounded-md text-slate-300 hover:bg-white/10">
-            <Lock size={15} />
-          </button>
           <LoginButton />
           <button className="relative flex h-8 w-8 items-center justify-center rounded-md text-slate-300 hover:bg-white/10">
             <Bell size={15} />

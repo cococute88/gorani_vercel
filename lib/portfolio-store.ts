@@ -16,8 +16,9 @@ import type {
   SnapshotHistoryRow,
 } from "./portfolio-types";
 import { filterAggregateHoldings } from "./portfolio-summary-row";
+import { STORAGE_KEYS } from "./storage-keys";
 
-const STORAGE_KEY = "qld2.portfolio.snapshots.v1";
+const STORAGE_KEY = STORAGE_KEYS.portfolioSnapshots;
 
 let cache: PortfolioSnapshot[] | null = null;
 const listeners = new Set<() => void>();

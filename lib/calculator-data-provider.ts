@@ -1,4 +1,17 @@
 import type { DividendPoint, OhlcPoint, PricePoint } from "@/lib/calculator-types";
+import type {
+  QuoteDividendsResponse,
+  QuoteFxResponse,
+  QuoteHistoryResponse,
+  QuoteLastResponse,
+} from "@/lib/quote-types";
+import {
+  requestQuoteDividends,
+  requestQuoteFx,
+  requestQuoteHistory,
+  requestQuoteLast,
+  type QuoteRange,
+} from "@/lib/quote-client";
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
@@ -74,4 +87,89 @@ export function getTickerDividends(ticker: string, start: string, end: string, a
 
 export function getLatestPrice(ticker: string, fallback = 100) {
   return Number(clamp(fallback + (stableSeed(ticker) % 11) - 5, 1, 10_000).toFixed(2));
+}
+
+const rangeToDays: Record<string, number> = {
+  "1m": 31,
+  "6m": 183,
+  "1y": 366,
+  "3y": 1_098,
+  "5y": 1_830,
+  max: 1_830,
+};
+
+function resolveProviderDates(input: { range?: QuoteRange; start?: string; end?: string }) {
+  const end = input.end || formatDate(new Date());
+  if (input.start) return { start: input.start, end };
+  const endDate = new Date(`${end}T00:00:00.000Z`);
+  const days = rangeToDays[input.range || "1y"] ?? rangeToDays["1y"];
+  return { start: formatDate(addDays(endDate, -days)), end };
+}
+
+export async function fetchQuoteHistory(input: {
+  ticker: string;
+  range?: string;
+  start?: string;
+  end?: string;
+}): Promise<QuoteHistoryResponse> {
+  const { start, end } = resolveProviderDates(input);
+  const normalizedTicker = input.ticker.trim().toUpperCase() || "SPY";
+  const fallback: QuoteHistoryResponse = {
+    ticker: input.ticker,
+    normalizedTicker,
+    source: "sample",
+    updatedAt: new Date().toISOString(),
+    warnings: ["Client-side sample fallback returned deterministic demo prices."],
+    prices: getTickerOhlcHistory(normalizedTicker, start, end).map((point) => ({ ...point, volume: null })),
+  };
+
+  return requestQuoteHistory(input, fallback);
+}
+
+export async function fetchQuoteDividends(input: {
+  ticker: string;
+  range?: string;
+  start?: string;
+  end?: string;
+}): Promise<QuoteDividendsResponse> {
+  const { start, end } = resolveProviderDates({ range: input.range || "5y", start: input.start, end: input.end });
+  const normalizedTicker = input.ticker.trim().toUpperCase() || "SCHD";
+  const fallback: QuoteDividendsResponse = {
+    ticker: input.ticker,
+    normalizedTicker,
+    source: "sample",
+    updatedAt: new Date().toISOString(),
+    warnings: ["Client-side sample fallback returned deterministic demo dividends."],
+    dividends: getTickerDividends(normalizedTicker, start, end).map((point) => ({ date: point.exDate, amount: point.amount })),
+  };
+
+  return requestQuoteDividends(input, fallback);
+}
+
+export async function fetchQuoteLast(input: { ticker: string }): Promise<QuoteLastResponse> {
+  const normalizedTicker = input.ticker.trim().toUpperCase() || "SPY";
+  const fallback: QuoteLastResponse = {
+    ticker: input.ticker,
+    normalizedTicker,
+    source: "sample",
+    updatedAt: new Date().toISOString(),
+    warnings: ["Client-side sample fallback returned a deterministic demo latest price."],
+    price: getLatestPrice(normalizedTicker),
+    date: formatDate(new Date()),
+  };
+
+  return requestQuoteLast(input, fallback);
+}
+
+export async function fetchUsdKrw(): Promise<QuoteFxResponse> {
+  const fallback: QuoteFxResponse = {
+    pair: "USDKRW",
+    source: "sample",
+    updatedAt: new Date().toISOString(),
+    warnings: ["Client-side sample fallback returned a deterministic demo USD/KRW rate."],
+    rate: 1_375,
+    date: formatDate(new Date()),
+  };
+
+  return requestQuoteFx(fallback);
 }

@@ -7,10 +7,11 @@ import { latestOf, usePortfolioSnapshots } from "@/lib/portfolio-store";
 import { DEFAULT_WATCHLIST_TICKERS } from "@/lib/mock-dividend-data";
 import { useFirebaseAuth } from "@/lib/firebase/auth";
 import { deleteCalendarTicker, loadCalendarTickers, saveCalendarTicker, warnFirestoreFallback } from "@/lib/firebase/firestore-repositories";
+import { STORAGE_KEYS } from "@/lib/storage-keys";
 import DividendCalendarPage from "./DividendCalendarPage";
 import TickerManager from "./TickerManager";
 
-const WATCHLIST_STORAGE_KEY = "gorani.dividend-calendar.tickers.v1";
+const WATCHLIST_STORAGE_KEY = STORAGE_KEYS.calendarTickers;
 
 function uniqUpper(arr: string[]): string[] {
   const seen = new Set<string>();
@@ -113,8 +114,11 @@ export default function WatchlistPage() {
     <div className="min-h-screen bg-[#111516] text-slate-200">
       <TopNav theme="dark" />
       <main className="mx-auto max-w-[1640px] px-4 py-6 sm:px-6 lg:px-8">
-        <div className="mb-4 flex justify-end"><StorageModeBadge /></div>
-        <DividendCalendarPage tickers={tickers} tickerManager={tickerManager} />
+        <DividendCalendarPage
+          tickers={tickers}
+          tickerManager={tickerManager}
+          headerAccessory={<StorageModeBadge />}
+        />
       </main>
     </div>
   );

@@ -8,7 +8,7 @@ type Props = {
 
 export default function StorageModeBadge({ className = "" }: Props) {
   const { user, configured } = useFirebaseAuth();
-  const label = !configured ? "로컬 미리보기 저장" : user ? "계정 저장" : "이 브라우저에만 임시 저장";
+  const label = !configured ? "Firebase 미설정 · 로컬 저장" : user ? "클라우드 동기화" : "비로그인 · 로컬 저장";
   const tone = !configured
     ? "border-amber-400/20 bg-amber-500/10 text-amber-200"
     : user
