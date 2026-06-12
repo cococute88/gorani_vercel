@@ -36,6 +36,8 @@ Step 5A-3 calendar real dividend provider date: 2026-06-13 (`docs/STEP5A3_CALEND
 
 Step 5A-4 calendar provider regression date: 2026-06-13 (`docs/STEP5A4_CALENDAR_PROVIDER_REGRESSION.md`)
 
+Step 5A-5 calendar UI polish date: 2026-06-13 (`docs/STEP5A5_CALENDAR_UI_POLISH.md`)
+
 ## Project Root Decision
 
 - Actual working directory: `C:\gv\gorani_vercel`

@@ -167,33 +167,42 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
     setSelectedDate(todayIso);
   };
 
+  const sourceLabel = isProviderLoading ? "LOADING" : providerResult.source.toUpperCase();
+  const sourceColor = isProviderLoading
+    ? "bg-yellow-500/15 border-yellow-400/40 text-yellow-300"
+    : providerResult.source === "mock" || providerResult.source === "sample"
+      ? "bg-slate-500/15 border-slate-400/40 text-slate-300"
+      : providerResult.source === "cache"
+        ? "bg-cyan-500/15 border-cyan-400/40 text-cyan-300"
+        : "bg-emerald-500/15 border-emerald-400/40 text-emerald-300";
+
   return (
     <>
-      <div className="mb-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-[24px] font-extrabold text-white sm:text-[28px]">배당캘린더</h1>
-          {headerAccessory}
+      {/* Page header */}
+      <div className="mb-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h1 className="text-[22px] font-extrabold text-white sm:text-[26px]">배당캘린더</h1>
+          <div className="flex items-center gap-2">
+            <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold sm:text-[11px] ${sourceColor}`}>
+              {sourceLabel}
+            </span>
+            {headerAccessory}
+          </div>
         </div>
-        <p className="mt-1 text-[13px] text-slate-400 sm:text-[14px]">배당락일·매수 마감·지급일·실적 발표를 한 화면에서 점검하는 preview입니다.</p>
-      </div>
-
-      <section className="mb-5 rounded-2xl border border-blue-400/25 bg-blue-500/10 p-4">
-        <p className="text-[13px] font-semibold text-blue-100">데이터 상태: {isProviderLoading ? "불러오는 중" : providerResult.source}</p>
-        <p className="mt-1 text-[12.5px] leading-6 text-blue-100/80">
-          `/api/quote/dividends` 기반 배당 이벤트를 사용하며, 실패하거나 데이터가 부족하면 cache 또는 mock/sample fallback을 표시합니다.
-        </p>
+        <p className="mt-1 text-[12px] text-slate-500 sm:text-[13px]">배당락·매수마감·지급·실적을 한 화면에서 확인합니다.</p>
         {providerResult.warnings.length > 0 && (
-          <p className="mt-1 truncate text-[12px] text-blue-100/70" title={providerResult.warnings.join(" | ")}>
-            {providerResult.warnings.slice(0, 2).join(" | ")}
+          <p className="mt-1 truncate text-[11px] text-slate-500" title={providerResult.warnings.join(" | ")}>
+            ⚠ {providerResult.warnings[0]}
           </p>
         )}
-      </section>
+      </div>
 
-      <section className="mb-5 grid grid-cols-1 gap-4 xl:grid-cols-[320px_1fr]">
+      {/* Filters */}
+      <section className="mb-4 grid grid-cols-1 gap-3 xl:grid-cols-[280px_1fr]">
         <PortfolioSelectorMock />
-        <div className="rounded-2xl border border-[#2a3336] bg-[#191f20] p-4">
-          <h2 className="mb-3 text-[15px] font-bold text-slate-200">필터</h2>
-          <div className="flex flex-wrap gap-2">
+        <div className="rounded-2xl border border-[#2a3336] bg-[#191f20] p-3 sm:p-4">
+          <h2 className="mb-2 text-[13px] font-bold text-slate-300 sm:text-[14px]">필터</h2>
+          <div className="flex flex-wrap gap-1.5 sm:gap-2">
             {FILTER_ORDER.map((type) => {
               const visual = EVENT_VISUALS[type];
               return (
@@ -201,19 +210,19 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
                   key={type}
                   type="button"
                   onClick={() => setFilters((current) => ({ ...current, [type]: !current[type] }))}
-                  className={`rounded-full border px-3 py-1.5 text-[12px] font-bold transition ${filters[type] ? `${visual.bg} ${visual.border} ${visual.text}` : "border-white/10 bg-white/5 text-slate-500"}`}
+                  className={`rounded-full border px-2.5 py-1 text-[11px] font-bold transition sm:px-3 sm:py-1.5 sm:text-[12px] ${filters[type] ? `${visual.bg} ${visual.border} ${visual.text}` : "border-white/10 bg-white/5 text-slate-500"}`}
                 >
-                  {visual.label} {filters[type] ? "ON" : "OFF"}
+                  {visual.label}
                 </button>
               );
             })}
           </div>
-          <p className="mt-2 text-[12px] text-slate-500">기본값: Ex-Div ON · Buy By ON · Pay OFF · Earnings ON</p>
         </div>
       </section>
 
-      <section className="mb-5 grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
-        <div className="space-y-5">
+      {/* Main content */}
+      <section className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="space-y-4">
           <CalendarGrid
             month={month}
             events={filteredEvents}
@@ -227,24 +236,21 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
           />
           <SelectedDateList selectedDate={selectedDate} events={selectedEvents} todayIso={todayIso} onOpenEvent={setActiveEvent} />
         </div>
-        <aside className="space-y-5">
+        <aside className="space-y-4">
           <TaxSavingTable rows={taxRows} />
           <CalendarEventList title="이번 달 주요 일정" events={keyEvents} todayIso={todayIso} onOpenEvent={setActiveEvent} />
         </aside>
       </section>
 
-      <section className="mb-5">
+      {/* Schedule preview */}
+      <section className="mb-4">
         <DividendSchedulePreview events={events} onOpenEvent={setActiveEvent} />
       </section>
 
-      <section className="mb-5 rounded-2xl border border-[#2a3336] bg-[#151b1d] p-4">
-        <h2 className="mb-3 text-[15px] font-bold text-slate-200">티커 관리</h2>
+      {/* Ticker management */}
+      <section className="mb-4 rounded-2xl border border-[#2a3336] bg-[#151b1d] p-3 sm:p-4">
+        <h2 className="mb-3 text-[14px] font-bold text-slate-200">티커 관리</h2>
         {tickerManager}
-      </section>
-
-      <section className="rounded-2xl border border-dashed border-[#334044] bg-[#141a1b] p-4 text-[13px] text-slate-400">
-        <p className="font-semibold text-slate-200">Legacy CTA</p>
-        <p className="mt-1">기존 티커 관리 흐름은 하단에 유지했습니다. 실제 저장/알림 연동은 이후 단계에서 연결합니다.</p>
       </section>
 
       <CalendarEventDialog
