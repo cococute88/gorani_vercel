@@ -80,6 +80,8 @@ export type ConversionInput = {
   buyFeeRate: number;
 };
 
+export type ConversionPricePoint = PricePoint;
+
 export type ConversionRow = {
   date: string;
   sellPrice: number;
@@ -92,6 +94,13 @@ export type ConversionRow = {
 
 export type ConversionResult = {
   rows: ConversionRow[];
+  source: QuoteSource;
+  warnings: string[];
+  updatedAt?: string;
+  usedStartDate: string;
+  usedEndDate: string;
+  sellFirstDate: string | null;
+  buyFirstDate: string | null;
   currentRatio: number;
   averageRatio: number;
   deviationPct: number;

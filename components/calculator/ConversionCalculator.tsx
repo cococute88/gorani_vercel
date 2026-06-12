@@ -1,22 +1,133 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Loader2, Search } from "lucide-react";
 import MetricCard from "@/components/MetricCard";
+import { fetchQuoteHistory } from "@/lib/calculator-data-provider";
 import { calculateConversion } from "@/lib/conversion-calculator";
-import type { ConversionInput } from "@/lib/calculator-types";
+import type { ConversionInput, ConversionPricePoint } from "@/lib/calculator-types";
+import type { QuoteSource } from "@/lib/quote-types";
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 const panel = "rounded-2xl border border-[#2a3336] bg-[#191f20] p-5";
 
+type ConversionQuoteState = {
+  sellPrices?: ConversionPricePoint[];
+  buyPrices?: ConversionPricePoint[];
+  source?: QuoteSource;
+  warnings: string[];
+  updatedAt?: string;
+  error?: string | null;
+};
+
+function combineSource(sellSource: QuoteSource, buySource: QuoteSource): QuoteSource {
+  if (sellSource === "sample" || buySource === "sample") return "sample";
+  if (sellSource === "stooq" || buySource === "stooq") return "stooq";
+  return "yahoo";
+}
+
+function latestUpdatedAt(values: Array<string | undefined>) {
+  return values.filter(Boolean).sort().at(-1);
+}
+
+function sourceLabel(source?: QuoteSource) {
+  if (!source) return "loading";
+  return source.toUpperCase();
+}
+
 export default function ConversionCalculator({ input, onChange }: { input: ConversionInput; onChange: (input: ConversionInput) => void }) {
   const [submitted, setSubmitted] = useState(input);
-  const result = useMemo(() => calculateConversion(submitted), [submitted]);
+  const [quoteState, setQuoteState] = useState<ConversionQuoteState>({ warnings: [] });
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadHistories() {
+      setLoading(true);
+      setQuoteState((previous) => ({ ...previous, error: null }));
+
+      try {
+        const [sellResponse, buyResponse] = await Promise.all([
+          fetchQuoteHistory({ ticker: submitted.sellTicker, start: submitted.startDate, end: submitted.endDate }),
+          fetchQuoteHistory({ ticker: submitted.buyTicker, start: submitted.startDate, end: submitted.endDate }),
+        ]);
+        if (cancelled) return;
+
+        setQuoteState({
+          sellPrices: sellResponse.prices.map((point) => ({ date: point.date, close: point.close })),
+          buyPrices: buyResponse.prices.map((point) => ({ date: point.date, close: point.close })),
+          source: combineSource(sellResponse.source, buyResponse.source),
+          warnings: [
+            ...sellResponse.warnings.map((warning) => `${sellResponse.normalizedTicker}: ${warning}`),
+            ...buyResponse.warnings.map((warning) => `${buyResponse.normalizedTicker}: ${warning}`),
+            ...(sellResponse.source !== buyResponse.source
+              ? [`Mixed quote sources: ${sellResponse.normalizedTicker}=${sellResponse.source}, ${buyResponse.normalizedTicker}=${buyResponse.source}.`]
+              : []),
+          ],
+          updatedAt: latestUpdatedAt([sellResponse.updatedAt, buyResponse.updatedAt]),
+          error: null,
+        });
+      } catch (error) {
+        if (cancelled) return;
+        setQuoteState({
+          sellPrices: [],
+          buyPrices: [],
+          source: "sample",
+          warnings: [`Quote history request failed; sample fallback was used: ${error instanceof Error ? error.message : String(error)}`],
+          error: error instanceof Error ? error.message : String(error),
+        });
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    loadHistories();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [submitted]);
+
+  const result = useMemo(
+    () =>
+      calculateConversion(
+        submitted,
+        { sellPrices: quoteState.sellPrices, buyPrices: quoteState.buyPrices },
+        {
+          source: quoteState.source,
+          warnings: quoteState.warnings,
+          updatedAt: quoteState.updatedAt,
+        },
+      ),
+    [quoteState.buyPrices, quoteState.sellPrices, quoteState.source, quoteState.updatedAt, quoteState.warnings, submitted],
+  );
   const update = <K extends keyof ConversionInput>(key: K, value: ConversionInput[K]) => onChange({ ...input, [key]: value });
 
   return (
     <div className="space-y-5">
       <form className={panel} onSubmit={(event) => { event.preventDefault(); setSubmitted(input); }}>
-        <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-[15px] font-bold text-white">입력값</h2><button type="submit" className="rounded-lg bg-blue-600 px-4 py-2 text-[13px] font-bold text-white hover:bg-blue-700">계산 실행</button></div>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-[15px] font-bold text-white">입력값</h2>
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-[12px] text-slate-400">
+              <span className={`rounded-full border px-2 py-1 font-bold ${result.source === "sample" ? "border-amber-500/50 text-amber-200" : "border-blue-500/40 text-blue-200"}`}>
+                source: {sourceLabel(result.source)}
+              </span>
+              {loading && (
+                <span className="inline-flex items-center gap-1 text-blue-200">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  loading history
+                </span>
+              )}
+              {result.updatedAt && <span>updated: {new Date(result.updatedAt).toLocaleString()}</span>}
+            </div>
+          </div>
+          <button type="submit" className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-[13px] font-bold text-white hover:bg-blue-700">
+            <Search className="h-4 w-4" />
+            계산 실행
+          </button>
+        </div>
         <div className="mt-4 grid gap-3 text-[13px] text-slate-300 sm:grid-cols-2 lg:grid-cols-5">
           <TextInput label="매도 티커" value={input.sellTicker} onChange={(value) => update("sellTicker", value.toUpperCase())} />
           <TextInput label="매수 티커" value={input.buyTicker} onChange={(value) => update("buyTicker", value.toUpperCase())} />
@@ -32,9 +143,22 @@ export default function ConversionCalculator({ input, onChange }: { input: Conve
         </div>
       </form>
 
+      {quoteState.error && <div className="rounded-2xl border border-red-500/30 bg-red-950/20 p-4 text-[13px] text-red-200">{quoteState.error}</div>}
+
+      {result.warnings.length > 0 && (
+        <div className="rounded-2xl border border-amber-500/30 bg-amber-950/20 p-4 text-[12.5px] text-amber-100">
+          <p className="font-bold">Warnings</p>
+          <ul className="mt-2 list-disc space-y-1 pl-5">
+            {result.warnings.map((warning) => (
+              <li key={warning}>{warning}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="현재 전환비" value={`${result.currentRatio}x`} sub={`${submitted.sellTicker} 1주 → ${submitted.buyTicker} ${result.currentRatio}주`} tone="blue" />
-        <MetricCard label="기간 평균 전환비" value={`${result.averageRatio}x`} sub={`${submitted.startDate}~${submitted.endDate} 중 최근 ${submitted.averageMonths}개월 평균`} tone="gray" />
+        <MetricCard label="기간 평균 전환비" value={`${result.averageRatio}x`} sub={`${result.usedStartDate}~${result.usedEndDate} 중 최근 ${submitted.averageMonths}개월 평균`} tone="gray" />
         <MetricCard label="평균 대비 괴리율" value={`${result.deviationPct}%`} sub={result.judgment} tone={result.deviationPct >= 0 ? "green" : "orange"} />
         <MetricCard label="매수 가능 수량" value={`${result.buyableShares.toLocaleString()}주`} sub={`순매도금 $${result.netSellAmount.toLocaleString()}`} tone="orange" />
       </div>

@@ -12,6 +12,8 @@ Step 2 completion audit date: 2026-06-12 (`docs/STEP2_COMPLETION_AUDIT.md`)
 
 Step 4A MDD live data date: 2026-06-12 (`docs/STEP4A_MDD_LIVE_DATA.md`)
 
+Step 4B conversion live data date: 2026-06-12 (`docs/STEP4B_CONVERSION_LIVE_DATA.md`)
+
 ## Project Root Decision
 
 - Actual working directory: `C:\gv\gorani_vercel`
