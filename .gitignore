@@ -15,3 +15,5 @@ node_modules/
 .vercel/
 .next-dev-*.log
 *.zip
+docs/fixtures/**/private/
+docs/fixtures/**/private/**

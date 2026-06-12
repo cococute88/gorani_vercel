@@ -264,13 +264,150 @@ function assertQuoteEligibility() {
   };
 }
 
+function text(value) {
+  return String(value ?? "").trim();
+}
+
+function compact(value) {
+  return text(value).replace(/\s+/g, "");
+}
+
+function worksheetRows(worksheet) {
+  return XLSX.utils.sheet_to_json(worksheet, {
+    header: 1,
+    defval: null,
+    blankrows: true,
+    raw: true,
+  });
+}
+
+function workbookStructureSummary(workbook) {
+  return workbook.SheetNames.map((sheetName) => {
+    const worksheet = workbook.Sheets[sheetName];
+    const rows = worksheetRows(worksheet);
+    const range = worksheet["!ref"] ? XLSX.utils.decode_range(worksheet["!ref"]) : null;
+    const sectionRows = [];
+    const headerRows = [];
+
+    for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
+      const row = rows[rowIndex] ?? [];
+      const normalizedCells = row.map(compact);
+      const displayCells = row.map(text);
+      const rowNumber = range ? range.s.r + rowIndex + 1 : rowIndex + 1;
+
+      for (const cell of normalizedCells) {
+        if (/^\d+\.[^\d.]/.test(cell)) {
+          sectionRows.push({ rowNumber, label: cell });
+        }
+      }
+
+      const hasProduct = normalizedCells.includes(K.product);
+      const hasAmount = normalizedCells.some((cell) => cell.includes(K.amount));
+      const hasPrincipal = normalizedCells.some((cell) => cell.includes(K.principal));
+      if (hasProduct && (hasAmount || hasPrincipal)) {
+        headerRows.push({
+          rowNumber,
+          headers: displayCells
+            .map((value, index) => ({
+              column: range ? XLSX.utils.encode_col(range.s.c + index) : XLSX.utils.encode_col(index),
+              value,
+            }))
+            .filter((cell) => cell.value),
+        });
+      }
+    }
+
+    return {
+      sheetName,
+      ref: worksheet["!ref"] ?? "",
+      rowCount: rows.length,
+      nonEmptyRows: rows.filter((row) => row.some((cell) => text(cell) !== "")).length,
+      mergeCount: (worksheet["!merges"] ?? []).length,
+      sectionRows,
+      headerRows,
+    };
+  });
+}
+
+function summarizeParseResult(result) {
+  const optionalFieldCounts = {
+    quantity: result.holdings.filter((holding) => holding.quantity !== undefined).length,
+    currency: result.holdings.filter((holding) => holding.currency !== undefined).length,
+    ticker: result.holdings.filter((holding) => holding.ticker !== undefined).length,
+    currentPrice: result.holdings.filter((holding) => holding.currentPrice !== undefined).length,
+    valueOriginalCurrency: result.holdings.filter((holding) => holding.valueOriginalCurrency !== undefined).length,
+  };
+
+  return {
+    ok: result.ok,
+    sheetName: result.sheetName,
+    snapshotDate: result.snapshotDate,
+    errors: result.errors.length,
+    warnings: result.warnings.length,
+    holdings: result.holdings.length,
+    financeAssets: result.financeAssets.length,
+    investmentValueRows: result.holdings.filter((holding) => holding.valueKRW > 0).length,
+    excludedSmallCount: result.excludedSmallCount,
+    excludedBelowMinimumCount: result.excludedBelowMinimumCount,
+    optionalFieldCounts,
+    quoteEligible: extractQuoteEligibleHoldings(result.holdings).length,
+    uniqueQuoteTickers: getUniqueQuoteTickers(result.holdings).length,
+    canRevalue: result.holdings.filter((holding) => canRevalueHoldingWithQuote(holding)).length,
+  };
+}
+
+function parsePrivatePathFromArgs(argv) {
+  const index = argv.indexOf("--private");
+  if (index < 0) return null;
+  const next = argv[index + 1];
+  if (!next || next.startsWith("--")) {
+    return path.join(
+      rootDir,
+      "docs",
+      "fixtures",
+      "portfolio-parser",
+      "private",
+      "2025-06-12~2026-06-12.xlsx",
+    );
+  }
+  return path.resolve(rootDir, next);
+}
+
+function checkPrivateSample(filePath) {
+  if (!fs.existsSync(filePath)) {
+    console.log(`Private sample not found, skipped: ${path.relative(rootDir, filePath)}`);
+    return null;
+  }
+
+  const workbook = XLSX.readFile(filePath, { cellDates: true });
+  const result = parseBanksaladWorkbook(workbook, path.basename(filePath));
+  assert.equal(result.ok, true, `private sample should parse without errors: ${result.errors.join("; ")}`);
+  assert.equal(result.holdings.length > 0, true, "private sample should produce holdings");
+  assert.equal(result.financeAssets.length > 0, true, "private sample should produce finance assets");
+
+  return {
+    file: path.relative(rootDir, filePath),
+    workbook: workbookStructureSummary(workbook),
+    parser: summarizeParseResult(result),
+  };
+}
+
 function main() {
   const parserRows = aliasCases.map(assertParserCase);
   const quoteSummary = assertQuoteEligibility();
+  const privatePath = parsePrivatePathFromArgs(process.argv.slice(2));
 
   console.log("Portfolio parser fixture regression passed.");
   console.table(parserRows);
   console.table([quoteSummary]);
+
+  if (privatePath) {
+    const privateSummary = checkPrivateSample(privatePath);
+    if (privateSummary) {
+      console.log("Private Banksalad sample parser check passed.");
+      console.log(JSON.stringify(privateSummary, null, 2));
+    }
+  }
 }
 
 try {

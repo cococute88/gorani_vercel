@@ -16,6 +16,8 @@ Step 3B portfolio parser fields date: 2026-06-12 (`docs/STEP3B_PORTFOLIO_PARSER_
 
 Step 3C portfolio parser fixtures date: 2026-06-12 (`docs/STEP3C_PORTFOLIO_PARSER_FIXTURES.md`)
 
+Step 3D portfolio real sample validation date: 2026-06-12 (`docs/STEP3D_PORTFOLIO_REAL_SAMPLE_VALIDATION.md`)
+
 Step 4A MDD live data date: 2026-06-12 (`docs/STEP4A_MDD_LIVE_DATA.md`)
 
 Step 4B conversion live data date: 2026-06-12 (`docs/STEP4B_CONVERSION_LIVE_DATA.md`)
