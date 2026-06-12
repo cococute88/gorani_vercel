@@ -7,6 +7,7 @@ import PortfolioSummary from "@/components/PortfolioSummary";
 import DonutChartCard from "@/components/DonutChartCard";
 import AssetAccountCards from "@/components/AssetAccountCards";
 import TreemapMock from "@/components/TreemapMock";
+import PortfolioQuoteStatusPanel from "@/components/portfolio/PortfolioQuoteStatusPanel";
 import QldAccountBarChart from "@/components/qld/QldAccountBarChart";
 import QldValueFxChart from "@/components/qld/QldValueFxChart";
 import {
@@ -81,6 +82,10 @@ export default function PortfolioPage() {
             저장된 스냅샷이 없어 목업 데이터로 표시합니다. /portfolio-manager에서 엑셀을 등록하면 실데이터로 전환됩니다.
           </div>
         )}
+
+        {portfolioView.snapshot ? (
+          <PortfolioQuoteStatusPanel holdings={portfolioView.snapshot.holdings} />
+        ) : null}
 
         {/* 요약 영역 */}
         <section className="mb-6">

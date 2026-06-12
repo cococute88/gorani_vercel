@@ -1,11 +1,4 @@
-// =============================================================
-// 상품명 → 티커 추정 (초안).
-// 1) 상품명에 #tqqq, #qld 처럼 해시태그가 있으면 티커로 우선 인식
-// 2) 없으면 매핑 사전(키워드)으로 추정
-// 3) 신뢰도가 낮으면 "확인 필요" 로 표시되도록 confidence 를 낮게 반환
-// TODO(codex): 정식 심볼 마스터/검색 API 로 교체.
-// =============================================================
-import type { TickerConfidence } from "./portfolio-types";
+import type { Holding, TickerConfidence } from "./portfolio-types";
 
 export interface TickerGuess {
   ticker: string | null;
@@ -13,12 +6,20 @@ export interface TickerGuess {
   matchedBy: "hashtag" | "exact" | "keyword" | "cash" | "none";
 }
 
-// 정확 토큰 매칭용 (상품명 전체가 티커일 때)
+export type PortfolioAssetClassification =
+  | "us_quote"
+  | "cash_like"
+  | "korean_equity"
+  | "crypto"
+  | "deposit_or_pension"
+  | "unmapped";
+
 const KNOWN_TICKERS = [
   "TQQQ",
   "QLD",
   "QQQ",
   "SPY",
+  "SPYM",
   "VOO",
   "SCHD",
   "MSFT",
@@ -35,79 +36,115 @@ const KNOWN_TICKERS = [
 interface KeywordRule {
   ticker: string;
   confidence: TickerConfidence;
-  keywords: string[]; // 소문자 비교
+  keywords: string[];
 }
 
 const KEYWORD_RULES: KeywordRule[] = [
-  { ticker: "TQQQ", confidence: "high", keywords: ["tqqq", "proshares qqq 3", "qqq 레버리지 3", "qqq 3배"] },
-  { ticker: "QLD", confidence: "high", keywords: ["qld", "qqq 2배", "proshares ultra qqq", "qqq 레버리지 2"] },
-  { ticker: "QQQ", confidence: "high", keywords: ["invesco qqq", "나스닥 100 인베스코", "나스닥100 인베스코"] },
+  { ticker: "TQQQ", confidence: "high", keywords: ["tqqq", "proshares qqq 3", "qqq 3x", "qqq 3", "qqq 레버리지 3", "qqq 3배"] },
+  { ticker: "QLD", confidence: "high", keywords: ["qld", "qqq 2x", "proshares ultra qqq", "qqq 2", "qqq 2배", "qqq 레버리지 2"] },
+  { ticker: "QQQ", confidence: "high", keywords: ["invesco qqq", "nasdaq 100", "nasdaq100", "나스닥 100 인베스코", "나스닥100 인베스코"] },
   { ticker: "SPY", confidence: "high", keywords: ["spdr s&p 500", "spdr sp500", "spdr s&p500"] },
+  { ticker: "SPYM", confidence: "high", keywords: ["spym"] },
   { ticker: "VOO", confidence: "high", keywords: ["voo", "vanguard s&p 500", "vanguard sp500"] },
-  { ticker: "SCHD", confidence: "medium", keywords: ["schd", "schwab 미국 배당", "schwab us dividend", "미국배당다우존", "미국배당다우존스"] },
-  { ticker: "MSFT", confidence: "high", keywords: ["msft", "마이크로소프트", "microsoft"] },
-  { ticker: "GOOGL", confidence: "high", keywords: ["googl", "알파벳", "alphabet", "구글"] },
-  { ticker: "AAPL", confidence: "high", keywords: ["aapl", "애플", "apple"] },
-  { ticker: "TSLA", confidence: "high", keywords: ["tsla", "테슬라", "tesla"] },
-  { ticker: "NFLX", confidence: "high", keywords: ["nflx", "넷플릭스", "netflix"] },
-  { ticker: "NVDA", confidence: "high", keywords: ["nvda", "엔비디아", "nvidia"] },
+  { ticker: "SCHD", confidence: "medium", keywords: ["schd", "schwab 미국 배당", "schwab us dividend", "us dividend equity", "미국배당다우존", "미국배당다우존스"] },
+  { ticker: "MSFT", confidence: "high", keywords: ["msft", "microsoft", "마이크로소프트"] },
+  { ticker: "GOOGL", confidence: "high", keywords: ["googl", "alphabet", "google", "알파벳", "구글"] },
+  { ticker: "AAPL", confidence: "high", keywords: ["aapl", "apple", "애플"] },
+  { ticker: "TSLA", confidence: "high", keywords: ["tsla", "tesla", "테슬라"] },
+  { ticker: "NFLX", confidence: "high", keywords: ["nflx", "netflix", "넷플릭스"] },
+  { ticker: "NVDA", confidence: "high", keywords: ["nvda", "nvidia", "엔비디아"] },
   { ticker: "JEPI", confidence: "high", keywords: ["jepi"] },
   { ticker: "QQQ", confidence: "medium", keywords: ["qqq"] },
   { ticker: "SPY", confidence: "medium", keywords: ["spy"] },
 ];
 
-// 현금/현금성 자산 키워드
 const CASH_KEYWORDS = [
-  "현금",
+  "cash",
   "cma",
-  "cd금리",
-  "머니마켓",
   "mmf",
   "money market",
+  "rp",
+  "sgov",
+  "bil",
+  "box",
+  "treasury bond",
+  "deposit",
+  "saving",
+  "pension",
+  "annuity",
   "파킹",
   "통장",
   "예수금",
   "예금",
   "적금",
+  "연금",
+  "현금",
+  "입출금",
+  "달러",
+  "머니",
   "저금통",
   "세이프박스",
   "플러스박스",
-  "머니",
-  "sgov",
-  "bil",
-  "box",
-  "treasury bond",
-  "초단기채",
-  "rp",
 ];
 
-/** 상품명에서 티커를 추정한다. */
+const NON_QUOTE_TICKERS = new Set(["", "-", "CASH", "CASH_LIKE", "KRW", "USD"]);
+
+function normalizeTickerValue(value: string | undefined): string {
+  return (value ?? "").trim().toUpperCase().replace(/\s+/g, "");
+}
+
+function normalizeQuoteTicker(value: string | undefined): string | null {
+  const ticker = normalizeTickerValue(value).replace(/\./g, "-");
+  if (!ticker || NON_QUOTE_TICKERS.has(ticker)) return null;
+  return ticker;
+}
+
+function holdingSearchText(
+  holding: Pick<
+    Holding,
+    "ticker" | "productName" | "assetType" | "tag" | "symbolGroup" | "purposeGroup" | "statusGroup"
+  >,
+): string {
+  return [
+    holding.ticker,
+    holding.productName,
+    holding.assetType,
+    holding.tag,
+    holding.symbolGroup,
+    holding.purposeGroup,
+    holding.statusGroup,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+function hasAny(text: string, keywords: string[]): boolean {
+  return keywords.some((keyword) => text.includes(keyword));
+}
+
 export function guessTicker(productNameRaw: string): TickerGuess {
   const product = (productNameRaw || "").trim();
   if (!product) return { ticker: null, confidence: "none", matchedBy: "none" };
 
   const lower = product.toLowerCase();
 
-  // 1) 해시태그 (#tqqq 등) — 영문 해시태그만 티커로 인식
   const hash = product.match(/#([A-Za-z][A-Za-z0-9.]{0,5})/);
   if (hash) {
     return { ticker: hash[1].toUpperCase(), confidence: "high", matchedBy: "hashtag" };
   }
 
-  // 2) 현금/현금성
-  if (CASH_KEYWORDS.some((k) => lower.includes(k))) {
+  if (CASH_KEYWORDS.some((keyword) => lower.includes(keyword))) {
     return { ticker: "CASH_LIKE", confidence: "medium", matchedBy: "cash" };
   }
 
-  // 3) 상품명 전체가 티커 토큰일 때
   const token = product.toUpperCase().replace(/[^A-Z0-9]/g, "");
   if (token.length >= 1 && KNOWN_TICKERS.includes(token)) {
     return { ticker: token, confidence: "high", matchedBy: "exact" };
   }
 
-  // 4) 키워드 사전
   for (const rule of KEYWORD_RULES) {
-    if (rule.keywords.some((k) => lower.includes(k))) {
+    if (rule.keywords.some((keyword) => lower.includes(keyword))) {
       return { ticker: rule.ticker, confidence: rule.confidence, matchedBy: "keyword" };
     }
   }
@@ -115,13 +152,56 @@ export function guessTicker(productNameRaw: string): TickerGuess {
   return { ticker: null, confidence: "none", matchedBy: "none" };
 }
 
-/** 상품명에서 #태그 추출 (예: "정기적금 #예적금" -> "예적금") */
 export function extractTag(productNameRaw: string): string | undefined {
-  const m = (productNameRaw || "").match(/#(\S+)/);
-  return m ? m[1] : undefined;
+  const match = (productNameRaw || "").match(/#(\S+)/);
+  return match ? match[1] : undefined;
 }
 
-/** confidence 가 낮아 사용자 확인이 필요한지 */
 export function needsTickerReview(confidence: TickerConfidence | undefined): boolean {
   return confidence === "none" || confidence === "low";
+}
+
+export function classifyPortfolioAsset(
+  holding: Pick<
+    Holding,
+    "ticker" | "productName" | "assetType" | "tag" | "symbolGroup" | "purposeGroup" | "statusGroup"
+  >,
+): PortfolioAssetClassification {
+  const ticker = normalizeTickerValue(holding.ticker);
+  const text = holdingSearchText(holding);
+
+  if (NON_QUOTE_TICKERS.has(ticker) || hasAny(text, CASH_KEYWORDS)) {
+    return hasAny(text, ["deposit", "saving", "pension", "annuity", "예금", "적금", "연금"])
+      ? "deposit_or_pension"
+      : "cash_like";
+  }
+  if (ticker === "BTC" || ticker === "BTC-KRW" || hasAny(text, ["bitcoin", "btc", "coin", "crypto", "코인"])) {
+    return "crypto";
+  }
+  if (/^\d{6}(\.(KS|KQ))?$/.test(ticker) || ticker.endsWith(".KS") || ticker.endsWith(".KQ")) {
+    return "korean_equity";
+  }
+  if (/^[A-Z][A-Z0-9-]{0,9}$/.test(ticker)) {
+    return "us_quote";
+  }
+  return "unmapped";
+}
+
+export function getQuoteTickerForHolding(
+  holding: Pick<
+    Holding,
+    "ticker" | "productName" | "assetType" | "tag" | "symbolGroup" | "purposeGroup" | "statusGroup"
+  >,
+): string | null {
+  if (classifyPortfolioAsset(holding) !== "us_quote") return null;
+  return normalizeQuoteTicker(holding.ticker);
+}
+
+export function isQuoteEligibleHolding(
+  holding: Pick<
+    Holding,
+    "ticker" | "productName" | "assetType" | "tag" | "symbolGroup" | "purposeGroup" | "statusGroup"
+  >,
+): boolean {
+  return getQuoteTickerForHolding(holding) !== null;
 }

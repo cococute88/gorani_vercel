@@ -23,6 +23,7 @@ import HoldingsTable from "./HoldingsTable";
 import AssetTable from "./AssetTable";
 import SnapshotHistory from "./SnapshotHistory";
 import PortfolioPerformanceChart from "./PortfolioPerformanceChart";
+import PortfolioQuoteStatusPanel from "./PortfolioQuoteStatusPanel";
 
 function snapshotToResult(s: PortfolioSnapshot): ParseResult {
   return {
@@ -220,6 +221,7 @@ export default function PortfolioPage() {
         </section>
 
         <section className="mb-6">
+          <PortfolioQuoteStatusPanel holdings={holdings} />
           <HoldingsTable
             holdings={holdings}
             selected={selected}
