@@ -26,6 +26,8 @@ Step 4C dividend capture live data date: 2026-06-12 (`docs/STEP4C_DIVIDEND_CAPTU
 
 Step 4D calculator UI polish date: 2026-06-12 (`docs/STEP4D_CALCULATOR_UI_POLISH.md`)
 
+Step 5A-0 calendar event ID/cache schema date: 2026-06-12 (`docs/STEP5A0_CALENDAR_EVENT_ID_CACHE_SCHEMA.md`)
+
 ## Project Root Decision
 
 - Actual working directory: `C:\gv\gorani_vercel`

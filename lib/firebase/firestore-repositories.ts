@@ -13,6 +13,7 @@ import {
 } from "firebase/firestore";
 import type { PortfolioSnapshot } from "@/lib/portfolio-types";
 import type { StoredSimulatorPreview } from "@/lib/asset-simulator-types";
+import type { CalendarEventMetaTarget, CalendarEventSourceKind } from "@/lib/calendar-event-identity";
 import { firestoreDb } from "./client";
 
 export type CalendarTickerData = {
@@ -21,9 +22,9 @@ export type CalendarTickerData = {
   enabled?: boolean;
 };
 
-export type CalendarEventMeta = {
-  eventId: string;
+export type CalendarEventMeta = CalendarEventMetaTarget & {
   ticker?: string;
+  sourceKind?: CalendarEventSourceKind;
   star?: boolean;
   heart?: boolean;
   memo?: string;
@@ -95,13 +96,16 @@ export type FavoriteLink = {
 
 export type CalendarCacheEntry = {
   id: string;
+  ticker?: string;
   tickers: string[];
   month?: string;
   rangeStart?: string;
   rangeEnd?: string;
   events: Array<Record<string, unknown>>;
-  source?: "firestore" | "cache" | "sample";
+  source?: "yahoo" | "firestore" | "cache" | "sample";
   warnings?: string[];
+  fetchedAt?: string;
+  ttlHours?: number;
   expiresAt?: unknown;
   createdAt?: unknown;
   updatedAt?: unknown;
@@ -303,9 +307,15 @@ export async function deleteFavoriteLink(uid: string, linkId: string): Promise<v
 }
 
 export async function saveCalendarCacheEntry(uid: string, entry: CalendarCacheEntry): Promise<void> {
+  const { ticker: rawTicker, ...rest } = entry;
+  const ticker = rawTicker?.trim().toUpperCase();
+  const payload: CalendarCacheEntry = {
+    ...rest,
+    ...(ticker ? { ticker } : {}),
+    tickers: rest.tickers.map((ticker) => ticker.trim().toUpperCase()).filter(Boolean),
+  };
   await setDoc(doc(requireDb(), "users", uid, "calendarCache", entry.id), {
-    ...entry,
-    tickers: entry.tickers.map((ticker) => ticker.trim().toUpperCase()).filter(Boolean),
+    ...payload,
     updatedAt: serverTimestamp(),
     createdAt: entry.createdAt ?? serverTimestamp(),
   });
