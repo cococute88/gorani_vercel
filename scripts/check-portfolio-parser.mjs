@@ -43,6 +43,7 @@ const {
   parseBanksaladWorkbook,
 } = require("../lib/banksalad-parser.ts");
 const {
+  guessTicker,
   canRevalueHoldingWithQuote,
   getQuoteTickerForHolding,
   isQuoteEligibleHolding,
@@ -214,6 +215,13 @@ function makeHolding(ticker, overrides = {}) {
 }
 
 function assertQuoteEligibility() {
+  const cashKeywordGuesses = ["cash reserve", "deposit account", "pension fund", "annuity insurance"];
+  for (const productName of cashKeywordGuesses) {
+    const guess = guessTicker(productName);
+    assert.equal(guess.ticker, null, `${productName} should not get a guessed pseudo ticker`);
+    assert.equal(guess.matchedBy, "cash", `${productName} should still be recognized as cash-like`);
+  }
+
   const eligible = ["QQQ", "SCHD", "TQQQ", "QLD", "SPY", "VOO"];
   for (const ticker of eligible) {
     const holding = makeHolding(ticker);

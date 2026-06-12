@@ -135,7 +135,7 @@ export function guessTicker(productNameRaw: string): TickerGuess {
   }
 
   if (CASH_KEYWORDS.some((keyword) => lower.includes(keyword))) {
-    return { ticker: "CASH_LIKE", confidence: "medium", matchedBy: "cash" };
+    return { ticker: null, confidence: "none", matchedBy: "cash" };
   }
 
   const token = product.toUpperCase().replace(/[^A-Z0-9]/g, "");

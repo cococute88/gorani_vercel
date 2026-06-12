@@ -18,7 +18,7 @@ export interface Holding {
   assetType: string; // 투자상품종류 (주식/펀드 등)
   productName: string; // 상품명 (원본)
   cleanName?: string; // 태그를 제거한 표시명
-  ticker?: string; // 추정 티커 (대문자) — CASH/CASH_LIKE 포함 가능
+  ticker?: string; // 명시/추정 티커 (대문자). 현금성 행은 파서가 새 티커를 추정하지 않는다.
   tag?: string; // 상품명에서 추출한 #태그
   principalKRW: number; // 투자원금
   valueKRW: number; // 평가금액

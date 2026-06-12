@@ -88,11 +88,11 @@ Existing field behavior checked:
 | --- | ---: |
 | `quantity` | 0 |
 | `currency` | 0 |
-| `ticker` | 33 |
+| `ticker` | 27 |
 | `currentPrice` | 0 |
 | `valueOriginalCurrency` | 0 |
 
-The ticker count is produced by the existing explicit-tag and ticker-guess path. The private sample itself does not contain a dedicated ticker/code column.
+The ticker count is produced by the existing explicit-tag and ticker-guess path. Cash-like rows are not assigned parser-guessed pseudo tickers. The private sample itself does not contain a dedicated ticker/code column.
 
 Because `quantity` and `currentPrice` are absent, `valueOriginalCurrency` is not computed for the private sample.
 

@@ -60,7 +60,7 @@ Current parser result from the private workbook:
 | Positive investment value rows | 33 |
 | Explicit small exclusions | 37 |
 | Below-minimum exclusions | 0 |
-| Parsed/guessed ticker fields | 33 |
+| Parsed/guessed ticker fields | 27 |
 | Quantity fields | 0 |
 | Currency fields | 0 |
 | Current price fields | 0 |
@@ -68,4 +68,4 @@ Current parser result from the private workbook:
 | Quote-eligible holdings | 27 |
 | Holdings revaluable with quote | 0 |
 
-Because the workbook lacks quantity and current-price columns, live quote revaluation remains disabled for the real sample.
+Cash-like rows are not assigned parser-guessed pseudo tickers. Because the workbook lacks quantity and current-price columns, live quote revaluation remains disabled for the real sample.

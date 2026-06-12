@@ -351,3 +351,7 @@ Dependency warnings observed:
 7. Firebase is client-only and environment-dependent.
    - Auth/Firestore code exists, but behavior depends on `NEXT_PUBLIC_FIREBASE_*` env values.
    - Firestore rules must be applied manually or through a later deployment workflow.
+
+## 2026-06-13 Full Requirements Replay UTF-8 Audit
+
+- See `docs/FULL_REQUIREMENTS_REPLAY_UTF8_AUDIT.md` for the full previous-requirements replay audit, mojibake scan, safety fixes, and verification results.
