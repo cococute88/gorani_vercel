@@ -58,6 +58,10 @@ export default function PortfolioParsePreview({ result }: Props) {
 
   const reviewCount = result.holdings.filter((h) => h.needsReview).length;
   const excludedTotal = result.excludedSmallCount + result.excludedBelowMinimumCount;
+  const quantityCount = result.holdings.filter((h) => h.quantity != null).length;
+  const currencyCount = result.holdings.filter((h) => h.currency).length;
+  const tickerCount = result.holdings.filter((h) => h.ticker).length;
+  const priceCount = result.holdings.filter((h) => h.currentPrice != null).length;
 
   return (
     <div className={card}>
@@ -81,6 +85,7 @@ export default function PortfolioParsePreview({ result }: Props) {
         <Metric label="수익률" value={formatPercent(result.returnPct, 1)} tone={result.returnPct >= 0 ? "text-red-400" : "text-blue-400"} />
         <Metric label="인식 보유종목" value={`${result.holdings.length}개 (확인필요 ${reviewCount})`} />
         <Metric label="제외 항목" value={`총 ${excludedTotal}개 (#소액 ${result.excludedSmallCount}개 · 1만원 미만 ${result.excludedBelowMinimumCount}개)`} />
+        <Metric label="보강 필드" value={`수량 ${quantityCount} · 통화 ${currencyCount} · 티커 ${tickerCount} · 가격 ${priceCount}`} />
       </div>
 
       {(result.warnings.length > 0 || result.errors.length > 0) && (

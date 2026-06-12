@@ -1,7 +1,7 @@
 import { fetchQuoteLast } from "@/lib/calculator-data-provider";
 import type { QuoteSource } from "@/lib/quote-types";
 import type { Holding } from "./portfolio-types";
-import { classifyPortfolioAsset, getQuoteTickerForHolding } from "./ticker-mapper";
+import { canRevalueHoldingWithQuote, classifyPortfolioAsset, getQuoteTickerForHolding } from "./ticker-mapper";
 
 export type PortfolioQuoteStatus = {
   ticker: string;
@@ -59,7 +59,7 @@ export async function fetchPortfolioQuoteStatuses(holdings: Holding[]): Promise<
     const ticker = getQuoteTickerForHolding(holding);
     if (!ticker) continue;
     tickerToHoldingIds.set(ticker, [...(tickerToHoldingIds.get(ticker) ?? []), holding.id]);
-    if (holding.quantity == null || !Number.isFinite(holding.quantity) || holding.quantity <= 0) {
+    if (!canRevalueHoldingWithQuote(holding)) {
       warnings.push(`${ticker}: quantity is missing, so portfolio value is not recalculated.`);
     }
   }
@@ -70,7 +70,7 @@ export async function fetchPortfolioQuoteStatuses(holdings: Holding[]): Promise<
         const quote = await fetchQuoteLast({ ticker });
         const missingQuantity = holdings
           .filter((holding) => getQuoteTickerForHolding(holding) === ticker)
-          .some((holding) => holding.quantity == null || !Number.isFinite(holding.quantity) || holding.quantity <= 0);
+          .some((holding) => !canRevalueHoldingWithQuote(holding));
 
         return {
           ticker,

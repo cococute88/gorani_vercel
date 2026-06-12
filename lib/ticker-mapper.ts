@@ -205,3 +205,27 @@ export function isQuoteEligibleHolding(
 ): boolean {
   return getQuoteTickerForHolding(holding) !== null;
 }
+
+export function hasPositiveQuantity(holding: Pick<Holding, "quantity">): boolean {
+  return (
+    holding.quantity !== undefined &&
+    Number.isFinite(holding.quantity) &&
+    holding.quantity > 0
+  );
+}
+
+export function canRevalueHoldingWithQuote(
+  holding: Pick<
+    Holding,
+    | "ticker"
+    | "productName"
+    | "assetType"
+    | "tag"
+    | "symbolGroup"
+    | "purposeGroup"
+    | "statusGroup"
+    | "quantity"
+  >,
+): boolean {
+  return getQuoteTickerForHolding(holding) !== null && hasPositiveQuantity(holding);
+}

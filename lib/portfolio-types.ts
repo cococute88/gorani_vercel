@@ -25,6 +25,8 @@ export interface Holding {
   returnPct?: number; // 수익률(%)
   quantity?: number; // 수량 (옵션)
   currency?: string; // 통화 (옵션)
+  currentPrice?: number; // 현재가/평가단가 (옵션)
+  valueOriginalCurrency?: number; // 원통화 평가금액 (옵션)
   category?: string; // 분류 (옵션)
   symbolGroup?: string; // ①종목 태그 그룹
   accountGroup?: string; // ②계좌 태그 그룹

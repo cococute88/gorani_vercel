@@ -65,6 +65,10 @@ function norm(v: Cell): string {
   return String(v ?? "").replace(/\s+/g, "").trim();
 }
 
+function normHeader(v: Cell | string): string {
+  return norm(v).toLowerCase().replace(/[()［］[\]{}]/g, "");
+}
+
 function txt(v: Cell): string {
   return String(v ?? "").trim();
 }
@@ -214,6 +218,34 @@ function pickNumberAfter(row: Row, idx: number): number | null {
     if (n !== null) return n;
   }
   return null;
+}
+
+function colByAliases(headers: string[], aliases: string[]): number {
+  const normalizedAliases = aliases.map(normHeader).filter(Boolean);
+  return headers.findIndex((header) => {
+    const normalizedHeader = normHeader(header);
+    return normalizedAliases.some((alias) => normalizedHeader.includes(alias));
+  });
+}
+
+function firstNumber(row: Row, index: number): number | undefined {
+  if (index < 0) return undefined;
+  const value = normalizeNumber(row[index]);
+  return value !== null ? value : undefined;
+}
+
+function cleanTickerValue(value: Cell): string | undefined {
+  const ticker = txt(value).trim().toUpperCase().replace(/\s+/g, "");
+  return ticker || undefined;
+}
+
+function normalizeCurrencyValue(value: Cell): string | undefined {
+  const raw = txt(value).trim();
+  if (!raw) return undefined;
+  const upper = raw.toUpperCase().replace(/\s+/g, "");
+  if (upper === "$" || upper.includes("USD") || upper.includes("달러")) return "USD";
+  if (upper === "₩" || upper.includes("KRW") || upper.includes("원화")) return "KRW";
+  return upper;
 }
 
 // ---- 3.재무현황 파싱 ----
@@ -386,15 +418,23 @@ function parseInvestment(rows: Row[], result: ParseResult): void {
   const hdr = (rows[headerRow] || []).map(norm);
   const colOf = (names: string[]): number =>
     hdr.findIndex((h) => names.some((n) => h.includes(n)));
+  const colOfAny = (names: string[]): number => {
+    const existing = colOf(names);
+    return existing >= 0 ? existing : colByAliases(hdr, names);
+  };
 
-  const cType = colOf(["투자상품종류", "상품종류"]);
-  const cBroker = colOf(["금융사"]);
-  const cProduct = hdr.indexOf("상품명");
-  const cPrincipal = colOf(["투자원금", "원금"]);
-  const cValue = colOf(["평가금액"]);
-  const cReturn = colOf(["수익률"]);
-  const cJoin = colOf(["가입일자", "가입일"]);
-  const cMaturity = colOf(["만기일자", "만기일"]);
+  const cType = colOfAny(["투자상품종류", "상품종류", "asset type", "asset class", "type"]);
+  const cBroker = colOfAny(["금융사", "증권사", "broker", "account"]);
+  const cProduct = colOfAny(["상품명", "상품 이름", "product name", "product"]);
+  const cPrincipal = colOfAny(["투자원금", "원금", "principal", "cost basis", "cost"]);
+  const cValue = colOfAny(["평가금액", "평가 금액", "금액", "총액", "value", "market value", "amount"]);
+  const cReturn = colOfAny(["수익률", "return", "return pct"]);
+  const cJoin = colOfAny(["가입일자", "가입일", "join date"]);
+  const cMaturity = colOfAny(["만기일자", "만기일", "maturity date"]);
+  const cQuantity = colByAliases(hdr, ["수량", "보유수량", "보유 수량", "quantity", "qty", "shares"]);
+  const cCurrency = colByAliases(hdr, ["통화", "화폐", "currency", "ccy"]);
+  const cTicker = colByAliases(hdr, ["티커", "종목코드", "코드", "symbol", "ticker"]);
+  const cCurrentPrice = colByAliases(hdr, ["현재가", "평가단가", "단가", "price", "current price"]);
 
   result.preview.investmentHeader = (rows[headerRow] || []).map(txt);
 
@@ -427,11 +467,21 @@ function parseInvestment(rows: Row[], result: ParseResult): void {
     const parsedTags = parsePortfolioTags(product);
     if (recordExcludedIfNeeded(result, product, amountForFilter)) continue;
 
+    const explicitTicker = cleanTickerValue(cTicker >= 0 ? row[cTicker] : undefined);
+    const quantity = firstNumber(row, cQuantity);
+    const currency = normalizeCurrencyValue(cCurrency >= 0 ? row[cCurrency] : undefined);
+    const currentPrice = firstNumber(row, cCurrentPrice);
     const guess = guessTicker(product);
-    const normalizedGuess = guess.ticker ?? (/(비트코인|bitcoin|btc|코인)/i.test(product) ? "BTC" : undefined);
-    const normalizedConfidence = normalizedGuess === "BTC" && !guess.ticker ? "medium" : guess.confidence;
+    const normalizedGuess = explicitTicker ?? guess.ticker ?? (/(비트코인|bitcoin|btc|코인)/i.test(product) ? "BTC" : undefined);
+    const normalizedConfidence = explicitTicker
+      ? "high"
+      : normalizedGuess === "BTC" && !guess.ticker
+        ? "medium"
+        : guess.confidence;
     const isIntentionalOther = parsedTags.symbolGroup?.startsWith("기타") ?? false;
     const ret = cReturn >= 0 ? normalizeNumber(row[cReturn]) : null;
+    const valueOriginalCurrency =
+      quantity !== undefined && currentPrice !== undefined ? quantity * currentPrice : undefined;
     result.holdings.push(decorateHoldingWithTags({
       id: makeId("h"),
       broker: cBroker >= 0 ? txt(row[cBroker]) : "",
@@ -444,6 +494,10 @@ function parseInvestment(rows: Row[], result: ParseResult): void {
       principalKRW: principal ?? 0,
       valueKRW: value ?? 0,
       returnPct: ret ?? undefined,
+      quantity,
+      currency,
+      currentPrice,
+      valueOriginalCurrency,
       joinDate: cJoin >= 0 ? formatDate(row[cJoin]) : undefined,
       maturityDate: cMaturity >= 0 ? formatDate(row[cMaturity]) : undefined,
     }));
