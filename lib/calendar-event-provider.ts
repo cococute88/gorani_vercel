@@ -34,6 +34,8 @@ export type CalendarTickerProviderInput = {
   provider?: CalendarEventProviderKind;
   cache?: CalendarTickerCache<CalendarEvent> | null;
   preferFreshCache?: boolean;
+  fetchDividends?: QuoteDividendsFetcher;
+  today?: Date;
 };
 
 export type CalendarTickersProviderInput = {
@@ -43,6 +45,8 @@ export type CalendarTickersProviderInput = {
   provider?: CalendarEventProviderKind;
   cacheMap?: CalendarTickerCacheMap<CalendarEvent>;
   preferFreshCache?: boolean;
+  fetchDividends?: QuoteDividendsFetcher;
+  today?: Date;
 };
 
 export type CalendarTickerProviderResult = {
@@ -78,6 +82,13 @@ type ProjectEstimatedDividendEventsInput = {
   frequency: DividendFrequencyInference;
   today?: Date;
 };
+
+export type QuoteDividendsFetcher = (input: {
+  ticker: string;
+  range?: string;
+  start?: string;
+  end?: string;
+}) => Promise<QuoteDividendsResponse>;
 
 const DIVIDEND_HISTORY_RANGE = "5y";
 const ESTIMATED_PROJECTION_MONTHS = 12;
@@ -130,6 +141,14 @@ function previousWeekday(date: Date): Date {
     next = addDays(next, -1);
   }
   return next;
+}
+
+export function getPreviousDividendBuyDate(exDivDate: string | Date): string {
+  const parsed = typeof exDivDate === "string" ? parseIsoDate(exDivDate) : exDivDate;
+  if (!parsed || !Number.isFinite(parsed.getTime())) {
+    throw new Error("A valid ex-dividend date is required to calculate the buy deadline.");
+  }
+  return toIsoDate(previousWeekday(parsed));
 }
 
 function nextWeekday(date: Date): Date {
@@ -219,6 +238,17 @@ export function normalizeCalendarEventForCache(event: CalendarEvent): CalendarEv
   };
 }
 
+function normalizeGeneratedCalendarEventForCache(event: CalendarEvent): CalendarEvent {
+  const normalized = normalizeCalendarEventForCache(event) as CalendarEvent & {
+    heart?: unknown;
+    memo?: unknown;
+    note?: unknown;
+    star?: unknown;
+  };
+  const { heart: _heart, memo: _memo, note: _note, star: _star, ...cacheEvent } = normalized;
+  return cacheEvent;
+}
+
 export function buildDividendEventsFromHistory({
   ticker: rawTicker,
   dividends,
@@ -231,7 +261,7 @@ export function buildDividendEventsFromHistory({
     const exDivDate = parseIsoDate(dividend.date);
     if (!exDivDate) return [];
     const exDivIso = toIsoDate(exDivDate);
-    const buyDeadline = toIsoDate(previousWeekday(exDivDate));
+    const buyDeadline = getPreviousDividendBuyDate(exDivDate);
     return [
       makeDividendEvent({
         ticker,
@@ -336,8 +366,9 @@ export function projectEstimatedDividendEvents({
 
   while (nextExDivDate <= projectionEnd && guard < 48) {
     const adjustedExDivDate = nextWeekday(nextExDivDate);
+    if (adjustedExDivDate > projectionEnd) break;
     const exDivIso = toIsoDate(adjustedExDivDate);
-    const buyDeadline = toIsoDate(previousWeekday(adjustedExDivDate));
+    const buyDeadline = getPreviousDividendBuyDate(adjustedExDivDate);
     events.push(
       makeDividendEvent({
         ticker,
@@ -381,7 +412,7 @@ export function buildCalendarTickerCacheFromEvents(
 ): CalendarTickerCache<CalendarEvent> {
   return createCalendarTickerCacheEntry({
     ticker,
-    events: events.map(normalizeCalendarEventForCache),
+    events: events.map(normalizeGeneratedCalendarEventForCache),
     source,
     warnings,
   });
@@ -449,6 +480,8 @@ export async function getRealDividendEventsForTicker({
   month,
   cache,
   preferFreshCache = true,
+  fetchDividends = fetchQuoteDividends,
+  today,
 }: CalendarTickerProviderInput): Promise<CalendarTickerProviderResult> {
   const ticker = normalizeCalendarTicker(rawTicker);
   if (!ticker) {
@@ -475,7 +508,7 @@ export async function getRealDividendEventsForTicker({
   }
 
   try {
-    const response = await fetchQuoteDividends({ ticker, range: DIVIDEND_HISTORY_RANGE });
+    const response = await fetchDividends({ ticker, range: DIVIDEND_HISTORY_RANGE });
     const dividends = normalizeDividendHistory(response.dividends);
     const providerSource = getProviderSource(response);
     const sourceKind: CalendarEvent["sourceKind"] = response.source === "yahoo" ? "declared" : "sample";
@@ -499,7 +532,7 @@ export async function getRealDividendEventsForTicker({
 
     const historicalEvents = buildDividendEventsFromHistory({ ticker, dividends, sourceKind });
     const frequency = inferDividendFrequency(dividends.map((dividend) => dividend.date));
-    const estimatedEvents = projectEstimatedDividendEvents({ ticker, dividends, frequency });
+    const estimatedEvents = projectEstimatedDividendEvents({ ticker, dividends, frequency, today });
     const events = [...historicalEvents, ...estimatedEvents]
       .map(normalizeCalendarEventForCache)
       .sort((a, b) => a.date.localeCompare(b.date) || a.ticker.localeCompare(b.ticker) || a.type.localeCompare(b.type));
@@ -570,13 +603,15 @@ export async function getCalendarEventsForTickersWithProvider({
   provider = "real",
   cacheMap = {},
   preferFreshCache = true,
+  fetchDividends,
+  today,
 }: CalendarTickersProviderInput): Promise<CalendarTickersProviderResult> {
   const normalizedTickers = uniqueNormalizedTickers(tickers);
   const tickerResults = await Promise.all(
     normalizedTickers.map((ticker) =>
       provider === "mock"
         ? Promise.resolve(getCalendarEventsForTicker({ ticker, year, month, cache: cacheMap[ticker], preferFreshCache }))
-        : getRealDividendEventsForTicker({ ticker, year, month, cache: cacheMap[ticker], preferFreshCache }),
+        : getRealDividendEventsForTicker({ ticker, year, month, cache: cacheMap[ticker], preferFreshCache, fetchDividends, today }),
     ),
   );
   const events = tickerResults

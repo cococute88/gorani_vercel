@@ -9,7 +9,8 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "check:portfolio-parser": "node scripts/check-portfolio-parser.mjs",
-    "check:portfolio-parser:private": "node scripts/check-portfolio-parser.mjs --private docs/fixtures/portfolio-parser/private/2025-06-12~2026-06-12.xlsx"
+    "check:portfolio-parser:private": "node scripts/check-portfolio-parser.mjs --private docs/fixtures/portfolio-parser/private/2025-06-12~2026-06-12.xlsx",
+    "check:calendar-provider": "node scripts/check-calendar-provider.mjs"
   },
   "dependencies": {
     "next": "14.2.5",

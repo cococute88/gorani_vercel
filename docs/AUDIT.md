@@ -34,6 +34,8 @@ Step 5A-2 calendar cache/provider boundary date: 2026-06-13 (`docs/STEP5A2_CALEN
 
 Step 5A-3 calendar real dividend provider date: 2026-06-13 (`docs/STEP5A3_CALENDAR_REAL_DIVIDEND_PROVIDER.md`)
 
+Step 5A-4 calendar provider regression date: 2026-06-13 (`docs/STEP5A4_CALENDAR_PROVIDER_REGRESSION.md`)
+
 ## Project Root Decision
 
 - Actual working directory: `C:\gv\gorani_vercel`
