@@ -7,7 +7,7 @@ export type CalendarEventMetaTarget = {
   canonicalEventId?: string;
 };
 
-export type CalendarTickerCacheSource = "yahoo" | "sample" | "cache";
+export type CalendarTickerCacheSource = "mock" | "yahoo" | "sample" | "cache";
 
 export type CalendarTickerCache<TEvent = Record<string, unknown>> = {
   ticker: string;
@@ -16,6 +16,7 @@ export type CalendarTickerCache<TEvent = Record<string, unknown>> = {
   expiresAt: string;
   source: CalendarTickerCacheSource;
   warnings: string[];
+  schemaVersion: number;
 };
 
 export type GeneratedCalendarEventIdInput = {

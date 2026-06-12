@@ -13,7 +13,13 @@ import {
 } from "firebase/firestore";
 import type { PortfolioSnapshot } from "@/lib/portfolio-types";
 import type { StoredSimulatorPreview } from "@/lib/asset-simulator-types";
-import type { CalendarEventMetaTarget, CalendarEventSourceKind } from "@/lib/calendar-event-identity";
+import {
+  normalizeCalendarTicker,
+  type CalendarEventMetaTarget,
+  type CalendarEventSourceKind,
+  type CalendarTickerCache,
+  type CalendarTickerCacheSource,
+} from "@/lib/calendar-event-identity";
 import { firestoreDb } from "./client";
 
 export type CalendarTickerData = {
@@ -102,10 +108,11 @@ export type CalendarCacheEntry = {
   rangeStart?: string;
   rangeEnd?: string;
   events: Array<Record<string, unknown>>;
-  source?: "yahoo" | "firestore" | "cache" | "sample";
+  source?: CalendarTickerCacheSource | "firestore";
   warnings?: string[];
   fetchedAt?: string;
   ttlHours?: number;
+  schemaVersion?: number;
   expiresAt?: unknown;
   createdAt?: unknown;
   updatedAt?: unknown;
@@ -328,6 +335,63 @@ export async function loadCalendarCacheEntries(uid: string): Promise<CalendarCac
 
 export async function deleteCalendarCacheEntry(uid: string, entryId: string): Promise<void> {
   await deleteDoc(doc(requireDb(), "users", uid, "calendarCache", entryId));
+}
+
+function toCalendarTickerCacheEntry(entry: CalendarTickerCache<Record<string, unknown>>): CalendarCacheEntry {
+  const ticker = normalizeCalendarTicker(entry.ticker);
+  return {
+    id: ticker,
+    ticker,
+    tickers: ticker ? [ticker] : [],
+    events: entry.events,
+    source: entry.source,
+    warnings: entry.warnings,
+    fetchedAt: entry.fetchedAt,
+    expiresAt: entry.expiresAt,
+    schemaVersion: entry.schemaVersion,
+  };
+}
+
+function fromCalendarCacheEntry(entry: CalendarCacheEntry): CalendarTickerCache<Record<string, unknown>> | null {
+  const ticker = normalizeCalendarTicker(entry.ticker ?? entry.id ?? entry.tickers?.[0] ?? "");
+  if (!ticker) return null;
+  const source: CalendarTickerCacheSource =
+    entry.source === "mock" || entry.source === "yahoo" || entry.source === "sample" || entry.source === "cache"
+      ? entry.source
+      : "cache";
+
+  return {
+    ticker,
+    events: entry.events,
+    fetchedAt: entry.fetchedAt ?? "",
+    expiresAt: typeof entry.expiresAt === "string" ? entry.expiresAt : "",
+    source,
+    warnings: entry.warnings ?? [],
+    schemaVersion: entry.schemaVersion ?? 0,
+  };
+}
+
+export async function saveCalendarTickerCacheEntry(
+  uid: string,
+  entry: CalendarTickerCache<Record<string, unknown>>,
+): Promise<void> {
+  await saveCalendarCacheEntry(uid, toCalendarTickerCacheEntry(entry));
+}
+
+export async function loadCalendarTickerCacheEntry(
+  uid: string,
+  ticker: string,
+): Promise<CalendarTickerCache<Record<string, unknown>> | null> {
+  const normalizedTicker = normalizeCalendarTicker(ticker);
+  if (!normalizedTicker) return null;
+  const snap = await getDoc(doc(requireDb(), "users", uid, "calendarCache", normalizedTicker));
+  return snap.exists() ? fromCalendarCacheEntry(snap.data() as unknown as CalendarCacheEntry) : null;
+}
+
+export async function deleteCalendarTickerCacheEntry(uid: string, ticker: string): Promise<void> {
+  const normalizedTicker = normalizeCalendarTicker(ticker);
+  if (!normalizedTicker) return;
+  await deleteCalendarCacheEntry(uid, normalizedTicker);
 }
 
 export async function saveUiPreferences(uid: string, preferences: UiPreferences): Promise<void> {

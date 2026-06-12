@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { formatIsoDate } from "@/lib/calendar-grid";
-import { DEFAULT_CALENDAR_FILTERS, buildMockCalendarEvents, buildTaxSavingRows } from "@/lib/mock-calendar-data";
+import { getCalendarEventsForTickers, getCalendarEventsForTickersWithProvider } from "@/lib/calendar-event-provider";
+import type { CalendarTickersProviderResult } from "@/lib/calendar-event-provider";
+import { DEFAULT_CALENDAR_FILTERS, buildTaxSavingRows } from "@/lib/mock-calendar-data";
 import type { CalendarEvent, CalendarEventType } from "@/lib/mock-calendar-data";
 import { useFirebaseAuth } from "@/lib/firebase/auth";
 import { loadCalendarEventMetas, saveCalendarEventMeta, warnFirestoreFallback, type CalendarEventMeta } from "@/lib/firebase/firestore-repositories";
@@ -52,6 +54,14 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
   const [filters, setFilters] = useState<Record<CalendarEventType, boolean>>(DEFAULT_CALENDAR_FILTERS);
   const [activeEvent, setActiveEvent] = useState<CalendarEvent | null>(null);
   const [eventMetas, setEventMetas] = useState<Record<string, CalendarEventMeta>>({});
+  const [providerResult, setProviderResult] = useState<CalendarTickersProviderResult>(() => ({
+    events: getCalendarEventsForTickers({ tickers, year: today.getFullYear(), month: today.getMonth() + 1 }),
+    tickerResults: [],
+    cacheMap: {},
+    source: "mock",
+    warnings: ["Initial mock events are shown until the dividend provider finishes."],
+  }));
+  const [isProviderLoading, setIsProviderLoading] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -79,6 +89,38 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
       .catch((err) => warnFirestoreFallback("calendarEvents.load", err));
   }, [user]);
 
+  useEffect(() => {
+    let cancelled = false;
+    setIsProviderLoading(true);
+    getCalendarEventsForTickersWithProvider({
+      tickers,
+      year: month.getFullYear(),
+      month: month.getMonth() + 1,
+      provider: "real",
+      preferFreshCache: true,
+    })
+      .then((result) => {
+        if (!cancelled) setProviderResult(result);
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        setProviderResult({
+          events: getCalendarEventsForTickers({ tickers, year: month.getFullYear(), month: month.getMonth() + 1 }),
+          tickerResults: [],
+          cacheMap: {},
+          source: "mock",
+          warnings: [`Calendar provider failed; mock fallback is shown: ${error instanceof Error ? error.message : String(error)}`],
+        });
+      })
+      .finally(() => {
+        if (!cancelled) setIsProviderLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [month, tickers]);
+
   const persistEventMeta = (event: CalendarEvent, meta: CalendarEventMeta) => {
     const canonicalEventId = getCalendarEventMetaKey(event);
     const canonicalMeta: CalendarEventMeta = {
@@ -102,15 +144,18 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
     }
   };
 
-  const events = useMemo(() => buildMockCalendarEvents(month.getFullYear(), month.getMonth() + 1, tickers).map((event) => {
+  const events = useMemo(() => providerResult.events.map((event) => {
     const meta = resolveCalendarEventMeta(event, eventMetas);
     if (!meta) return event;
     return { ...event, favorite: meta.star ? "⭐" : meta.heart ? "💗" : event.favorite, note: meta.memo ?? event.note };
-  }), [month, tickers, eventMetas]);
+  }), [providerResult.events, eventMetas]);
   const filteredEvents = useMemo(() => events.filter((event) => filters[event.type]), [events, filters]);
   const selectedEvents = useMemo(() => filteredEvents.filter((event) => event.date === selectedDate), [filteredEvents, selectedDate]);
-  const keyEvents = useMemo(() => filteredEvents.slice(0, 5), [filteredEvents]);
-  const taxRows = useMemo(() => buildTaxSavingRows(events), [events]);
+  const monthStartIso = useMemo(() => formatIsoDate(new Date(month.getFullYear(), month.getMonth(), 1)), [month]);
+  const monthEndIso = useMemo(() => formatIsoDate(new Date(month.getFullYear(), month.getMonth() + 1, 0)), [month]);
+  const monthEvents = useMemo(() => events.filter((event) => event.date >= monthStartIso && event.date <= monthEndIso), [events, monthEndIso, monthStartIso]);
+  const keyEvents = useMemo(() => filteredEvents.filter((event) => event.date >= monthStartIso && event.date <= monthEndIso).slice(0, 5), [filteredEvents, monthEndIso, monthStartIso]);
+  const taxRows = useMemo(() => buildTaxSavingRows(monthEvents), [monthEvents]);
 
   const moveMonth = (delta: number) => {
     setMonth((current) => new Date(current.getFullYear(), current.getMonth() + delta, 1));
@@ -129,12 +174,19 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
           <h1 className="text-[24px] font-extrabold text-white sm:text-[28px]">배당캘린더</h1>
           {headerAccessory}
         </div>
-        <p className="mt-1 text-[13px] text-slate-400 sm:text-[14px]">배당락일·매수 마감·지급일·실적 발표를 mock 데이터로 한 화면에서 점검하는 preview입니다.</p>
+        <p className="mt-1 text-[13px] text-slate-400 sm:text-[14px]">배당락일·매수 마감·지급일·실적 발표를 한 화면에서 점검하는 preview입니다.</p>
       </div>
 
       <section className="mb-5 rounded-2xl border border-blue-400/25 bg-blue-500/10 p-4">
-        <p className="text-[13px] font-semibold text-blue-100">Preview 안내 카드</p>
-        <p className="mt-1 text-[12.5px] leading-6 text-blue-100/80">이 화면은 외부 데이터 공급자나 서버 연동을 호출하지 않습니다. 모든 일정·절세액·상태는 기능 검증용 mock입니다.</p>
+        <p className="text-[13px] font-semibold text-blue-100">데이터 상태: {isProviderLoading ? "불러오는 중" : providerResult.source}</p>
+        <p className="mt-1 text-[12.5px] leading-6 text-blue-100/80">
+          `/api/quote/dividends` 기반 배당 이벤트를 사용하며, 실패하거나 데이터가 부족하면 cache 또는 mock/sample fallback을 표시합니다.
+        </p>
+        {providerResult.warnings.length > 0 && (
+          <p className="mt-1 truncate text-[12px] text-blue-100/70" title={providerResult.warnings.join(" | ")}>
+            {providerResult.warnings.slice(0, 2).join(" | ")}
+          </p>
+        )}
       </section>
 
       <section className="mb-5 grid grid-cols-1 gap-4 xl:grid-cols-[320px_1fr]">

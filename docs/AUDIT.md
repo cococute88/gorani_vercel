@@ -30,6 +30,10 @@ Step 5A-0 calendar event ID/cache schema date: 2026-06-12 (`docs/STEP5A0_CALENDA
 
 Step 5A-1 calendar canonical ID apply date: 2026-06-13 (`docs/STEP5A1_CALENDAR_CANONICAL_ID_APPLY.md`)
 
+Step 5A-2 calendar cache/provider boundary date: 2026-06-13 (`docs/STEP5A2_CALENDAR_CACHE_PROVIDER_BOUNDARY.md`)
+
+Step 5A-3 calendar real dividend provider date: 2026-06-13 (`docs/STEP5A3_CALENDAR_REAL_DIVIDEND_PROVIDER.md`)
+
 ## Project Root Decision
 
 - Actual working directory: `C:\gv\gorani_vercel`
