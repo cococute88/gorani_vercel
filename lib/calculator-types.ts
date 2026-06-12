@@ -16,6 +16,19 @@ export type DividendPoint = {
   amount: number;
 };
 
+export type DividendCapturePricePoint = {
+  date: string;
+  open: number | null;
+  high: number | null;
+  low: number | null;
+  close: number;
+};
+
+export type DividendCaptureDividendPoint = {
+  date: string;
+  amount: number;
+};
+
 export type DividendCaptureInput = {
   ticker: string;
   investmentAmount: number;
@@ -55,6 +68,11 @@ export type DividendCaptureRow = {
 
 export type DividendCaptureResult = {
   rows: DividendCaptureRow[];
+  source: QuoteSource;
+  warnings: string[];
+  updatedAt?: string;
+  usedStartDate: string;
+  usedEndDate: string;
   successRate: number;
   totalNetProfit: number;
   averageProfitPct: number;

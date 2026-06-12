@@ -1,24 +1,146 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Loader2, Search } from "lucide-react";
 import MetricCard from "@/components/MetricCard";
-import { simulateDividendCapture } from "@/lib/dividend-capture-calculator";
-import type { DividendCaptureInput } from "@/lib/calculator-types";
+import { fetchQuoteDividends, fetchQuoteHistory } from "@/lib/calculator-data-provider";
+import { resolveDividendCaptureDates, simulateDividendCapture } from "@/lib/dividend-capture-calculator";
+import type { DividendCaptureDividendPoint, DividendCaptureInput, DividendCapturePricePoint } from "@/lib/calculator-types";
+import type { QuoteSource } from "@/lib/quote-types";
 import { CartesianGrid, Cell, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis } from "recharts";
 
 const panel = "rounded-2xl border border-[#2a3336] bg-[#191f20] p-5";
 
+type DividendCaptureQuoteState = {
+  prices?: DividendCapturePricePoint[];
+  dividends?: DividendCaptureDividendPoint[];
+  source?: QuoteSource;
+  warnings: string[];
+  updatedAt?: string;
+  error?: string | null;
+};
+
+function combineSource(historySource: QuoteSource, dividendSource: QuoteSource): QuoteSource {
+  if (historySource === "sample" || dividendSource === "sample") return "sample";
+  if (historySource === "stooq") return "stooq";
+  return "yahoo";
+}
+
+function latestUpdatedAt(values: Array<string | undefined>) {
+  return values.filter(Boolean).sort().at(-1);
+}
+
+function sourceLabel(source?: QuoteSource) {
+  if (!source) return "loading";
+  return source.toUpperCase();
+}
+
+function toQuoteRequest(input: DividendCaptureInput) {
+  const { start, end } = resolveDividendCaptureDates(input);
+  if (input.recent5yOnly) return { ticker: input.ticker, range: "5y", end };
+  return { ticker: input.ticker, start, end };
+}
+
 export default function DividendCaptureSimulator({ input, onChange }: { input: DividendCaptureInput; onChange: (input: DividendCaptureInput) => void }) {
   const [submitted, setSubmitted] = useState(input);
-  const result = useMemo(() => simulateDividendCapture(submitted), [submitted]);
+  const [quoteState, setQuoteState] = useState<DividendCaptureQuoteState>({ warnings: [] });
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadDividendCaptureData() {
+      setLoading(true);
+      setQuoteState((previous) => ({ ...previous, error: null }));
+
+      try {
+        const request = toQuoteRequest(submitted);
+        const [historyResponse, dividendsResponse] = await Promise.all([
+          fetchQuoteHistory(request),
+          fetchQuoteDividends(request),
+        ]);
+        if (cancelled) return;
+
+        setQuoteState({
+          prices: historyResponse.prices.map((point) => ({
+            date: point.date,
+            open: point.open,
+            high: point.high,
+            low: point.low,
+            close: point.close,
+          })),
+          dividends: dividendsResponse.dividends.map((point) => ({ date: point.date, amount: point.amount })),
+          source: combineSource(historyResponse.source, dividendsResponse.source),
+          warnings: [
+            ...historyResponse.warnings.map((warning) => `${historyResponse.normalizedTicker} history: ${warning}`),
+            ...dividendsResponse.warnings.map((warning) => `${dividendsResponse.normalizedTicker} dividends: ${warning}`),
+            ...(historyResponse.source !== dividendsResponse.source
+              ? [`Mixed quote sources: history=${historyResponse.source}, dividends=${dividendsResponse.source}.`]
+              : []),
+          ],
+          updatedAt: latestUpdatedAt([historyResponse.updatedAt, dividendsResponse.updatedAt]),
+          error: null,
+        });
+      } catch (error) {
+        if (cancelled) return;
+        setQuoteState({
+          prices: [],
+          dividends: [],
+          source: "sample",
+          warnings: [`Quote history/dividends request failed; sample fallback was used: ${error instanceof Error ? error.message : String(error)}`],
+          error: error instanceof Error ? error.message : String(error),
+        });
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    loadDividendCaptureData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [submitted]);
+
+  const result = useMemo(
+    () =>
+      simulateDividendCapture(
+        submitted,
+        { prices: quoteState.prices, dividends: quoteState.dividends },
+        {
+          source: quoteState.source,
+          warnings: quoteState.warnings,
+          updatedAt: quoteState.updatedAt,
+        },
+      ),
+    [quoteState.dividends, quoteState.prices, quoteState.source, quoteState.updatedAt, quoteState.warnings, submitted],
+  );
   const update = <K extends keyof DividendCaptureInput>(key: K, value: DividendCaptureInput[K]) => onChange({ ...input, [key]: value });
 
   return (
     <div className="space-y-5">
       <form className={panel} onSubmit={(event) => { event.preventDefault(); setSubmitted(input); }}>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-[15px] font-bold text-white">입력값</h2>
-          <button type="submit" className="rounded-lg bg-blue-600 px-4 py-2 text-[13px] font-bold text-white hover:bg-blue-700">계산 실행</button>
+          <div>
+            <h2 className="text-[15px] font-bold text-white">입력값</h2>
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-[12px] text-slate-400">
+              <span className={`rounded-full border px-2 py-1 font-bold ${result.source === "sample" ? "border-amber-500/50 text-amber-200" : "border-blue-500/40 text-blue-200"}`}>
+                source: {sourceLabel(result.source)}
+              </span>
+              {loading && (
+                <span className="inline-flex items-center gap-1 text-blue-200">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  loading history/dividends
+                </span>
+              )}
+              {result.updatedAt && <span>updated: {new Date(result.updatedAt).toLocaleString()}</span>}
+              <span>{result.usedStartDate} ~ {result.usedEndDate}</span>
+            </div>
+          </div>
+          <button type="submit" className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-[13px] font-bold text-white hover:bg-blue-700">
+            <Search className="h-4 w-4" />
+            계산 실행
+          </button>
         </div>
         <div className="mt-4 grid gap-3 text-[13px] text-slate-300 sm:grid-cols-2 lg:grid-cols-4">
           <TextInput label="티커" value={input.ticker} onChange={(value) => update("ticker", value.toUpperCase())} />
@@ -50,12 +172,25 @@ export default function DividendCaptureSimulator({ input, onChange }: { input: D
         </div>
       </form>
 
+      {quoteState.error && <div className="rounded-2xl border border-red-500/30 bg-red-950/20 p-4 text-[13px] text-red-200">{quoteState.error}</div>}
+
+      {result.warnings.length > 0 && (
+        <div className="rounded-2xl border border-amber-500/30 bg-amber-950/20 p-4 text-[12.5px] text-amber-100">
+          <p className="font-bold">Warnings</p>
+          <ul className="mt-2 list-disc space-y-1 pl-5">
+            {result.warnings.map((warning) => (
+              <li key={warning}>{warning}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
         <MetricCard label="매수 가능 수량" value={`${result.shares.toLocaleString()}주`} sub={`${submitted.ticker} 기준`} tone="blue" />
         <MetricCard label="세후 배당금" value={`$${result.netDividend.toLocaleString()}`} sub={`세율 ${submitted.taxRate}% 반영`} tone="green" />
         <MetricCard label="예상 가격 하락" value={`-$${result.expectedDrop.toLocaleString()}`} sub="매수가 - 배당락 저가" tone="orange" />
         <MetricCard label="손익분기 가격" value={`$${result.breakevenPrice.toLocaleString()}`} sub="세후 배당·비용 반영" tone="blue" />
-        <MetricCard label="성공률" value={`${result.successRate}%`} sub={`${result.rows.length}회 샘플`} tone="green" />
+        <MetricCard label="성공률" value={`${result.successRate}%`} sub={`${result.rows.length}회 분석`} tone="green" />
         <MetricCard label="평균 회복일" value={`${result.averageRecoveryDays}일`} sub={`평균 수익률 ${result.averageProfitPct}%`} tone="gray" />
       </div>
 
