@@ -50,6 +50,8 @@ Step M2 responsive mobile table/card fix date: 2026-06-13 (`docs/MOBILE_UI_M2_TA
 
 Step 5B-0 TaxSavingTable calculation spec audit date: 2026-06-13 (`docs/STEP5B0_TAX_SAVING_CALC_AUDIT.md`)
 
+Step 5B-1 TaxSavingTable pure calculation function date: 2026-06-13 (`docs/STEP5B1_TAX_SAVING_PURE_FUNCTION.md`)
+
 ## Project Root Decision
 
 - Actual working directory: `C:\gv\gorani_vercel`
