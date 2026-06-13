@@ -58,6 +58,8 @@ Step 5B-3 historical tax-saving metric audit date: 2026-06-13 (`docs/STEP5B3_HIS
 
 Step 5B-4 historical tax-saving pure helper date: 2026-06-13 (`docs/STEP5B4_HISTORICAL_TAX_SAVING_HELPER.md`)
 
+Step 5B-5 historical tax-saving service/composition date: 2026-06-13 (`docs/STEP5B5_HISTORICAL_TAX_SAVING_SERVICE.md`)
+
 ## Project Root Decision
 
 - Actual working directory: `C:\gv\gorani_vercel`

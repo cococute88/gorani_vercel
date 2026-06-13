@@ -53,6 +53,10 @@ const {
   calculateHistoricalTaxSavingMetric,
 } = require("../lib/historical-tax-saving-calculator.ts");
 
+const {
+  loadHistoricalTaxSavingMetricForTicker,
+} = require("../lib/historical-tax-saving-service.ts");
+
 function assertNear(actual, expected, message) {
   assert.equal(Math.abs(actual - expected) < 1e-10, true, message);
 }
@@ -312,7 +316,140 @@ function assertHistoricalMissingData() {
   ];
 }
 
-function main() {
+function dividendsResponse(ticker, dividends, warnings = []) {
+  return {
+    ticker,
+    normalizedTicker: ticker.trim().toUpperCase(),
+    source: "yahoo",
+    updatedAt: "2026-06-13T00:00:00.000Z",
+    warnings,
+    dividends,
+  };
+}
+
+function historyResponse(ticker, prices, warnings = []) {
+  return {
+    ticker,
+    normalizedTicker: ticker.trim().toUpperCase(),
+    source: "yahoo",
+    updatedAt: "2026-06-13T00:00:00.000Z",
+    warnings,
+    prices,
+  };
+}
+
+function fakeDividendFetcher(dividends, warnings = []) {
+  return async ({ ticker }) => dividendsResponse(ticker, dividends, warnings);
+}
+
+function fakeHistoryFetcher(prices, warnings = []) {
+  return async ({ ticker }) => historyResponse(ticker, prices, warnings);
+}
+
+async function assertHistoricalServiceSuccess() {
+  const dividends = [{ date: "2026-06-10", amount: 1 }];
+  const prices = [
+    { date: "2026-06-09", open: 100, high: 101, low: 99, close: 100, volume: null },
+    { date: "2026-06-10", open: 99, high: 100, low: 98, close: 99, volume: null },
+  ];
+  const result = await loadHistoricalTaxSavingMetricForTicker("schd", {
+    fetchDividends: fakeDividendFetcher(dividends),
+    fetchHistory: fakeHistoryFetcher(prices),
+  });
+  const expected = calculateHistoricalTaxSavingMetric({
+    dividends,
+    prices: prices.map(({ date, close, high }) => ({ date, close, high })),
+  });
+
+  assert.equal(result.source, "injected");
+  assert.equal(result.ticker, "SCHD");
+  assert.equal(result.canCalculate, true);
+  assert.equal(result.totalCount, 1);
+  assert.equal(result.successCount, 1);
+  assert.equal(result.failureCount, 0);
+  assert.equal(result.dividendCount > 0, true);
+  assert.equal(result.priceBarCount > 0, true);
+  assertNear(result.taxSavingUsd, expected.taxSavingUsd, "historical service success taxSavingUsd");
+  return result;
+}
+
+async function assertHistoricalServiceFailureButValidSample() {
+  const result = await loadHistoricalTaxSavingMetricForTicker("SCHD", {
+    fetchDividends: fakeDividendFetcher([{ date: "2026-06-10", amount: 1 }]),
+    fetchHistory: fakeHistoryFetcher([
+      { date: "2026-06-09", open: 100, high: 101, low: 99, close: 100, volume: null },
+      { date: "2026-06-10", open: 99, high: 99, low: 98, close: 99, volume: null },
+    ]),
+  });
+
+  assert.equal(result.canCalculate, true);
+  assert.equal(result.totalCount, 1);
+  assert.equal(result.successCount, 0);
+  assert.equal(result.failureCount, 1);
+  assert.equal(result.taxSavingUsd, 0);
+  return result;
+}
+
+async function assertHistoricalServiceMissingHistory() {
+  const result = await loadHistoricalTaxSavingMetricForTicker("SCHD", {
+    fetchDividends: fakeDividendFetcher([{ date: "2026-06-10", amount: 1 }]),
+    fetchHistory: fakeHistoryFetcher([]),
+  });
+
+  assert.equal(result.canCalculate, false);
+  assert.equal(result.taxSavingUsd, 0);
+  assert.equal(result.dividendCount, 1);
+  assert.equal(result.priceBarCount, 0);
+  assert.equal(result.warnings.length > 0, true);
+  return result;
+}
+
+async function assertHistoricalServiceInvalidTicker() {
+  let dividendFetchCount = 0;
+  let historyFetchCount = 0;
+  const result = await loadHistoricalTaxSavingMetricForTicker("   ", {
+    fetchDividends: async () => {
+      dividendFetchCount += 1;
+      return dividendsResponse("", []);
+    },
+    fetchHistory: async () => {
+      historyFetchCount += 1;
+      return historyResponse("", []);
+    },
+  });
+
+  assert.equal(result.canCalculate, false);
+  assert.equal(result.taxSavingUsd, 0);
+  assert.equal(result.warnings.length > 0, true);
+  assert.equal(dividendFetchCount, 0);
+  assert.equal(historyFetchCount, 0);
+  return { ...result, dividendFetchCount, historyFetchCount };
+}
+
+async function assertHistoricalServiceDroppedInvalidRows() {
+  const result = await loadHistoricalTaxSavingMetricForTicker("SCHD", {
+    fetchDividends: fakeDividendFetcher([
+      { date: "2026-06-10", amount: 1 },
+      { date: "not-a-date", amount: 1 },
+      { date: "2026-07-10", amount: 0 },
+    ]),
+    fetchHistory: fakeHistoryFetcher([
+      { date: "2026-06-09", open: 100, high: 101, low: 99, close: 100, volume: null },
+      { date: "2026-06-10", open: 99, high: 100, low: 98, close: 99, volume: null },
+      { date: "bad-date", open: 99, high: 100, low: 98, close: 99, volume: null },
+      { date: "2026-06-11", open: 99, high: null, low: 98, close: 99, volume: null },
+    ]),
+  });
+
+  assert.equal(result.dividendCount, 1);
+  assert.equal(result.priceBarCount, 2);
+  assert.equal(result.canCalculate, true);
+  assert.equal(result.warnings.some((warning) => warning.includes("Dropped dividend row")), true);
+  assert.equal(result.warnings.some((warning) => warning.includes("Dropped price row")), true);
+  return result;
+}
+
+async function main() {
   const validCalculation = assertValidCalculation();
   const defaultCalculation = assertDefaultCalculation();
   const missingPrice = assertMissingPrice();
@@ -324,6 +461,11 @@ function main() {
   const historicalFailure = assertHistoricalFailureExcluded();
   const historicalMixedAverage = assertHistoricalMixedAverage();
   const historicalMissingData = assertHistoricalMissingData();
+  const historicalServiceSuccess = await assertHistoricalServiceSuccess();
+  const historicalServiceFailure = await assertHistoricalServiceFailureButValidSample();
+  const historicalServiceMissingHistory = await assertHistoricalServiceMissingHistory();
+  const historicalServiceInvalidTicker = await assertHistoricalServiceInvalidTicker();
+  const historicalServiceDroppedRows = await assertHistoricalServiceDroppedInvalidRows();
 
   console.log("Tax saving calculator regression passed.");
   console.table([
@@ -393,6 +535,57 @@ function main() {
     },
   ]);
   console.table(historicalMissingData);
+  console.table([
+    {
+      case: "historical service success",
+      canCalculate: historicalServiceSuccess.canCalculate,
+      totalCount: historicalServiceSuccess.totalCount,
+      successCount: historicalServiceSuccess.successCount,
+      failureCount: historicalServiceSuccess.failureCount,
+      dividendCount: historicalServiceSuccess.dividendCount,
+      priceBarCount: historicalServiceSuccess.priceBarCount,
+      taxSavingUsd: historicalServiceSuccess.taxSavingUsd,
+    },
+    {
+      case: "historical service valid failure",
+      canCalculate: historicalServiceFailure.canCalculate,
+      totalCount: historicalServiceFailure.totalCount,
+      successCount: historicalServiceFailure.successCount,
+      failureCount: historicalServiceFailure.failureCount,
+      dividendCount: historicalServiceFailure.dividendCount,
+      priceBarCount: historicalServiceFailure.priceBarCount,
+      taxSavingUsd: historicalServiceFailure.taxSavingUsd,
+    },
+    {
+      case: "historical service missing history",
+      canCalculate: historicalServiceMissingHistory.canCalculate,
+      totalCount: historicalServiceMissingHistory.totalCount,
+      successCount: historicalServiceMissingHistory.successCount,
+      failureCount: historicalServiceMissingHistory.failureCount,
+      dividendCount: historicalServiceMissingHistory.dividendCount,
+      priceBarCount: historicalServiceMissingHistory.priceBarCount,
+      taxSavingUsd: historicalServiceMissingHistory.taxSavingUsd,
+    },
+    {
+      case: "historical service invalid ticker",
+      canCalculate: historicalServiceInvalidTicker.canCalculate,
+      dividendFetchCount: historicalServiceInvalidTicker.dividendFetchCount,
+      historyFetchCount: historicalServiceInvalidTicker.historyFetchCount,
+      taxSavingUsd: historicalServiceInvalidTicker.taxSavingUsd,
+    },
+    {
+      case: "historical service dropped invalid rows",
+      canCalculate: historicalServiceDroppedRows.canCalculate,
+      totalCount: historicalServiceDroppedRows.totalCount,
+      dividendCount: historicalServiceDroppedRows.dividendCount,
+      priceBarCount: historicalServiceDroppedRows.priceBarCount,
+      warnings: historicalServiceDroppedRows.warnings.length,
+    },
+  ]);
 }
 
-main();
+main().catch((error) => {
+  console.error("Tax saving calculator regression failed.");
+  console.error(error);
+  process.exit(1);
+});
