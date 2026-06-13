@@ -49,6 +49,10 @@ const {
   buildTaxSavingRows,
 } = require("../lib/mock-calendar-data.ts");
 
+const {
+  calculateHistoricalTaxSavingMetric,
+} = require("../lib/historical-tax-saving-calculator.ts");
+
 function assertNear(actual, expected, message) {
   assert.equal(Math.abs(actual - expected) < 1e-10, true, message);
 }
@@ -210,6 +214,104 @@ function assertRowBuildingCalculation() {
   }));
 }
 
+function calculateOneHistoricalSample({ exDivHigh }) {
+  return calculateHistoricalTaxSavingMetric({
+    dividends: [{ date: "2026-06-10", amount: 1 }],
+    prices: [
+      { date: "2026-06-09", close: 100, high: 101 },
+      { date: "2026-06-10", close: 99, high: exDivHigh },
+    ],
+  });
+}
+
+function assertHistoricalFullRecoverySuccess() {
+  const result = calculateOneHistoricalSample({ exDivHigh: 100 });
+  assert.equal(result.canCalculate, true);
+  assert.equal(result.totalCount, 1);
+  assert.equal(result.successCount, 1);
+  assert.equal(result.failureCount, 0);
+  assert.equal(result.samples[0].success, true);
+  assertNear(result.samples[0].afterTaxDividend, 0.85, "historical full recovery afterTaxDividend");
+  assertNear(result.samples[0].breakEvenPrice, 99.15, "historical full recovery breakEvenPrice");
+  assertNear(result.samples[0].profitPct, 0.85, "historical full recovery profitPct");
+  assertNear(result.taxSavingUsd, 18.7, "historical full recovery taxSavingUsd");
+  return result;
+}
+
+function assertHistoricalPartialRecoverySuccess() {
+  const result = calculateOneHistoricalSample({ exDivHigh: 99.5 });
+  assert.equal(result.canCalculate, true);
+  assert.equal(result.totalCount, 1);
+  assert.equal(result.successCount, 1);
+  assert.equal(result.failureCount, 0);
+  assert.equal(result.samples[0].success, true);
+  assertNear(result.samples[0].breakEvenPrice, 99.15, "historical partial recovery breakEvenPrice");
+  assertNear(result.samples[0].profitPct, 0.85, "historical partial recovery original-compatible profitPct");
+  assertNear(result.taxSavingUsd, 18.7, "historical partial recovery original-compatible taxSavingUsd");
+  return result;
+}
+
+function assertHistoricalFailureExcluded() {
+  const result = calculateOneHistoricalSample({ exDivHigh: 99 });
+  assert.equal(result.canCalculate, true);
+  assert.equal(result.totalCount, 1);
+  assert.equal(result.successCount, 0);
+  assert.equal(result.failureCount, 1);
+  assert.equal(result.samples[0].success, false);
+  assert.equal(result.samples[0].profitPct, 0);
+  assert.equal(result.avgProfitPct, 0);
+  assert.equal(result.taxSavingUsd, 0);
+  return result;
+}
+
+function assertHistoricalMixedAverage() {
+  const result = calculateHistoricalTaxSavingMetric({
+    dividends: [
+      { date: "2026-06-10", amount: 1 },
+      { date: "2026-09-10", amount: 1 },
+    ],
+    prices: [
+      { date: "2026-06-09", close: 100, high: 101 },
+      { date: "2026-06-10", close: 99, high: 100 },
+      { date: "2026-09-09", close: 100, high: 101 },
+      { date: "2026-09-10", close: 99, high: 99 },
+    ],
+  });
+
+  assert.equal(result.canCalculate, true);
+  assert.equal(result.totalCount, 2);
+  assert.equal(result.successCount, 1);
+  assert.equal(result.failureCount, 1);
+  assertNear(result.avgProfitPct, 0.85, "historical mixed success-only average");
+  assertNear(result.taxSavingUsd, 18.7, "historical mixed success-only taxSavingUsd");
+  return result;
+}
+
+function assertHistoricalMissingData() {
+  const missingPriceBars = calculateHistoricalTaxSavingMetric({
+    dividends: [{ date: "2026-06-10", amount: 1 }],
+    prices: [],
+  });
+
+  assert.equal(missingPriceBars.canCalculate, false);
+  assert.equal(missingPriceBars.taxSavingUsd, 0);
+  assert.equal(missingPriceBars.warnings.length > 0, true);
+
+  const missingPreviousTradingDay = calculateHistoricalTaxSavingMetric({
+    dividends: [{ date: "2026-06-10", amount: 1 }],
+    prices: [{ date: "2026-06-10", close: 99, high: 100 }],
+  });
+
+  assert.equal(missingPreviousTradingDay.canCalculate, false);
+  assert.equal(missingPreviousTradingDay.taxSavingUsd, 0);
+  assert.equal(missingPreviousTradingDay.warnings.length > 0, true);
+
+  return [
+    { case: "missing price bars", warnings: missingPriceBars.warnings.join(" | ") },
+    { case: "missing previous trading day", warnings: missingPreviousTradingDay.warnings.join(" | ") },
+  ];
+}
+
 function main() {
   const validCalculation = assertValidCalculation();
   const defaultCalculation = assertDefaultCalculation();
@@ -217,6 +319,11 @@ function main() {
   const missingDividend = assertMissingDividend();
   const invalidValues = assertInvalidValues();
   const rowBuilding = assertRowBuildingCalculation();
+  const historicalFullRecovery = assertHistoricalFullRecoverySuccess();
+  const historicalPartialRecovery = assertHistoricalPartialRecoverySuccess();
+  const historicalFailure = assertHistoricalFailureExcluded();
+  const historicalMixedAverage = assertHistoricalMixedAverage();
+  const historicalMissingData = assertHistoricalMissingData();
 
   console.log("Tax saving calculator regression passed.");
   console.table([
@@ -251,6 +358,41 @@ function main() {
   ]);
   console.table(invalidValues);
   console.table(rowBuilding);
+  console.table([
+    {
+      case: "historical full recovery success",
+      canCalculate: historicalFullRecovery.canCalculate,
+      avgProfitPct: historicalFullRecovery.avgProfitPct,
+      successCount: historicalFullRecovery.successCount,
+      failureCount: historicalFullRecovery.failureCount,
+      taxSavingUsd: historicalFullRecovery.taxSavingUsd,
+    },
+    {
+      case: "historical partial recovery success",
+      canCalculate: historicalPartialRecovery.canCalculate,
+      avgProfitPct: historicalPartialRecovery.avgProfitPct,
+      successCount: historicalPartialRecovery.successCount,
+      failureCount: historicalPartialRecovery.failureCount,
+      taxSavingUsd: historicalPartialRecovery.taxSavingUsd,
+    },
+    {
+      case: "historical failure excluded",
+      canCalculate: historicalFailure.canCalculate,
+      avgProfitPct: historicalFailure.avgProfitPct,
+      successCount: historicalFailure.successCount,
+      failureCount: historicalFailure.failureCount,
+      taxSavingUsd: historicalFailure.taxSavingUsd,
+    },
+    {
+      case: "historical mixed success/failure average",
+      canCalculate: historicalMixedAverage.canCalculate,
+      avgProfitPct: historicalMixedAverage.avgProfitPct,
+      successCount: historicalMixedAverage.successCount,
+      failureCount: historicalMixedAverage.failureCount,
+      taxSavingUsd: historicalMixedAverage.taxSavingUsd,
+    },
+  ]);
+  console.table(historicalMissingData);
 }
 
 main();
