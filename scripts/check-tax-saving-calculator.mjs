@@ -57,6 +57,11 @@ const {
   loadHistoricalTaxSavingMetricForTicker,
 } = require("../lib/historical-tax-saving-service.ts");
 
+const {
+  loadHistoricalTaxSavingMetricCached,
+  clearHistoricalTaxSavingMetricCache,
+} = require("../lib/historical-tax-saving-session-cache.ts");
+
 function assertNear(actual, expected, message) {
   assert.equal(Math.abs(actual - expected) < 1e-10, true, message);
 }
@@ -449,6 +454,114 @@ async function assertHistoricalServiceDroppedInvalidRows() {
   return result;
 }
 
+function syntheticLoadResult(ticker, source = "injected") {
+  const normalized = ticker.trim().toUpperCase();
+  return {
+    ticker: normalized,
+    canCalculate: true,
+    taxSavingUsd: 18.7,
+    avgProfitPct: 0.85,
+    totalCount: 1,
+    successCount: 1,
+    failureCount: 0,
+    dividendCount: 1,
+    priceBarCount: 2,
+    source,
+    warnings: [],
+    calculatedAt: "2026-06-13T00:00:00.000Z",
+  };
+}
+
+function countingLoader() {
+  let calls = 0;
+  const loader = async (ticker) => {
+    calls += 1;
+    return syntheticLoadResult(ticker);
+  };
+  return { loader, getCalls: () => calls };
+}
+
+// Case: uppercase normalization shares one cache entry and a fresh cached
+// result avoids a second loader call.
+async function assertCacheNormalizationAndFreshHit() {
+  clearHistoricalTaxSavingMetricCache();
+  let clock = 1000;
+  const now = () => clock;
+  const { loader, getCalls } = countingLoader();
+
+  const first = await loadHistoricalTaxSavingMetricCached("schd", { loader, now });
+  const second = await loadHistoricalTaxSavingMetricCached("SCHD", { loader, now });
+
+  assert.equal(getCalls(), 1, "cache should call the loader once for the same normalized ticker");
+  assert.equal(first, second, "fresh cache hit should return the same cached result reference");
+  assert.equal(second.ticker, "SCHD", "cached result ticker should be normalized to uppercase");
+  return { calls: getCalls(), ticker: second.ticker };
+}
+
+// Case: concurrent calls for the same ticker reuse one in-flight promise.
+async function assertCacheInFlightDeduplication() {
+  clearHistoricalTaxSavingMetricCache();
+  let calls = 0;
+  let releaseGate;
+  const gate = new Promise((resolve) => {
+    releaseGate = resolve;
+  });
+  const loader = async (ticker) => {
+    calls += 1;
+    await gate;
+    return syntheticLoadResult(ticker);
+  };
+
+  const p1 = loadHistoricalTaxSavingMetricCached("aaa", { loader });
+  const p2 = loadHistoricalTaxSavingMetricCached("AAA", { loader });
+  assert.equal(p1, p2, "in-flight requests for the same ticker should share one promise");
+
+  releaseGate();
+  const [a, b] = await Promise.all([p1, p2]);
+  assert.equal(calls, 1, "in-flight deduplication should invoke the loader once");
+  assert.equal(a, b, "deduplicated calls should resolve to the same result");
+  return { calls };
+}
+
+// Case: an expired cache entry triggers a fresh loader call.
+async function assertCacheExpiry() {
+  clearHistoricalTaxSavingMetricCache();
+  let clock = 0;
+  const now = () => clock;
+  const ttlMs = 1000;
+  const { loader, getCalls } = countingLoader();
+
+  await loadHistoricalTaxSavingMetricCached("bbb", { loader, now, ttlMs });
+  clock += ttlMs + 1;
+  await loadHistoricalTaxSavingMetricCached("BBB", { loader, now, ttlMs });
+
+  assert.equal(getCalls(), 2, "expired cache entry should trigger a new loader call");
+  return { calls: getCalls() };
+}
+
+// Case: a loader failure becomes a safe unavailable result and is cached.
+async function assertCacheFailureDoesNotCrash() {
+  clearHistoricalTaxSavingMetricCache();
+  let clock = 0;
+  const now = () => clock;
+  let calls = 0;
+  const loader = async () => {
+    calls += 1;
+    throw new Error("synthetic loader failure");
+  };
+
+  const result = await loadHistoricalTaxSavingMetricCached("ccc", { loader, now });
+  assert.equal(result.canCalculate, false, "failure should resolve to an unavailable result");
+  assert.equal(result.taxSavingUsd, 0, "unavailable result should report zero tax saving");
+  assert.equal(result.ticker, "CCC", "unavailable result ticker should be normalized");
+
+  // The cached unavailable result should be reused within the TTL.
+  const cached = await loadHistoricalTaxSavingMetricCached("CCC", { loader, now });
+  assert.equal(cached, result, "unavailable result should be cached for the TTL");
+  assert.equal(calls, 1, "cached failure should not re-invoke the loader within the TTL");
+  return { canCalculate: result.canCalculate, calls };
+}
+
 async function main() {
   const validCalculation = assertValidCalculation();
   const defaultCalculation = assertDefaultCalculation();
@@ -466,6 +579,11 @@ async function main() {
   const historicalServiceMissingHistory = await assertHistoricalServiceMissingHistory();
   const historicalServiceInvalidTicker = await assertHistoricalServiceInvalidTicker();
   const historicalServiceDroppedRows = await assertHistoricalServiceDroppedInvalidRows();
+  const cacheNormalization = await assertCacheNormalizationAndFreshHit();
+  const cacheInFlight = await assertCacheInFlightDeduplication();
+  const cacheExpiry = await assertCacheExpiry();
+  const cacheFailure = await assertCacheFailureDoesNotCrash();
+  clearHistoricalTaxSavingMetricCache();
 
   console.log("Tax saving calculator regression passed.");
   console.table([
@@ -581,6 +699,12 @@ async function main() {
       priceBarCount: historicalServiceDroppedRows.priceBarCount,
       warnings: historicalServiceDroppedRows.warnings.length,
     },
+  ]);
+  console.table([
+    { case: "cache normalization + fresh hit", loaderCalls: cacheNormalization.calls, ticker: cacheNormalization.ticker },
+    { case: "cache in-flight dedup", loaderCalls: cacheInFlight.calls },
+    { case: "cache expiry", loaderCalls: cacheExpiry.calls },
+    { case: "cache failure unavailable", loaderCalls: cacheFailure.calls, canCalculate: cacheFailure.canCalculate },
   ]);
 }
 

@@ -3,10 +3,8 @@
 import { useEffect, useState } from "react";
 import { eventStatusLabel, getEventVisual } from "@/lib/event-visuals";
 import { isCustomCalendarEventLike } from "@/lib/calendar-event-provider";
-import {
-  loadHistoricalTaxSavingMetricForTicker,
-  type HistoricalTaxSavingMetricLoadResult,
-} from "@/lib/historical-tax-saving-service";
+import type { HistoricalTaxSavingMetricLoadResult } from "@/lib/historical-tax-saving-service";
+import { loadHistoricalTaxSavingMetricCached } from "@/lib/historical-tax-saving-session-cache";
 import type { CalendarEvent } from "@/lib/mock-calendar-data";
 import type { CalendarEventMeta } from "@/lib/firebase/firestore-repositories";
 
@@ -53,7 +51,9 @@ export default function CalendarEventDialog({ event, meta, onSaveMeta, onClose }
     setHistoricalMetric(null);
     setIsHistoricalMetricLoading(true);
 
-    loadHistoricalTaxSavingMetricForTicker(historicalTicker)
+    // The session cache reuses fresh results and deduplicates in-flight
+    // requests for the same ticker, so reopening a dialog avoids refetching.
+    loadHistoricalTaxSavingMetricCached(historicalTicker)
       .then((result) => {
         if (!cancelled) setHistoricalMetric(result);
       })
@@ -178,6 +178,8 @@ function HistoricalTaxSavingSection({
   }
 
   const firstWarning = !loading && metric && !metric.canCalculate ? metric.warnings[0] : undefined;
+  // Small, muted source indicator shown only once a metric is available.
+  const sourceText = !loading && metric ? historicalSourceLabel(metric.source) : null;
 
   return (
     <div className="mt-3 rounded-xl border border-[#273235] bg-[#101719] p-3" title={firstWarning || undefined}>
@@ -187,8 +189,15 @@ function HistoricalTaxSavingSection({
       </div>
       <p className="mt-1 text-[11px] text-slate-400">{detailText}</p>
       <p className="mt-1 text-[10px] text-slate-500">과거 5년 배당락일에 당일 고가가 손익분기점을 회복한 사례 기준입니다.</p>
+      {sourceText && <p className="mt-1 text-[10px] text-slate-500">출처: {sourceText}</p>}
     </div>
   );
+}
+
+function historicalSourceLabel(source: HistoricalTaxSavingMetricLoadResult["source"] | undefined): string {
+  if (source === "quote-api") return "quote-api";
+  if (source === "injected") return "injected";
+  return "source unknown";
 }
 
 function Info({ label, value }: { label: string; value: string }) {

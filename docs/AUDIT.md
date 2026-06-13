@@ -385,3 +385,11 @@ Dependency warnings observed:
 ## 2026-06-13 Step 5B-6 Historical Tax-Saving Dialog UI
 
 - Connected `loadHistoricalTaxSavingMetricForTicker` to `CalendarEventDialog` as a compact auxiliary metric for eligible generated dividend events only; `TaxSavingTable` formula unchanged. See `docs/STEP5B6_HISTORICAL_TAX_SAVING_DIALOG_UI.md`.
+
+## 2026-06-13 Step 5B-7 Historical Tax-Saving Dialog Cache And Source Badge
+
+- Added an in-memory session cache with in-flight deduplication (`lib/historical-tax-saving-session-cache.ts`, key = uppercase ticker, TTL 30m) so reopening an event dialog avoids refetching, plus a small muted `출처:` source line inside the existing metric card; `TaxSavingTable` unchanged. See `docs/STEP5B7_HISTORICAL_TAX_SAVING_DIALOG_CACHE.md`.
+
+## 2026-06-13 Step 5C-0 Watchlist Final QA And Regression Audit
+
+- Audit-only QA pass over `/watchlist` (no source changes): all checks/build/lint/typecheck pass; desktop/390/320 have no page-level overflow; TaxSavingTable shows live values; historical metric, custom event CRUD, and cache/provider sanitization verified. No P0/P1 found; one P2 (static `0.00%`/`$0.0` Info cells in `CalendarEventDialog`) recommended for an optional Step 5C-1. See `docs/STEP5C0_WATCHLIST_FINAL_QA.md`.
