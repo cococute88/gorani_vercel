@@ -14,8 +14,9 @@ import {
   upsertCalendarCustomEvent as upsertLocalCalendarCustomEvent,
   type CalendarCustomEvent,
 } from "@/lib/calendar-custom-events";
+import { fetchQuoteLast } from "@/lib/calculator-data-provider";
 import { DEFAULT_CALENDAR_FILTERS, buildTaxSavingRows } from "@/lib/mock-calendar-data";
-import type { CalendarEvent, CalendarEventType } from "@/lib/mock-calendar-data";
+import type { CalendarEvent, CalendarEventType, TaxSavingQuoteState } from "@/lib/mock-calendar-data";
 import { useFirebaseAuth } from "@/lib/firebase/auth";
 import {
   deleteCalendarCustomEvent as deleteFirestoreCalendarCustomEvent,
@@ -83,6 +84,8 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
     warnings: ["Initial mock events are shown until the dividend provider finishes."],
   }));
   const [isProviderLoading, setIsProviderLoading] = useState(false);
+  const [taxQuoteByTicker, setTaxQuoteByTicker] = useState<Record<string, TaxSavingQuoteState>>({});
+  const [taxQuoteLoadingTickers, setTaxQuoteLoadingTickers] = useState<Set<string>>(() => new Set());
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -253,7 +256,73 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
   const monthEndIso = useMemo(() => formatIsoDate(new Date(month.getFullYear(), month.getMonth() + 1, 0)), [month]);
   const monthEvents = useMemo(() => events.filter((event) => event.date >= monthStartIso && event.date <= monthEndIso), [events, monthEndIso, monthStartIso]);
   const keyEvents = useMemo(() => filteredEvents.filter((event) => event.date >= monthStartIso && event.date <= monthEndIso).slice(0, 5), [filteredEvents, monthEndIso, monthStartIso]);
-  const taxRows = useMemo(() => buildTaxSavingRows(monthEvents), [monthEvents]);
+  const taxCandidateRows = useMemo(() => buildTaxSavingRows(monthEvents, { todayIso }), [monthEvents, todayIso]);
+  const taxQuoteTickerKey = useMemo(() => taxCandidateRows.map((row) => row.ticker).join("|"), [taxCandidateRows]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const quoteTickers = taxQuoteTickerKey ? taxQuoteTickerKey.split("|").filter(Boolean) : [];
+
+    if (quoteTickers.length === 0) {
+      setTaxQuoteByTicker({});
+      setTaxQuoteLoadingTickers(new Set());
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    setTaxQuoteLoadingTickers(new Set(quoteTickers));
+
+    Promise.all(
+      quoteTickers.map(async (ticker) => {
+        try {
+          const quote = await fetchQuoteLast({ ticker });
+          return {
+            ticker,
+            quote: {
+              price: quote.price,
+              warnings: quote.warnings,
+              source: quote.source,
+            } satisfies TaxSavingQuoteState,
+          };
+        } catch (error) {
+          return {
+            ticker,
+            quote: {
+              price: null,
+              warnings: [`Quote last request failed for ${ticker}: ${error instanceof Error ? error.message : String(error)}`],
+              source: "sample",
+            } satisfies TaxSavingQuoteState,
+          };
+        }
+      }),
+    )
+      .then((results) => {
+        if (cancelled) return;
+        const next: Record<string, TaxSavingQuoteState> = {};
+        for (const result of results) {
+          next[result.ticker] = result.quote;
+        }
+        setTaxQuoteByTicker(next);
+      })
+      .finally(() => {
+        if (!cancelled) setTaxQuoteLoadingTickers(new Set());
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [taxQuoteTickerKey]);
+
+  const taxRows = useMemo(
+    () =>
+      buildTaxSavingRows(monthEvents, {
+        quoteByTicker: taxQuoteByTicker,
+        loadingTickers: taxQuoteLoadingTickers,
+        todayIso,
+      }),
+    [monthEvents, taxQuoteByTicker, taxQuoteLoadingTickers, todayIso],
+  );
 
   const moveMonth = (delta: number) => {
     setMonth((current) => new Date(current.getFullYear(), current.getMonth() + delta, 1));

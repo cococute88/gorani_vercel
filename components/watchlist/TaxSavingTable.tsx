@@ -4,6 +4,12 @@ interface Props {
   rows: TaxSavingRow[];
 }
 
+function formatTaxSaving(row: TaxSavingRow): string {
+  if (row.isLoading) return "...";
+  if (!row.canCalculate) return "—";
+  return row.taxSavingUsd.toFixed(1);
+}
+
 export default function TaxSavingTable({ rows }: Props) {
   return (
     <section className="rounded-2xl border border-[#2a3336] bg-[#191f20] p-3 sm:p-4">
@@ -25,17 +31,22 @@ export default function TaxSavingTable({ rows }: Props) {
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
-            <tr key={row.ticker} className="border-b border-[#20282a] last:border-0">
-              <td className="py-2 pr-2 font-bold text-white sm:py-2.5">{row.ticker}</td>
-              <td className="num py-2 px-2 text-right text-slate-200 sm:py-2.5">{row.taxSavingUsd.toFixed(1)}</td>
-              <td className="py-2 pl-2 text-center sm:py-2.5">
-                <span className={`inline-block rounded-full px-1.5 py-0.5 text-[10px] font-bold sm:px-2 sm:py-1 sm:text-[11px] ${row.shouldBuyThisMonth ? "bg-red-500/20 text-red-200 ring-1 ring-red-400/40" : "bg-white/10 text-slate-500"}`}>
-                  {row.shouldBuyThisMonth ? "Buy" : "—"}
-                </span>
-              </td>
-            </tr>
-          ))}
+          {rows.map((row) => {
+            const warningText = row.warnings.join(" | ");
+            return (
+              <tr key={row.ticker} className="border-b border-[#20282a] last:border-0" title={warningText || undefined}>
+                <td className="py-2 pr-2 font-bold text-white sm:py-2.5">{row.ticker}</td>
+                <td className={`num py-2 px-2 text-right sm:py-2.5 ${row.canCalculate ? "text-slate-200" : row.isLoading ? "text-slate-400" : "text-amber-200"}`}>
+                  {formatTaxSaving(row)}
+                </td>
+                <td className="py-2 pl-2 text-center sm:py-2.5">
+                  <span className={`inline-block rounded-full px-1.5 py-0.5 text-[10px] font-bold sm:px-2 sm:py-1 sm:text-[11px] ${row.shouldBuyThisMonth ? "bg-red-500/20 text-red-200 ring-1 ring-red-400/40" : "bg-white/10 text-slate-500"}`}>
+                    {row.shouldBuyThisMonth ? "Buy" : "—"}
+                  </span>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </section>

@@ -1,4 +1,5 @@
 import { buildGeneratedCalendarEventId, type CalendarEventSourceKind } from "@/lib/calendar-event-identity";
+import { calculateExpectedDividendTaxSaving } from "@/lib/tax-saving-calculator";
 
 export type CalendarEventType = "ex_div" | "buy_by" | "pay" | "earnings" | "custom";
 export type CalendarEventStatus = "confirmed" | "estimated";
@@ -28,7 +29,29 @@ export interface TaxSavingRow {
   ticker: string;
   taxSavingUsd: number;
   shouldBuyThisMonth: boolean;
+  expectedShares?: number;
+  expectedDividendUsd?: number;
+  currentPrice?: number | null;
+  dividendAmountPerShare?: number | null;
+  canCalculate: boolean;
+  warnings: string[];
+  source?: string;
+  isLoading?: boolean;
+  eventDate?: string;
+  eventType?: CalendarEventType;
 }
+
+export type TaxSavingQuoteState = {
+  price: number | null;
+  warnings?: string[];
+  source?: string;
+};
+
+export type BuildTaxSavingRowsOptions = {
+  quoteByTicker?: Record<string, TaxSavingQuoteState | undefined>;
+  loadingTickers?: ReadonlySet<string>;
+  todayIso?: string;
+};
 
 const PREVIEW_TICKERS = ["SCHD", "JEPI", "VOO", "QQQ", "MSFT", "AAPL", "O", "NVDA"];
 
@@ -56,6 +79,40 @@ function eventStatus(year: number, month: number, day: number, index: number): C
     return index % 2 === 0 ? "confirmed" : "estimated";
   }
   return index % 3 === 0 ? "confirmed" : "estimated";
+}
+
+function todayIsoDate(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function isPositiveNumber(value: number | null | undefined): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value > 0;
+}
+
+function parseDateTime(value: string): number {
+  const parsed = new Date(`${value.slice(0, 10)}T00:00:00`).getTime();
+  return Number.isFinite(parsed) ? parsed : Number.NaN;
+}
+
+function compareEventDistance(a: CalendarEvent, b: CalendarEvent, todayMs: number): number {
+  const aTime = parseDateTime(a.date);
+  const bTime = parseDateTime(b.date);
+  const aDistance = Number.isFinite(aTime) ? Math.abs(aTime - todayMs) : Number.POSITIVE_INFINITY;
+  const bDistance = Number.isFinite(bTime) ? Math.abs(bTime - todayMs) : Number.POSITIVE_INFINITY;
+  return aDistance - bDistance || a.date.localeCompare(b.date) || a.type.localeCompare(b.type);
+}
+
+function selectTaxSavingEvent(events: CalendarEvent[], todayIso: string): CalendarEvent | null {
+  const dividendEvents = events.filter((event) => event.type !== "custom" && event.type !== "earnings" && isPositiveNumber(event.dividendAmount));
+  if (dividendEvents.length === 0) return null;
+
+  const exDivEvents = dividendEvents.filter((event) => event.type === "ex_div");
+  const candidates = exDivEvents.length > 0 ? exDivEvents : dividendEvents;
+  const upcoming = candidates.filter((event) => event.date >= todayIso).sort((a, b) => a.date.localeCompare(b.date) || a.type.localeCompare(b.type));
+  if (upcoming.length > 0) return upcoming[0];
+
+  const todayMs = parseDateTime(todayIso);
+  return [...candidates].sort((a, b) => compareEventDistance(a, b, todayMs))[0] ?? null;
 }
 
 function makeEvent(
@@ -120,19 +177,68 @@ export function buildMockCalendarEvents(year: number, month: number, tickers = P
   return events.sort((a, b) => a.date.localeCompare(b.date) || a.ticker.localeCompare(b.ticker));
 }
 
-export function buildTaxSavingRows(events: CalendarEvent[]): TaxSavingRow[] {
+export function buildTaxSavingRows(events: CalendarEvent[], options: BuildTaxSavingRowsOptions = {}): TaxSavingRow[] {
   const rows = new Map<string, TaxSavingRow>();
+  const eventsByTicker = new Map<string, CalendarEvent[]>();
+  const todayIso = options.todayIso ?? todayIsoDate();
+
   for (const event of events) {
     if (event.sourceKind === "custom" || event.type === "custom") continue;
-    if (!rows.has(event.ticker)) {
-      rows.set(event.ticker, {
-        ticker: event.ticker,
-        taxSavingUsd: event.taxSavingUsd,
-        shouldBuyThisMonth: events.some((item) => item.ticker === event.ticker && item.type === "buy_by"),
-      });
-    }
+    const ticker = event.ticker.trim().toUpperCase();
+    if (!ticker) continue;
+    const current = eventsByTicker.get(ticker) ?? [];
+    current.push(event);
+    eventsByTicker.set(ticker, current);
   }
-  return Array.from(rows.values()).sort((a, b) => b.taxSavingUsd - a.taxSavingUsd);
+
+  for (const [ticker, tickerEvents] of Array.from(eventsByTicker.entries())) {
+    const selectedEvent = selectTaxSavingEvent(tickerEvents, todayIso);
+    const quote = options.quoteByTicker?.[ticker];
+    const isLoading = options.loadingTickers?.has(ticker) ?? false;
+    const dividendAmountPerShare = selectedEvent?.dividendAmount ?? null;
+    const currentPrice = quote?.price ?? null;
+    const warnings = [
+      ...(selectedEvent ? [] : ["No positive dividend event is available for the visible month."]),
+      ...(isLoading ? ["Current price is loading."] : []),
+      ...(quote?.warnings ?? []),
+    ];
+
+    const result = isLoading
+      ? {
+          canCalculate: false,
+          expectedShares: 0,
+          expectedDividendUsd: 0,
+          taxSavingUsd: 0,
+          warnings: [],
+        }
+      : calculateExpectedDividendTaxSaving({
+          currentPrice,
+          dividendAmountPerShare,
+        });
+
+    rows.set(ticker, {
+      ticker,
+      taxSavingUsd: result.taxSavingUsd,
+      shouldBuyThisMonth: tickerEvents.some((item: CalendarEvent) => item.type === "buy_by"),
+      expectedShares: result.expectedShares,
+      expectedDividendUsd: result.expectedDividendUsd,
+      currentPrice,
+      dividendAmountPerShare,
+      canCalculate: result.canCalculate,
+      warnings: [...warnings, ...result.warnings],
+      source: [selectedEvent?.sourceKind, quote?.source].filter(Boolean).join("+") || undefined,
+      isLoading,
+      eventDate: selectedEvent?.date,
+      eventType: selectedEvent?.type,
+    });
+  }
+
+  return Array.from(rows.values()).sort((a, b) => {
+    if (a.canCalculate !== b.canCalculate) return a.canCalculate ? -1 : 1;
+    if (a.canCalculate && b.canCalculate) return b.taxSavingUsd - a.taxSavingUsd;
+    if (a.isLoading !== b.isLoading) return a.isLoading ? -1 : 1;
+    return a.ticker.localeCompare(b.ticker);
+  });
 }
 
 export const DEFAULT_CALENDAR_FILTERS: Record<CalendarEventType, boolean> = {

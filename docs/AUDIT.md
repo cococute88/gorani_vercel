@@ -52,6 +52,8 @@ Step 5B-0 TaxSavingTable calculation spec audit date: 2026-06-13 (`docs/STEP5B0_
 
 Step 5B-1 TaxSavingTable pure calculation function date: 2026-06-13 (`docs/STEP5B1_TAX_SAVING_PURE_FUNCTION.md`)
 
+Step 5B-2 TaxSavingTable quote-last calculation connection date: 2026-06-13 (`docs/STEP5B2_TAX_SAVING_TABLE_CONNECT.md`)
+
 ## Project Root Decision
 
 - Actual working directory: `C:\gv\gorani_vercel`
