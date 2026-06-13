@@ -381,3 +381,7 @@ Dependency warnings observed:
 ## 2026-06-13 Full Requirements Replay UTF-8 Audit
 
 - See `docs/FULL_REQUIREMENTS_REPLAY_UTF8_AUDIT.md` for the full previous-requirements replay audit, mojibake scan, safety fixes, and verification results.
+
+## 2026-06-13 Step 5B-6 Historical Tax-Saving Dialog UI
+
+- Connected `loadHistoricalTaxSavingMetricForTicker` to `CalendarEventDialog` as a compact auxiliary metric for eligible generated dividend events only; `TaxSavingTable` formula unchanged. See `docs/STEP5B6_HISTORICAL_TAX_SAVING_DIALOG_UI.md`.
