@@ -72,6 +72,7 @@ function groupSlices<T>(
     name,
     value: percent(value, total),
     color: colorAt(index),
+    amountKRW: Math.round(value),
   }));
 }
 

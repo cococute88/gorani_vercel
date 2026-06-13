@@ -25,14 +25,13 @@ import type {
   MarketRange,
   SeriesPoint,
 } from "@/lib/market-data";
-import MarketBriefingCards from "./MarketBriefingCards";
-import FearGreedCard from "./FearGreedCard";
-import MarketTemperatureTable from "./MarketTemperatureTable";
-import RsiDrawdownChart from "./RsiDrawdownChart";
+import MarketTopBriefing from "./MarketTopBriefing";
+import MarketRsiSection from "./MarketRsiSection";
+import MarketMddSection from "./MarketMddSection";
 import VixChart from "./VixChart";
+import MarketTemperatureSheet from "./MarketTemperatureSheet";
 import TradingViewTreemap from "./TradingViewTreemap";
 import AssetMapSection from "./AssetMapSection";
-import MarketTemperatureSection from "./MarketTemperatureSection";
 
 export default function MarketPage() {
   const [range, setRange] = useState<MarketRange>("1년");
@@ -88,17 +87,20 @@ export default function MarketPage() {
           </div>
         </div>
 
-        <MarketBriefingCards items={briefing} />
+        {/* 1. 상단 시장 브리핑: 공포&탐욕 + 지수/매크로 카드 */}
+        <MarketTopBriefing fearGreed={fearGreed} briefing={briefing} />
 
-        <MarketTemperatureSection />
+        {/* 2. RSI 섹션 / 3. MDD(하락률) 섹션 */}
+        <MarketRsiSection temps={temps} rsi={rsi} />
+        <MarketMddSection temps={temps} drawdown={drawdown} />
 
-        <section className="mb-6">
-          <FearGreedCard data={fearGreed} />
-        </section>
-
-        <MarketTemperatureTable rows={temps} />
-        <RsiDrawdownChart rsi={rsi} drawdown={drawdown} />
+        {/* 4. VIX 참고 그래프 */}
         <VixChart data={vix} />
+
+        {/* 5. 시장온도 참고 시트 */}
+        <MarketTemperatureSheet />
+
+        {/* 6. 섹터 트리맵 / 7. 자산 맵 (하단 유지) */}
         <TradingViewTreemap />
         <AssetMapSection />
       </main>

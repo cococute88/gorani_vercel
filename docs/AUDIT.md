@@ -393,3 +393,7 @@ Dependency warnings observed:
 ## 2026-06-13 Step 5C-0 Watchlist Final QA And Regression Audit
 
 - Audit-only QA pass over `/watchlist` (no source changes): all checks/build/lint/typecheck pass; desktop/390/320 have no page-level overflow; TaxSavingTable shows live values; historical metric, custom event CRUD, and cache/provider sanitization verified. No P0/P1 found; one P2 (static `0.00%`/`$0.0` Info cells in `CalendarEventDialog`) recommended for an optional Step 5C-1. See `docs/STEP5C0_WATCHLIST_FINAL_QA.md`.
+
+## 2026-06-13 Step UI-1 Targeted UI Polish And Market Restructure
+
+- Display-only UI polish: compact dividend-capture 판정 column (long text moved to a `title` tooltip, table min-width 900→820px), portfolio SCHD progress label no longer crowds the right edge, portfolio donut legends now show compact KRW + percent via `formatCompactKrw`, and the resolved Step 5C-0 P2 (`CalendarEventDialog` static zero fields now render `—`). `/market` restructured to mirror the original Streamlit 시장온도 order (top briefing → RSI → MDD → VIX → 참고 시트 → 섹터 트리맵 → 자산 맵) in dark theme, removing the duplicate market-temperature / Fear&Greed sections. No calculation, tax, parser, quote-API, calendar-provider, or Firestore logic changed. See `docs/UI1_TARGETED_POLISH_MARKET_RESTRUCTURE.md`.

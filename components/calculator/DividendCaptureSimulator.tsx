@@ -33,6 +33,17 @@ function latestUpdatedAt(values: Array<string | undefined>) {
   return values.filter(Boolean).sort().at(-1);
 }
 
+// 판정 컬럼은 긴 설명 대신 짧은 상태만 표시한다 (전체 설명은 title 툴팁으로 제공).
+function judgementLabel(row: { result: string; recoveryDate: string }): string {
+  if (row.result === "성공") return "성공";
+  return row.recoveryDate === "회복불가" ? "회복불가" : "실패";
+}
+
+function judgementClass(row: { result: string; recoveryDate: string }): string {
+  if (row.result === "성공") return "font-semibold text-green-400";
+  return row.recoveryDate === "회복불가" ? "font-semibold text-amber-400" : "font-semibold text-red-400";
+}
+
 function toQuoteRequest(input: DividendCaptureInput) {
   const { start, end } = resolveDividendCaptureDates(input);
   if (input.recent5yOnly) return { ticker: input.ticker, range: "5y", end };
@@ -188,7 +199,7 @@ export default function DividendCaptureSimulator({ input, onChange }: { input: D
       <div className={panel}>
         <h2 className="mb-4 text-[15px] font-bold text-white">회차별 상세 결과</h2>
         <div className="overflow-x-auto -mx-5 px-5">
-          <table className="w-full min-w-[900px] text-left text-[12px]">
+          <table className="w-full min-w-[820px] text-left text-[12px]">
             <thead className="text-slate-500">
               <tr className="border-b border-[#2a3336]">
                 <th className="py-2">회차</th>
@@ -225,7 +236,9 @@ export default function DividendCaptureSimulator({ input, onChange }: { input: D
                   <td>{row.recoveryTradingDays}</td>
                   <td>{row.recoveryCalendarDays}</td>
                   <td className={row.result === "성공" ? "text-green-400" : "text-red-400"}>{row.result}</td>
-                  <td>{row.note}</td>
+                  <td title={row.note}>
+                    <span className={judgementClass(row)}>{judgementLabel(row)}</span>
+                  </td>
                 </tr>
               ))}
             </tbody>

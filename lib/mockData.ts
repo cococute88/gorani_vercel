@@ -154,37 +154,49 @@ export const PORTFOLIO_SUMMARY_DARK = {
   ],
 };
 
-export type Slice = { name: string; value: number; color: string };
+export type Slice = { name: string; value: number; color: string; amountKRW?: number };
+
+// 목업 비중 슬라이스에 표시용 원화 금액(amountKRW)을 부여한다.
+// value(%)는 그대로 두고, 총자산(totalKRW) 기준 금액만 파생한다 (display only).
+function withMockAmounts(slices: Slice[], totalKRW: number): Slice[] {
+  return slices.map((s) => ({ ...s, amountKRW: Math.round((s.value / 100) * totalKRW) }));
+}
 
 // --- 계좌별 비중 ---
-export const ACCOUNT_ALLOCATION: Slice[] = [
-  { name: "미국주식", value: 38.2, color: "#2563eb" },
-  { name: "국내주식", value: 21.4, color: "#22c55e" },
-  { name: "연금저축", value: 13.1, color: "#f59e0b" },
-  { name: "ISA", value: 9.8, color: "#a855f7" },
-  { name: "퇴직연금", value: 7.7, color: "#ec4899" },
-  { name: "일본주식", value: 5.9, color: "#14b8a6" },
-  { name: "현금", value: 3.9, color: "#94a3b8" },
-];
+export const ACCOUNT_ALLOCATION: Slice[] = withMockAmounts(
+  [
+    { name: "미국주식", value: 38.2, color: "#2563eb" },
+    { name: "국내주식", value: 21.4, color: "#22c55e" },
+    { name: "연금저축", value: 13.1, color: "#f59e0b" },
+    { name: "ISA", value: 9.8, color: "#a855f7" },
+    { name: "퇴직연금", value: 7.7, color: "#ec4899" },
+    { name: "일본주식", value: 5.9, color: "#14b8a6" },
+    { name: "현금", value: 3.9, color: "#94a3b8" },
+  ],
+  980000000,
+);
 
 // --- 종목별 비중 상위 15개 ---
-export const STOCK_ALLOCATION: Slice[] = [
-  { name: "삼성전자", value: 11.2, color: "#2563eb" },
-  { name: "NVIDIA", value: 9.4, color: "#22c55e" },
-  { name: "Apple", value: 8.1, color: "#f59e0b" },
-  { name: "Microsoft", value: 7.3, color: "#a855f7" },
-  { name: "SK하이닉스", value: 6.5, color: "#ec4899" },
-  { name: "리얼티 인컴", value: 5.8, color: "#14b8a6" },
-  { name: "JEPI", value: 5.1, color: "#ef4444" },
-  { name: "TSLA", value: 4.6, color: "#f97316" },
-  { name: "카카오", value: 4.0, color: "#06b6d4" },
-  { name: "SCHD", value: 3.7, color: "#84cc16" },
-  { name: "Google", value: 3.3, color: "#6366f1" },
-  { name: "Amazon", value: 3.0, color: "#d946ef" },
-  { name: "현대차", value: 2.7, color: "#0ea5e9" },
-  { name: "QQQ", value: 2.4, color: "#eab308" },
-  { name: "기타", value: 22.9, color: "#64748b" },
-];
+export const STOCK_ALLOCATION: Slice[] = withMockAmounts(
+  [
+    { name: "삼성전자", value: 11.2, color: "#2563eb" },
+    { name: "NVIDIA", value: 9.4, color: "#22c55e" },
+    { name: "Apple", value: 8.1, color: "#f59e0b" },
+    { name: "Microsoft", value: 7.3, color: "#a855f7" },
+    { name: "SK하이닉스", value: 6.5, color: "#ec4899" },
+    { name: "리얼티 인컴", value: 5.8, color: "#14b8a6" },
+    { name: "JEPI", value: 5.1, color: "#ef4444" },
+    { name: "TSLA", value: 4.6, color: "#f97316" },
+    { name: "카카오", value: 4.0, color: "#06b6d4" },
+    { name: "SCHD", value: 3.7, color: "#84cc16" },
+    { name: "Google", value: 3.3, color: "#6366f1" },
+    { name: "Amazon", value: 3.0, color: "#d946ef" },
+    { name: "현대차", value: 2.7, color: "#0ea5e9" },
+    { name: "QQQ", value: 2.4, color: "#eab308" },
+    { name: "기타", value: 22.9, color: "#64748b" },
+  ],
+  980000000,
+);
 
 // --- 태그별 비중 ---
 export const TAG_ALLOCATION: Slice[] = [
@@ -192,14 +204,17 @@ export const TAG_ALLOCATION: Slice[] = [
   { name: "성장", value: 37.9, color: "#22c55e" },
 ];
 
-export const TAG_ALLOCATION_DARK: Slice[] = [
-  { name: "배당", value: 56.9, color: "#3b82f6" },
-  { name: "성장", value: 31.6, color: "#f59e0b" },
-  { name: "현금", value: 8.8, color: "#22c55e" },
-  { name: "개별주", value: 1.8, color: "#14b8a6" },
-  { name: "채권", value: 0.6, color: "#a855f7" },
-  { name: "금", value: 0.3, color: "#eab308" },
-];
+export const TAG_ALLOCATION_DARK: Slice[] = withMockAmounts(
+  [
+    { name: "배당", value: 56.9, color: "#3b82f6" },
+    { name: "성장", value: 31.6, color: "#f59e0b" },
+    { name: "현금", value: 8.8, color: "#22c55e" },
+    { name: "개별주", value: 1.8, color: "#14b8a6" },
+    { name: "채권", value: 0.6, color: "#a855f7" },
+    { name: "금", value: 0.3, color: "#eab308" },
+  ],
+  980000000,
+);
 
 // --- 월별 소득 (배당 + 임대) ---
 export type MonthlyIncome = { month: string; dividend: number; rent: number };

@@ -2,6 +2,7 @@
 
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { Slice } from "@/lib/mockData";
+import { formatCompactKrw } from "@/lib/format";
 
 type Props = {
   title: string;
@@ -108,7 +109,9 @@ export default function DonutChartCard({
                 <span
                   className={`num shrink-0 text-[11.5px] font-semibold ${legendVal}`}
                 >
-                  {s.value}%
+                  {s.amountKRW != null
+                    ? `${formatCompactKrw(s.amountKRW)} · ${s.value}%`
+                    : `${s.value}%`}
                 </span>
               </div>
             ))}

@@ -165,7 +165,7 @@ function DarkSummary() {
                 </span>
               </span>
             </div>
-            <div className="mt-2">
+            <div className="mt-2 pr-[3px]">
               <div className="mb-1 flex justify-between text-[10.5px] text-slate-500">
                 <span>달성률</span>
                 <span className="num font-semibold text-orange-400">

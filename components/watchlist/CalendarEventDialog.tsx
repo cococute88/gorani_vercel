@@ -119,8 +119,9 @@ export default function CalendarEventDialog({ event, meta, onSaveMeta, onClose }
           <Info label="매수마감" value={event.buyDeadline || "—"} />
           <Info label="배당락일" value={event.exDivDate || "—"} />
           <Info label="지급일" value={event.paymentDate || "—"} />
-          <Info label="연간 수익률" value={`${event.annualYield.toFixed(2)}%`} />
-          <Info label="절세액($10k)" value={`$${event.taxSavingUsd.toFixed(1)}`} />
+          {/* 정적 0/기본값은 실제 계산값이 아니므로 라이브 보조지표 옆에서 오해를 줄이기 위해 '—'로 표시한다 (display only). */}
+          <Info label="연간 수익률" value={event.annualYield > 0 ? `${event.annualYield.toFixed(2)}%` : "—"} />
+          <Info label="절세액($10k)" value={event.taxSavingUsd > 0 ? `$${event.taxSavingUsd.toFixed(1)}` : "—"} />
         </dl>
 
         {/* Source info */}

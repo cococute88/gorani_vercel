@@ -40,6 +40,23 @@ export function formatEok(value: number, digits = 2): string {
 }
 
 
+// 도넛/리스트 범례용 간결 원화 표기 (display only).
+// 1억 이상은 '억'(불필요한 0 제거), 1만 이상은 '만'(천단위 콤마), 그 미만은 원 단위.
+// 예: 60000000 -> '6,000만', 145000000 -> '1.45억', 7630995 -> '763만'
+export function formatCompactKrw(value: number): string {
+  const sign = value < 0 ? "-" : "";
+  const abs = Math.abs(Math.round(value));
+  if (abs >= 100000000) {
+    const eok = Number((abs / 100000000).toFixed(2));
+    return `${sign}${eok.toLocaleString("ko-KR")}억`;
+  }
+  if (abs >= 10000) {
+    const man = Math.round(abs / 10000);
+    return `${sign}${man.toLocaleString("ko-KR")}만`;
+  }
+  return `${sign}${abs.toLocaleString("ko-KR")}`;
+}
+
 // 만원 단위 금액 표시 (예: 12345 -> 1억 2,345만원)
 export function formatManwonMoney(value: number): string {
   const sign = value < 0 ? "-" : "";
