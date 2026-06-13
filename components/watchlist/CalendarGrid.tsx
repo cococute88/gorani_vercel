@@ -71,13 +71,13 @@ export default function CalendarGrid({
               type="button"
               onClick={() => onSelectDate(cell.isoDate)}
               className={[
-                "relative min-h-[72px] border-t border-[#232d30] p-1 text-left transition sm:min-h-[100px] sm:p-1.5",
+                "relative min-h-[72px] overflow-hidden border-t border-[#232d30] text-left transition sm:min-h-[100px]",
                 isCurrentMonth ? "bg-[#191f20] hover:bg-[#1e2628]" : "bg-[#141a1b]",
                 selected ? "ring-2 ring-inset ring-blue-400/80" : "",
               ].join(" ")}
             >
               {/* Day number */}
-              <div className="mb-0.5 flex items-center justify-between">
+              <div className="absolute left-0 top-0 z-10">
                 <span className={[
                   "flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold sm:h-6 sm:w-6 sm:text-[11px]",
                   isToday ? "bg-blue-500 text-white shadow-md shadow-blue-500/30" : "",
@@ -86,14 +86,14 @@ export default function CalendarGrid({
                 ].join(" ")}>
                   {cell.day}
                 </span>
-                {extra > 0 && (
-                  <span className="rounded bg-white/10 px-1 py-0.5 text-[9px] font-semibold text-slate-400 sm:text-[10px]">
-                    +{extra}
-                  </span>
-                )}
               </div>
+              {extra > 0 && (
+                <span className="absolute right-1 top-1 z-10 rounded bg-white/10 px-1 py-0.5 text-[9px] font-semibold text-slate-400 sm:text-[10px]">
+                  +{extra}
+                </span>
+              )}
               {/* Event chips */}
-              <div className="flex min-w-0 flex-col gap-0.5">
+              <div className="flex min-w-0 flex-col gap-0.5 px-1 pb-1 pt-3.5 sm:px-1.5 sm:pb-1.5 sm:pt-4">
                 {shown.map((event) => {
                   const visual = EVENT_VISUALS[event.type as CalendarEventType];
                   return (
