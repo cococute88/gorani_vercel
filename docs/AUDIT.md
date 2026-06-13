@@ -40,6 +40,10 @@ Step 5A-5 calendar UI polish date: 2026-06-13 (`docs/STEP5A5_CALENDAR_UI_POLISH.
 
 Step 5A-6-0 calendar custom event foundation date: 2026-06-13 (`docs/STEP5A6_CUSTOM_EVENT_FOUNDATION.md`)
 
+Step 5A-6-1 calendar custom event UI date: 2026-06-13 (`docs/STEP5A6_CUSTOM_EVENT_UI.md`)
+
+Step M0 app-wide mobile UI overflow audit date: 2026-06-13 (`docs/MOBILE_UI_OVERFLOW_AUDIT.md`)
+
 ## Project Root Decision
 
 - Actual working directory: `C:\gv\gorani_vercel`
