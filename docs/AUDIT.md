@@ -38,6 +38,8 @@ Step 5A-4 calendar provider regression date: 2026-06-13 (`docs/STEP5A4_CALENDAR_
 
 Step 5A-5 calendar UI polish date: 2026-06-13 (`docs/STEP5A5_CALENDAR_UI_POLISH.md`)
 
+Step 5A-6-0 calendar custom event foundation date: 2026-06-13 (`docs/STEP5A6_CUSTOM_EVENT_FOUNDATION.md`)
+
 ## Project Root Decision
 
 - Actual working directory: `C:\gv\gorani_vercel`

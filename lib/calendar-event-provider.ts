@@ -12,6 +12,7 @@ import {
   type CalendarTickerCache,
   type CalendarTickerCacheSource,
 } from "@/lib/calendar-event-identity";
+import { calendarCustomEventToCalendarEvent, type CalendarCustomEvent } from "@/lib/calendar-custom-events";
 import { fetchQuoteDividends } from "@/lib/calculator-data-provider";
 import { buildMockCalendarEvents, type CalendarEvent } from "@/lib/mock-calendar-data";
 import type { QuoteDividendsResponse } from "@/lib/quote-types";
@@ -239,6 +240,9 @@ export function normalizeCalendarEventForCache(event: CalendarEvent): CalendarEv
 }
 
 function normalizeGeneratedCalendarEventForCache(event: CalendarEvent): CalendarEvent {
+  if (isCustomCalendarEventLike(event)) {
+    throw new Error("Custom calendar events must not be stored in the generated dividend cache.");
+  }
   const normalized = normalizeCalendarEventForCache(event) as CalendarEvent & {
     heart?: unknown;
     memo?: unknown;
@@ -247,6 +251,10 @@ function normalizeGeneratedCalendarEventForCache(event: CalendarEvent): Calendar
   };
   const { heart: _heart, memo: _memo, note: _note, star: _star, ...cacheEvent } = normalized;
   return cacheEvent;
+}
+
+export function isCustomCalendarEventLike(event: Pick<CalendarEvent, "id" | "type" | "sourceKind">): boolean {
+  return event.sourceKind === "custom" || event.type === "custom" || event.id.toLowerCase().startsWith("custom:");
 }
 
 export function buildDividendEventsFromHistory({
@@ -412,10 +420,33 @@ export function buildCalendarTickerCacheFromEvents(
 ): CalendarTickerCache<CalendarEvent> {
   return createCalendarTickerCacheEntry({
     ticker,
-    events: events.map(normalizeGeneratedCalendarEventForCache),
+    events: events.filter((event) => !isCustomCalendarEventLike(event)).map(normalizeGeneratedCalendarEventForCache),
     source,
     warnings,
   });
+}
+
+export function mergeGeneratedAndCustomCalendarEvents(
+  generatedEvents: CalendarEvent[],
+  customEvents: CalendarCustomEvent[],
+): CalendarEvent[] {
+  const events: CalendarEvent[] = [];
+  const seenIds = new Set<string>();
+
+  for (const event of generatedEvents.map(normalizeCalendarEventForCache)) {
+    if (seenIds.has(event.id)) continue;
+    seenIds.add(event.id);
+    events.push(event);
+  }
+
+  for (const customEvent of customEvents) {
+    const event = calendarCustomEventToCalendarEvent(customEvent);
+    if (seenIds.has(event.id)) continue;
+    seenIds.add(event.id);
+    events.push(event);
+  }
+
+  return events.sort((a, b) => a.date.localeCompare(b.date) || a.ticker.localeCompare(b.ticker) || a.type.localeCompare(b.type) || a.id.localeCompare(b.id));
 }
 
 function getMockCalendarResultForTicker(

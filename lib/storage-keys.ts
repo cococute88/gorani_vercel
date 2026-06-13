@@ -3,6 +3,7 @@ export const STORAGE_KEYS = {
   assetSimulatorConfigs: "gorani.asset-simulator.preview",
   calendarTickers: "gorani.dividend-calendar.tickers.v1",
   calendarEventMeta: "gorani.dividend-calendar.event-meta.v1",
+  calendarCustomEvents: "gorani.dividend-calendar.custom-events.v1",
   calendarSettings: "gorani.dividend-calendar.settings.v1",
   calculatorPresets: "gorani.calculator.presets.v1",
   dividendLedger: "gorani.dividend-ledger.v1",
@@ -15,4 +16,3 @@ export const STORAGE_KEYS = {
 } as const;
 
 export type StorageKeyName = keyof typeof STORAGE_KEYS;
-

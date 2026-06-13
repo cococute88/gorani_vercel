@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { eventStatusLabel, EVENT_VISUALS } from "@/lib/event-visuals";
+import { eventStatusLabel, getEventVisual } from "@/lib/event-visuals";
 import type { CalendarEvent } from "@/lib/mock-calendar-data";
 
 interface Props {
@@ -44,17 +44,20 @@ export default function DividendSchedulePreview({ events, onOpenEvent }: Props) 
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => (
+              {rows.map((row) => {
+                const visual = getEventVisual(row.type);
+                return (
                 <tr key={row.id} onClick={() => onOpenEvent(row)} className="cursor-pointer border-b border-[#20282a] hover:bg-white/[0.03]">
                   <td className="px-2 py-2 font-bold text-white sm:px-3 sm:py-2.5">{row.favorite ? `${row.favorite} ` : ""}{row.ticker}</td>
-                  <td className="px-2 py-2 sm:px-3 sm:py-2.5"><span className={`rounded-md border px-1.5 py-0.5 text-[10px] sm:px-2 sm:py-1 sm:text-[11px] ${EVENT_VISUALS[row.type].bg} ${EVENT_VISUALS[row.type].border} ${EVENT_VISUALS[row.type].text}`}>{EVENT_VISUALS[row.type].label}</span></td>
+                  <td className="px-2 py-2 sm:px-3 sm:py-2.5"><span className={`rounded-md border px-1.5 py-0.5 text-[10px] sm:px-2 sm:py-1 sm:text-[11px] ${visual.bg} ${visual.border} ${visual.text}`}>{visual.label}</span></td>
                   <td className="num px-2 py-2 text-slate-300 sm:px-3 sm:py-2.5">{row.exDivDate}</td>
                   <td className="num px-2 py-2 text-slate-300 sm:px-3 sm:py-2.5">{row.buyDeadline}</td>
                   <td className="num px-2 py-2 text-slate-300 sm:px-3 sm:py-2.5">{row.paymentDate}</td>
                   <td className="num px-2 py-2 text-right text-slate-300 sm:px-3 sm:py-2.5">${row.dividendAmount?.toFixed(2) ?? "—"}</td>
                   <td className="px-2 py-2 text-slate-300 sm:px-3 sm:py-2.5">{eventStatusLabel(row.status)}</td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>

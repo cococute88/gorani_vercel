@@ -44,6 +44,7 @@ const {
   getPreviousDividendBuyDate,
   getRealDividendEventsForTicker,
   inferDividendFrequency,
+  mergeGeneratedAndCustomCalendarEvents,
   normalizeCalendarEventForCache,
   projectEstimatedDividendEvents,
 } = require("../lib/calendar-event-provider.ts");
@@ -53,9 +54,23 @@ const {
 } = require("../lib/calendar-cache.ts");
 
 const {
+  calendarCustomEventToCalendarEvent,
+  createCalendarCustomEvent,
+  deleteCalendarCustomEvent,
+  loadCalendarCustomEvents,
+  normalizeCalendarCustomEvent,
+  saveCalendarCustomEvents,
+  upsertCalendarCustomEvent,
+} = require("../lib/calendar-custom-events.ts");
+
+const {
   buildGeneratedCalendarEventId,
   normalizeCalendarAmount,
 } = require("../lib/calendar-event-identity.ts");
+
+const {
+  getEventVisual,
+} = require("../lib/event-visuals.ts");
 
 const TEST_TODAY = new Date("2026-06-13T00:00:00");
 
@@ -336,18 +351,108 @@ async function assertCacheFallbackPriority() {
   };
 }
 
+function installLocalStorageStub() {
+  const store = new Map();
+  global.window = {
+    localStorage: {
+      getItem(key) {
+        return store.has(key) ? store.get(key) : null;
+      },
+      setItem(key, value) {
+        store.set(key, String(value));
+      },
+      removeItem(key) {
+        store.delete(key);
+      },
+    },
+  };
+  return store;
+}
+
+function assertCustomEventFoundation() {
+  installLocalStorageStub();
+
+  const customEvent = createCalendarCustomEvent({
+    id: "My Event UUID",
+    title: "IR 미팅",
+    date: "2026-06-20",
+    ticker: "schd",
+    note: "사용자 일정 메모",
+    createdAt: "2026-06-13T00:00:00.000Z",
+    updatedAt: "2026-06-13T00:00:00.000Z",
+  });
+
+  assert.match(customEvent.id, /^custom:/);
+  assert.equal(customEvent.id, customEvent.canonicalEventId);
+  assert.equal(customEvent.sourceKind, "custom");
+  assert.equal(customEvent.type, "custom");
+  assert.equal(customEvent.ticker, "SCHD");
+  assert.equal(customEvent.date, "2026-06-20");
+  assert.equal(customEvent.title, "IR 미팅");
+
+  saveCalendarCustomEvents([customEvent]);
+  assert.equal(loadCalendarCustomEvents().length, 1);
+
+  const updated = {
+    ...customEvent,
+    title: "IR 미팅 수정",
+    date: "2026-06-21",
+    ticker: "JEPI",
+    updatedAt: "2026-06-14T00:00:00.000Z",
+  };
+  const afterUpsert = upsertCalendarCustomEvent(updated);
+  assert.equal(afterUpsert.length, 1);
+  assert.equal(afterUpsert[0].id, customEvent.id, "custom id must stay stable when fields change");
+  assert.equal(afterUpsert[0].title, "IR 미팅 수정");
+  assert.equal(afterUpsert[0].date, "2026-06-21");
+  assert.equal(afterUpsert[0].ticker, "JEPI");
+
+  const generatedEvents = buildDividendEventsFromHistory({
+    ticker: "SCHD",
+    dividends: quarterlyDividends.slice(0, 1),
+    sourceKind: "declared",
+  });
+  const merged = mergeGeneratedAndCustomCalendarEvents(generatedEvents, [afterUpsert[0], afterUpsert[0]]);
+  assert.equal(merged.filter((event) => event.id === customEvent.id).length, 1, "duplicate custom ids should be guarded during merge");
+  assert.equal(merged.some((event) => event.sourceKind === "custom"), true);
+  assert.equal(merged.length, generatedEvents.length + 1);
+
+  const customCalendarEvent = calendarCustomEventToCalendarEvent(afterUpsert[0]);
+  const cacheEntry = buildCalendarTickerCacheFromEvents("SCHD", [generatedEvents[0], customCalendarEvent], "yahoo");
+  assert.equal(cacheEntry.events.some((event) => event.id === customEvent.id), false, "custom events must not enter generated cache entries");
+
+  const normalized = normalizeCalendarCustomEvent({ ...customEvent, id: customEvent.id.toUpperCase() });
+  assert.ok(normalized);
+  assert.equal(normalized.id, customEvent.id);
+
+  assert.equal(getEventVisual("custom").label, "사용자");
+  assert.equal(getEventVisual("future_unknown_type").label, "사용자");
+
+  const afterDelete = deleteCalendarCustomEvent(customEvent.id);
+  assert.equal(afterDelete.length, 0);
+
+  return {
+    customId: customEvent.id,
+    mergedEvents: merged.length,
+    cacheEventsAfterCustomSanitize: cacheEntry.events.length,
+    visualFallback: getEventVisual("future_unknown_type").label,
+  };
+}
+
 async function main() {
   const historical = assertHistoricalEventGeneration();
   const buyDeadlines = assertBuyDeadlineHelper();
   const frequency = assertFrequencyInference();
   const estimated = assertEstimatedProjection();
   const cacheFallback = await assertCacheFallbackPriority();
+  const customEvents = assertCustomEventFoundation();
 
   console.log("Calendar provider regression passed.");
   console.table([historical]);
   console.table([frequency]);
   console.table([estimated]);
   console.table([cacheFallback]);
+  console.table([customEvents]);
   console.log("Buy deadline fixture results:");
   console.table([buyDeadlines]);
 }

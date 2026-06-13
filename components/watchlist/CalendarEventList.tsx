@@ -1,6 +1,6 @@
 "use client";
 
-import { eventChipLabel, eventStateClasses, eventStatusLabel, EVENT_VISUALS } from "@/lib/event-visuals";
+import { eventChipLabel, eventStateClasses, eventStatusLabel, getEventVisual } from "@/lib/event-visuals";
 import type { CalendarEvent } from "@/lib/mock-calendar-data";
 
 interface Props {
@@ -18,7 +18,7 @@ export default function CalendarEventList({ title, events, todayIso, emptyText =
       <div className="space-y-1.5 sm:space-y-2">
         {events.length === 0 && <p className="rounded-xl border border-dashed border-[#334044] px-3 py-5 text-center text-[12px] text-slate-500 sm:px-4 sm:py-6 sm:text-[13px]">{emptyText}</p>}
         {events.map((event) => {
-          const visual = EVENT_VISUALS[event.type];
+          const visual = getEventVisual(event.type);
           return (
             <button key={event.id} type="button" onClick={() => onOpenEvent(event)} className="flex w-full items-center justify-between gap-2 rounded-xl border border-[#263134] bg-[#141a1b] p-2.5 text-left hover:bg-[#1d2527] sm:gap-3 sm:p-3">
               <span className="min-w-0 flex-1">

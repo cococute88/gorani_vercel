@@ -13,6 +13,7 @@ import {
 } from "firebase/firestore";
 import type { PortfolioSnapshot } from "@/lib/portfolio-types";
 import type { StoredSimulatorPreview } from "@/lib/asset-simulator-types";
+import { normalizeCalendarCustomEvent, type CalendarCustomEvent } from "@/lib/calendar-custom-events";
 import {
   normalizeCalendarTicker,
   type CalendarEventMetaTarget,
@@ -212,6 +213,38 @@ export async function saveCalendarEventMeta(uid: string, eventId: string, meta: 
 export async function loadCalendarEventMetas(uid: string): Promise<CalendarEventMeta[]> {
   const snap = await getDocs(collection(requireDb(), "users", uid, "calendarEvents"));
   return snap.docs.map((item) => item.data() as unknown as CalendarEventMeta);
+}
+
+export async function saveCalendarCustomEvent(uid: string, event: CalendarCustomEvent): Promise<void> {
+  const normalized = normalizeCalendarCustomEvent(event);
+  if (!normalized) throw new Error("Invalid custom calendar event");
+  await setDoc(
+    doc(requireDb(), "users", uid, "calendarCustomEvents", normalized.id),
+    { ...normalized, syncedAt: serverTimestamp() },
+    { merge: true },
+  );
+}
+
+export async function loadCalendarCustomEvents(uid: string): Promise<CalendarCustomEvent[]> {
+  const snap = await getDocs(collection(requireDb(), "users", uid, "calendarCustomEvents"));
+  return snap.docs
+    .map((item) => normalizeCalendarCustomEvent({ id: item.id, ...item.data() }))
+    .filter((event): event is CalendarCustomEvent => Boolean(event))
+    .sort((a, b) => a.date.localeCompare(b.date) || (a.ticker ?? "").localeCompare(b.ticker ?? "") || a.title.localeCompare(b.title));
+}
+
+export async function deleteCalendarCustomEvent(uid: string, eventId: string): Promise<void> {
+  const normalized = normalizeCalendarCustomEvent({
+    id: eventId,
+    title: "delete",
+    date: "2000-01-01",
+    type: "custom",
+    sourceKind: "custom",
+    createdAt: new Date(0).toISOString(),
+    updatedAt: new Date(0).toISOString(),
+  });
+  if (!normalized) return;
+  await deleteDoc(doc(requireDb(), "users", uid, "calendarCustomEvents", normalized.id));
 }
 
 export async function saveAssetSimulatorConfig(uid: string, config: StoredSimulatorPreview): Promise<void> {

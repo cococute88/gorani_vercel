@@ -3,12 +3,25 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { formatIsoDate } from "@/lib/calendar-grid";
-import { getCalendarEventsForTickers, getCalendarEventsForTickersWithProvider } from "@/lib/calendar-event-provider";
+import { getCalendarEventsForTickers, getCalendarEventsForTickersWithProvider, isCustomCalendarEventLike, mergeGeneratedAndCustomCalendarEvents } from "@/lib/calendar-event-provider";
 import type { CalendarTickersProviderResult } from "@/lib/calendar-event-provider";
+import {
+  dedupeCalendarCustomEvents,
+  loadCalendarCustomEvents as loadLocalCalendarCustomEvents,
+  saveCalendarCustomEvents as saveLocalCalendarCustomEvents,
+  type CalendarCustomEvent,
+} from "@/lib/calendar-custom-events";
 import { DEFAULT_CALENDAR_FILTERS, buildTaxSavingRows } from "@/lib/mock-calendar-data";
 import type { CalendarEvent, CalendarEventType } from "@/lib/mock-calendar-data";
 import { useFirebaseAuth } from "@/lib/firebase/auth";
-import { loadCalendarEventMetas, saveCalendarEventMeta, warnFirestoreFallback, type CalendarEventMeta } from "@/lib/firebase/firestore-repositories";
+import {
+  loadCalendarCustomEvents as loadFirestoreCalendarCustomEvents,
+  loadCalendarEventMetas,
+  saveCalendarCustomEvent as saveFirestoreCalendarCustomEvent,
+  saveCalendarEventMeta,
+  warnFirestoreFallback,
+  type CalendarEventMeta,
+} from "@/lib/firebase/firestore-repositories";
 import { STORAGE_KEYS } from "@/lib/storage-keys";
 import { EVENT_VISUALS } from "@/lib/event-visuals";
 import CalendarGrid from "./CalendarGrid";
@@ -27,7 +40,7 @@ interface Props {
 
 const CALENDAR_EVENT_META_STORAGE_KEY = STORAGE_KEYS.calendarEventMeta;
 
-const FILTER_ORDER: CalendarEventType[] = ["ex_div", "buy_by", "pay", "earnings"];
+const FILTER_ORDER: CalendarEventType[] = ["ex_div", "buy_by", "pay", "earnings", "custom"];
 
 function getCalendarEventMetaKey(event: CalendarEvent): string {
   return event.canonicalEventId ?? event.id;
@@ -54,6 +67,7 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
   const [filters, setFilters] = useState<Record<CalendarEventType, boolean>>(DEFAULT_CALENDAR_FILTERS);
   const [activeEvent, setActiveEvent] = useState<CalendarEvent | null>(null);
   const [eventMetas, setEventMetas] = useState<Record<string, CalendarEventMeta>>({});
+  const [customEvents, setCustomEvents] = useState<CalendarCustomEvent[]>([]);
   const [providerResult, setProviderResult] = useState<CalendarTickersProviderResult>(() => ({
     events: getCalendarEventsForTickers({ tickers, year: today.getFullYear(), month: today.getMonth() + 1 }),
     tickerResults: [],
@@ -71,6 +85,7 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
     } catch {
       window.localStorage.removeItem(CALENDAR_EVENT_META_STORAGE_KEY);
     }
+    setCustomEvents(loadLocalCalendarCustomEvents());
   }, []);
 
   useEffect(() => {
@@ -87,6 +102,18 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
         }
       })
       .catch((err) => warnFirestoreFallback("calendarEvents.load", err));
+
+    loadFirestoreCalendarCustomEvents(user.uid)
+      .then((events) => {
+        if (events.length > 0) {
+          setCustomEvents((current) => {
+            const next = dedupeCalendarCustomEvents([...current, ...events]);
+            saveLocalCalendarCustomEvents(next);
+            return next;
+          });
+        }
+      })
+      .catch((err) => warnFirestoreFallback("calendarCustomEvents.load", err));
   }, [user]);
 
   useEffect(() => {
@@ -122,6 +149,21 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
   }, [month, tickers]);
 
   const persistEventMeta = (event: CalendarEvent, meta: CalendarEventMeta) => {
+    if (isCustomCalendarEventLike(event)) {
+      const nextCustomEvents = customEvents.map((customEvent) =>
+        customEvent.id === (event.canonicalEventId ?? event.id)
+          ? { ...customEvent, note: meta.memo ?? customEvent.note, updatedAt: new Date().toISOString() }
+          : customEvent,
+      );
+      setCustomEvents(nextCustomEvents);
+      saveLocalCalendarCustomEvents(nextCustomEvents);
+      const updatedCustomEvent = nextCustomEvents.find((customEvent) => customEvent.id === (event.canonicalEventId ?? event.id));
+      if (user && updatedCustomEvent) {
+        void saveFirestoreCalendarCustomEvent(user.uid, updatedCustomEvent).catch((err) => warnFirestoreFallback("calendarCustomEvents.save", err));
+      }
+      return;
+    }
+
     const canonicalEventId = getCalendarEventMetaKey(event);
     const canonicalMeta: CalendarEventMeta = {
       ...meta,
@@ -144,11 +186,11 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
     }
   };
 
-  const events = useMemo(() => providerResult.events.map((event) => {
+  const events = useMemo(() => mergeGeneratedAndCustomCalendarEvents(providerResult.events, customEvents).map((event) => {
     const meta = resolveCalendarEventMeta(event, eventMetas);
     if (!meta) return event;
     return { ...event, favorite: meta.star ? "⭐" : meta.heart ? "💗" : event.favorite, note: meta.memo ?? event.note };
-  }), [providerResult.events, eventMetas]);
+  }), [providerResult.events, customEvents, eventMetas]);
   const filteredEvents = useMemo(() => events.filter((event) => filters[event.type]), [events, filters]);
   const selectedEvents = useMemo(() => filteredEvents.filter((event) => event.date === selectedDate), [filteredEvents, selectedDate]);
   const monthStartIso = useMemo(() => formatIsoDate(new Date(month.getFullYear(), month.getMonth(), 1)), [month]);

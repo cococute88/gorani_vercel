@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { eventStatusLabel, EVENT_VISUALS } from "@/lib/event-visuals";
+import { eventStatusLabel, getEventVisual } from "@/lib/event-visuals";
 import type { CalendarEvent } from "@/lib/mock-calendar-data";
 import type { CalendarEventMeta } from "@/lib/firebase/firestore-repositories";
 
@@ -22,7 +22,7 @@ export default function CalendarEventDialog({ event, meta, onSaveMeta, onClose }
   }, [canonicalEventId, event?.note, meta?.memo]);
 
   if (!event) return null;
-  const visual = EVENT_VISUALS[event.type];
+  const visual = getEventVisual(event.type);
   const star = meta?.star ?? false;
   const heart = meta?.heart ?? false;
 
@@ -53,7 +53,7 @@ export default function CalendarEventDialog({ event, meta, onSaveMeta, onClose }
                 <span className="rounded border border-dashed border-yellow-400/40 bg-yellow-500/10 px-1.5 py-0.5 text-[10px] font-medium text-yellow-300">추정</span>
               )}
             </div>
-            <h2 className="truncate text-[20px] font-extrabold text-white sm:text-[24px]">{event.favorite ? `${event.favorite} ` : ""}{event.ticker}</h2>
+            <h2 className="truncate text-[20px] font-extrabold text-white sm:text-[24px]">{event.favorite ? `${event.favorite} ` : ""}{event.title ?? event.ticker}</h2>
             <p className="mt-0.5 text-[12px] text-slate-400">{event.date} · {eventStatusLabel(event.status)}</p>
           </div>
           <button type="button" onClick={onClose} className="shrink-0 rounded-full bg-white/10 px-3 py-1.5 text-[12px] font-semibold text-slate-300 hover:bg-white/15">✕</button>

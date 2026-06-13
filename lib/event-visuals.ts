@@ -5,10 +5,16 @@ export const EVENT_VISUALS: Record<CalendarEventType, { label: string; shortLabe
   buy_by: { label: "매수마감", shortLabel: "매수", ko: "매수 마감", bg: "bg-red-500/20", border: "border-red-400/60", text: "text-red-200" },
   pay: { label: "지급", shortLabel: "지급", ko: "지급", bg: "bg-emerald-500/20", border: "border-emerald-400/60", text: "text-emerald-200" },
   earnings: { label: "실적", shortLabel: "실적", ko: "실적", bg: "bg-purple-500/20", border: "border-purple-400/60", text: "text-purple-200" },
+  custom: { label: "사용자", shortLabel: "사용자", ko: "사용자 일정", bg: "bg-amber-500/15", border: "border-amber-300/50", text: "text-amber-100" },
 };
 
-export function eventChipLabel(event: Pick<CalendarEvent, "ticker" | "type">): string {
-  return `${event.ticker} ${EVENT_VISUALS[event.type].shortLabel}`;
+export function getEventVisual(type: string): (typeof EVENT_VISUALS)[CalendarEventType] {
+  return EVENT_VISUALS[type as CalendarEventType] ?? EVENT_VISUALS.custom;
+}
+
+export function eventChipLabel(event: Pick<CalendarEvent, "ticker" | "type" | "title">): string {
+  if (event.type === "custom") return event.title ?? event.ticker;
+  return `${event.ticker} ${getEventVisual(event.type).shortLabel}`;
 }
 
 export function eventStatusLabel(status: CalendarEventStatus): string {

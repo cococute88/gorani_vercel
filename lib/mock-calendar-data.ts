@@ -1,6 +1,6 @@
 import { buildGeneratedCalendarEventId, type CalendarEventSourceKind } from "@/lib/calendar-event-identity";
 
-export type CalendarEventType = "ex_div" | "buy_by" | "pay" | "earnings";
+export type CalendarEventType = "ex_div" | "buy_by" | "pay" | "earnings" | "custom";
 export type CalendarEventStatus = "confirmed" | "estimated";
 export type CustomMark = "⭐" | "💗" | "⚠" | "※" | "ⓔ";
 
@@ -9,6 +9,7 @@ export interface CalendarEvent {
   canonicalEventId?: string;
   legacyEventId?: string;
   sourceKind?: CalendarEventSourceKind;
+  title?: string;
   ticker: string;
   type: CalendarEventType;
   date: string;
@@ -122,6 +123,7 @@ export function buildMockCalendarEvents(year: number, month: number, tickers = P
 export function buildTaxSavingRows(events: CalendarEvent[]): TaxSavingRow[] {
   const rows = new Map<string, TaxSavingRow>();
   for (const event of events) {
+    if (event.sourceKind === "custom" || event.type === "custom") continue;
     if (!rows.has(event.ticker)) {
       rows.set(event.ticker, {
         ticker: event.ticker,
@@ -138,4 +140,5 @@ export const DEFAULT_CALENDAR_FILTERS: Record<CalendarEventType, boolean> = {
   buy_by: true,
   pay: false,
   earnings: true,
+  custom: true,
 };

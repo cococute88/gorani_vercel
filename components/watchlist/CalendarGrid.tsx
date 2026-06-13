@@ -1,7 +1,7 @@
 "use client";
 
 import { buildMonthGrid } from "@/lib/calendar-grid";
-import { eventChipLabel, eventStateClasses, EVENT_VISUALS } from "@/lib/event-visuals";
+import { eventChipLabel, eventStateClasses, EVENT_VISUALS, getEventVisual } from "@/lib/event-visuals";
 import type { CalendarEvent, CalendarEventType } from "@/lib/mock-calendar-data";
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
@@ -95,7 +95,7 @@ export default function CalendarGrid({
               {/* Event chips */}
               <div className="absolute inset-x-0 top-5 flex min-w-0 flex-col gap-0.5 px-1 pb-1 sm:top-6 sm:px-1.5 sm:pb-1.5">
                 {shown.map((event) => {
-                  const visual = EVENT_VISUALS[event.type as CalendarEventType];
+                  const visual = getEventVisual(event.type);
                   return (
                     <span
                       key={event.id}
