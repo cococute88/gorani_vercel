@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, X, Save } from "lucide-react";
+import { X, Save } from "lucide-react";
 
 interface Props {
   tickers: string[];
@@ -66,7 +66,7 @@ export default function TickerManager({
 
         <label className="block">
           <span className="text-[12.5px] text-slate-400">티커 추가 (공백/콤마/줄바꿈 구분)</span>
-          <div className="mt-1 flex gap-2">
+          <div className="mt-1 flex w-full items-stretch gap-2">
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -74,13 +74,13 @@ export default function TickerManager({
                 if (e.key === "Enter") handleAdd();
               }}
               placeholder="예: SCHD, QQQ TQQQ"
-              className="flex-1 rounded-lg border border-[#2a3336] bg-[#11181a] px-3 py-2 text-[14px] text-white outline-none focus:border-blue-500"
+              className="min-w-0 flex-1 rounded-lg border border-[#2a3336] bg-[#11181a] px-3 py-2 text-[14px] text-white outline-none focus:border-blue-500"
             />
             <button
               onClick={handleAdd}
-              className="flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-2 text-[13px] font-semibold text-white hover:bg-blue-700"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-[18px] font-bold text-white hover:bg-blue-700"
             >
-              <Plus size={15} /> 추가
+              +
             </button>
           </div>
         </label>

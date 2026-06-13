@@ -6,15 +6,19 @@ import { formatIsoDate } from "@/lib/calendar-grid";
 import { getCalendarEventsForTickers, getCalendarEventsForTickersWithProvider, isCustomCalendarEventLike, mergeGeneratedAndCustomCalendarEvents } from "@/lib/calendar-event-provider";
 import type { CalendarTickersProviderResult } from "@/lib/calendar-event-provider";
 import {
+  createCalendarCustomEvent,
   dedupeCalendarCustomEvents,
+  deleteCalendarCustomEvent as deleteLocalCalendarCustomEvent,
   loadCalendarCustomEvents as loadLocalCalendarCustomEvents,
   saveCalendarCustomEvents as saveLocalCalendarCustomEvents,
+  upsertCalendarCustomEvent as upsertLocalCalendarCustomEvent,
   type CalendarCustomEvent,
 } from "@/lib/calendar-custom-events";
 import { DEFAULT_CALENDAR_FILTERS, buildTaxSavingRows } from "@/lib/mock-calendar-data";
 import type { CalendarEvent, CalendarEventType } from "@/lib/mock-calendar-data";
 import { useFirebaseAuth } from "@/lib/firebase/auth";
 import {
+  deleteCalendarCustomEvent as deleteFirestoreCalendarCustomEvent,
   loadCalendarCustomEvents as loadFirestoreCalendarCustomEvents,
   loadCalendarEventMetas,
   saveCalendarCustomEvent as saveFirestoreCalendarCustomEvent,
@@ -27,6 +31,7 @@ import { EVENT_VISUALS } from "@/lib/event-visuals";
 import CalendarGrid from "./CalendarGrid";
 import CalendarEventDialog from "./CalendarEventDialog";
 import CalendarEventList from "./CalendarEventList";
+import CustomEventDialog, { type CustomEventSubmitInput } from "./CustomEventDialog";
 import DividendSchedulePreview from "./DividendSchedulePreview";
 import PortfolioSelectorMock from "./PortfolioSelectorMock";
 import SelectedDateList from "./SelectedDateList";
@@ -68,6 +73,8 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
   const [activeEvent, setActiveEvent] = useState<CalendarEvent | null>(null);
   const [eventMetas, setEventMetas] = useState<Record<string, CalendarEventMeta>>({});
   const [customEvents, setCustomEvents] = useState<CalendarCustomEvent[]>([]);
+  const [customDialogOpen, setCustomDialogOpen] = useState(false);
+  const [editingCustomEvent, setEditingCustomEvent] = useState<CalendarCustomEvent | null>(null);
   const [providerResult, setProviderResult] = useState<CalendarTickersProviderResult>(() => ({
     events: getCalendarEventsForTickers({ tickers, year: today.getFullYear(), month: today.getMonth() + 1 }),
     tickerResults: [],
@@ -186,6 +193,55 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
     }
   };
 
+  const openCreateCustomEvent = () => {
+    setEditingCustomEvent(null);
+    setCustomDialogOpen(true);
+  };
+
+  const openEditCustomEvent = (event: CalendarEvent) => {
+    const targetId = event.canonicalEventId ?? event.id;
+    setEditingCustomEvent(customEvents.find((customEvent) => customEvent.id === targetId) ?? null);
+    setCustomDialogOpen(true);
+  };
+
+  // Custom events open the lightweight custom dialog; generated dividend events keep the read/meta dialog.
+  const handleOpenEvent = (event: CalendarEvent) => {
+    if (isCustomCalendarEventLike(event)) {
+      openEditCustomEvent(event);
+      return;
+    }
+    setActiveEvent(event);
+  };
+
+  const handleSubmitCustomEvent = (input: CustomEventSubmitInput) => {
+    const record = createCalendarCustomEvent({
+      id: input.id,
+      title: input.title,
+      date: input.date,
+      ticker: input.ticker,
+      note: input.note,
+      createdAt: input.createdAt,
+    });
+    const next = upsertLocalCalendarCustomEvent(record);
+    setCustomEvents(next);
+    setCustomDialogOpen(false);
+    setEditingCustomEvent(null);
+    setSelectedDate(record.date);
+    if (user) {
+      void saveFirestoreCalendarCustomEvent(user.uid, record).catch((err) => warnFirestoreFallback("calendarCustomEvents.save", err));
+    }
+  };
+
+  const handleDeleteCustomEvent = (eventId: string) => {
+    const next = deleteLocalCalendarCustomEvent(eventId);
+    setCustomEvents(next);
+    setCustomDialogOpen(false);
+    setEditingCustomEvent(null);
+    if (user) {
+      void deleteFirestoreCalendarCustomEvent(user.uid, eventId).catch((err) => warnFirestoreFallback("calendarCustomEvents.delete", err));
+    }
+  };
+
   const events = useMemo(() => mergeGeneratedAndCustomCalendarEvents(providerResult.events, customEvents).map((event) => {
     const meta = resolveCalendarEventMeta(event, eventMetas);
     if (!meta) return event;
@@ -243,7 +299,16 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
       <section className="mb-4 grid grid-cols-1 gap-3 xl:grid-cols-[280px_1fr]">
         <PortfolioSelectorMock />
         <div className="rounded-2xl border border-[#2a3336] bg-[#191f20] p-3 sm:p-4">
-          <h2 className="mb-2 text-[13px] font-bold text-slate-300 sm:text-[14px]">필터</h2>
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <h2 className="text-[13px] font-bold text-slate-300 sm:text-[14px]">필터</h2>
+            <button
+              type="button"
+              onClick={openCreateCustomEvent}
+              className="inline-flex shrink-0 items-center gap-1 rounded-full border border-amber-300/40 bg-amber-500/15 px-2.5 py-1 text-[11px] font-bold text-amber-100 transition hover:bg-amber-500/25 sm:text-[12px]"
+            >
+              + 일정 추가
+            </button>
+          </div>
           <div className="flex flex-wrap gap-1.5 sm:gap-2">
             {FILTER_ORDER.map((type) => {
               const visual = EVENT_VISUALS[type];
@@ -271,22 +336,22 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
             selectedDate={selectedDate}
             todayIso={todayIso}
             onSelectDate={setSelectedDate}
-            onOpenEvent={setActiveEvent}
+            onOpenEvent={handleOpenEvent}
             onPrevMonth={() => moveMonth(-1)}
             onNextMonth={() => moveMonth(1)}
             onToday={goToday}
           />
-          <SelectedDateList selectedDate={selectedDate} events={selectedEvents} todayIso={todayIso} onOpenEvent={setActiveEvent} />
+          <SelectedDateList selectedDate={selectedDate} events={selectedEvents} todayIso={todayIso} onOpenEvent={handleOpenEvent} />
         </div>
         <aside className="space-y-4">
           <TaxSavingTable rows={taxRows} />
-          <CalendarEventList title="이번 달 주요 일정" events={keyEvents} todayIso={todayIso} onOpenEvent={setActiveEvent} />
+          <CalendarEventList title="이번 달 주요 일정" events={keyEvents} todayIso={todayIso} onOpenEvent={handleOpenEvent} />
         </aside>
       </section>
 
       {/* Schedule preview */}
       <section className="mb-4">
-        <DividendSchedulePreview events={events} onOpenEvent={setActiveEvent} />
+        <DividendSchedulePreview events={events} onOpenEvent={handleOpenEvent} />
       </section>
 
       {/* Ticker management */}
@@ -300,6 +365,18 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
         meta={activeEvent ? resolveCalendarEventMeta(activeEvent, eventMetas) : undefined}
         onSaveMeta={persistEventMeta}
         onClose={() => setActiveEvent(null)}
+      />
+
+      <CustomEventDialog
+        open={customDialogOpen}
+        event={editingCustomEvent}
+        defaultDate={selectedDate || todayIso}
+        onClose={() => {
+          setCustomDialogOpen(false);
+          setEditingCustomEvent(null);
+        }}
+        onSubmit={handleSubmitCustomEvent}
+        onDelete={handleDeleteCustomEvent}
       />
     </>
   );
