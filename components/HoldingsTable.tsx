@@ -1,16 +1,36 @@
 "use client";
 
-import { useState } from "react";
-import { SECTOR_FILTERS, TOP_HOLDINGS, Holding } from "@/lib/mockData";
+import { useEffect, useState } from "react";
+import { SECTOR_FILTERS, TOP_HOLDINGS, Holding as MockHolding } from "@/lib/mockData";
+
+export type AssetMapHoldingRow = {
+  rank: number;
+  name: string;
+  ticker: string;
+  sector: string;
+  weight: number;
+};
+
+type Props = {
+  holdings?: AssetMapHoldingRow[];
+  sectorFilters?: string[];
+};
 
 // 자산 맵 우측 카드: 섹터 필터 pill + TOP100 스크롤 테이블.
-export default function HoldingsTable() {
+export default function HoldingsTable({
+  holdings = TOP_HOLDINGS,
+  sectorFilters = SECTOR_FILTERS,
+}: Props) {
   const [active, setActive] = useState("기술");
 
-  const filtered: Holding[] =
+  useEffect(() => {
+    if (!sectorFilters.includes(active)) setActive(sectorFilters[0] ?? "전체");
+  }, [active, sectorFilters]);
+
+  const filtered: Array<AssetMapHoldingRow | MockHolding> =
     active === "전체"
-      ? TOP_HOLDINGS
-      : TOP_HOLDINGS.filter((h) => h.sector === active);
+      ? holdings
+      : holdings.filter((h) => h.sector === active);
 
   const count = filtered.length;
 
@@ -25,7 +45,7 @@ export default function HoldingsTable() {
 
       {/* 섹터 필터 pill */}
       <div className="mb-3 flex flex-wrap gap-1.5">
-        {SECTOR_FILTERS.map((s) => {
+        {sectorFilters.map((s) => {
           const on = s === active;
           return (
             <button
@@ -53,7 +73,7 @@ export default function HoldingsTable() {
         <div className="scroll-dark max-h-[440px] overflow-y-auto">
           {filtered.map((h) => (
             <div
-              key={h.rank}
+              key={`${h.rank}-${h.ticker}`}
               className="grid grid-cols-[1fr_88px_72px] items-center gap-2 border-b border-[#222a2c] px-2 py-2.5 hover:bg-white/5"
             >
               <div className="flex items-center gap-2.5 min-w-0">

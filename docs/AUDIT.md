@@ -409,3 +409,7 @@ Dependency warnings observed:
 ## 2026-06-13 Step ASSETMAP-1 Move Asset Map To Portfolio Manager
 
 - Moved the asset-map / ETF look-through section from `/market` to the bottom of `/portfolio-manager`, changed `/asset-map` to redirect to `/portfolio-manager`, and added an explicit mock/portfolio-detected status because no ETF constituent dataset exists yet. See `docs/ASSETMAP1_MOVE_TO_PORTFOLIO_MANAGER.md`.
+
+## 2026-06-13 Step ASSETMAP-2 Real Portfolio Exposure Calculation
+
+- Replaced asset-map mock-only sector/TOP100 data with latest `/portfolio-manager` snapshot exposure calculation using local ETF top-holdings fixtures, direct ticker sector mapping, ticker normalization, uncovered ETF warnings, and `check:asset-map` regression coverage. See `docs/ASSETMAP2_REAL_PORTFOLIO_EXPOSURE.md`.
