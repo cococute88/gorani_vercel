@@ -48,6 +48,8 @@ Step M1 app-wide mobile P0/P1 overflow fix date: 2026-06-13 (`docs/MOBILE_UI_M1_
 
 Step M2 responsive mobile table/card fix date: 2026-06-13 (`docs/MOBILE_UI_M2_TABLE_RESPONSIVE_FIX.md`)
 
+Step 5B-0 TaxSavingTable calculation spec audit date: 2026-06-13 (`docs/STEP5B0_TAX_SAVING_CALC_AUDIT.md`)
+
 ## Project Root Decision
 
 - Actual working directory: `C:\gv\gorani_vercel`
