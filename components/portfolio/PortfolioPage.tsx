@@ -24,6 +24,7 @@ import AssetTable from "./AssetTable";
 import SnapshotHistory from "./SnapshotHistory";
 import PortfolioPerformanceChart from "./PortfolioPerformanceChart";
 import PortfolioQuoteStatusPanel from "./PortfolioQuoteStatusPanel";
+import AssetMapSection from "@/components/asset-map/AssetMapSection";
 
 function snapshotToResult(s: PortfolioSnapshot): ParseResult {
   return {
@@ -252,6 +253,7 @@ export default function PortfolioPage() {
           <PortfolioPerformanceChart snapshots={snapshots} />
         </section>
 
+        <AssetMapSection />
       </main>
     </div>
   );

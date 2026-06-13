@@ -13,7 +13,7 @@ export default function MarketTemperatureSection() {
             <p className="text-[12px] font-bold uppercase tracking-[0.2em] text-blue-300">Market Temperature</p>
             <h2 className="mt-2 text-[20px] font-extrabold text-white">시장온도</h2>
             <p className="mt-2 max-w-2xl text-[13px] leading-6 text-slate-400">
-              {MARKET_TEMPERATURE_SUMMARY.description} 아래 RSI/VIX를 먼저 보고, 이어지는 자산맵으로 보유 ETF 노출을 확인하세요.
+              {MARKET_TEMPERATURE_SUMMARY.description} 아래 RSI/VIX와 참고 시트를 함께 확인하세요.
             </p>
           </div>
           <div className="rounded-2xl border border-blue-500/25 bg-blue-500/10 px-5 py-4 text-right">

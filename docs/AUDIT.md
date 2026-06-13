@@ -405,3 +405,7 @@ Dependency warnings observed:
 ## 2026-06-13 Step UI-2B Top Nav Priority/Collapse Proper Fix
 
 - Unified the previously split mobile (hardcoded 2 items) and desktop (measured) nav into one measured priority nav for all widths: two-row layout below `lg` (logo + right controls on row 1, full-width nav on row 2), single row at `lg+`, with `더보기` pinned to the far right via `ml-auto` and hidden only when every item fits. Fixes too-aggressive collapse at 350–750px (now 3–8 items instead of 2) and the mid-floating `더보기` at ~780px. Header-only change; no page content, calculator, parser, quote-API, calendar-provider, or Firestore logic touched. See `docs/UI2B_TOP_NAV_PRIORITY_FIX.md`.
+
+## 2026-06-13 Step ASSETMAP-1 Move Asset Map To Portfolio Manager
+
+- Moved the asset-map / ETF look-through section from `/market` to the bottom of `/portfolio-manager`, changed `/asset-map` to redirect to `/portfolio-manager`, and added an explicit mock/portfolio-detected status because no ETF constituent dataset exists yet. See `docs/ASSETMAP1_MOVE_TO_PORTFOLIO_MANAGER.md`.

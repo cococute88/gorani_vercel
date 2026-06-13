@@ -31,7 +31,6 @@ import MarketMddSection from "./MarketMddSection";
 import VixChart from "./VixChart";
 import MarketTemperatureSheet from "./MarketTemperatureSheet";
 import TradingViewTreemap from "./TradingViewTreemap";
-import AssetMapSection from "./AssetMapSection";
 
 export default function MarketPage() {
   const [range, setRange] = useState<MarketRange>("1년");
@@ -100,9 +99,8 @@ export default function MarketPage() {
         {/* 5. 시장온도 참고 시트 */}
         <MarketTemperatureSheet />
 
-        {/* 6. 섹터 트리맵 / 7. 자산 맵 (하단 유지) */}
+        {/* 6. 섹터 트리맵 */}
         <TradingViewTreemap />
-        <AssetMapSection />
       </main>
     </div>
   );
