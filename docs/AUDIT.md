@@ -46,6 +46,8 @@ Step M0 app-wide mobile UI overflow audit date: 2026-06-13 (`docs/MOBILE_UI_OVER
 
 Step M1 app-wide mobile P0/P1 overflow fix date: 2026-06-13 (`docs/MOBILE_UI_M1_OVERFLOW_FIX.md`)
 
+Step M2 responsive mobile table/card fix date: 2026-06-13 (`docs/MOBILE_UI_M2_TABLE_RESPONSIVE_FIX.md`)
+
 ## Project Root Decision
 
 - Actual working directory: `C:\gv\gorani_vercel`

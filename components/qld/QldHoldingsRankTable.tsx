@@ -18,7 +18,50 @@ export default function QldHoldingsRankTable() {
         </span>
       </div>
 
-      <div className="overflow-x-auto">
+      {/* 모바일: 랭킹 카드 (가로 스크롤 없이 핵심 지표 표시) */}
+      <div className="space-y-2.5 lg:hidden">
+        {QLD_RANK_ROWS.map((r, i) => (
+          <div key={r.ticker} className="rounded-2xl border border-[#222838] bg-[#0e111a] p-3">
+            <div className="flex items-center gap-2.5">
+              <span className="w-4 shrink-0 text-[11px] text-slate-600">{i + 1}</span>
+              <span
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[11px] font-bold text-white/90"
+                style={{ backgroundColor: r.color }}
+              >
+                {r.ticker.slice(0, 2)}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="truncate font-bold text-slate-100">{r.ticker}</div>
+                <div className="truncate text-[11px] text-slate-500">{r.name}</div>
+              </div>
+              <div className="shrink-0 text-right">
+                <div className="num text-[11px] text-slate-400">비중 {r.weight.toFixed(2)}%</div>
+                <div className="num text-[13px] font-semibold text-slate-100">{won(r.value)}원</div>
+              </div>
+            </div>
+
+            <div className="mt-2.5 grid grid-cols-3 gap-2 border-t border-[#191e2b] pt-2.5">
+              <div className="min-w-0">
+                <div className="text-[10.5px] text-slate-500">평균 매수가</div>
+                <div className="num truncate text-[12px] text-slate-300">{r.avgPrice}</div>
+              </div>
+              <div className="min-w-0">
+                <div className="text-[10.5px] text-slate-500">전일대비</div>
+                <div className={`num truncate text-[12px] font-medium ${toneCls(r.dayProfitRate)}`}>{pctSigned(r.dayProfitRate)}</div>
+                <div className={`num truncate text-[10.5px] ${toneCls(r.dayProfit)}`}>{wonSigned(r.dayProfit)}</div>
+              </div>
+              <div className="min-w-0 text-right">
+                <div className="text-[10.5px] text-slate-500">누적 수익</div>
+                <div className={`num truncate text-[12px] font-semibold ${toneCls(r.cumProfitRate)}`}>{pctSigned(r.cumProfitRate)}</div>
+                <div className={`num truncate text-[10.5px] ${toneCls(r.cumProfit)}`}>{wonSigned(r.cumProfit)}</div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* lg+ : 기존 데스크톱 표 */}
+      <div className="hidden overflow-x-auto lg:block">
         <table className="w-full min-w-[820px] border-collapse">
           <thead>
             <tr className="border-b border-[#222838] text-[11.5px] text-slate-500">
