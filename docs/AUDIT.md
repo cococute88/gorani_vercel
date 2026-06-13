@@ -401,3 +401,7 @@ Dependency warnings observed:
 ## 2026-06-13 Step UI-2 Top Nav Responsive Overflow Fix
 
 - Replaced desktop top-nav horizontal scrolling with measured fit/collapse behavior: show the maximum fitting prefix of nav items, keep `더보기` visible for hidden items, hide it when all items fit, and preserve mobile two-shortcut behavior. See `docs/UI2_TOP_NAV_RESPONSIVE_FIX.md`.
+
+## 2026-06-13 Step UI-2B Top Nav Priority/Collapse Proper Fix
+
+- Unified the previously split mobile (hardcoded 2 items) and desktop (measured) nav into one measured priority nav for all widths: two-row layout below `lg` (logo + right controls on row 1, full-width nav on row 2), single row at `lg+`, with `더보기` pinned to the far right via `ml-auto` and hidden only when every item fits. Fixes too-aggressive collapse at 350–750px (now 3–8 items instead of 2) and the mid-floating `더보기` at ~780px. Header-only change; no page content, calculator, parser, quote-API, calendar-provider, or Firestore logic touched. See `docs/UI2B_TOP_NAV_PRIORITY_FIX.md`.

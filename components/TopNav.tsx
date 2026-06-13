@@ -8,22 +8,24 @@ import { Bell } from "lucide-react";
 import { NAV_ITEMS } from "@/lib/mockData";
 import LoginButton from "@/components/auth/LoginButton";
 
-const MOBILE_PRIMARY_COUNT = 2;
-const DESKTOP_INITIAL_VISIBLE_COUNT = 2;
-const DESKTOP_NAV_GAP_PX = 4;
+// Safe initial count: always small enough to never overflow on first paint,
+// the ResizeObserver expands it on mount.
+const INITIAL_VISIBLE_COUNT = 2;
+const NAV_GAP_PX = 4; // matches the `gap-1` on the nav row
 
 type Props = {
   theme?: "dark" | "light";
 };
 
-// 상단 네비게이션. 모바일은 주요 칩 + 더보기 패널, 데스크톱은 전체 가로 메뉴를 보여준다.
+// 상단 네비게이션. 단일 measured priority nav 으로 동작한다.
+// - 좁은 폭: 1행(로고 + 우측 컨트롤), 2행(네비 전체 폭)의 2행 레이아웃.
+// - 넓은 폭(lg 이상): 로고 | 네비 | 우측 컨트롤의 1행 레이아웃.
+// 두 경우 모두 들어갈 수 있는 만큼 항목을 노출하고, 숨겨진 항목이 있으면 더보기를 우측에 고정한다.
 export default function TopNav({ theme = "dark" }: Props) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [desktopVisibleCount, setDesktopVisibleCount] = useState(
-    DESKTOP_INITIAL_VISIBLE_COUNT,
-  );
-  const desktopNavRef = useRef<HTMLElement | null>(null);
+  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_COUNT);
+  const navRef = useRef<HTMLElement | null>(null);
   const itemMeasureRefs = useRef<(HTMLSpanElement | null)[]>([]);
   const moreMeasureRef = useRef<HTMLSpanElement | null>(null);
 
@@ -32,7 +34,7 @@ export default function TopNav({ theme = "dark" }: Props) {
   }, [pathname]);
 
   useEffect(() => {
-    const nav = desktopNavRef.current;
+    const nav = navRef.current;
     if (!nav) return;
 
     const measure = () => {
@@ -53,9 +55,9 @@ export default function TopNav({ theme = "dark" }: Props) {
         const visibleWidth = itemWidths
           .slice(0, count)
           .reduce((sum, width) => sum + width, 0);
-        const visibleGaps = Math.max(count - 1, 0) * DESKTOP_NAV_GAP_PX;
+        const visibleGaps = Math.max(count - 1, 0) * NAV_GAP_PX;
         const hasHiddenItems = count < totalItems;
-        const moreGap = hasHiddenItems && count > 0 ? DESKTOP_NAV_GAP_PX : 0;
+        const moreGap = hasHiddenItems && count > 0 ? NAV_GAP_PX : 0;
         const requiredWidth =
           visibleWidth + visibleGaps + (hasHiddenItems ? moreWidth + moreGap : 0);
 
@@ -65,7 +67,7 @@ export default function TopNav({ theme = "dark" }: Props) {
         }
       }
 
-      setDesktopVisibleCount((current) =>
+      setVisibleCount((current) =>
         current === nextVisibleCount ? current : nextVisibleCount,
       );
     };
@@ -85,18 +87,16 @@ export default function TopNav({ theme = "dark" }: Props) {
   const isLight = theme === "light";
   const barBg = isLight ? "bg-[#0f1729]" : "bg-[#0c1011]";
   const border = isLight ? "border-[#1e293b]" : "border-[#1c2426]";
-  const mobilePrimaryItems = NAV_ITEMS.slice(0, MOBILE_PRIMARY_COUNT);
-  const mobileHiddenItems = NAV_ITEMS.slice(MOBILE_PRIMARY_COUNT);
-  const desktopVisibleItems = NAV_ITEMS.slice(0, desktopVisibleCount);
-  const desktopHiddenItems = NAV_ITEMS.slice(desktopVisibleCount);
+  const visibleItems = NAV_ITEMS.slice(0, visibleCount);
+  const hiddenItems = NAV_ITEMS.slice(visibleCount);
 
   const isActive = (href: string) =>
     href !== "#" &&
     (href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`));
 
-  const linkClass = (active: boolean, mobilePanel = false) =>
+  const linkClass = (active: boolean, panel = false) =>
     `flex shrink-0 items-center gap-1 rounded-md text-[13px] font-medium transition-colors ${
-      mobilePanel ? "px-3 py-2" : "px-2.5 py-1.5"
+      panel ? "px-3 py-2" : "px-2.5 py-1.5"
     } ${
       active
         ? "bg-blue-600 text-white"
@@ -104,7 +104,7 @@ export default function TopNav({ theme = "dark" }: Props) {
     }`;
 
   const moreButtonClass = (active: boolean) =>
-    `shrink-0 rounded-full border px-3 py-1.5 text-[13px] font-semibold transition-colors md:rounded-md ${
+    `shrink-0 rounded-full border px-3 py-1.5 text-[13px] font-semibold transition-colors lg:rounded-md ${
       active
         ? "border-blue-400/50 bg-blue-600 text-white"
         : "border-blue-500/30 bg-blue-600/15 text-blue-200 hover:bg-blue-600/25"
@@ -112,11 +112,11 @@ export default function TopNav({ theme = "dark" }: Props) {
 
   return (
     <header className={`sticky top-0 z-50 w-full overflow-x-hidden ${barBg} border-b ${border}`}>
-      <div className="mx-auto flex w-full max-w-[1640px] min-w-0 flex-wrap items-center gap-x-2 gap-y-2 px-3 py-2 sm:px-5 md:h-14 md:flex-nowrap md:py-0">
-        {/* 로고 */}
+      <div className="mx-auto flex w-full max-w-[1640px] min-w-0 flex-wrap items-center gap-x-2 gap-y-2 px-3 py-2 sm:px-5 lg:h-14 lg:flex-nowrap lg:py-0">
+        {/* 로고 (1행 좌측) */}
         <Link
           href="/portfolio"
-          className="order-1 mr-auto flex shrink-0 items-center gap-1.5 md:mr-3"
+          className="order-1 flex shrink-0 items-center gap-1.5 lg:mr-3"
         >
           <Image
             src="/gorani-logo.png"
@@ -130,11 +130,21 @@ export default function TopNav({ theme = "dark" }: Props) {
           </span>
         </Link>
 
-        {/* 데스크톱 메뉴 */}
+        {/* 우측 컨트롤 (좁은 폭: 1행 우측 / lg: 행 끝) */}
+        <div className="order-2 ml-auto flex shrink-0 items-center gap-1.5 lg:order-3 lg:ml-2 lg:gap-2">
+          <LoginButton />
+          <button className="relative flex h-8 w-8 items-center justify-center rounded-md text-slate-300 hover:bg-white/10">
+            <Bell size={15} />
+            <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-red-500" />
+          </button>
+        </div>
+
+        {/* 네비게이션 (좁은 폭: 2행 전체 폭 / lg: 1행 가운데 flex-1) */}
         <nav
-          ref={desktopNavRef}
-          className="order-2 relative hidden min-w-0 flex-1 items-center gap-1 overflow-hidden md:flex"
+          ref={navRef}
+          className="order-3 relative flex w-full min-w-0 items-center gap-1 overflow-hidden lg:order-2 lg:w-auto lg:flex-1"
         >
+          {/* 폭 측정용(보이지 않음). 실제 렌더 항목과 동일 구조여야 정확하게 측정된다. */}
           <div
             aria-hidden="true"
             className="pointer-events-none absolute left-0 top-0 flex h-0 gap-1 overflow-hidden opacity-0"
@@ -159,7 +169,7 @@ export default function TopNav({ theme = "dark" }: Props) {
             </span>
           </div>
 
-          {desktopVisibleItems.map((item) => {
+          {visibleItems.map((item) => {
             const active = isActive(item.href);
             return (
               <Link key={item.label} href={item.href} className={linkClass(active)}>
@@ -168,84 +178,24 @@ export default function TopNav({ theme = "dark" }: Props) {
               </Link>
             );
           })}
-          {desktopHiddenItems.length > 0 && (
+          {hiddenItems.length > 0 && (
             <button
               type="button"
               onClick={() => setMenuOpen((open) => !open)}
               aria-expanded={menuOpen}
-              className={moreButtonClass(desktopHiddenItems.some((item) => isActive(item.href)))}
+              className={`ml-auto ${moreButtonClass(hiddenItems.some((item) => isActive(item.href)))}`}
             >
               ☰ 더보기
             </button>
           )}
         </nav>
-
-        {/* 우측 */}
-        <div className="order-2 ml-auto flex shrink-0 items-center gap-1.5 md:order-3 md:ml-2 md:gap-2">
-          <LoginButton />
-          <button className="relative flex h-8 w-8 items-center justify-center rounded-md text-slate-300 hover:bg-white/10">
-            <Bell size={15} />
-            <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-red-500" />
-          </button>
-        </div>
-
-        {/* 모바일 주요 메뉴 + 더보기 */}
-        <nav className="order-3 grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 md:hidden">
-          <div className="no-scrollbar flex min-w-0 gap-1 overflow-x-auto">
-            {mobilePrimaryItems.map((item) => {
-              const active = isActive(item.href);
-              return (
-                <Link
-                  key={item.label}
-                  href={item.href}
-                  className={`flex shrink-0 items-center gap-1 rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors ${
-                    active
-                      ? "bg-blue-600 text-white"
-                      : "bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white"
-                  }`}
-                >
-                  <span className="text-[13px] leading-none">{item.icon}</span>
-                  <span className="whitespace-nowrap">{item.label}</span>
-                </Link>
-              );
-            })}
-          </div>
-          <button
-            type="button"
-            onClick={() => setMenuOpen((open) => !open)}
-            aria-expanded={menuOpen}
-            className={moreButtonClass(mobileHiddenItems.some((item) => isActive(item.href)))}
-          >
-            ☰ 더보기
-          </button>
-        </nav>
       </div>
 
-      {menuOpen && (
-        <div className="border-t border-white/10 px-3 pb-3 md:hidden">
-          <div className="mx-auto grid w-full max-w-[1640px] grid-cols-2 gap-1.5 rounded-2xl border border-[#22303a] bg-[#101719] p-2 shadow-2xl">
-            {mobileHiddenItems.map((item) => {
-              const active = isActive(item.href);
-              return (
-                <Link
-                  key={item.label}
-                  href={item.href}
-                  onClick={() => setMenuOpen(false)}
-                  className={linkClass(active, true)}
-                >
-                  <span className="text-[14px] leading-none">{item.icon}</span>
-                  <span className="truncate">{item.label}</span>
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {menuOpen && desktopHiddenItems.length > 0 && (
-        <div className="hidden border-t border-white/10 px-5 pb-3 md:block">
-          <div className="mx-auto grid w-full max-w-[1640px] grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-1.5 rounded-xl border border-[#22303a] bg-[#101719] p-2 shadow-2xl">
-            {desktopHiddenItems.map((item) => {
+      {/* 더보기 패널: 숨겨진 항목 노출 */}
+      {menuOpen && hiddenItems.length > 0 && (
+        <div className="border-t border-white/10 px-3 pb-3 sm:px-5">
+          <div className="mx-auto grid w-full max-w-[1640px] grid-cols-2 gap-1.5 rounded-2xl border border-[#22303a] bg-[#101719] p-2 shadow-2xl sm:grid-cols-[repeat(auto-fit,minmax(150px,1fr))]">
+            {hiddenItems.map((item) => {
               const active = isActive(item.href);
               return (
                 <Link
