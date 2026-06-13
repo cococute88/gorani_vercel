@@ -93,7 +93,7 @@ export default function CalendarGrid({
                 </span>
               )}
               {/* Event chips */}
-              <div className="absolute inset-x-0 top-6 flex min-w-0 flex-col gap-0.5 px-1 pb-1 sm:top-7 sm:px-1.5 sm:pb-1.5">
+              <div className="absolute inset-x-0 top-5 flex min-w-0 flex-col gap-0.5 px-1 pb-1 sm:top-6 sm:px-1.5 sm:pb-1.5">
                 {shown.map((event) => {
                   const visual = EVENT_VISUALS[event.type as CalendarEventType];
                   return (
