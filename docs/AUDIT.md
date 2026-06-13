@@ -413,3 +413,20 @@ Dependency warnings observed:
 ## 2026-06-13 Step ASSETMAP-2 Real Portfolio Exposure Calculation
 
 - Replaced asset-map mock-only sector/TOP100 data with latest `/portfolio-manager` snapshot exposure calculation using local ETF top-holdings fixtures, direct ticker sector mapping, ticker normalization, uncovered ETF warnings, and `check:asset-map` regression coverage. See `docs/ASSETMAP2_REAL_PORTFOLIO_EXPOSURE.md`.
+
+## 2026-06-13 Step DIVIDENDS-1 Snapshot Holding Groups
+
+- Refactored `/dividends` to derive taxable and tax-advantaged dividend holding tables from the latest portfolio snapshot, removed derived-table edit/delete controls, added summary/chart group controls, and removed non-functional asset-map controls. See `docs/DIVIDENDS1_SNAPSHOT_HOLDING_GROUPS.md`.
+
+## 2026-06-13 Step DIVIDENDS-2 Classification And Snapshot Preview Fix
+
+- Fixed dividend bucket/ticker inference for S&P500 pension-style products, widened tax-advantaged marker scanning to `④` and other relevant fields, and added read-only snapshot history click-to-preview in `/portfolio-manager`. See `docs/DIVIDENDS2_CLASSIFICATION_AND_SNAPSHOT_PREVIEW_FIX.md`.
+
+## 2026-06-13 Step DIVIDENDS-3 Strict Classification Hotfix
+
+- Tightened `/dividends` taxable classification to strict `①SCHD/SPY/MSFT + ②위탁 + no tax-advantaged signal`, broadened tax-advantaged inclusion to any pension/ISA/IRP/tax-saving signal, and added strict regression coverage. See `docs/DIVIDENDS3_STRICT_CLASSIFICATION_HOTFIX.md`.
+
+- 2026-06-14 Step PORTFOLIO-TICKER-1: Added a Korean ETF registry and quoteTicker/dividendBucket/exposureProxy normalization for ACE/KINDEX 미국S&P500 `360200.KS`, safe S&P500/Nasdaq100 bucket fallbacks, dividends, and asset-map behavior. See `docs/PORTFOLIO_TICKER1_KOREAN_ETF_REGISTRY.md`.
+- 2026-06-14 Step PORTFOLIO-TICKER-2: Expanded Korean ETF aliases for ACE/RISE/KBSTAR/TIGER S&P500/Nasdaq100 mappings, added cash-like/MMF normalizer exclusion, and extended registry/dividend/asset-map regressions. See `docs/PORTFOLIO_TICKER2_KOREAN_ETF_REGISTRY_EXPANSION.md`.
+- 2026-06-14 Step PORTFOLIO-TICKER-3: Fixed ISA/no-space Korean ETF rows that preserved bucket tickers by upgrading known `SPY`/`QQQ` bucket mistakes to registry KRX quote tickers while keeping dividendBucket/exposureProxy behavior. See `docs/PORTFOLIO_TICKER3_ISA_ALIAS_AND_BUCKET_UPGRADE_FIX.md`.
+- 2026-06-14 Step DIVIDENDS-4: Rebuilt `/dividends` holding classification as a row-preserving snapshot view with common cash/small/unknown-bucket exclusions, strict taxable rules, tax-advantaged ISA/pension inclusion, and visible-total regressions. See `docs/DIVIDENDS4_ROW_PRESERVING_CLASSIFICATION_FIX.md`.

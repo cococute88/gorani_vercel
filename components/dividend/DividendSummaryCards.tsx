@@ -8,7 +8,9 @@ interface Props {
   monthlyAvgKRW: number;
   achievementPct: number;
   afterTax: boolean;
+  includeTaxAdvantaged: boolean;
   onToggleTax: (afterTax: boolean) => void;
+  onToggleGroup: (includeTaxAdvantaged: boolean) => void;
 }
 
 const card = "rounded-2xl border border-[#2a3336] bg-[#191f20] p-4 sm:p-5";
@@ -39,29 +41,51 @@ export default function DividendSummaryCards({
   monthlyAvgKRW,
   achievementPct,
   afterTax,
+  includeTaxAdvantaged,
   onToggleTax,
+  onToggleGroup,
 }: Props) {
   return (
     <section className="mb-6">
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-[15px] font-bold text-slate-300">배당 요약</h2>
-        <div className="flex items-center gap-1 rounded-lg bg-[#1b2021] p-1">
-          <button
-            onClick={() => onToggleTax(false)}
-            className={`rounded-md px-2.5 py-1 text-[12.5px] font-medium transition-colors ${
-              !afterTax ? "bg-blue-600 text-white" : "text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            세전
-          </button>
-          <button
-            onClick={() => onToggleTax(true)}
-            className={`rounded-md px-2.5 py-1 text-[12.5px] font-medium transition-colors ${
-              afterTax ? "bg-blue-600 text-white" : "text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            세후
-          </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1 rounded-lg bg-[#1b2021] p-1">
+            <button
+              onClick={() => onToggleTax(false)}
+              className={`rounded-md px-2.5 py-1 text-[12.5px] font-medium transition-colors ${
+                !afterTax ? "bg-blue-600 text-white" : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              세전
+            </button>
+            <button
+              onClick={() => onToggleTax(true)}
+              className={`rounded-md px-2.5 py-1 text-[12.5px] font-medium transition-colors ${
+                afterTax ? "bg-blue-600 text-white" : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              세후
+            </button>
+          </div>
+          <div className="flex items-center gap-1 rounded-lg bg-[#1b2021] p-1">
+            <button
+              onClick={() => onToggleGroup(false)}
+              className={`break-keep rounded-md px-2.5 py-1 text-[12.5px] font-medium transition-colors ${
+                !includeTaxAdvantaged ? "bg-blue-600 text-white" : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              위탁만
+            </button>
+            <button
+              onClick={() => onToggleGroup(true)}
+              className={`break-keep rounded-md px-2.5 py-1 text-[12.5px] font-medium transition-colors ${
+                includeTaxAdvantaged ? "bg-blue-600 text-white" : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              절세합산
+            </button>
+          </div>
         </div>
       </div>
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">

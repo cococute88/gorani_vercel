@@ -4,14 +4,14 @@ import { useMemo, useState } from "react";
 import { Target } from "lucide-react";
 import TopNav from "@/components/TopNav";
 import { usePortfolioSnapshots, latestOf } from "@/lib/portfolio-store";
-import { MOCK_HOLDINGS } from "@/lib/mock-portfolio-data";
 import {
-  buildDividendHoldingRows,
-  buildMonthlyDividends,
+  buildMonthlyDividendsFromRows,
   DIVIDEND_PERFORMANCE_SERIES,
 } from "@/lib/mock-dividend-data";
-import { formatWon, formatPercent } from "@/lib/format";
+import { formatPercent } from "@/lib/format";
+import { normalizeHoldingTickerInfo } from "@/lib/holding-ticker-normalizer";
 import type { Holding } from "@/lib/portfolio-types";
+import { buildDividendHoldingGroupsFromSnapshot } from "@/lib/dividend-holdings-from-portfolio";
 import DividendSummaryCards from "./DividendSummaryCards";
 import MonthlyDividendChart from "./MonthlyDividendChart";
 import DividendHoldingsTable from "./DividendHoldingsTable";
@@ -32,33 +32,67 @@ const MOCK_SHARE_PRICE_KRW: Record<string, number> = {
 export default function DividendPage() {
   const snapshots = usePortfolioSnapshots();
   const [afterTax, setAfterTax] = useState(true);
+  const [includeTaxAdvantagedInSummary, setIncludeTaxAdvantagedInSummary] = useState(false);
+  const [chartIncludesTaxable, setChartIncludesTaxable] = useState(true);
+  const [chartIncludesTaxAdvantaged, setChartIncludesTaxAdvantaged] = useState(false);
   const [targetTicker, setTargetTicker] = useState("SCHD");
   const [targetQty, setTargetQty] = useState(3300);
 
-  const holdings: Holding[] = useMemo(() => {
-    const latest = latestOf(snapshots);
-    return latest && latest.holdings.length > 0 ? latest.holdings : MOCK_HOLDINGS;
-  }, [snapshots]);
+  const latestSnapshot = useMemo(() => latestOf(snapshots), [snapshots]);
+  const holdings: Holding[] = useMemo(() => latestSnapshot?.holdings ?? [], [latestSnapshot]);
 
-  const usingMock = useMemo(() => {
-    const latest = latestOf(snapshots);
-    return !(latest && latest.holdings.length > 0);
-  }, [snapshots]);
+  const hasSnapshotHoldings = holdings.length > 0;
 
-  const rows = useMemo(() => buildDividendHoldingRows(holdings, afterTax), [holdings, afterTax]);
-  const monthlyComposition = useMemo(() => buildMonthlyDividends(holdings, afterTax), [holdings, afterTax]);
+  const dividendGroups = useMemo(
+    () => buildDividendHoldingGroupsFromSnapshot(latestSnapshot, afterTax),
+    [latestSnapshot, afterTax],
+  );
+  const summaryRows = useMemo(
+    () =>
+      includeTaxAdvantagedInSummary
+        ? [...dividendGroups.taxableHoldings, ...dividendGroups.taxAdvantagedHoldings]
+        : dividendGroups.taxableHoldings,
+    [dividendGroups.taxAdvantagedHoldings, dividendGroups.taxableHoldings, includeTaxAdvantagedInSummary],
+  );
+  const chartRows = useMemo(
+    () => [
+      ...(chartIncludesTaxable ? dividendGroups.taxableHoldings : []),
+      ...(chartIncludesTaxAdvantaged ? dividendGroups.taxAdvantagedHoldings : []),
+    ],
+    [
+      chartIncludesTaxAdvantaged,
+      chartIncludesTaxable,
+      dividendGroups.taxAdvantagedHoldings,
+      dividendGroups.taxableHoldings,
+    ],
+  );
+  const monthlyComposition = useMemo(() => buildMonthlyDividendsFromRows(chartRows), [chartRows]);
 
-  const evaluationKRW = holdings.reduce((s, h) => s + h.valueKRW, 0);
-  const annualDividendKRW = rows.reduce((s, r) => s + r.annualDividendKRW, 0);
+  const evaluationKRW = summaryRows.reduce((s, r) => s + r.valueKRW, 0);
+  const annualDividendKRW = summaryRows.reduce((s, r) => s + r.annualDividendKRW, 0);
   const monthlyAvgKRW = annualDividendKRW / 12;
 
   // 목표 달성률: 현재 목표티커 보유주수 / 목표주수
   const price = MOCK_SHARE_PRICE_KRW[targetTicker] ?? 50_000;
   const targetValue = holdings
-    .filter((h) => (h.ticker || "").toUpperCase() === targetTicker.toUpperCase())
+    .filter((h) => {
+      const tickerInfo = normalizeHoldingTickerInfo(h);
+      const dividendBucket = tickerInfo.dividendBucket ?? tickerInfo.quoteTicker ?? h.ticker;
+      return (dividendBucket || "").toUpperCase() === targetTicker.toUpperCase();
+    })
     .reduce((s, h) => s + h.valueKRW, 0);
   const currentShares = price > 0 ? targetValue / price : 0;
   const achievementPct = targetQty > 0 ? (currentShares / targetQty) * 100 : 0;
+
+  function setChartTaxable(checked: boolean) {
+    if (!checked && !chartIncludesTaxAdvantaged) return;
+    setChartIncludesTaxable(checked);
+  }
+
+  function setChartTaxAdvantaged(checked: boolean) {
+    if (!checked && !chartIncludesTaxable) return;
+    setChartIncludesTaxAdvantaged(checked);
+  }
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#111516] text-slate-200">
@@ -66,9 +100,9 @@ export default function DividendPage() {
       <main className="mx-auto w-full min-w-0 max-w-[1640px] overflow-x-hidden px-4 py-6 sm:px-6 lg:px-8">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-[20px] font-extrabold text-white">배당</h1>
-          {usingMock && (
+          {!hasSnapshotHoldings && (
             <span className="rounded-md bg-amber-500/10 px-2.5 py-1 text-[12px] text-amber-400">
-              등록된 스냅샷이 없어 목업 데이터로 표시 중
+              등록된 스냅샷이 없어 보유 배당 그룹이 비어 있습니다
             </span>
           )}
         </div>
@@ -79,7 +113,29 @@ export default function DividendPage() {
           monthlyAvgKRW={monthlyAvgKRW}
           achievementPct={achievementPct}
           afterTax={afterTax}
+          includeTaxAdvantaged={includeTaxAdvantagedInSummary}
           onToggleTax={setAfterTax}
+          onToggleGroup={setIncludeTaxAdvantagedInSummary}
+        />
+
+        <MonthlyDividendChart
+          data={monthlyComposition.data}
+          tickers={monthlyComposition.tickers}
+          afterTax={afterTax}
+          includeTaxable={chartIncludesTaxable}
+          includeTaxAdvantaged={chartIncludesTaxAdvantaged}
+          onToggleTaxable={setChartTaxable}
+          onToggleTaxAdvantaged={setChartTaxAdvantaged}
+        />
+        <DividendHoldingsTable
+          title="보유 배당(위탁)"
+          rows={dividendGroups.taxableHoldings}
+          totalKRW={dividendGroups.taxableTotalKRW}
+        />
+        <DividendHoldingsTable
+          title="보유 배당(절세)"
+          rows={dividendGroups.taxAdvantagedHoldings}
+          totalKRW={dividendGroups.taxAdvantagedTotalKRW}
         />
 
         {/* 목표 설정 카드 */}
@@ -125,13 +181,6 @@ export default function DividendPage() {
             </div>
           </div>
         </section>
-
-        <MonthlyDividendChart
-          data={monthlyComposition.data}
-          tickers={monthlyComposition.tickers}
-          afterTax={afterTax}
-        />
-        <DividendHoldingsTable rows={rows} />
         <DividendPerformanceSection series={DIVIDEND_PERFORMANCE_SERIES} />
       </main>
     </div>

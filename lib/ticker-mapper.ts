@@ -1,4 +1,5 @@
 import type { Holding, TickerConfidence } from "./portfolio-types";
+import { normalizeHoldingTickerInfo } from "./holding-ticker-normalizer";
 
 export interface TickerGuess {
   ticker: string | null;
@@ -94,7 +95,7 @@ function normalizeTickerValue(value: string | undefined): string {
 }
 
 function normalizeQuoteTicker(value: string | undefined): string | null {
-  const ticker = normalizeTickerValue(value).replace(/\./g, "-");
+  const ticker = normalizeTickerValue(value);
   if (!ticker || NON_QUOTE_TICKERS.has(ticker)) return null;
   return ticker;
 }
@@ -193,7 +194,36 @@ export function getQuoteTickerForHolding(
     "ticker" | "productName" | "assetType" | "tag" | "symbolGroup" | "purposeGroup" | "statusGroup"
   >,
 ): string | null {
-  if (classifyPortfolioAsset(holding) !== "us_quote") return null;
+  const normalized = normalizeHoldingTickerInfo(holding);
+  if (normalized.isCashLike) return null;
+  if (
+    normalized.source === "fallback" &&
+    !normalized.quoteTicker &&
+    holding.ticker &&
+    ["SCHD", "SPY", "QQQ", "QLD", "TQQQ"].includes(holding.ticker.toUpperCase())
+  ) {
+    return null;
+  }
+  if (
+    normalized.quoteTicker &&
+    /^\d{6}\.(KS|KQ)$/.test(normalized.quoteTicker) &&
+    Boolean(normalized.dividendBucket || normalized.exposureProxy)
+  ) {
+    return normalizeQuoteTicker(normalized.quoteTicker);
+  }
+
+  const classification = classifyPortfolioAsset(holding);
+  if (classification === "us_quote") return normalizeQuoteTicker(holding.ticker);
+  if (classification !== "korean_equity") return null;
+
+  const haystack = `${holding.assetType ?? ""} ${holding.productName ?? ""}`.toUpperCase();
+  const isKoreanEtf =
+    Boolean(normalized.dividendBucket || normalized.exposureProxy) ||
+    haystack.includes("ETF") ||
+    haystack.includes("ETN") ||
+    haystack.includes("펀드");
+  if (!isKoreanEtf) return null;
+
   return normalizeQuoteTicker(holding.ticker);
 }
 

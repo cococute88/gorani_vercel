@@ -8,12 +8,13 @@ interface Props {
   selected: Record<string, boolean>;
   onToggle: (id: string) => void;
   onTickerChange: (id: string, ticker: string) => void;
+  readOnly?: boolean;
 }
 
 const card = "rounded-2xl border border-[#2a3336] bg-[#191f20] p-5";
 
 // 포트폴리오 관리용 보유종목 리스트 (ticker 수정 가능, 확인상태 표시)
-export default function HoldingsTable({ holdings, selected, onToggle, onTickerChange }: Props) {
+export default function HoldingsTable({ holdings, selected, onToggle, onTickerChange, readOnly = false }: Props) {
   return (
     <div className={card}>
       <h2 className="mb-4 text-[15px] font-bold text-slate-300">보유종목 리스트</h2>
@@ -32,6 +33,7 @@ export default function HoldingsTable({ holdings, selected, onToggle, onTickerCh
                 type="checkbox"
                 checked={selected[h.id] ?? true}
                 onChange={() => onToggle(h.id)}
+                disabled={readOnly}
                 className="mt-0.5 h-4 w-4 shrink-0 accent-blue-600"
               />
               <div className="min-w-0 flex-1">
@@ -67,7 +69,8 @@ export default function HoldingsTable({ holdings, selected, onToggle, onTickerCh
               <input
                 value={h.ticker ?? ""}
                 onChange={(e) => onTickerChange(h.id, e.target.value.toUpperCase())}
-                className="num w-full min-w-0 rounded border border-[#2a3336] bg-[#11181a] px-2 py-1 text-[12.5px] text-white outline-none focus:border-blue-500"
+                readOnly={readOnly}
+                className="num w-full min-w-0 rounded border border-[#2a3336] bg-[#11181a] px-2 py-1 text-[12.5px] text-white outline-none focus:border-blue-500 read-only:text-slate-400 disabled:opacity-60"
               />
             </label>
 
@@ -120,6 +123,7 @@ export default function HoldingsTable({ holdings, selected, onToggle, onTickerCh
                     type="checkbox"
                     checked={selected[h.id] ?? true}
                     onChange={() => onToggle(h.id)}
+                    disabled={readOnly}
                     className="h-4 w-4 accent-blue-600"
                   />
                 </td>
@@ -139,7 +143,8 @@ export default function HoldingsTable({ holdings, selected, onToggle, onTickerCh
                   <input
                     value={h.ticker ?? ""}
                     onChange={(e) => onTickerChange(h.id, e.target.value.toUpperCase())}
-                    className="num w-[88px] rounded border border-[#2a3336] bg-[#11181a] px-2 py-1 text-[12.5px] text-white outline-none focus:border-blue-500"
+                    readOnly={readOnly}
+                    className="num w-[88px] rounded border border-[#2a3336] bg-[#11181a] px-2 py-1 text-[12.5px] text-white outline-none focus:border-blue-500 read-only:text-slate-400 disabled:opacity-60"
                   />
                 </td>
                 <td className="num px-3 py-2.5 text-right text-slate-300">{formatWon(h.principalKRW)}</td>

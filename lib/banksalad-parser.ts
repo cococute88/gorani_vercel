@@ -10,6 +10,7 @@
 // TODO(codex): 증권사별 양식 추가, 수량/통화 추출 고도화.
 // =============================================================
 import * as XLSX from "xlsx";
+import { applyKnownQuoteTickerToHolding } from "./holding-ticker-normalizer";
 import { isAggregateRowName } from "./portfolio-summary-row";
 import { extractTag, guessTicker, needsTickerReview } from "./ticker-mapper";
 import {
@@ -482,7 +483,7 @@ function parseInvestment(rows: Row[], result: ParseResult): void {
     const ret = cReturn >= 0 ? normalizeNumber(row[cReturn]) : null;
     const valueOriginalCurrency =
       quantity !== undefined && currentPrice !== undefined ? quantity * currentPrice : undefined;
-    result.holdings.push(decorateHoldingWithTags({
+    const decoratedHolding = decorateHoldingWithTags({
       id: makeId("h"),
       broker: cBroker >= 0 ? txt(row[cBroker]) : "",
       assetType: cType >= 0 ? txt(row[cType]) || "기타" : "기타",
@@ -500,7 +501,8 @@ function parseInvestment(rows: Row[], result: ParseResult): void {
       valueOriginalCurrency,
       joinDate: cJoin >= 0 ? formatDate(row[cJoin]) : undefined,
       maturityDate: cMaturity >= 0 ? formatDate(row[cMaturity]) : undefined,
-    }));
+    });
+    result.holdings.push(applyKnownQuoteTickerToHolding(decoratedHolding));
   }
 
   result.investmentPrincipalKRW = result.holdings.reduce((s, h) => s + h.principalKRW, 0);

@@ -146,6 +146,12 @@ function assertTickerExtraction() {
     [{ name: "삼성전자", valueKRW: 1_000_000 }, "005930.KS"],
     [{ name: "SK하이닉스", valueKRW: 1_000_000 }, "000660.KS"],
     [{ ticker: "①QLD", name: "tagged qld", valueKRW: 1_000_000 }, "QLD"],
+    [{ ticker: "360200.KS", name: "ACE미국S&P500", valueKRW: 1_000_000, assetType: "ETF" }, "SPY"],
+    [{ name: "KBISAACE미국나스닥100", valueKRW: 1_000_000, assetType: "ETF" }, "QQQ"],
+    [{ ticker: "379780.KS", name: "미래연금RISE미국S&P500", valueKRW: 1_000_000, assetType: "ETF" }, "SPY"],
+    [{ ticker: "368590.KS", name: "KBISA RISE미국나스닥100", valueKRW: 1_000_000, assetType: "ETF" }, "QQQ"],
+    [{ ticker: "360750.KS", name: "ISA TIGER미국S&P500", valueKRW: 1_000_000, assetType: "ETF" }, "SPY"],
+    [{ ticker: "KRW", name: "미래연금저축원MMF", valueKRW: 1_000_000, assetType: "MMF" }, null],
   ];
 
   for (const [input, expected] of cases) {
@@ -158,6 +164,22 @@ function assertTickerExtraction() {
   };
 }
 
+function assertKoreanEtfLookThrough() {
+  const result = buildAssetMapExposureFromHoldings([
+    { ticker: "360200.KS", name: "ACE미국S&P500", valueKRW: 1_000_000, assetType: "ETF" },
+  ]);
+
+  assert.equal(result.coveredEtfValueKRW, 1_000_000);
+  assert.equal(result.uncoveredEtfValueKRW, 0);
+  assert.ok(result.effectiveHoldingsTop.some((row) => row.sources.includes("SPY")));
+
+  return {
+    case: "Korean ETF look-through",
+    coveredEtfValueKRW: result.coveredEtfValueKRW,
+    source: result.effectiveHoldingsTop[0]?.sources.join(", "),
+  };
+}
+
 function main() {
   const rows = [
     assertDirectStockOnly(),
@@ -165,6 +187,7 @@ function main() {
     assertDirectAndEtfOverlap(),
     assertUncoveredEtf(),
     assertTickerExtraction(),
+    assertKoreanEtfLookThrough(),
   ];
 
   console.log("Asset map exposure regression passed.");

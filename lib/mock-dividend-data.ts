@@ -129,6 +129,50 @@ export function buildMonthlyDividends(
   return { data, tickers: visibleTickers };
 }
 
+export function buildMonthlyDividendsFromRows(
+  rows: DividendHoldingRow[],
+): MonthlyDividendComposition {
+  const byTicker = new Map<string, number[]>();
+
+  for (const row of rows) {
+    const ticker = (row.ticker || "기타").toUpperCase();
+    if (!row.annualDividendKRW) continue;
+    const months = paymentMonthsOf(ticker);
+    if (months.length === 0) continue;
+    const per = row.annualDividendKRW / months.length;
+    const monthly = byTicker.get(ticker) ?? new Array<number>(12).fill(0);
+    for (const month of months) monthly[month - 1] += per;
+    byTicker.set(ticker, monthly);
+  }
+
+  const rankedTickers = Array.from(byTicker.entries())
+    .map(([ticker, values]) => ({ ticker, total: values.reduce((sum, value) => sum + value, 0) }))
+    .sort((a, b) => b.total - a.total)
+    .map((item) => item.ticker);
+  const topTickers = rankedTickers.slice(0, 6);
+  const overflowTickers = rankedTickers.slice(6);
+  const visibleTickers = overflowTickers.length > 0 ? [...topTickers, "기타"] : topTickers;
+
+  const data = MONTH_LABELS.map((label, index) => {
+    const point: MonthlyDividendPoint = { month: index + 1, label, amount: 0 };
+    for (const ticker of topTickers) {
+      const value = Math.round(byTicker.get(ticker)?.[index] ?? 0);
+      point[ticker] = value;
+      point.amount += value;
+    }
+    if (overflowTickers.length > 0) {
+      const other = Math.round(
+        overflowTickers.reduce((sum, ticker) => sum + (byTicker.get(ticker)?.[index] ?? 0), 0),
+      );
+      point["기타"] = other;
+      point.amount += other;
+    }
+    return point;
+  });
+
+  return { data, tickers: visibleTickers };
+}
+
 /** 종목별 예상 연배당 행 (배당 테이블용). */
 export interface DividendHoldingRow {
   ticker: string;
@@ -145,28 +189,20 @@ export function buildDividendHoldingRows(
   afterTax: boolean,
 ): DividendHoldingRow[] {
   const factor = afterTax ? 1 - DIVIDEND_TAX_RATE : 1;
-  const byTicker = new Map<string, DividendHoldingRow>();
-  for (const h of holdings) {
+  const rows = holdings.map((h) => {
     const ticker = (h.ticker || "—").toUpperCase();
     const y = annualYieldPct(h.ticker);
     const annual = (h.valueKRW * y) / 100 * factor;
-    const existing = byTicker.get(ticker);
-    if (existing) {
-      existing.valueKRW += h.valueKRW;
-      existing.annualDividendKRW += annual;
-    } else {
-      byTicker.set(ticker, {
-        ticker,
-        name: h.productName,
-        valueKRW: h.valueKRW,
-        annualDividendKRW: annual,
-        expectedYieldPct: y,
-        myYieldPct: 0,
-        tag: h.tag,
-      });
-    }
-  }
-  const rows = Array.from(byTicker.values());
+    return {
+      ticker,
+      name: h.productName,
+      valueKRW: h.valueKRW,
+      annualDividendKRW: annual,
+      expectedYieldPct: y,
+      myYieldPct: 0,
+      tag: h.tag,
+    };
+  });
   for (const r of rows) {
     r.annualDividendKRW = Math.round(r.annualDividendKRW);
     r.myYieldPct = r.valueKRW > 0 ? (r.annualDividendKRW / r.valueKRW) * 100 : 0;

@@ -230,6 +230,14 @@ function assertQuoteEligibility() {
     assert.equal(canRevalueHoldingWithQuote(holding), true);
   }
 
+  const koreanEtf = makeHolding("360200.KS", {
+    productName: "ACE미국S&P500",
+    assetType: "ETF",
+  });
+  assert.equal(getQuoteTickerForHolding(koreanEtf), "360200.KS");
+  assert.equal(isQuoteEligibleHolding(koreanEtf), true);
+  assert.equal(canRevalueHoldingWithQuote(koreanEtf), true);
+
   const nonQuoteHoldings = [
     makeHolding("CASH_LIKE", { productName: "cash reserve" }),
     makeHolding(undefined, { productName: "deposit account" }),
@@ -237,7 +245,7 @@ function assertQuoteEligibility() {
     makeHolding(undefined, { productName: "pension fund" }),
     makeHolding(undefined, { productName: "annuity insurance" }),
     makeHolding(undefined, { productName: "real estate" }),
-    makeHolding("005930.KS", { productName: "Samsung Electronics" }),
+    makeHolding("005930.KS", { productName: "Samsung Electronics", assetType: "국내주식" }),
     makeHolding("BTC", { productName: "Bitcoin" }),
   ];
 

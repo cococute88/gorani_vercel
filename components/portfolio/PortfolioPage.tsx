@@ -17,6 +17,7 @@ import type { ParseResult } from "@/lib/banksalad-parser";
 import { MOCK_LATEST_SNAPSHOT } from "@/lib/mock-portfolio-data";
 import type { Holding, PortfolioSnapshot } from "@/lib/portfolio-types";
 import { filterAggregateHoldings } from "@/lib/portfolio-summary-row";
+import { applyKnownQuoteTickerToHolding } from "@/lib/holding-ticker-normalizer";
 import ExcelUploadCard from "./ExcelUploadCard";
 import PortfolioParsePreview from "./PortfolioParsePreview";
 import HoldingsTable from "./HoldingsTable";
@@ -91,9 +92,11 @@ export default function PortfolioPage() {
   const [result, setResult] = useState<ParseResult | null>(null);
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
+  const [previewSnapshotId, setPreviewSnapshotId] = useState<string | null>(null);
 
   const applyResult = (r: ParseResult) => {
-    const cleanHoldings = filterAggregateHoldings(r.holdings);
+    setPreviewSnapshotId(null);
+    const cleanHoldings = filterAggregateHoldings(r.holdings).map(applyKnownQuoteTickerToHolding);
     const investmentPrincipalKRW = cleanHoldings.reduce((sum, h) => sum + h.principalKRW, 0);
     const investmentValueKRW = cleanHoldings.reduce((sum, h) => sum + h.valueKRW, 0);
     const returnAmountKRW = investmentValueKRW - investmentPrincipalKRW;
@@ -178,6 +181,7 @@ export default function PortfolioPage() {
   };
 
   const handleDeleteSnapshot = async (id: string) => {
+    if (previewSnapshotId === id) setPreviewSnapshotId(null);
     deleteSnapshot(id);
     if (user) {
       await deletePortfolioSnapshot(user.uid, id).catch((err) =>
@@ -190,6 +194,27 @@ export default function PortfolioPage() {
     setSelected((prev) => ({ ...prev, [id]: !(prev[id] ?? true) }));
   const onTickerChange = (id: string, ticker: string) =>
     setHoldings((prev) => prev.map((h) => (h.id === id ? { ...h, ticker } : h)));
+
+  const previewSnapshot = useMemo(
+    () => snapshots.find((snapshot) => snapshot.id === previewSnapshotId) ?? null,
+    [previewSnapshotId, snapshots],
+  );
+  const displayedHoldings = useMemo(
+    () =>
+      previewSnapshot
+        ? filterAggregateHoldings(previewSnapshot.holdings ?? []).map(applyKnownQuoteTickerToHolding)
+        : holdings,
+    [holdings, previewSnapshot],
+  );
+  const displayedAssets = previewSnapshot ? previewSnapshot.financeAssets ?? [] : result?.financeAssets ?? [];
+  const displayedSelected = useMemo(() => {
+    if (!previewSnapshot) return selected;
+    return Object.fromEntries(displayedHoldings.map((holding) => [holding.id, true]));
+  }, [displayedHoldings, previewSnapshot, selected]);
+
+  useEffect(() => {
+    if (previewSnapshotId && !previewSnapshot) setPreviewSnapshotId(null);
+  }, [previewSnapshot, previewSnapshotId]);
 
   const canRegister = useMemo(() => !!result && result.ok, [result]);
 
@@ -222,17 +247,32 @@ export default function PortfolioPage() {
         </section>
 
         <section className="mb-6">
-          <PortfolioQuoteStatusPanel holdings={holdings} />
+          {previewSnapshot && (
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-blue-500/20 bg-blue-500/10 px-4 py-3">
+              <span className="break-keep text-[12.5px] text-blue-100">
+                스냅샷 미리보기 중: <b className="text-white">{previewSnapshot.snapshotDate}</b>
+              </span>
+              <button
+                type="button"
+                onClick={() => setPreviewSnapshotId(null)}
+                className="break-keep rounded-md bg-white/10 px-2.5 py-1 text-[12px] font-medium text-slate-100 hover:bg-white/15"
+              >
+                최신 스냅샷 보기
+              </button>
+            </div>
+          )}
+          <PortfolioQuoteStatusPanel holdings={displayedHoldings} />
           <HoldingsTable
-            holdings={holdings}
-            selected={selected}
-            onToggle={onToggle}
-            onTickerChange={onTickerChange}
+            holdings={displayedHoldings}
+            selected={displayedSelected}
+            onToggle={previewSnapshot ? () => undefined : onToggle}
+            onTickerChange={previewSnapshot ? () => undefined : onTickerChange}
+            readOnly={Boolean(previewSnapshot)}
           />
         </section>
 
         <section className="mb-6">
-          <AssetTable assets={result?.financeAssets ?? []} />
+          <AssetTable assets={displayedAssets} />
         </section>
 
         <section className="mb-6 flex justify-end">
@@ -246,7 +286,12 @@ export default function PortfolioPage() {
         </section>
 
         <section className="mb-6">
-          <SnapshotHistory snapshots={snapshots} onDelete={handleDeleteSnapshot} />
+          <SnapshotHistory
+            snapshots={snapshots}
+            onDelete={handleDeleteSnapshot}
+            onSelect={(snapshot) => setPreviewSnapshotId(snapshot.id)}
+            selectedSnapshotId={previewSnapshotId}
+          />
         </section>
 
         <section className="mb-6">

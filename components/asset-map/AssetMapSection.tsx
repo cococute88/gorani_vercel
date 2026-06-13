@@ -1,7 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { useMemo } from "react";
 import DonutChartCard from "@/components/DonutChartCard";
 import HoldingsTable from "@/components/HoldingsTable";
 import type { AssetMapHoldingRow } from "@/components/HoldingsTable";
@@ -33,7 +32,6 @@ const SECTOR_COLORS = [
 
 // 포트폴리오 관리 하단의 자산 맵 / ETF 투시 섹션.
 export default function AssetMapSection() {
-  const [tab, setTab] = useState<"map" | "etf">("etf");
   const snapshots = usePortfolioSnapshots();
   const latestSnapshot = useMemo(() => latestOf(snapshots), [snapshots]);
   const portfolioHoldings = useMemo(
@@ -110,33 +108,13 @@ export default function AssetMapSection() {
           <h2 className="text-[20px] font-extrabold text-white">자산 맵</h2>
           <span className="text-[12.5px] text-slate-500">포트폴리오 관리 하단</span>
         </div>
-        <div className="flex items-center gap-1.5 rounded-lg bg-[#1b2021] p-1">
-          <button
-            type="button"
-            onClick={() => setTab("map")}
-            className={`rounded-md px-3.5 py-1.5 text-[13px] font-medium transition-colors ${
-              tab === "map" ? "bg-blue-600 text-white" : "text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            자산지도
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab("etf")}
-            className={`rounded-md px-3.5 py-1.5 text-[13px] font-medium transition-colors ${
-              tab === "etf" ? "bg-blue-600 text-white" : "text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            ETF 투시
-          </button>
-        </div>
       </div>
 
       <div className="mb-3 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-[12.5px] text-amber-200">
         {statusText}{warningText}
       </div>
 
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#2a3336] bg-[#191f20] px-4 py-3">
+      <div className="mb-5 rounded-xl border border-[#2a3336] bg-[#191f20] px-4 py-3">
         <span className="text-[13px] font-medium text-slate-300">
           {coverageText}
           {analyzedText ? (
@@ -145,9 +123,6 @@ export default function AssetMapSection() {
             </>
           ) : null}
         </span>
-        <button type="button" className="flex items-center gap-1 text-[12.5px] text-slate-400 hover:text-slate-200">
-          펼치기 <ChevronDown size={14} />
-        </button>
       </div>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,420px)_1fr]">

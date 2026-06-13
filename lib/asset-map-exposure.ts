@@ -7,6 +7,7 @@ import {
   getAssetMapSectorEntry,
   UNKNOWN_ASSET_MAP_SECTOR,
 } from "./asset-map-sector-map";
+import { normalizeHoldingTickerInfo } from "./holding-ticker-normalizer";
 
 export type AssetMapPortfolioHoldingInput = {
   ticker?: string | null;
@@ -94,6 +95,15 @@ function findKnownTickerInText(text: string): string | null {
 }
 
 export function normalizeAssetMapTicker(holding: AssetMapPortfolioHoldingInput): string | null {
+  const normalized = normalizeHoldingTickerInfo({
+    ticker: holding.ticker ?? undefined,
+    productName: holding.name ?? undefined,
+    name: holding.name,
+    assetType: holding.assetType ?? undefined,
+  });
+  if (normalized.isCashLike) return null;
+  if (normalized.exposureProxy) return normalized.exposureProxy;
+
   const explicitTicker = holding.ticker ? cleanTickerCandidate(holding.ticker) : "";
   if (explicitTicker && (US_TICKER_RE.test(explicitTicker) || KR_TICKER_RE.test(explicitTicker))) {
     return explicitTicker;
