@@ -15,7 +15,7 @@ import { PERFORMANCE_SERIES } from "@/lib/mockData";
 
 // 투자 성과 대형 차트: 평가액/원금 라인 + 배당/임대 막대. Recharts 사용.
 export default function PerformanceChart() {
-  const chartMargin = { top: 10, right: 8, left: 0, bottom: 0 };
+  const chartMargin = { top: 10, right: 8, left: 0, bottom: 4 };
   const axisTick = { fontSize: 11, fill: "#64748b" };
   const tooltipStyle = {
     background: "#1e2324",
@@ -47,6 +47,7 @@ export default function PerformanceChart() {
               axisLine={false}
               tickLine={false}
               interval={interval}
+              minTickGap={24}
             />
             <YAxis
               yAxisId="left"

@@ -20,6 +20,9 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  /* 한글이 음절 단위로 끊겨 "한 글자씩 줄바꿈" 되는 현상 방지.
+     keep-all은 CJK만 영향, 라틴/숫자는 normal과 동일하게 동작한다. */
+  word-break: keep-all;
 }
 
 /* 숫자 고정폭 (표 정렬용) */

@@ -11,7 +11,7 @@ interface Props {
   onToggleTax: (afterTax: boolean) => void;
 }
 
-const card = "rounded-2xl border border-[#2a3336] bg-[#191f20] p-5";
+const card = "rounded-2xl border border-[#2a3336] bg-[#191f20] p-4 sm:p-5";
 
 function Kpi({
   label,
@@ -23,9 +23,9 @@ function Kpi({
   accent?: string;
 }) {
   return (
-    <div className={card}>
-      <div className="text-[12.5px] text-slate-400">{label}</div>
-      <div className={`num mt-2 text-[20px] font-extrabold ${accent ?? "text-white"}`}>
+    <div className={`min-w-0 ${card}`}>
+      <div className="break-keep text-[12.5px] text-slate-400">{label}</div>
+      <div className={`num mt-2 break-keep text-[16px] font-extrabold leading-tight sm:text-[20px] ${accent ?? "text-white"}`}>
         {value}
       </div>
     </div>

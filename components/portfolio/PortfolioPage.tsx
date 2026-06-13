@@ -193,9 +193,9 @@ export default function PortfolioPage() {
   const canRegister = useMemo(() => !!result && result.ok, [result]);
 
   return (
-    <div className="min-h-screen bg-[#111516] text-slate-200">
+    <div className="min-h-screen overflow-x-hidden bg-[#111516] text-slate-200">
       <TopNav theme="dark" />
-      <main className="mx-auto max-w-[1640px] px-8 py-6">
+      <main className="mx-auto w-full min-w-0 max-w-[1640px] overflow-x-hidden px-4 py-6 sm:px-6 lg:px-8">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-[20px] font-extrabold text-white">포트폴리오 관리</h1>
           <StorageModeBadge />

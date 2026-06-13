@@ -23,11 +23,11 @@ export default function MarketTemperatureSection() {
           </div>
         </div>
 
-        <div className="mt-5 grid grid-cols-5 gap-2">
+        <div className="mt-5 grid grid-cols-5 gap-1.5 sm:gap-2">
           {MARKET_TEMPERATURE_SUMMARY.bands.map((band, index) => (
             <div
               key={band}
-              className={`rounded-xl border px-2 py-3 text-center text-[11.5px] font-bold ${
+              className={`flex items-center justify-center break-keep rounded-xl border px-1 py-2.5 text-center text-[10px] font-bold leading-tight sm:px-2 sm:py-3 sm:text-[11.5px] ${
                 index === activeIndex
                   ? "border-blue-400 bg-blue-500 text-white"
                   : "border-[#2a3336] bg-[#151a1b] text-slate-500"

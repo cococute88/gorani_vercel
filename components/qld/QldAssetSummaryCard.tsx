@@ -13,7 +13,7 @@ export default function QldAssetSummaryCard() {
   return (
     <div className="flex h-full flex-col rounded-[18px] border border-[#242938] bg-[#12151e] p-5">
       <div className="text-[13px] font-medium text-slate-400">총 평가금액</div>
-      <div className="num mt-1 text-[34px] font-extrabold leading-none tracking-tight text-white">
+      <div className="num mt-1 break-keep text-[26px] font-extrabold leading-none tracking-tight text-white sm:text-[34px]">
         {won(s.totalValue)}
       </div>
 

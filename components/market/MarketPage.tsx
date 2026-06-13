@@ -68,9 +68,9 @@ export default function MarketPage() {
   }, [range]);
 
   return (
-    <div className="min-h-screen bg-[#111516] text-slate-200">
+    <div className="min-h-screen overflow-x-hidden bg-[#111516] text-slate-200">
       <TopNav theme="dark" />
-      <main className="mx-auto max-w-[1640px] px-8 py-6">
+      <main className="mx-auto w-full min-w-0 max-w-[1640px] overflow-x-hidden px-4 py-6 sm:px-6 lg:px-8">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-[20px] font-extrabold text-white">시장 현황</h1>
           <div className="flex items-center gap-1 rounded-lg bg-[#1b2021] p-1">

@@ -44,6 +44,8 @@ Step 5A-6-1 calendar custom event UI date: 2026-06-13 (`docs/STEP5A6_CUSTOM_EVEN
 
 Step M0 app-wide mobile UI overflow audit date: 2026-06-13 (`docs/MOBILE_UI_OVERFLOW_AUDIT.md`)
 
+Step M1 app-wide mobile P0/P1 overflow fix date: 2026-06-13 (`docs/MOBILE_UI_M1_OVERFLOW_FIX.md`)
+
 ## Project Root Decision
 
 - Actual working directory: `C:\gv\gorani_vercel`

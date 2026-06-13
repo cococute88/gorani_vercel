@@ -27,15 +27,15 @@ export default function MetricCard({
   valueColor,
 }: Props) {
   return (
-    <div className={`rounded-xl border px-5 py-4 ${TONE_DARK[tone]}`}>
-      <div className="text-[12.5px] font-medium text-slate-400">{label}</div>
+    <div className={`min-w-0 rounded-xl border px-4 py-4 sm:px-5 ${TONE_DARK[tone]}`}>
+      <div className="break-keep text-[12.5px] font-medium text-slate-400">{label}</div>
       <div
-        className="num mt-2 text-[22px] font-extrabold leading-tight text-slate-100"
+        className="num mt-2 break-keep text-[18px] font-extrabold leading-tight text-slate-100 sm:text-[22px]"
         style={valueColor ? { color: valueColor } : undefined}
       >
         {value}
       </div>
-      {sub && <div className="mt-1 text-[12px] text-slate-500">{sub}</div>}
+      {sub && <div className="mt-1 break-keep text-[12px] text-slate-500">{sub}</div>}
     </div>
   );
 }

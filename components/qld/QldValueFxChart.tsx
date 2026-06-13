@@ -181,9 +181,9 @@ export default function QldValueFxChart({ compact = false }: { compact?: boolean
           const toneCls =
             c.tone === "up" ? "text-emerald-400" : c.tone === "down" ? "text-rose-400" : "text-slate-100";
           return (
-            <div key={c.label} className={`rounded-xl border border-[#1f2433] bg-[#0e111a] ${compact ? "px-2 py-1.5" : "px-3 py-2.5"}`}>
-              <div className="text-[11px] text-slate-500">{c.label}</div>
-              <div className={`num mt-0.5 ${compact ? "text-[12px]" : "text-[14px]"} font-bold ${toneCls}`}>{c.value}</div>
+            <div key={c.label} className={`min-w-0 rounded-xl border border-[#1f2433] bg-[#0e111a] ${compact ? "px-2 py-1.5" : "px-2 py-2 sm:px-3 sm:py-2.5"}`}>
+              <div className="break-keep text-[11px] text-slate-500">{c.label}</div>
+              <div className={`num mt-0.5 break-keep font-bold leading-tight ${compact ? "text-[11px] sm:text-[12px]" : "text-[12px] sm:text-[14px]"} ${toneCls}`}>{c.value}</div>
               {c.sub && <div className="num mt-0.5 truncate text-[10px] text-slate-600">{c.sub}</div>}
             </div>
           );

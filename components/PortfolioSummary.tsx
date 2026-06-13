@@ -86,15 +86,15 @@ function DarkSummary() {
   const schdRemaining = Math.max(schdGoal.target - schdGoal.achieved, 0);
   const principalEok = (d.cumPrincipal / 100000000).toFixed(2);
   const label = "text-[11px] text-slate-500";
-  const big = "num font-extrabold text-white";
+  const big = "num break-keep font-extrabold text-white";
 
   return (
     <div className="flex flex-col gap-3 xl:flex-row">
       {/* 왼쪽 큰 요약 패널 */}
       <div className="flex-1 rounded-2xl border border-[#2a3336] bg-[#191f20] p-4">
-        <div className="grid grid-cols-1 gap-y-4 sm:grid-cols-2 xl:grid-cols-4 xl:gap-y-0 xl:divide-x xl:divide-[#2a3336]">
+        <div className="grid min-w-0 grid-cols-1 gap-y-4 sm:grid-cols-2 xl:grid-cols-4 xl:gap-y-0 xl:divide-x xl:divide-[#2a3336]">
           {/* 1) 총자산 */}
-          <div className="flex flex-col xl:pr-5">
+          <div className="flex min-w-0 flex-col xl:pr-5">
             <div className="mb-1 flex items-center gap-2 text-[11px]">
               <span className="font-bold text-slate-200">금융 총자산</span>
               <span className="text-slate-600">투자 총자산</span>

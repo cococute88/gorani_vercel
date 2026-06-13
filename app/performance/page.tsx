@@ -15,9 +15,9 @@ export default function PerformancePage() {
   const [tab, setTab] = useState<"status" | "sim">("status");
 
   return (
-    <div className="min-h-screen bg-[#181c1d] text-slate-200">
+    <div className="min-h-screen overflow-x-hidden bg-[#181c1d] text-slate-200">
       <TopNav theme="dark" />
-      <main className="mx-auto max-w-[1640px] px-8 py-6">
+      <main className="mx-auto w-full min-w-0 max-w-[1640px] overflow-x-hidden px-4 py-6 sm:px-6 lg:px-8">
         {/* 제목줄 */}
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <h1 className="flex items-center gap-2 text-[22px] font-extrabold text-white">
