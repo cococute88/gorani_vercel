@@ -13,6 +13,7 @@ type Props = {
   maxLegend?: number;
   size?: number;
   legendCols?: number;
+  emptyMessage?: string;
 };
 
 function dotStyleFor(color: string) {
@@ -29,6 +30,7 @@ export default function DonutChartCard({
   maxLegend,
   size = 132,
   legendCols = 1,
+  emptyMessage = "표시할 데이터가 없습니다.",
 }: Props) {
   const isLight = theme === "light";
   const cardCls = isLight
@@ -49,9 +51,20 @@ export default function DonutChartCard({
     rowGap: "6px",
   };
 
+  const hasData = data.some((slice) => Number.isFinite(slice.value) && slice.value > 0);
+
   return (
     <div className={`rounded-2xl p-4 ${cardCls}`}>
       <div className={`mb-3 text-[13px] font-bold ${titleCls}`}>{title}</div>
+      {!hasData ? (
+        <div className={`flex min-h-[132px] items-center rounded-xl border border-dashed px-4 text-[12.5px] leading-relaxed ${
+          isLight
+            ? "border-slate-200 bg-slate-50 text-slate-500"
+            : "border-[#2a3336] bg-white/[0.03] text-slate-400"
+        }`}>
+          {emptyMessage}
+        </div>
+      ) : (
       <div className="flex items-center gap-4">
         <div className="relative shrink-0" style={wrapStyle}>
           <ResponsiveContainer width="100%" height="100%">
@@ -118,6 +131,7 @@ export default function DonutChartCard({
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 }

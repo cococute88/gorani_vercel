@@ -1,6 +1,5 @@
 "use client";
 
-import { ACCOUNT_CARDS } from "@/lib/mockData";
 import { formatWon, formatWonSigned, formatPercent } from "@/lib/format";
 import { usePortfolioView } from "@/lib/use-portfolio-view";
 import {
@@ -10,7 +9,7 @@ import {
   type AccountStatusGroup,
 } from "@/lib/account-status-group";
 
-import type { LiveAccountCard } from "@/lib/portfolio-aggregate";
+import type { PortfolioAccountRow } from "@/lib/portfolio-from-snapshots";
 
 type Props = { theme?: "dark" | "light"; compact?: boolean };
 
@@ -18,14 +17,8 @@ type Props = { theme?: "dark" | "light"; compact?: boolean };
 // PORTFOLIO-PERF-UI-1: 기존 단일 "계좌 현황"을 위탁/절세 두 그룹으로 분리.
 // UI-3: compact=true 면 1300px+ 우측 컬럼(트리맵 옆)에 맞춰 카드 폭을 좁혀 2열·작은 패딩으로 렌더링한다.
 export default function AssetAccountCards({ theme = "light", compact = false }: Props) {
-  const { hasLiveData, accountCards } = usePortfolioView();
-  const cards: LiveAccountCard[] = hasLiveData
-    ? accountCards
-    : ACCOUNT_CARDS.map((card) => ({
-        ...card,
-        statusGroup: card.type,
-        holdingCount: 0,
-      }));
+  const { accountCards, accountAllocationSource } = usePortfolioView();
+  const cards: PortfolioAccountRow[] = accountCards;
 
   const isLight = theme === "light";
   const cardCls = isLight
@@ -39,7 +32,7 @@ export default function AssetAccountCards({ theme = "light", compact = false }: 
   const dividerCls = isLight ? "border-slate-200" : "border-[#2a3336]";
 
   // 카드를 위탁 / 절세 / 미확인 그룹으로 분류.
-  const groups = new Map<AccountStatusGroup, LiveAccountCard[]>();
+  const groups = new Map<AccountStatusGroup, PortfolioAccountRow[]>();
   for (const card of cards) {
     const group = classifyAccountStatusGroup({
       name: card.name,
@@ -52,8 +45,8 @@ export default function AssetAccountCards({ theme = "light", compact = false }: 
     groups.set(group, list);
   }
 
-  const renderCard = (a: LiveAccountCard) => {
-    const profitStyle = { color: a.profit >= 0 ? "#e5484d" : "#3b82f6" };
+  const renderCard = (a: PortfolioAccountRow) => {
+    const profitStyle = { color: (a.profit ?? 0) >= 0 ? "#e5484d" : "#3b82f6" };
     const taxCls =
       a.tax === "비과세"
         ? "bg-emerald-500/15 text-emerald-500 dark:text-emerald-400"
@@ -63,7 +56,7 @@ export default function AssetAccountCards({ theme = "light", compact = false }: 
         <div className="mb-1.5 flex items-center justify-between gap-1">
           <span className={`truncate text-[12.5px] font-bold ${nameCls}`}>{a.name}</span>
           <span className={`shrink-0 rounded px-1 py-0.5 text-[9.5px] font-medium ${taxCls}`}>
-            {hasLiveData ? a.statusGroup : a.tax}
+            {a.statusGroup}
           </span>
         </div>
         <div className="space-y-0.5">
@@ -74,13 +67,13 @@ export default function AssetAccountCards({ theme = "light", compact = false }: 
           <div className="flex items-center justify-between">
             <span className={`text-[10.5px] ${labelCls}`}>수익</span>
             <span className="num text-[11.5px] font-semibold" style={profitStyle}>
-              {a.profit === 0 ? "-" : formatWonSigned(a.profit)}
+              {a.profit === null || a.profit === 0 ? "—" : formatWonSigned(a.profit)}
             </span>
           </div>
           <div className="flex items-center justify-between">
             <span className={`text-[10.5px] ${labelCls}`}>수익률</span>
             <span className="num text-[11.5px] font-semibold" style={profitStyle}>
-              {a.rate === 0 ? "-" : formatPercent(a.rate)}
+              {a.rate === null || a.rate === 0 ? "—" : formatPercent(a.rate)}
             </span>
           </div>
         </div>
@@ -92,7 +85,7 @@ export default function AssetAccountCards({ theme = "light", compact = false }: 
     const list = groups.get(group);
     if (!list || list.length === 0) return null;
     const totalValue = list.reduce((sum, a) => sum + a.value, 0);
-    const totalProfit = list.reduce((sum, a) => sum + a.profit, 0);
+    const totalProfit = list.reduce((sum, a) => sum + (a.profit ?? 0), 0);
     const profitStyle = { color: totalProfit >= 0 ? "#e5484d" : "#3b82f6" };
 
     return (
@@ -128,7 +121,26 @@ export default function AssetAccountCards({ theme = "light", compact = false }: 
 
   return (
     <div className="flex flex-col gap-5">
-      {ACCOUNT_STATUS_GROUP_ORDER.map(renderGroup)}
+      {cards.length > 0 ? (
+        <>
+          <div className={`rounded-xl border px-3 py-2 text-[12px] ${
+            isLight
+              ? "border-slate-200 bg-slate-50 text-slate-500"
+              : "border-[#2a3336] bg-white/[0.03] text-slate-400"
+          }`}>
+            계좌 현황 소스: {accountAllocationSource === "financeAssets" ? "financeAssets.amountKRW" : "holdings 계좌/금융사 그룹"}
+          </div>
+          {ACCOUNT_STATUS_GROUP_ORDER.map(renderGroup)}
+        </>
+      ) : (
+        <div className={`rounded-2xl border border-dashed px-4 py-8 text-center text-[13px] ${
+          isLight
+            ? "border-slate-200 bg-white text-slate-500"
+            : "border-[#2a3336] bg-[#171c1d] text-slate-400"
+        }`}>
+          계좌별 평가금액을 만들 수 있는 financeAssets.amountKRW 또는 holdings.valueKRW가 없습니다.
+        </div>
+      )}
     </div>
   );
 }
