@@ -215,12 +215,27 @@ function assertGridSource() {
   assert.ok(grid.includes("customEvents"), "grid takes a separate always-on customEvents prop");
   assert.ok(grid.includes('event.type === "custom"') || grid.includes('type === "custom"'), "custom events are pulled out of chip slots");
 
-  // CALENDAR-UX-POLISH-4: custom/economic date-line is pinned to the cell top as
-  // an absolute layer, and the chip flow starts below it (so the date number and
-  // its inline text share the exact same y-position in every cell, never pushed
-  // down by chips).
-  assert.ok(/absolute inset-x-1 top-1 z-10 flex h-5 items-center[^"]*sm:h-6/.test(grid), "day-cell top line is absolutely pinned to the top with a fixed height");
-  assert.ok(/flex min-w-0 flex-col[^"]*pt-7[^"]*sm:pt-8/.test(grid), "event chip container starts below the fixed top line (pt-7/pt-8)");
+  // CALENDAR-UX-POLISH-5: every day cell stacks its content from the very top.
+  // The cell is a top-anchored flex column (justify-start): the date line is the
+  // first normal-flow row and the chip block stacks directly beneath it. The old
+  // "absolute top line + pt-7 chip flow" let the <button> UA layout vertically
+  // center the in-flow chips, floating them to the middle of the cell with a big
+  // gap — so it is now forbidden, along with any vertical centering of the stack.
+  assert.ok(/relative flex min-h-\[72px\] flex-col justify-start[^"]*sm:min-h-\[100px\]/.test(grid), "day cell is a top-anchored flex column (justify-start)");
+  assert.ok(/flex h-5 shrink-0 items-start gap-1[^"]*sm:h-6/.test(grid), "date line is the first top-anchored row with a fixed height");
+  assert.ok(/mt-0\.5 flex min-h-0 min-w-0 flex-col justify-start gap-0\.5[^"]*overflow-hidden/.test(grid), "chip container stacks directly below the date line (justify-start, small gap)");
+  assert.equal(/\bpt-7\b|\bpt-8\b/.test(grid), false, "no pt-7/pt-8 chip-clearing offset (old absolute-top-line approach removed)");
+  assert.equal(/absolute inset-x-1 top-1/.test(grid), false, "day-cell top line is no longer absolutely pinned");
+  // The day-cell vertical stack must never center its content. The only
+  // legitimate centering left is the round day-number badge (items-center
+  // justify-center inside an h-5 w-5 circle) and the month-nav header
+  // (items-center justify-between), so check the stack containers specifically.
+  const dayCellColumn = (grid.match(/"relative flex min-h-\[72px\][^"]*"/) ?? [""])[0];
+  const chipContainer = (grid.match(/"mt-0\.5 flex min-h-0[^"]*"/) ?? [""])[0];
+  for (const banned of ["justify-center", "justify-between", "place-content-center", "place-items-center", "items-center"]) {
+    assert.equal(dayCellColumn.includes(banned), false, `day-cell column must not use "${banned}" (top-anchored only)`);
+    assert.equal(chipContainer.includes(banned), false, `chip container must not use "${banned}" (top-anchored only)`);
+  }
   // Unnecessary legend explanations are removed.
   assert.equal(grid.includes("사용자/경제 일정 = 날짜 옆 텍스트"), false, "redundant '사용자/경제 일정' legend text removed");
   assert.equal(grid.includes("점선 = 추정"), false, "redundant '점선 = 추정' legend text removed");
