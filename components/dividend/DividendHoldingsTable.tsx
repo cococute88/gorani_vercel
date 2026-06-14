@@ -7,6 +7,7 @@ interface Props {
   title: string;
   rows: DividendHoldingRow[];
   totalKRW: number;
+  loading?: boolean;
 }
 
 const card = "rounded-2xl border border-[#2a3336] bg-[#191f20] p-5";
@@ -35,15 +36,28 @@ function formatWeight(row: DividendHoldingRow, totalKRW: number): string {
   return weight === null ? "—" : formatPercent(weight, 1);
 }
 
-export default function DividendHoldingsTable({ title, rows, totalKRW }: Props) {
+function formatDividendRate(row: DividendHoldingRow): string {
+  if (row.dividendDataStatus !== "available") return "—";
+  return formatPercent(row.myYieldPct, 2);
+}
+
+function formatDividendAmount(row: DividendHoldingRow): string {
+  if (row.dividendDataStatus !== "available") return row.dividendDataNote ?? "데이터 없음";
+  return formatWon(row.annualDividendKRW);
+}
+
+export default function DividendHoldingsTable({ title, rows, totalKRW, loading = false }: Props) {
   return (
     <section className="mb-6">
       <div className={card}>
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <h2 className="break-keep text-[15px] font-bold text-slate-300">{title}</h2>
-          <span className="num shrink-0 text-[13px] font-semibold text-white">
-            합계 {formatWon(totalKRW)}
-          </span>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {loading && <span className="text-[12px] text-blue-300">quote/dividend 조회 중</span>}
+            <span className="num shrink-0 text-[13px] font-semibold text-white">
+              합계 {formatWon(totalKRW)}
+            </span>
+          </div>
         </div>
 
         {/* 모바일: 카드 리스트 (가로 스크롤 없이 핵심 배당 정보 표시) */}
@@ -69,20 +83,24 @@ export default function DividendHoldingsTable({ title, rows, totalKRW }: Props) 
 
               <div className="mt-2.5 grid grid-cols-2 gap-2 border-t border-[#1c2426] pt-2.5">
                 <div className="min-w-0">
-                  <div className="text-[10.5px] text-slate-500">수량</div>
-                  <div className="num truncate text-[12.5px] text-slate-300">{formatOptionalNumber(r.quantity, 6)}</div>
+                  <div className="text-[10.5px] text-slate-500">수량(추정)</div>
+                  <div className="num truncate text-[12.5px] text-slate-300">
+                    {r.quantityEstimated ? `≈ ${formatOptionalNumber(r.quantity, 2)}주` : formatOptionalNumber(r.quantity, 6)}
+                  </div>
                 </div>
                 <div className="min-w-0 text-right">
-                  <div className="text-[10.5px] text-slate-500">평균단가</div>
-                  <div className="num truncate text-[12.5px] text-slate-300">{formatOptionalMoney(r.averageCost, r.averageCostCurrency)}</div>
+                  <div className="text-[10.5px] text-slate-500">평균단가(추정)</div>
+                  <div className="num truncate text-[12.5px] text-slate-300">
+                    {r.averageCostEstimated ? `≈ ${formatOptionalMoney(r.averageCost, r.averageCostCurrency)}` : formatOptionalMoney(r.averageCost, r.averageCostCurrency)}
+                  </div>
                 </div>
                 <div className="min-w-0">
                   <div className="text-[10.5px] text-slate-500">현재가</div>
                   <div className="num truncate text-[12.5px] text-slate-300">{formatOptionalMoney(r.currentPrice, r.currentPriceCurrency)}</div>
                 </div>
                 <div className="min-w-0 text-right">
-                  <div className="text-[10.5px] text-slate-500">내 배당률</div>
-                  <div className="num truncate text-[12.5px] text-slate-300">{formatPercent(r.myYieldPct, 2)}</div>
+                  <div className="text-[10.5px] text-slate-500">내 배당률{r.myYieldBasis === "value" ? "(평가)" : ""}</div>
+                  <div className="num truncate text-[12.5px] text-slate-300">{formatDividendRate(r)}</div>
                 </div>
                 <div className="min-w-0">
                   <div className="text-[10.5px] text-slate-500">비중</div>
@@ -94,7 +112,7 @@ export default function DividendHoldingsTable({ title, rows, totalKRW }: Props) 
                 </div>
                 <div className="min-w-0">
                   <div className="text-[10.5px] text-slate-500">예상 연배당</div>
-                  <div className="num truncate text-[12.5px] text-emerald-400">{formatWon(r.annualDividendKRW)}</div>
+                  <div className="truncate text-[12.5px] text-amber-300">{formatDividendAmount(r)}</div>
                 </div>
               </div>
             </div>
@@ -108,8 +126,8 @@ export default function DividendHoldingsTable({ title, rows, totalKRW }: Props) 
               <tr className="border-b border-[#2a3336] text-left text-slate-400">
                 <th className="px-3 py-2 font-medium">티커</th>
                 <th className="px-3 py-2 font-medium">종목명</th>
-                <th className="px-3 py-2 text-right font-medium">수량</th>
-                <th className="px-3 py-2 text-right font-medium">평균단가</th>
+                <th className="px-3 py-2 text-right font-medium">수량(추정)</th>
+                <th className="px-3 py-2 text-right font-medium">평균단가(추정)</th>
                 <th className="px-3 py-2 text-right font-medium">현재가</th>
                 <th className="px-3 py-2 text-right font-medium">내 배당률</th>
                 <th className="px-3 py-2 text-right font-medium">비중</th>
@@ -129,13 +147,17 @@ export default function DividendHoldingsTable({ title, rows, totalKRW }: Props) 
                 <tr key={`${r.ticker}-${index}`} className="border-b border-[#1c2426] hover:bg-white/[0.02]">
                   <td className="px-3 py-2.5 font-semibold text-white">{r.ticker}</td>
                   <td className="px-3 py-2.5 text-slate-300">{r.name}</td>
-                  <td className="num px-3 py-2.5 text-right text-slate-300">{formatOptionalNumber(r.quantity, 6)}</td>
-                  <td className="num px-3 py-2.5 text-right text-slate-300">{formatOptionalMoney(r.averageCost, r.averageCostCurrency)}</td>
+                  <td className="num px-3 py-2.5 text-right text-slate-300">
+                    {r.quantityEstimated ? `≈ ${formatOptionalNumber(r.quantity, 2)}주` : formatOptionalNumber(r.quantity, 6)}
+                  </td>
+                  <td className="num px-3 py-2.5 text-right text-slate-300">
+                    {r.averageCostEstimated ? `≈ ${formatOptionalMoney(r.averageCost, r.averageCostCurrency)}` : formatOptionalMoney(r.averageCost, r.averageCostCurrency)}
+                  </td>
                   <td className="num px-3 py-2.5 text-right text-slate-300">{formatOptionalMoney(r.currentPrice, r.currentPriceCurrency)}</td>
-                  <td className="num px-3 py-2.5 text-right text-slate-300">{formatPercent(r.myYieldPct, 2)}</td>
+                  <td className="num px-3 py-2.5 text-right text-slate-300">{formatDividendRate(r)}</td>
                   <td className="num px-3 py-2.5 text-right text-slate-300">{formatWeight(r, totalKRW)}</td>
                   <td className="num px-3 py-2.5 text-right text-slate-200">{formatWon(r.valueKRW)}</td>
-                  <td className="num px-3 py-2.5 text-right text-emerald-400">{formatWon(r.annualDividendKRW)}</td>
+                  <td className="px-3 py-2.5 text-right text-amber-300">{formatDividendAmount(r)}</td>
                 </tr>
               ))}
             </tbody>

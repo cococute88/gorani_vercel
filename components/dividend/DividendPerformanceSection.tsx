@@ -39,7 +39,10 @@ export default function DividendPerformanceSection({ series }: Props) {
   return (
     <section className="mb-6">
       <div className={card}>
-        <h2 className="mb-1 text-[15px] font-bold text-slate-300">성과 분석</h2>
+        <div className="mb-1 flex flex-wrap items-center gap-2">
+          <h2 className="text-[15px] font-bold text-slate-300">성과 분석</h2>
+          <span className="rounded-md bg-amber-500/10 px-2 py-0.5 text-[11px] text-amber-300">샘플 데이터</span>
+        </div>
         <p className="mb-4 text-[12px] text-slate-500">
           누적 입금 대비 포트폴리오 가치 (KOSPI / S&P 500 투자 시 비교)
         </p>

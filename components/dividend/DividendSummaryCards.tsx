@@ -9,6 +9,7 @@ interface Props {
   achievementPct: number;
   afterTax: boolean;
   includeTaxAdvantaged: boolean;
+  dividendDataAvailable: boolean;
   onToggleTax: (afterTax: boolean) => void;
   onToggleGroup: (includeTaxAdvantaged: boolean) => void;
 }
@@ -43,6 +44,7 @@ export default function DividendSummaryCards({
   achievementPct,
   afterTax,
   includeTaxAdvantaged,
+  dividendDataAvailable,
   onToggleTax,
   onToggleGroup,
 }: Props) {
@@ -92,14 +94,14 @@ export default function DividendSummaryCards({
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Kpi label="평가금액" value={formatWon(evaluationKRW)} />
         <Kpi
-          label={`연간 예상 배당${afterTax ? " (세후)" : " (세전)"}`}
-          value={formatWon(annualDividendKRW)}
-          accent="text-emerald-400"
+          label={`연간 예상 배당(추정, ${afterTax ? "세후" : "세전"})`}
+          value={dividendDataAvailable ? formatWon(annualDividendKRW) : "데이터 없음"}
+          accent={dividendDataAvailable ? "text-emerald-400" : "text-amber-400"}
         />
         <Kpi
-          label="월평균 예상 배당"
-          value={formatWon(monthlyAvgKRW)}
-          accent="text-emerald-400"
+          label="월평균 예상 배당(추정)"
+          value={dividendDataAvailable ? formatWon(monthlyAvgKRW) : "데이터 없음"}
+          accent={dividendDataAvailable ? "text-emerald-400" : "text-amber-400"}
         />
         <Kpi
           label="목표 달성률"

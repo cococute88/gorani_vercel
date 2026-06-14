@@ -24,6 +24,7 @@ export interface Holding {
   valueKRW: number; // 평가금액
   returnPct?: number; // 수익률(%)
   quantity?: number; // 수량 (옵션)
+  averagePrice?: number; // 평단/평균매입가 (옵션)
   currency?: string; // 통화 (옵션)
   currentPrice?: number; // 현재가/평가단가 (옵션)
   valueOriginalCurrency?: number; // 원통화 평가금액 (옵션)

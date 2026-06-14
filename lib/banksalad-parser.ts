@@ -229,6 +229,21 @@ function colByAliases(headers: string[], aliases: string[]): number {
   });
 }
 
+function colByPriorityAliases(headers: string[], aliases: string[], excludeAliases: string[] = []): number {
+  const normalizedAliases = aliases.map(normHeader).filter(Boolean);
+  const normalizedExcludes = excludeAliases.map(normHeader).filter(Boolean);
+  const normalizedHeaders = headers.map(normHeader);
+
+  for (const alias of normalizedAliases) {
+    const index = normalizedHeaders.findIndex((header) => {
+      if (!header.includes(alias)) return false;
+      return !normalizedExcludes.some((exclude) => header.includes(exclude));
+    });
+    if (index >= 0) return index;
+  }
+  return -1;
+}
+
 function firstNumber(row: Row, index: number): number | undefined {
   if (index < 0) return undefined;
   const value = normalizeNumber(row[index]);
@@ -406,7 +421,24 @@ function parseInvestment(rows: Row[], result: ParseResult): void {
   let headerRow = -1;
   for (let r = sec.row + 1; r < Math.min(sec.row + 8, rows.length); r++) {
     const cells = (rows[r] || []).map(norm);
-    if (cells.includes("상품명") && cells.some((x) => x.includes("투자원금") || x.includes("평가금액"))) {
+    const normalizedHeaders = (rows[r] || []).map(normHeader);
+    const hasProduct = cells.includes("상품명") || normalizedHeaders.some((x) => x.includes("productname"));
+    const hasMoneyHeader = normalizedHeaders.some((x) =>
+      [
+        "투자원금",
+        "매입금액",
+        "원금",
+        "평가금액",
+        "잔고평가금액",
+        "평가액",
+        "principal",
+        "costbasis",
+        "marketvalue",
+        "valuation",
+        "currentvalue",
+      ].some((alias) => x.includes(normHeader(alias))),
+    );
+    if (hasProduct && hasMoneyHeader) {
       headerRow = r;
       break;
     }
@@ -425,17 +457,35 @@ function parseInvestment(rows: Row[], result: ParseResult): void {
   };
 
   const cType = colOfAny(["투자상품종류", "상품종류", "asset type", "asset class", "type"]);
-  const cBroker = colOfAny(["금융사", "증권사", "broker", "account"]);
+  const cBroker = colByPriorityAliases(hdr, ["금융사", "증권사", "운용사", "broker", "brokerage", "securities"]);
+  const cAccountName = colByPriorityAliases(hdr, ["계좌명", "계좌 이름", "계좌구분", "계좌 유형", "account name", "account type", "account"]);
   const cProduct = colOfAny(["상품명", "상품 이름", "product name", "product"]);
-  const cPrincipal = colOfAny(["투자원금", "원금", "principal", "cost basis", "cost"]);
-  const cValue = colOfAny(["평가금액", "평가 금액", "금액", "총액", "value", "market value", "amount"]);
+  const cPrincipal = colByPriorityAliases(
+    hdr,
+    ["투자원금", "투자 원금", "매입금액", "매수금액", "취득금액", "원금", "principal", "cost basis", "purchase amount", "book cost"],
+    ["평가금액", "평가액", "평균", "평단", "단가", "average", "avg"],
+  );
+  const cValue = colByPriorityAliases(
+    hdr,
+    ["평가금액", "평가 금액", "잔고평가금액", "잔고 평가금액", "평가액", "평가 총액", "market value", "valuation", "current value", "value", "금액", "총액", "amount"],
+    ["매입금액", "매수금액", "취득금액", "투자원금", "원금", "평균", "평단", "단가", "수익률", "average", "avg"],
+  );
   const cReturn = colOfAny(["수익률", "return", "return pct"]);
   const cJoin = colOfAny(["가입일자", "가입일", "join date"]);
   const cMaturity = colOfAny(["만기일자", "만기일", "maturity date"]);
-  const cQuantity = colByAliases(hdr, ["수량", "보유수량", "보유 수량", "quantity", "qty", "shares"]);
-  const cCurrency = colByAliases(hdr, ["통화", "화폐", "currency", "ccy"]);
-  const cTicker = colByAliases(hdr, ["티커", "종목코드", "코드", "symbol", "ticker"]);
-  const cCurrentPrice = colByAliases(hdr, ["현재가", "평가단가", "단가", "price", "current price"]);
+  const cQuantity = colByPriorityAliases(hdr, ["수량", "보유수량", "잔고수량", "보유 주수", "보유주수", "주수", "quantity", "qty", "shares", "share quantity", "holding quantity"]);
+  const cAveragePrice = colByPriorityAliases(
+    hdr,
+    ["평균단가", "평균 매입가", "평균매입가", "매입평균가", "매입 평균가", "평단", "매입단가", "취득단가", "평균취득가", "average price", "avg price", "average cost", "avg cost"],
+    ["현재", "시장", "평가", "current", "market", "last"],
+  );
+  const cCurrency = colByPriorityAliases(hdr, ["통화", "거래통화", "결제통화", "화폐", "currency", "ccy"]);
+  const cTicker = colByPriorityAliases(hdr, ["티커", "종목코드", "종목 코드", "주식코드", "단축코드", "symbol", "ticker"]);
+  const cCurrentPrice = colByPriorityAliases(
+    hdr,
+    ["현재가", "현재가격", "현재 가격", "시장가", "현재단가", "평가단가", "current price", "market price", "last price", "price", "단가"],
+    ["평균", "평단", "매입", "취득", "average", "avg"],
+  );
 
   result.preview.investmentHeader = (rows[headerRow] || []).map(txt);
 
@@ -470,6 +520,7 @@ function parseInvestment(rows: Row[], result: ParseResult): void {
 
     const explicitTicker = cleanTickerValue(cTicker >= 0 ? row[cTicker] : undefined);
     const quantity = firstNumber(row, cQuantity);
+    const averagePrice = firstNumber(row, cAveragePrice);
     const currency = normalizeCurrencyValue(cCurrency >= 0 ? row[cCurrency] : undefined);
     const currentPrice = firstNumber(row, cCurrentPrice);
     const guess = guessTicker(product);
@@ -486,6 +537,7 @@ function parseInvestment(rows: Row[], result: ParseResult): void {
     const decoratedHolding = decorateHoldingWithTags({
       id: makeId("h"),
       broker: cBroker >= 0 ? txt(row[cBroker]) : "",
+      accountName: cAccountName >= 0 ? txt(row[cAccountName]) || undefined : undefined,
       assetType: cType >= 0 ? txt(row[cType]) || "기타" : "기타",
       productName: product,
       ticker: normalizedGuess,
@@ -496,6 +548,7 @@ function parseInvestment(rows: Row[], result: ParseResult): void {
       valueKRW: value ?? 0,
       returnPct: ret ?? undefined,
       quantity,
+      averagePrice,
       currency,
       currentPrice,
       valueOriginalCurrency,

@@ -4,6 +4,7 @@
 // 실제 yfinance 호출은 브라우저에서 하지 않는다. 모두 mock / dummy 계산.
 // TODO(codex): 실제 배당 API(예: 서버 route + yfinance/배당 컬린더) 연결.
 // =============================================================
+import type { DividendEstimateWarning, DividendMonthAllocation } from "./dividend-estimates";
 import type { Holding } from "./portfolio-types";
 
 // 배당 소득세 (국내 기준 15.4%)
@@ -136,12 +137,13 @@ export function buildMonthlyDividendsFromRows(
 
   for (const row of rows) {
     const ticker = (row.ticker || "기타").toUpperCase();
-    if (!row.annualDividendKRW) continue;
-    const months = paymentMonthsOf(ticker);
-    if (months.length === 0) continue;
-    const per = row.annualDividendKRW / months.length;
+    if (!row.annualDividendKRW || !row.dividendMonths || row.dividendMonths.length === 0) continue;
     const monthly = byTicker.get(ticker) ?? new Array<number>(12).fill(0);
-    for (const month of months) monthly[month - 1] += per;
+    for (const allocation of row.dividendMonths) {
+      if (allocation.month >= 1 && allocation.month <= 12) {
+        monthly[allocation.month - 1] += allocation.amountKRW;
+      }
+    }
     byTicker.set(ticker, monthly);
   }
 
@@ -178,14 +180,27 @@ export interface DividendHoldingRow {
   ticker: string;
   name: string;
   quantity?: number;
+  quantityEstimated?: boolean;
   averageCost?: number;
   averageCostCurrency?: string;
+  averageCostEstimated?: boolean;
   currentPrice?: number;
   currentPriceCurrency?: string;
+  currentPriceKRW?: number;
   valueKRW: number;
+  principalKRW?: number;
   annualDividendKRW: number;
   expectedYieldPct: number; // 예상 배당률
   myYieldPct: number; // 내 배당률 (원금 대비)
+  myYieldBasis?: "principal" | "value";
+  ttmDividendPerShare?: number;
+  ttmDividendCurrency?: string;
+  dividendMonths?: DividendMonthAllocation[];
+  estimateSource?: string;
+  estimateWarnings?: DividendEstimateWarning[];
+  isEstimated?: boolean;
+  dividendDataStatus: "available" | "unavailable" | "sample";
+  dividendDataNote?: string;
   tag?: string;
 }
 
@@ -217,7 +232,10 @@ function readAverageCost(holding: Holding): Pick<DividendHoldingRow, "averageCos
   const averageCostKRW = finiteNumber(extras.averageCostKRW);
   if (averageCostKRW !== undefined) return { averageCost: averageCostKRW, averageCostCurrency: "KRW" };
 
-  const averageCost = finiteNumber(extras.averageCost) ?? finiteNumber(extras.avgPrice);
+  const averageCost =
+    finiteNumber(holding.averagePrice) ??
+    finiteNumber(extras.averageCost) ??
+    finiteNumber(extras.avgPrice);
   if (averageCost === undefined) return {};
   return { averageCost, averageCostCurrency: normalizeCurrency(holding.currency) };
 }
@@ -251,8 +269,8 @@ export function buildDividendHoldingRows(
   const factor = afterTax ? 1 - DIVIDEND_TAX_RATE : 1;
   const rows = holdings.map((h) => {
     const ticker = (h.ticker || "—").toUpperCase();
-    const y = annualYieldPct(h.ticker);
-    const annual = (h.valueKRW * y) / 100 * factor;
+    const y = 0;
+    const annual = 0 * factor;
     return {
       ticker,
       name: h.productName,
@@ -260,9 +278,14 @@ export function buildDividendHoldingRows(
       ...readAverageCost(h),
       ...readCurrentPrice(h),
       valueKRW: h.valueKRW,
+      principalKRW: h.principalKRW,
       annualDividendKRW: annual,
       expectedYieldPct: y,
       myYieldPct: 0,
+      dividendMonths: [],
+      estimateWarnings: [],
+      dividendDataStatus: "unavailable" as const,
+      dividendDataNote: "배당 데이터 없음",
       tag: h.tag,
     };
   });

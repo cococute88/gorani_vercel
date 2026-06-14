@@ -55,7 +55,9 @@ const {
 
 const K = {
   account: "\uacc4\uc88c",
+  accountName: "\uacc4\uc88c\uba85",
   amount: "\uae08\uc561",
+  averagePrice: "\ud3c9\uade0\ub2e8\uac00",
   broker: "\uae08\uc735\uc0ac",
   currency: "\ud1b5\ud654",
   currentPrice: "\ud604\uc7ac\uac00",
@@ -76,7 +78,10 @@ const K = {
 const aliasCases = [
   {
     name: "korean-default",
+    accountName: K.accountName,
+    principal: K.principal,
     quantity: K.quantity,
+    averagePrice: K.averagePrice,
     currency: K.currency,
     ticker: K.ticker,
     currentPrice: K.currentPrice,
@@ -84,15 +89,21 @@ const aliasCases = [
   },
   {
     name: "korean-expanded",
+    accountName: "\uacc4\uc88c\uad6c\ubd84",
+    principal: "\ub9e4\uc785\uae08\uc561",
     quantity: "\ubcf4\uc720\uc218\ub7c9",
+    averagePrice: "\ud3c9\uade0\ub9e4\uc785\uac00",
     currency: "currency",
     ticker: "\uc885\ubaa9\ucf54\ub4dc",
     currentPrice: "\ud3c9\uac00\ub2e8\uac00",
-    value: K.amount,
+    value: "\uc794\uace0\ud3c9\uac00\uae08\uc561",
   },
   {
     name: "english-short",
+    accountName: "account",
+    principal: "cost basis",
     quantity: "qty",
+    averagePrice: "avg price",
     currency: "ccy",
     ticker: "symbol",
     currentPrice: "current price",
@@ -100,7 +111,10 @@ const aliasCases = [
   },
   {
     name: "english-common",
+    accountName: "account name",
+    principal: "principal",
     quantity: "shares",
+    averagePrice: "average price",
     currency: "currency",
     ticker: "ticker",
     currentPrice: "price",
@@ -123,22 +137,24 @@ function makeWorkbook(headers) {
     [
       K.type,
       K.broker,
+      headers.accountName,
       K.product,
-      K.principal,
+      headers.principal,
       headers.value,
       K.returnPct,
       headers.quantity,
+      headers.averagePrice,
       headers.currency,
       headers.ticker,
       headers.currentPrice,
     ],
-    ["ETF", "Broker A", "Invesco QQQ Trust", 1_000_000, 1_200_000, 20, 3, "USD", "QQQ", 400],
-    ["ETF", "Broker A", "Schwab US Dividend Equity", 2_000_000, 2_250_000, 12.5, 10, "USD", "SCHD", 225],
-    ["Cash", "Bank", "USD cash deposit", 100_000, 100_000, 0, 1, "USD", "USD", 1],
-    ["ETF", "Broker B", "Vanguard S&P 500 ETF", 1_500_000, 1_800_000, 20, null, "USD", "VOO", 450],
-    ["ETF", "Broker C", "Dust ETF #\uc18c\uc561", 3_000, 5_000, 0, 1, "USD", "QQQ", 400],
-    ["", "", "total", 99_999_999, 99_999_999, "", "", "", "", ""],
-    ["ETF", "Broker Z", "Should stay excluded after total", 10_000, 10_000, 0, 1, "USD", "SPY", 500],
+    ["ETF", "Broker A", "Taxable", "Invesco QQQ Trust", 1_000_000, 1_200_000, 20, 3, 330.5, "USD", "QQQ", 400],
+    ["ETF", "Broker A", "Taxable", "Schwab US Dividend Equity", 2_000_000, 2_250_000, 12.5, 10, 22.5, "USD", "SCHD", 225],
+    ["Cash", "Bank", "Cash", "USD cash deposit", 100_000, 100_000, 0, 1, 1, "USD", "USD", 1],
+    ["ETF", "Broker B", "Pension", "Vanguard S&P 500 ETF", 1_500_000, 1_800_000, 20, "1O", 390.5, "USD", "VOO", "bad-price"],
+    ["ETF", "Broker C", "Small", "Dust ETF #\uc18c\uc561", 3_000, 5_000, 0, 1, 400, "USD", "QQQ", 400],
+    ["", "", "", "total", 99_999_999, 99_999_999, "", "", "", "", "", ""],
+    ["ETF", "Broker Z", "Taxable", "Should stay excluded after total", 10_000, 10_000, 0, 1, 500, "USD", "SPY", 500],
   ];
   const worksheet = XLSX.utils.aoa_to_sheet(rows);
   return {
@@ -173,10 +189,12 @@ function assertParserCase(aliasCase) {
   assert.ok(qqq, `${aliasCase.name}: QQQ holding should be parsed`);
   assert.equal(qqq.productName, "Invesco QQQ Trust");
   assert.equal(qqq.broker, "Broker A");
+  assert.equal(qqq.accountName, "Taxable");
   assert.equal(qqq.assetType, "ETF");
   assert.equal(qqq.principalKRW, 1_000_000);
   assert.equal(qqq.valueKRW, 1_200_000);
   assert.equal(qqq.quantity, 3);
+  assert.equal(qqq.averagePrice, 330.5);
   assert.equal(qqq.currency, "USD");
   assert.equal(qqq.currentPrice, 400);
   assert.equal(qqq.valueOriginalCurrency, 1_200);
@@ -184,6 +202,7 @@ function assertParserCase(aliasCase) {
   const voo = byTicker(result, "VOO");
   assert.ok(voo, `${aliasCase.name}: VOO holding should be parsed`);
   assert.equal(voo.quantity, undefined);
+  assert.equal(voo.currentPrice, undefined);
   assert.equal(voo.valueOriginalCurrency, undefined);
 
   const cash = byTicker(result, "USD");
@@ -197,6 +216,7 @@ function assertParserCase(aliasCase) {
     excludedSmall: result.excludedSmallCount,
     excludedBelowMinimum: result.excludedBelowMinimumCount,
     qqqValueOriginalCurrency: qqq.valueOriginalCurrency,
+    qqqAveragePrice: qqq.averagePrice,
   };
 }
 
@@ -351,6 +371,8 @@ function summarizeParseResult(result) {
     currency: result.holdings.filter((holding) => holding.currency !== undefined).length,
     ticker: result.holdings.filter((holding) => holding.ticker !== undefined).length,
     currentPrice: result.holdings.filter((holding) => holding.currentPrice !== undefined).length,
+    averagePrice: result.holdings.filter((holding) => holding.averagePrice !== undefined).length,
+    accountName: result.holdings.filter((holding) => holding.accountName !== undefined).length,
     valueOriginalCurrency: result.holdings.filter((holding) => holding.valueOriginalCurrency !== undefined).length,
   };
 

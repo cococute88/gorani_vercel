@@ -40,8 +40,11 @@ require.extensions[".ts"] = function transpileTypeScript(module, filename) {
 
 const {
   buildDividendHoldingGroupsFromHoldings,
+  getDividendHoldingCoverage,
+  normalizeDividendHoldingInput,
 } = require("../lib/dividend-holdings-from-portfolio.ts");
 const {
+  buildMonthlyDividendsFromRows,
   dividendHoldingWeightPct,
 } = require("../lib/mock-dividend-data.ts");
 
@@ -500,7 +503,7 @@ function assertQuantityAverageCostCurrentPricePreserved() {
       ticker: "SPY",
       valueKRW: 3_000_000,
       quantity: 19,
-      averageCost: 330.69,
+      averagePrice: 330.69,
       currentPrice: 390.74,
       currency: "USD",
     }),
@@ -518,6 +521,93 @@ function assertQuantityAverageCostCurrentPricePreserved() {
     quantity: result.taxableHoldings[0].quantity,
     averageCost: result.taxableHoldings[0].averageCost,
     currentPrice: result.taxableHoldings[0].currentPrice,
+  };
+}
+
+function assertKrxNameMapAppliesWithoutMutation() {
+  const source = [
+    holding({ id: "mapped", productName: "KODEX 200", cleanName: "KODEX 200", ticker: "", valueKRW: 1_000_000 }),
+    holding({ id: "existing", productName: "KODEX 200", cleanName: "KODEX 200", ticker: "111111.KS", valueKRW: 1_000_000 }),
+  ];
+  const before = JSON.stringify(source);
+  const normalized = normalizeDividendHoldingInput(source, {
+    KODEX200: {
+      ticker: "069500",
+      displayTicker: "069500.KS",
+      rawProductName: "KODEX 200",
+      updatedAt: "2026-06-14T00:00:00.000Z",
+    },
+  });
+
+  assert.equal(normalized.mappedTickerCount, 1);
+  assert.equal(normalized.holdings[0].ticker, "069500.KS");
+  assert.equal(normalized.holdings[1].ticker, "111111.KS");
+  assert.equal(JSON.stringify(source), before, "source holdings should not be mutated");
+
+  return {
+    case: "TICKER-4 name map applies without mutation",
+    mapped: normalized.mappedTickerCount,
+    existingTicker: normalized.holdings[1].ticker,
+  };
+}
+
+function assertCoverageCounts() {
+  const coverage = getDividendHoldingCoverage([
+    holding({
+      productName: "①SPY ②위탁",
+      cleanName: "SPY",
+      ticker: "SPY",
+      accountName: "위탁",
+      accountGroup: "위탁",
+      purposeGroup: "배당",
+      quantity: 3,
+      averagePrice: 330,
+      currentPrice: 390,
+      currency: "USD",
+      tag: "배당",
+      valueKRW: 1_000_000,
+      principalKRW: 900_000,
+    }),
+    holding({ productName: "No ticker", ticker: "", valueKRW: 1_000_000 }),
+  ]);
+
+  assert.equal(coverage.total, 2);
+  assert.equal(coverage.ticker, 1);
+  assert.equal(coverage.quantity, 1);
+  assert.equal(coverage.averagePrice, 1);
+  assert.equal(coverage.currentPrice, 1);
+  assert.equal(coverage.valueKRW, 2);
+  assert.equal(coverage.principalKRW, 2);
+
+  return {
+    case: "coverage counts",
+    total: coverage.total,
+    ticker: coverage.ticker,
+    quantity: coverage.quantity,
+    averagePrice: coverage.averagePrice,
+  };
+}
+
+function assertDividendUnavailableNoMockValues() {
+  const result = buildDividendHoldingGroupsFromHoldings([
+    holding({ productName: "①SCHD ②위탁 Schwab US Dividend Equity", ticker: "SCHD", valueKRW: 1_000_000 }),
+  ]);
+
+  assert.equal(result.dividendDataAvailable, false);
+  assert.equal(result.taxableHoldings.length, 1);
+  assert.equal(result.taxableHoldings[0].annualDividendKRW, 0);
+  assert.equal(result.taxableHoldings[0].expectedYieldPct, 0);
+  assert.equal(result.taxableHoldings[0].dividendDataStatus, "unavailable");
+  assert.equal(result.warnings.some((warning) => warning.includes("mock yield values are not used")), true);
+
+  const monthly = buildMonthlyDividendsFromRows(result.taxableHoldings);
+  assert.deepEqual(monthly.tickers, []);
+  assert.equal(monthly.data.every((point) => point.amount === 0), true);
+
+  return {
+    case: "dividend unavailable uses no mock",
+    annualDividendKRW: result.taxableHoldings[0].annualDividendKRW,
+    monthlyTickers: monthly.tickers.length,
   };
 }
 
@@ -610,6 +700,9 @@ function main() {
     assertVisibleTotalsMatchRows(),
     assertStrictMixedTotals(),
     assertQuantityAverageCostCurrentPricePreserved(),
+    assertKrxNameMapAppliesWithoutMutation(),
+    assertCoverageCounts(),
+    assertDividendUnavailableNoMockValues(),
     assertMissingQuantityAverageCostStayMissing(),
     assertDividendHoldingWeightCalculation(),
     assertDuplicateSpyRowsStillSeparate(),

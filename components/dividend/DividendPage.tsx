@@ -1,17 +1,24 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Target } from "lucide-react";
 import TopNav from "@/components/TopNav";
 import { usePortfolioSnapshots, latestOf } from "@/lib/portfolio-store";
 import {
   buildMonthlyDividendsFromRows,
   DIVIDEND_PERFORMANCE_SERIES,
+  type DividendHoldingRow,
 } from "@/lib/mock-dividend-data";
+import {
+  buildDividendEstimateForHolding,
+  isKrwTicker,
+  type DividendEstimateWarning,
+} from "@/lib/dividend-estimates";
 import { formatPercent } from "@/lib/format";
-import { normalizeHoldingTickerInfo } from "@/lib/holding-ticker-normalizer";
 import type { Holding } from "@/lib/portfolio-types";
 import { buildDividendHoldingGroupsFromSnapshot } from "@/lib/dividend-holdings-from-portfolio";
+import { quoteDividendsPath, quoteFxPath, quoteLastPath } from "@/lib/quote-client";
+import type { QuoteDividendsResponse, QuoteFxResponse, QuoteLastResponse } from "@/lib/quote-types";
 import DividendSummaryCards from "./DividendSummaryCards";
 import MonthlyDividendChart from "./MonthlyDividendChart";
 import DividendHoldingsTable from "./DividendHoldingsTable";
@@ -21,15 +28,41 @@ import { useResolvedTheme } from "@/components/theme/ThemeProvider";
 const card =
   "rounded-2xl border border-slate-200 bg-white p-5 dark:border-[#2a3336] dark:bg-[#191f20]";
 
-// 목표 달성률 계산용 주당 단가 (mock, KRW). TODO(codex): 실시세 연결.
-const MOCK_SHARE_PRICE_KRW: Record<string, number> = {
-  SCHD: 39_000,
-  QQQ: 665_000,
-  QLD: 144_000,
-  TQQQ: 107_000,
-  SPY: 768_000,
-  JEPI: 80_000,
+type DividendMarketDataState = {
+  loading: boolean;
+  tickerKey: string;
+  quotes: Record<string, QuoteLastResponse | undefined>;
+  dividends: Record<string, QuoteDividendsResponse | undefined>;
+  fx?: QuoteFxResponse;
+  warnings: string[];
 };
+
+const EMPTY_MARKET_DATA: DividendMarketDataState = {
+  loading: false,
+  tickerKey: "",
+  quotes: {},
+  dividends: {},
+  warnings: [],
+};
+
+async function fetchQuoteJson<T>(path: string): Promise<T> {
+  const response = await fetch(path, { cache: "no-store" });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return (await response.json()) as T;
+}
+
+function dividendNoteFromWarnings(warnings: DividendEstimateWarning[]): string {
+  if (warnings.some((warning) => warning.code === "quote_missing" || warning.code === "quote_sample")) {
+    return "현재가 없음";
+  }
+  if (warnings.some((warning) => warning.code === "fx_missing" || warning.code === "fx_sample")) {
+    return "환율 없음";
+  }
+  if (warnings.some((warning) => warning.code === "dividend_missing" || warning.code === "dividend_sample")) {
+    return "배당 데이터 없음";
+  }
+  return "데이터 없음";
+}
 
 export default function DividendPage() {
   const theme = useResolvedTheme();
@@ -40,6 +73,7 @@ export default function DividendPage() {
   const [chartIncludesTaxAdvantaged, setChartIncludesTaxAdvantaged] = useState(false);
   const [targetTicker, setTargetTicker] = useState("SCHD");
   const [targetQty, setTargetQty] = useState(3300);
+  const [marketData, setMarketData] = useState<DividendMarketDataState>(EMPTY_MARKET_DATA);
 
   const latestSnapshot = useMemo(() => latestOf(snapshots), [snapshots]);
   const holdings: Holding[] = useMemo(() => latestSnapshot?.holdings ?? [], [latestSnapshot]);
@@ -50,23 +84,162 @@ export default function DividendPage() {
     () => buildDividendHoldingGroupsFromSnapshot(latestSnapshot, afterTax),
     [latestSnapshot, afterTax],
   );
+  const dividendTickers = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          [...dividendGroups.taxableHoldings, ...dividendGroups.taxAdvantagedHoldings]
+            .map((row) => row.ticker.trim().toUpperCase())
+            .filter(Boolean),
+        ),
+      ).sort(),
+    [dividendGroups.taxAdvantagedHoldings, dividendGroups.taxableHoldings],
+  );
+  const dividendTickerKey = dividendTickers.join("|");
+
+  useEffect(() => {
+    if (!dividendTickerKey) {
+      setMarketData(EMPTY_MARKET_DATA);
+      return;
+    }
+
+    let active = true;
+    const tickers = dividendTickers;
+    const needsUsdKrw = tickers.some((ticker) => !isKrwTicker(ticker));
+    setMarketData((current) => ({
+      ...current,
+      loading: true,
+      tickerKey: dividendTickerKey,
+      warnings: [],
+    }));
+
+    async function load() {
+      const warnings: string[] = [];
+      const quoteEntries = await Promise.all(
+        tickers.map(async (ticker) => {
+          try {
+            const quote = await fetchQuoteJson<QuoteLastResponse>(quoteLastPath({ ticker }));
+            return [ticker, quote] as const;
+          } catch (error) {
+            warnings.push(`${ticker}: 현재가 요청 실패 (${error instanceof Error ? error.message : String(error)})`);
+            return [ticker, undefined] as const;
+          }
+        }),
+      );
+      const dividendEntries = await Promise.all(
+        tickers.map(async (ticker) => {
+          try {
+            const dividends = await fetchQuoteJson<QuoteDividendsResponse>(quoteDividendsPath({ ticker, range: "1y" }));
+            return [ticker, dividends] as const;
+          } catch (error) {
+            warnings.push(`${ticker}: 배당 요청 실패 (${error instanceof Error ? error.message : String(error)})`);
+            return [ticker, undefined] as const;
+          }
+        }),
+      );
+
+      let fx: QuoteFxResponse | undefined;
+      if (needsUsdKrw) {
+        try {
+          fx = await fetchQuoteJson<QuoteFxResponse>(quoteFxPath());
+        } catch (error) {
+          warnings.push(`USDKRW: 환율 요청 실패 (${error instanceof Error ? error.message : String(error)})`);
+        }
+      }
+
+      if (!active) return;
+      setMarketData({
+        loading: false,
+        tickerKey: dividendTickerKey,
+        quotes: Object.fromEntries(quoteEntries),
+        dividends: Object.fromEntries(dividendEntries),
+        fx,
+        warnings,
+      });
+    }
+
+    void load();
+    return () => {
+      active = false;
+    };
+  }, [dividendTickerKey, dividendTickers]);
+
+  const enrichRows = useMemo(
+    () =>
+      (rows: DividendHoldingRow[]): DividendHoldingRow[] =>
+        rows.map((row) => {
+          const ticker = row.ticker.trim().toUpperCase();
+          const estimate = buildDividendEstimateForHolding(
+            {
+              ticker,
+              valueKRW: row.valueKRW,
+              principalKRW: row.principalKRW,
+            },
+            {
+              quote: marketData.quotes[ticker],
+              dividends: marketData.dividends[ticker],
+              fx: marketData.fx,
+            },
+            { afterTax },
+          );
+          const annualDividendKRW = estimate.annualDividendKRW ?? 0;
+          const hasDividendEstimate = annualDividendKRW > 0;
+
+          return {
+            ...row,
+            quantity: estimate.estimatedQuantity ?? row.quantity,
+            quantityEstimated: estimate.estimatedQuantity !== undefined,
+            averageCost: estimate.estimatedAverageCost ?? row.averageCost,
+            averageCostCurrency: estimate.estimatedAverageCostCurrency ?? row.averageCostCurrency,
+            averageCostEstimated: estimate.estimatedAverageCost !== undefined,
+            currentPrice: estimate.currentPrice ?? row.currentPrice,
+            currentPriceCurrency: estimate.currentPriceCurrency ?? row.currentPriceCurrency,
+            currentPriceKRW: estimate.currentPriceKRW,
+            annualDividendKRW,
+            expectedYieldPct: row.valueKRW > 0 ? (annualDividendKRW / row.valueKRW) * 100 : 0,
+            myYieldPct: estimate.personalYieldPct ?? 0,
+            myYieldBasis: estimate.personalYieldBasis,
+            ttmDividendPerShare: estimate.ttmDividendPerShare,
+            ttmDividendCurrency: estimate.ttmDividendCurrency,
+            dividendMonths: estimate.dividendMonths,
+            estimateSource: estimate.estimateSource,
+            estimateWarnings: estimate.warnings,
+            isEstimated: estimate.isEstimated,
+            dividendDataStatus: hasDividendEstimate ? "available" : "unavailable",
+            dividendDataNote: hasDividendEstimate ? undefined : dividendNoteFromWarnings(estimate.warnings),
+          };
+        }),
+    [afterTax, marketData.dividends, marketData.fx, marketData.quotes],
+  );
+  const estimatedTaxableHoldings = useMemo(
+    () => enrichRows(dividendGroups.taxableHoldings),
+    [dividendGroups.taxableHoldings, enrichRows],
+  );
+  const estimatedTaxAdvantagedHoldings = useMemo(
+    () => enrichRows(dividendGroups.taxAdvantagedHoldings),
+    [dividendGroups.taxAdvantagedHoldings, enrichRows],
+  );
+  const dividendDataAvailable = useMemo(
+    () => [...estimatedTaxableHoldings, ...estimatedTaxAdvantagedHoldings].some((row) => row.dividendDataStatus === "available"),
+    [estimatedTaxAdvantagedHoldings, estimatedTaxableHoldings],
+  );
   const summaryRows = useMemo(
     () =>
       includeTaxAdvantagedInSummary
-        ? [...dividendGroups.taxableHoldings, ...dividendGroups.taxAdvantagedHoldings]
-        : dividendGroups.taxableHoldings,
-    [dividendGroups.taxAdvantagedHoldings, dividendGroups.taxableHoldings, includeTaxAdvantagedInSummary],
+        ? [...estimatedTaxableHoldings, ...estimatedTaxAdvantagedHoldings]
+        : estimatedTaxableHoldings,
+    [estimatedTaxAdvantagedHoldings, estimatedTaxableHoldings, includeTaxAdvantagedInSummary],
   );
   const chartRows = useMemo(
     () => [
-      ...(chartIncludesTaxable ? dividendGroups.taxableHoldings : []),
-      ...(chartIncludesTaxAdvantaged ? dividendGroups.taxAdvantagedHoldings : []),
+      ...(chartIncludesTaxable ? estimatedTaxableHoldings : []),
+      ...(chartIncludesTaxAdvantaged ? estimatedTaxAdvantagedHoldings : []),
     ],
     [
       chartIncludesTaxAdvantaged,
       chartIncludesTaxable,
-      dividendGroups.taxAdvantagedHoldings,
-      dividendGroups.taxableHoldings,
+      estimatedTaxAdvantagedHoldings,
+      estimatedTaxableHoldings,
     ],
   );
   const monthlyComposition = useMemo(() => buildMonthlyDividendsFromRows(chartRows), [chartRows]);
@@ -75,17 +248,15 @@ export default function DividendPage() {
   const annualDividendKRW = summaryRows.reduce((s, r) => s + r.annualDividendKRW, 0);
   const monthlyAvgKRW = annualDividendKRW / 12;
 
-  // 목표 달성률: 현재 목표티커 보유주수 / 목표주수
-  const price = MOCK_SHARE_PRICE_KRW[targetTicker] ?? 50_000;
-  const targetValue = holdings
-    .filter((h) => {
-      const tickerInfo = normalizeHoldingTickerInfo(h);
-      const dividendBucket = tickerInfo.dividendBucket ?? tickerInfo.quoteTicker ?? h.ticker;
-      return (dividendBucket || "").toUpperCase() === targetTicker.toUpperCase();
-    })
-    .reduce((s, h) => s + h.valueKRW, 0);
-  const currentShares = price > 0 ? targetValue / price : 0;
-  const achievementPct = targetQty > 0 ? (currentShares / targetQty) * 100 : 0;
+  const targetRows = [...estimatedTaxableHoldings, ...estimatedTaxAdvantagedHoldings]
+    .filter((row) => row.ticker.toUpperCase() === targetTicker.toUpperCase());
+  const currentShares = targetRows.reduce((sum, row) => (
+    Number.isFinite(row.quantity) && row.quantity && row.quantity > 0
+      ? sum + row.quantity
+      : sum
+  ), 0);
+  const hasTargetQuantity = currentShares > 0;
+  const achievementPct = hasTargetQuantity && targetQty > 0 ? (currentShares / targetQty) * 100 : 0;
 
   function setChartTaxable(checked: boolean) {
     if (!checked && !chartIncludesTaxAdvantaged) return;
@@ -117,9 +288,23 @@ export default function DividendPage() {
           achievementPct={achievementPct}
           afterTax={afterTax}
           includeTaxAdvantaged={includeTaxAdvantagedInSummary}
+          dividendDataAvailable={dividendDataAvailable}
           onToggleTax={setAfterTax}
           onToggleGroup={setIncludeTaxAdvantagedInSummary}
         />
+        <div className="mb-6 rounded-xl border border-amber-400/20 bg-amber-500/10 px-4 py-3 text-[13px] text-amber-200">
+          <div className="font-semibold">수량은 보유 평가금액과 현재가로 역산한 추정치입니다.</div>
+          <div className="mt-1 text-amber-100/90">
+            배당은 최근 12개월 실제 배당 이력 기준으로 계산합니다. 배당 이력이 없거나 quote/fx 조회가 실패한 종목은 예상 배당을 계산하지 않습니다.
+            {marketData.loading ? " 현재가와 배당 데이터를 불러오는 중입니다." : ""}
+          </div>
+          {marketData.warnings.length > 0 && (
+            <div className="mt-2 text-[12px] text-amber-100/80">
+              {marketData.warnings.slice(0, 3).join(" · ")}
+              {marketData.warnings.length > 3 ? ` 외 ${marketData.warnings.length - 3}건` : ""}
+            </div>
+          )}
+        </div>
 
         <MonthlyDividendChart
           data={monthlyComposition.data}
@@ -132,13 +317,15 @@ export default function DividendPage() {
         />
         <DividendHoldingsTable
           title="보유 배당(위탁)"
-          rows={dividendGroups.taxableHoldings}
+          rows={estimatedTaxableHoldings}
           totalKRW={dividendGroups.taxableTotalKRW}
+          loading={marketData.loading}
         />
         <DividendHoldingsTable
           title="보유 배당(절세)"
-          rows={dividendGroups.taxAdvantagedHoldings}
+          rows={estimatedTaxAdvantagedHoldings}
           totalKRW={dividendGroups.taxAdvantagedTotalKRW}
+          loading={marketData.loading}
         />
 
         {/* 목표 설정 카드 */}
@@ -169,10 +356,12 @@ export default function DividendPage() {
               <div className="flex flex-col justify-center rounded-lg bg-[#11181a] px-4 py-2">
                 <span className="text-[12.5px] text-slate-400">현재 달성률</span>
                 <span className="num text-[18px] font-extrabold text-blue-400">
-                  {formatPercent(achievementPct, 1)}
+                  {hasTargetQuantity ? formatPercent(achievementPct, 1) : "수량 정보 없음"}
                 </span>
                 <span className="num text-[11.5px] text-slate-500">
-                  보유 약 {Math.round(currentShares).toLocaleString("ko-KR")} / {targetQty.toLocaleString("ko-KR")}주
+                  {hasTargetQuantity
+                    ? `추정 ${currentShares.toLocaleString("ko-KR", { maximumFractionDigits: 2 })} / ${targetQty.toLocaleString("ko-KR")}주`
+                    : "평가금액 기준 추정수량이 필요합니다"}
                 </span>
               </div>
             </div>

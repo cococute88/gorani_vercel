@@ -59,7 +59,7 @@ export default function MonthlyDividendChart({
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 className="text-[15px] font-bold text-slate-300">월별 예상 배당금 구성</h2>
-            <p className="mt-1 text-[12px] text-slate-500">상위 배당 티커 기준 stacked composition</p>
+            <p className="mt-1 text-[12px] text-slate-500">최근 12개월 배당일 기준 추정 구성</p>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-3">
             <label className="flex items-center gap-1.5 text-[12.5px] text-slate-300">
@@ -83,20 +83,26 @@ export default function MonthlyDividendChart({
             <span className="text-[12px] text-slate-500">{afterTax ? "세후 기준" : "세전 기준"}</span>
           </div>
         </div>
-        <div className="h-[300px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data} margin={CHART_MARGIN}>
-              <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} vertical={false} />
-              <XAxis dataKey="label" tick={AXIS_TICK} tickLine={false} axisLine={AXIS_LINE} />
-              <YAxis tickFormatter={krwShort} tick={AXIS_TICK_SM} tickLine={false} axisLine={false} width={44} />
-              <Tooltip cursor={TOOLTIP_CURSOR_FILL} contentStyle={TOOLTIP_STYLE} formatter={tooltipFormatter} />
-              <Legend wrapperStyle={{ color: "#94a3b8", fontSize: 12 }} />
-              {tickers.map((ticker, index) => (
-                <Bar key={ticker} dataKey={ticker} stackId="dividend" fill={COLORS[index % COLORS.length]} radius={index === tickers.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]} />
-              ))}
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+        {tickers.length === 0 ? (
+          <div className="flex h-[220px] items-center justify-center rounded-lg border border-dashed border-[#344044] bg-[#121819] px-4 text-center text-[13px] text-slate-400">
+            배당 이력 데이터가 없어 월별 예상 배당금을 계산하지 않습니다.
+          </div>
+        ) : (
+          <div className="h-[300px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={data} margin={CHART_MARGIN}>
+                <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} vertical={false} />
+                <XAxis dataKey="label" tick={AXIS_TICK} tickLine={false} axisLine={AXIS_LINE} />
+                <YAxis tickFormatter={krwShort} tick={AXIS_TICK_SM} tickLine={false} axisLine={false} width={44} />
+                <Tooltip cursor={TOOLTIP_CURSOR_FILL} contentStyle={TOOLTIP_STYLE} formatter={tooltipFormatter} />
+                <Legend wrapperStyle={{ color: "#94a3b8", fontSize: 12 }} />
+                {tickers.map((ticker, index) => (
+                  <Bar key={ticker} dataKey={ticker} stackId="dividend" fill={COLORS[index % COLORS.length]} radius={index === tickers.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]} />
+                ))}
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </div>
     </section>
   );

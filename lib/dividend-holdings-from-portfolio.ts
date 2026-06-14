@@ -1,5 +1,6 @@
 import { buildDividendHoldingRows, type DividendHoldingRow } from "./mock-dividend-data";
 import { normalizeHoldingTickerInfo } from "./holding-ticker-normalizer";
+import { applyKrxTickerMappingsToHoldings, type KrxTickerNameMap } from "./krx-ticker-name-map";
 import { parsePortfolioTags } from "./portfolio-tags";
 import type { Holding, PortfolioSnapshot } from "./portfolio-types";
 
@@ -9,6 +10,28 @@ export type DividendHoldingGroupResult = {
   taxableTotalKRW: number;
   taxAdvantagedTotalKRW: number;
   warnings: string[];
+  coverage: DividendHoldingCoverage;
+  mappedTickerCount: number;
+  dividendDataAvailable: boolean;
+};
+
+export type DividendHoldingCoverage = {
+  total: number;
+  ticker: number;
+  productName: number;
+  cleanName: number;
+  quantity: number;
+  averagePrice: number;
+  currentPrice: number;
+  valueKRW: number;
+  principalKRW: number;
+  currency: number;
+  accountName: number;
+  accountGroup: number;
+  broker: number;
+  assetType: number;
+  tag: number;
+  purposeGroup: number;
 };
 
 const TAXABLE_MIN_VALUE_KRW = 200_000;
@@ -94,6 +117,82 @@ function fieldsOf(holding: Holding): string[] {
   ];
 
   return fieldNames.flatMap((fieldName) => stringifyUnknown(generic[fieldName]));
+}
+
+function hasFiniteNumber(value: unknown): boolean {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+function hasText(value: unknown): boolean {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+export function normalizeDividendHoldingInput(holdings: Holding[], tickerNameMap?: KrxTickerNameMap): {
+  holdings: Holding[];
+  mappedTickerCount: number;
+} {
+  const mapped = applyKrxTickerMappingsToHoldings(holdings, tickerNameMap);
+  return {
+    holdings: mapped.holdings,
+    mappedTickerCount: mapped.appliedCount,
+  };
+}
+
+export function getDividendHoldingCoverage(holdings: Holding[]): DividendHoldingCoverage {
+  return holdings.reduce<DividendHoldingCoverage>(
+    (coverage, holding) => {
+      const extras = holding as Holding & Record<string, unknown>;
+      coverage.total += 1;
+      if (hasText(holding.ticker)) coverage.ticker += 1;
+      if (hasText(holding.productName)) coverage.productName += 1;
+      if (hasText(holding.cleanName)) coverage.cleanName += 1;
+      if (hasFiniteNumber(holding.quantity)) coverage.quantity += 1;
+      if (
+        hasFiniteNumber(holding.averagePrice) ||
+        hasFiniteNumber(extras.averageCost) ||
+        hasFiniteNumber(extras.averageCostKRW) ||
+        hasFiniteNumber(extras.averageCostUSD) ||
+        hasFiniteNumber(extras.avgPrice)
+      ) {
+        coverage.averagePrice += 1;
+      }
+      if (
+        hasFiniteNumber(holding.currentPrice) ||
+        hasFiniteNumber(extras.currentPriceKRW) ||
+        hasFiniteNumber(extras.currentPriceUSD)
+      ) {
+        coverage.currentPrice += 1;
+      }
+      if (hasFiniteNumber(holding.valueKRW)) coverage.valueKRW += 1;
+      if (hasFiniteNumber(holding.principalKRW)) coverage.principalKRW += 1;
+      if (hasText(holding.currency)) coverage.currency += 1;
+      if (hasText(holding.accountName)) coverage.accountName += 1;
+      if (hasText(holding.accountGroup)) coverage.accountGroup += 1;
+      if (hasText(holding.broker)) coverage.broker += 1;
+      if (hasText(holding.assetType)) coverage.assetType += 1;
+      if (hasText(holding.tag)) coverage.tag += 1;
+      if (hasText(holding.purposeGroup)) coverage.purposeGroup += 1;
+      return coverage;
+    },
+    {
+      total: 0,
+      ticker: 0,
+      productName: 0,
+      cleanName: 0,
+      quantity: 0,
+      averagePrice: 0,
+      currentPrice: 0,
+      valueKRW: 0,
+      principalKRW: 0,
+      currency: 0,
+      accountName: 0,
+      accountGroup: 0,
+      broker: 0,
+      assetType: 0,
+      tag: 0,
+      purposeGroup: 0,
+    },
+  );
 }
 
 function searchableTextOf(holding: Holding): string {
@@ -290,8 +389,11 @@ function classifyDividendHolding(holding: Holding, originalIndex: number): Divid
 export function buildDividendHoldingGroupsFromHoldings(
   holdings: Holding[],
   afterTax = false,
+  tickerNameMap?: KrxTickerNameMap,
 ): DividendHoldingGroupResult {
-  const classified = holdings.map((holding, originalIndex) => ({
+  const normalizedInput = normalizeDividendHoldingInput(holdings, tickerNameMap);
+  const normalizedHoldings = normalizedInput.holdings;
+  const classified = normalizedHoldings.map((holding, originalIndex) => ({
     holding,
     classification: classifyDividendHolding(holding, originalIndex),
   }));
@@ -303,11 +405,20 @@ export function buildDividendHoldingGroupsFromHoldings(
     .map(({ holding, classification }) => withDividendDisplayTicker(holding, classification.displayTicker as string));
   const warnings = Array.from(
     new Set(
-      classified
+      [
+        ...(normalizedInput.mappedTickerCount > 0
+          ? [`TICKER-4 name mapping applied to ${normalizedInput.mappedTickerCount} dividend holding(s).`]
+          : []),
+        "Dividend yield and expected dividend data are unavailable; mock yield values are not used.",
+        ...classified
         .filter(({ classification }) => classification.exclusionReasons.length > 0)
         .flatMap(({ holding, classification }) =>
           classification.exclusionReasons.map((reason) => `${holding.productName}: ${reason}`),
         ),
+        ...classified
+          .filter(({ classification }) => classification.quoteTicker?.match(/\.(KS|KQ)$/))
+          .map(({ holding, classification }) => `${holding.productName}: KRX ticker ${classification.quoteTicker} may not be supported by dividend quote data.`),
+      ],
     ),
   );
 
@@ -317,6 +428,9 @@ export function buildDividendHoldingGroupsFromHoldings(
     taxableTotalKRW: taxableSourceHoldings.reduce((sum, holding) => sum + holding.valueKRW, 0),
     taxAdvantagedTotalKRW: taxAdvantagedSourceHoldings.reduce((sum, holding) => sum + holding.valueKRW, 0),
     warnings,
+    coverage: getDividendHoldingCoverage(normalizedHoldings),
+    mappedTickerCount: normalizedInput.mappedTickerCount,
+    dividendDataAvailable: false,
   };
 }
 
@@ -331,6 +445,9 @@ export function buildDividendHoldingGroupsFromSnapshot(
       taxableTotalKRW: 0,
       taxAdvantagedTotalKRW: 0,
       warnings: ["No portfolio snapshot is available for dividend holding classification."],
+      coverage: getDividendHoldingCoverage([]),
+      mappedTickerCount: 0,
+      dividendDataAvailable: false,
     };
   }
 
