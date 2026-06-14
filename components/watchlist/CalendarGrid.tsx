@@ -73,7 +73,9 @@ export default function CalendarGrid({
         {cells.map((cell) => {
           const dayEvents = eventsByDate.get(cell.isoDate) ?? [];
           const dayCustom = customByDate.get(cell.isoDate) ?? [];
-          const shown = dayEvents.slice(0, 2);
+          // Show up to three event chips per cell (date + custom/economic text
+          // line stays on top); anything beyond three collapses into a "+N" pill.
+          const shown = dayEvents.slice(0, 3);
           const extra = dayEvents.length - shown.length;
           const selected = selectedDate === cell.isoDate;
           const isToday = todayIso === cell.isoDate;

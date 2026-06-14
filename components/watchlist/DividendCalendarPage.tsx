@@ -44,6 +44,10 @@ interface Props {
   tickerManager: ReactNode;
   headerAccessory?: ReactNode;
   onManagePortfolio?: () => void;
+  // Legacy/imported 종목 메모 (ticker → memo). Already resolved by the parent; the
+  // selected-date card shows it when present. The memo source/matching wiring is
+  // tracked separately (CALENDAR-MEMO-SOURCE-FIX-1) and untouched here.
+  tickerMemos?: Record<string, string>;
 }
 
 const CALENDAR_EVENT_META_STORAGE_KEY = STORAGE_KEYS.calendarEventMeta;
@@ -68,7 +72,7 @@ function resolveCalendarEventMeta(event: CalendarEvent, metas: Record<string, Ca
   return undefined;
 }
 
-export default function DividendCalendarPage({ tickers, tickerManager, headerAccessory, onManagePortfolio }: Props) {
+export default function DividendCalendarPage({ tickers, tickerManager, headerAccessory, onManagePortfolio, tickerMemos }: Props) {
   const { user } = useFirebaseAuth();
   const today = new Date();
   const todayIso = formatIsoDate(today);
@@ -343,6 +347,16 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
     [monthEvents, taxQuoteByTicker, taxQuoteLoadingTickers, todayIso],
   );
 
+  // Per-ticker tax-saving estimate (현시세 기준 · 만달러당) reused for the
+  // selected-date cards — same source as the right-rail 절세액 table.
+  const taxSavingByTicker = useMemo(() => {
+    const map: Record<string, { taxSavingUsd: number; canCalculate: boolean; isLoading?: boolean }> = {};
+    for (const row of taxRows) {
+      map[row.ticker] = { taxSavingUsd: row.taxSavingUsd, canCalculate: row.canCalculate, isLoading: row.isLoading };
+    }
+    return map;
+  }, [taxRows]);
+
   const moveMonth = (delta: number) => {
     setMonth((current) => new Date(current.getFullYear(), current.getMonth() + delta, 1));
   };
@@ -432,7 +446,14 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
             onNextMonth={() => moveMonth(1)}
             onToday={goToday}
           />
-          <SelectedDateList selectedDate={selectedDate} events={selectedEvents} todayIso={todayIso} onOpenEvent={handleOpenEvent} />
+          <SelectedDateList
+            selectedDate={selectedDate}
+            events={selectedEvents}
+            todayIso={todayIso}
+            onOpenEvent={handleOpenEvent}
+            taxSavingByTicker={taxSavingByTicker}
+            tickerMemos={tickerMemos}
+          />
         </div>
         <aside className="xl:sticky xl:top-4">
           <TaxSavingTable rows={taxRows} />
