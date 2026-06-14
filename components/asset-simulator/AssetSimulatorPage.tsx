@@ -18,8 +18,10 @@ import SimulatorMetricCards from "./SimulatorMetricCards";
 import SimulatorPreviewNotice from "./SimulatorPreviewNotice";
 import YearPlanTable from "./YearPlanTable";
 import SimulatorResultTabs from "./SimulatorResultTabs";
+import { useResolvedTheme } from "@/components/theme/ThemeProvider";
 
 export default function AssetSimulatorPage() {
+  const theme = useResolvedTheme();
   const { user, configured } = useFirebaseAuth();
   const [inputs, setInputs] = useState<SimulatorInputs>(DEFAULT_SIMULATOR_INPUTS);
   const [yearPlans, setYearPlans] = useState<YearPlanRow[]>(DEFAULT_YEAR_PLANS);
@@ -120,15 +122,15 @@ export default function AssetSimulatorPage() {
   };
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-[#111516] text-slate-200">
-      <TopNav theme="dark" />
+    <div className="min-h-screen overflow-x-hidden bg-[#f8fafc] text-slate-800 dark:bg-[#111516] dark:text-slate-200">
+      <TopNav theme={theme} />
       <main className="mx-auto w-full max-w-[1640px] px-4 py-6 sm:px-6 lg:px-8">
         <div className="mb-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h1 className="text-[22px] font-extrabold text-white">자산 시뮬레이터</h1>
+            <h1 className="text-[22px] font-extrabold text-slate-900 dark:text-white">자산 시뮬레이터</h1>
             <StorageModeBadge />
           </div>
-          <p className="mt-2 max-w-3xl text-[13.5px] leading-6 text-slate-400">
+          <p className="mt-2 max-w-3xl text-[13.5px] leading-6 text-slate-500 dark:text-slate-400">
             기존 Streamlit 자산 시뮬레이터의 계산 흐름과 결과 구성을 현재 Vercel 다크 UI에 맞춰 재구현했습니다.
           </p>
         </div>

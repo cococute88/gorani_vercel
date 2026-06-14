@@ -41,6 +41,9 @@ require.extensions[".ts"] = function transpileTypeScript(module, filename) {
 const {
   buildDividendHoldingGroupsFromHoldings,
 } = require("../lib/dividend-holdings-from-portfolio.ts");
+const {
+  dividendHoldingWeightPct,
+} = require("../lib/mock-dividend-data.ts");
 
 let seq = 0;
 function holding(overrides) {
@@ -490,6 +493,93 @@ function assertStrictMixedTotals() {
   };
 }
 
+function assertQuantityAverageCostCurrentPricePreserved() {
+  const result = buildDividendHoldingGroupsFromHoldings([
+    holding({
+      productName: "①SPY ②위탁 SPDR S&P 500",
+      ticker: "SPY",
+      valueKRW: 3_000_000,
+      quantity: 19,
+      averageCost: 330.69,
+      currentPrice: 390.74,
+      currency: "USD",
+    }),
+  ]);
+
+  assert.equal(result.taxableHoldings.length, 1);
+  assert.equal(result.taxableHoldings[0].quantity, 19);
+  assert.equal(result.taxableHoldings[0].averageCost, 330.69);
+  assert.equal(result.taxableHoldings[0].averageCostCurrency, "USD");
+  assert.equal(result.taxableHoldings[0].currentPrice, 390.74);
+  assert.equal(result.taxableHoldings[0].currentPriceCurrency, "USD");
+
+  return {
+    case: "quantity/avg/current preserved",
+    quantity: result.taxableHoldings[0].quantity,
+    averageCost: result.taxableHoldings[0].averageCost,
+    currentPrice: result.taxableHoldings[0].currentPrice,
+  };
+}
+
+function assertMissingQuantityAverageCostStayMissing() {
+  const result = buildDividendHoldingGroupsFromHoldings([
+    holding({
+      productName: "①SCHD ②위탁 Schwab US Dividend Equity",
+      ticker: "SCHD",
+      valueKRW: 1_000_000,
+    }),
+  ]);
+
+  assert.equal(result.taxableHoldings.length, 1);
+  assert.equal(result.taxableHoldings[0].quantity, undefined);
+  assert.equal(result.taxableHoldings[0].averageCost, undefined);
+
+  return {
+    case: "missing quantity/avg remain undefined",
+    quantityDisplay: "—",
+    averageCostDisplay: "—",
+  };
+}
+
+function assertDividendHoldingWeightCalculation() {
+  const result = buildDividendHoldingGroupsFromHoldings([
+    holding({ productName: "①SPY ②위탁 A", ticker: "SPY", valueKRW: 3_000_000 }),
+    holding({ productName: "①SCHD ②위탁 B", ticker: "SCHD", valueKRW: 1_000_000 }),
+  ]);
+
+  assert.equal(result.taxableHoldings.length, 2);
+  const byName = Object.fromEntries(result.taxableHoldings.map((row) => [row.name, row]));
+  assert.equal(dividendHoldingWeightPct(byName["①SPY ②위탁 A"], result.taxableTotalKRW), 75);
+  assert.equal(dividendHoldingWeightPct(byName["①SCHD ②위탁 B"], result.taxableTotalKRW), 25);
+  assert.equal(dividendHoldingWeightPct(byName["①SPY ②위탁 A"], 0), null);
+
+  return {
+    case: "table weight calculation",
+    aWeightPct: dividendHoldingWeightPct(byName["①SPY ②위탁 A"], result.taxableTotalKRW),
+    bWeightPct: dividendHoldingWeightPct(byName["①SCHD ②위탁 B"], result.taxableTotalKRW),
+  };
+}
+
+function assertDuplicateSpyRowsStillSeparate() {
+  const result = buildDividendHoldingGroupsFromHoldings([
+    holding({ productName: "①SPY ②위탁 SPY lot A", ticker: "SPY", valueKRW: 3_000_000 }),
+    holding({ productName: "①SPY ②위탁 SPY lot B", ticker: "SPY", valueKRW: 1_000_000 }),
+  ]);
+
+  assert.equal(result.taxableHoldings.length, 2);
+  assert.deepEqual(result.taxableHoldings.map((row) => row.ticker), ["SPY", "SPY"]);
+  assert.deepEqual(result.taxableHoldings.map((row) => row.name), [
+    "①SPY ②위탁 SPY lot A",
+    "①SPY ②위탁 SPY lot B",
+  ]);
+
+  return {
+    case: "duplicate SPY rows still separate",
+    taxableRows: result.taxableHoldings.length,
+    tickers: result.taxableHoldings.map((row) => row.ticker).join(", "),
+  };
+}
+
 function main() {
   const rows = [
     assertTaxableInclude(),
@@ -519,6 +609,10 @@ function main() {
     assertKoreanEtfQuoteTickerUsesDividendBucket(),
     assertVisibleTotalsMatchRows(),
     assertStrictMixedTotals(),
+    assertQuantityAverageCostCurrentPricePreserved(),
+    assertMissingQuantityAverageCostStayMissing(),
+    assertDividendHoldingWeightCalculation(),
+    assertDuplicateSpyRowsStillSeparate(),
   ];
 
   console.log("Dividend holdings group regression passed.");

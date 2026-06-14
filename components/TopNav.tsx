@@ -4,9 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Bell } from "lucide-react";
 import { NAV_ITEMS } from "@/lib/mockData";
 import LoginButton from "@/components/auth/LoginButton";
+import ThemeToggle from "@/components/theme/ThemeToggle";
+import StorageModeBadge from "@/components/common/StorageModeBadge";
 
 // Safe initial count: always small enough to never overflow on first paint,
 // the ResizeObserver expands it on mount.
@@ -85,8 +86,9 @@ export default function TopNav({ theme = "dark" }: Props) {
   }, []);
 
   const isLight = theme === "light";
-  const barBg = isLight ? "bg-[#0f1729]" : "bg-[#0c1011]";
-  const border = isLight ? "border-[#1e293b]" : "border-[#1c2426]";
+  // THEME-2: light header is genuinely light (white bar, dark text), not navy.
+  const barBg = isLight ? "bg-white" : "bg-[#0c1011]";
+  const border = isLight ? "border-slate-200" : "border-[#1c2426]";
   const visibleItems = NAV_ITEMS.slice(0, visibleCount);
   const hiddenItems = NAV_ITEMS.slice(visibleCount);
 
@@ -100,14 +102,18 @@ export default function TopNav({ theme = "dark" }: Props) {
     } ${
       active
         ? "bg-blue-600 text-white"
-        : "text-slate-300 hover:bg-white/10 hover:text-white"
+        : isLight
+          ? "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+          : "text-slate-300 hover:bg-white/10 hover:text-white"
     }`;
 
   const moreButtonClass = (active: boolean) =>
     `shrink-0 rounded-full border px-3 py-1.5 text-[13px] font-semibold transition-colors lg:rounded-md ${
       active
         ? "border-blue-400/50 bg-blue-600 text-white"
-        : "border-blue-500/30 bg-blue-600/15 text-blue-200 hover:bg-blue-600/25"
+        : isLight
+          ? "border-blue-500/30 bg-blue-50 text-blue-700 hover:bg-blue-100"
+          : "border-blue-500/30 bg-blue-600/15 text-blue-200 hover:bg-blue-600/25"
     }`;
 
   return (
@@ -125,18 +131,21 @@ export default function TopNav({ theme = "dark" }: Props) {
             height={28}
             className="h-7 w-7 rounded-full object-contain"
           />
-          <span className="text-[17px] font-extrabold tracking-tight text-white">
+          <span
+            className={`text-[17px] font-extrabold tracking-tight ${
+              isLight ? "text-slate-900" : "text-white"
+            }`}
+          >
             GORAFI
           </span>
         </Link>
 
         {/* 우측 컨트롤 (좁은 폭: 1행 우측 / lg: 행 끝) */}
         <div className="order-2 ml-auto flex shrink-0 items-center gap-1.5 lg:order-3 lg:ml-2 lg:gap-2">
+          {/* 저장 모드 상태: 넓은 화면에서만 노출해 헤더가 과해지지 않도록 함 */}
+          <StorageModeBadge className="hidden xl:inline-flex" />
+          <ThemeToggle />
           <LoginButton />
-          <button className="relative flex h-8 w-8 items-center justify-center rounded-md text-slate-300 hover:bg-white/10">
-            <Bell size={15} />
-            <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-red-500" />
-          </button>
         </div>
 
         {/* 네비게이션 (좁은 폭: 2행 전체 폭 / lg: 1행 가운데 flex-1) */}
@@ -193,8 +202,18 @@ export default function TopNav({ theme = "dark" }: Props) {
 
       {/* 더보기 패널: 숨겨진 항목 노출 */}
       {menuOpen && hiddenItems.length > 0 && (
-        <div className="border-t border-white/10 px-3 pb-3 sm:px-5">
-          <div className="mx-auto grid w-full max-w-[1640px] grid-cols-2 gap-1.5 rounded-2xl border border-[#22303a] bg-[#101719] p-2 shadow-2xl sm:grid-cols-[repeat(auto-fit,minmax(150px,1fr))]">
+        <div
+          className={`border-t px-3 pb-3 sm:px-5 ${
+            isLight ? "border-slate-200" : "border-white/10"
+          }`}
+        >
+          <div
+            className={`mx-auto grid w-full max-w-[1640px] grid-cols-2 gap-1.5 rounded-2xl border p-2 shadow-2xl sm:grid-cols-[repeat(auto-fit,minmax(150px,1fr))] ${
+              isLight
+                ? "border-slate-200 bg-white"
+                : "border-[#22303a] bg-[#101719]"
+            }`}
+          >
             {hiddenItems.map((item) => {
               const active = isActive(item.href);
               return (

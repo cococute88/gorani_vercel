@@ -26,6 +26,7 @@ import SnapshotHistory from "./SnapshotHistory";
 import PortfolioPerformanceChart from "./PortfolioPerformanceChart";
 import PortfolioQuoteStatusPanel from "./PortfolioQuoteStatusPanel";
 import AssetMapSection from "@/components/asset-map/AssetMapSection";
+import { useResolvedTheme } from "@/components/theme/ThemeProvider";
 
 function snapshotToResult(s: PortfolioSnapshot): ParseResult {
   return {
@@ -217,16 +218,17 @@ export default function PortfolioPage() {
   }, [previewSnapshot, previewSnapshotId]);
 
   const canRegister = useMemo(() => !!result && result.ok, [result]);
+  const theme = useResolvedTheme();
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-[#111516] text-slate-200">
-      <TopNav theme="dark" />
+    <div className="min-h-screen overflow-x-hidden bg-[#f8fafc] text-slate-800 dark:bg-[#111516] dark:text-slate-200">
+      <TopNav theme={theme} />
       <main className="mx-auto w-full min-w-0 max-w-[1640px] overflow-x-hidden px-4 py-6 sm:px-6 lg:px-8">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-[20px] font-extrabold text-white">포트폴리오 관리</h1>
+          <h1 className="text-[20px] font-extrabold text-slate-900 dark:text-white">포트폴리오 관리</h1>
           <StorageModeBadge />
         </div>
-        <p className="mb-4 rounded-2xl border border-[#273032] bg-[#171d1e] px-4 py-3 text-[13px] text-slate-400">
+        <p className="mb-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-[13px] text-slate-500 dark:border-[#273032] dark:bg-[#171d1e] dark:text-slate-400">
           {user
             ? "로그인 상태에서는 Firestore에 저장돼요."
             : configured
@@ -249,8 +251,8 @@ export default function PortfolioPage() {
         <section className="mb-6">
           {previewSnapshot && (
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-blue-500/20 bg-blue-500/10 px-4 py-3">
-              <span className="break-keep text-[12.5px] text-blue-100">
-                스냅샷 미리보기 중: <b className="text-white">{previewSnapshot.snapshotDate}</b>
+              <span className="break-keep text-[12.5px] text-blue-700 dark:text-blue-100">
+                스냅샷 미리보기 중: <b className="text-blue-900 dark:text-white">{previewSnapshot.snapshotDate}</b>
               </span>
               <button
                 type="button"

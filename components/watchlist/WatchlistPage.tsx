@@ -10,6 +10,7 @@ import { deleteCalendarTicker, loadCalendarTickers, saveCalendarTicker, warnFire
 import { STORAGE_KEYS } from "@/lib/storage-keys";
 import DividendCalendarPage from "./DividendCalendarPage";
 import TickerManager from "./TickerManager";
+import { useResolvedTheme } from "@/components/theme/ThemeProvider";
 
 const WATCHLIST_STORAGE_KEY = STORAGE_KEYS.calendarTickers;
 
@@ -27,6 +28,7 @@ function uniqUpper(arr: string[]): string[] {
 }
 
 export default function WatchlistPage() {
+  const theme = useResolvedTheme();
   const { user } = useFirebaseAuth();
   const snapshots = usePortfolioSnapshots();
   const portfolioTickers = useMemo(() => {
@@ -111,8 +113,8 @@ export default function WatchlistPage() {
   );
 
   return (
-    <div className="min-h-screen bg-[#111516] text-slate-200">
-      <TopNav theme="dark" />
+    <div className="min-h-screen bg-[#f8fafc] text-slate-800 dark:bg-[#111516] dark:text-slate-200">
+      <TopNav theme={theme} />
       <main className="mx-auto max-w-[1280px] px-3 py-4 sm:px-5 sm:py-6 lg:px-8">
         <DividendCalendarPage
           tickers={tickers}

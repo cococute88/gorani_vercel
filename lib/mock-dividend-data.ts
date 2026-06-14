@@ -177,11 +177,71 @@ export function buildMonthlyDividendsFromRows(
 export interface DividendHoldingRow {
   ticker: string;
   name: string;
+  quantity?: number;
+  averageCost?: number;
+  averageCostCurrency?: string;
+  currentPrice?: number;
+  currentPriceCurrency?: string;
   valueKRW: number;
   annualDividendKRW: number;
   expectedYieldPct: number; // 예상 배당률
   myYieldPct: number; // 내 배당률 (원금 대비)
   tag?: string;
+}
+
+function finiteNumber(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function normalizeCurrency(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const normalized = value.trim().toUpperCase();
+  if (normalized === "USD" || normalized === "$") return "USD";
+  if (normalized === "KRW" || normalized === "₩") return "KRW";
+  return normalized || undefined;
+}
+
+function inferredTickerCurrency(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const ticker = value.trim().toUpperCase();
+  if (/\.(KS|KQ)$/.test(ticker)) return "KRW";
+  if (/^[A-Z]{1,5}$/.test(ticker)) return "USD";
+  return undefined;
+}
+
+function readAverageCost(holding: Holding): Pick<DividendHoldingRow, "averageCost" | "averageCostCurrency"> {
+  const extras = holding as Holding & Record<string, unknown>;
+  const averageCostUSD = finiteNumber(extras.averageCostUSD);
+  if (averageCostUSD !== undefined) return { averageCost: averageCostUSD, averageCostCurrency: "USD" };
+
+  const averageCostKRW = finiteNumber(extras.averageCostKRW);
+  if (averageCostKRW !== undefined) return { averageCost: averageCostKRW, averageCostCurrency: "KRW" };
+
+  const averageCost = finiteNumber(extras.averageCost) ?? finiteNumber(extras.avgPrice);
+  if (averageCost === undefined) return {};
+  return { averageCost, averageCostCurrency: normalizeCurrency(holding.currency) };
+}
+
+function readCurrentPrice(holding: Holding): Pick<DividendHoldingRow, "currentPrice" | "currentPriceCurrency"> {
+  const extras = holding as Holding & Record<string, unknown>;
+  const currentPriceUSD = finiteNumber(extras.currentPriceUSD);
+  if (currentPriceUSD !== undefined) return { currentPrice: currentPriceUSD, currentPriceCurrency: "USD" };
+
+  const currentPriceKRW = finiteNumber(extras.currentPriceKRW);
+  if (currentPriceKRW !== undefined) return { currentPrice: currentPriceKRW, currentPriceCurrency: "KRW" };
+
+  const currentPrice = finiteNumber(holding.currentPrice);
+  if (currentPrice === undefined) return {};
+  const quoteTicker = typeof extras.quoteTicker === "string" ? extras.quoteTicker : undefined;
+  return {
+    currentPrice,
+    currentPriceCurrency: normalizeCurrency(holding.currency) ?? inferredTickerCurrency(quoteTicker ?? holding.ticker),
+  };
+}
+
+export function dividendHoldingWeightPct(row: Pick<DividendHoldingRow, "valueKRW">, tableTotalKRW: number): number | null {
+  if (!Number.isFinite(tableTotalKRW) || tableTotalKRW <= 0) return null;
+  return (row.valueKRW / tableTotalKRW) * 100;
 }
 
 export function buildDividendHoldingRows(
@@ -196,6 +256,9 @@ export function buildDividendHoldingRows(
     return {
       ticker,
       name: h.productName,
+      quantity: h.quantity,
+      ...readAverageCost(h),
+      ...readCurrentPrice(h),
       valueKRW: h.valueKRW,
       annualDividendKRW: annual,
       expectedYieldPct: y,

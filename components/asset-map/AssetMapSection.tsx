@@ -10,6 +10,7 @@ import type { Slice } from "@/lib/mockData";
 import { latestOf, usePortfolioSnapshots } from "@/lib/portfolio-store";
 import { filterAggregateHoldings } from "@/lib/portfolio-summary-row";
 import { SECTOR_ALLOCATION, SECTOR_FILTERS } from "@/lib/mockData";
+import { useResolvedTheme } from "@/components/theme/ThemeProvider";
 
 const SECTOR_COLORS = [
   "#2563eb",
@@ -32,6 +33,7 @@ const SECTOR_COLORS = [
 
 // 포트폴리오 관리 하단의 자산 맵 / ETF 투시 섹션.
 export default function AssetMapSection() {
+  const theme = useResolvedTheme();
   const snapshots = usePortfolioSnapshots();
   const latestSnapshot = useMemo(() => latestOf(snapshots), [snapshots]);
   const portfolioHoldings = useMemo(
@@ -102,10 +104,10 @@ export default function AssetMapSection() {
     : null;
 
   return (
-    <section className="mt-8 border-t border-[#242938] pt-6">
+    <section className="mt-8 border-t border-slate-200 pt-6 dark:border-[#242938]">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-baseline gap-3">
-          <h2 className="text-[20px] font-extrabold text-white">자산 맵</h2>
+          <h2 className="text-[20px] font-extrabold text-slate-900 dark:text-white">자산 맵</h2>
           <span className="text-[12.5px] text-slate-500">포트폴리오 관리 하단</span>
         </div>
       </div>
@@ -114,24 +116,24 @@ export default function AssetMapSection() {
         {statusText}{warningText}
       </div>
 
-      <div className="mb-5 rounded-xl border border-[#2a3336] bg-[#191f20] px-4 py-3">
-        <span className="text-[13px] font-medium text-slate-300">
+      <div className="mb-5 rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-[#2a3336] dark:bg-[#191f20]">
+        <span className="text-[13px] font-medium text-slate-600 dark:text-slate-300">
           {coverageText}
           {analyzedText ? (
             <>
-              {" "}· <b className="text-white">{analyzedText}</b>
+              {" "}· <b className="text-slate-900 dark:text-white">{analyzedText}</b>
             </>
           ) : null}
         </span>
       </div>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,420px)_1fr]">
-        <div className="rounded-2xl border border-[#2a3336] bg-[#191f20] p-5">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-[#2a3336] dark:bg-[#191f20]">
           <div className="-m-5">
             <DonutChartCard
               title="섹터 비중"
               data={sectorAllocation}
-              theme="dark"
+              theme={theme}
               size={150}
               centerLabel="섹터"
               centerValue={`${sectorAllocation.length}개`}

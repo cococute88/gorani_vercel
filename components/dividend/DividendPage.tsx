@@ -16,8 +16,10 @@ import DividendSummaryCards from "./DividendSummaryCards";
 import MonthlyDividendChart from "./MonthlyDividendChart";
 import DividendHoldingsTable from "./DividendHoldingsTable";
 import DividendPerformanceSection from "./DividendPerformanceSection";
+import { useResolvedTheme } from "@/components/theme/ThemeProvider";
 
-const card = "rounded-2xl border border-[#2a3336] bg-[#191f20] p-5";
+const card =
+  "rounded-2xl border border-slate-200 bg-white p-5 dark:border-[#2a3336] dark:bg-[#191f20]";
 
 // 목표 달성률 계산용 주당 단가 (mock, KRW). TODO(codex): 실시세 연결.
 const MOCK_SHARE_PRICE_KRW: Record<string, number> = {
@@ -30,6 +32,7 @@ const MOCK_SHARE_PRICE_KRW: Record<string, number> = {
 };
 
 export default function DividendPage() {
+  const theme = useResolvedTheme();
   const snapshots = usePortfolioSnapshots();
   const [afterTax, setAfterTax] = useState(true);
   const [includeTaxAdvantagedInSummary, setIncludeTaxAdvantagedInSummary] = useState(false);
@@ -95,11 +98,11 @@ export default function DividendPage() {
   }
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-[#111516] text-slate-200">
-      <TopNav theme="dark" />
+    <div className="min-h-screen overflow-x-hidden bg-[#f8fafc] text-slate-800 dark:bg-[#111516] dark:text-slate-200">
+      <TopNav theme={theme} />
       <main className="mx-auto w-full min-w-0 max-w-[1640px] overflow-x-hidden px-4 py-6 sm:px-6 lg:px-8">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-[20px] font-extrabold text-white">배당</h1>
+          <h1 className="text-[20px] font-extrabold text-slate-900 dark:text-white">배당</h1>
           {!hasSnapshotHoldings && (
             <span className="rounded-md bg-amber-500/10 px-2.5 py-1 text-[12px] text-amber-400">
               등록된 스냅샷이 없어 보유 배당 그룹이 비어 있습니다
@@ -143,7 +146,7 @@ export default function DividendPage() {
           <div className={card}>
             <div className="mb-4 flex items-center gap-2">
               <Target size={16} className="text-blue-400" />
-              <h2 className="text-[15px] font-bold text-slate-300">배당 목표 설정</h2>
+              <h2 className="text-[15px] font-bold text-slate-700 dark:text-slate-300">배당 목표 설정</h2>
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <label className="block">
@@ -151,7 +154,7 @@ export default function DividendPage() {
                 <input
                   value={targetTicker}
                   onChange={(e) => setTargetTicker(e.target.value.toUpperCase())}
-                  className="mt-1 w-full rounded-lg border border-[#2a3336] bg-[#11181a] px-3 py-2 text-[14px] text-white outline-none focus:border-blue-500"
+                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-[14px] text-slate-900 outline-none focus:border-blue-500 dark:border-[#2a3336] dark:bg-[#11181a] dark:text-white"
                 />
               </label>
               <label className="block">
@@ -160,7 +163,7 @@ export default function DividendPage() {
                   type="number"
                   value={targetQty}
                   onChange={(e) => setTargetQty(Number(e.target.value) || 0)}
-                  className="num mt-1 w-full rounded-lg border border-[#2a3336] bg-[#11181a] px-3 py-2 text-[14px] text-white outline-none focus:border-blue-500"
+                  className="num mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-[14px] text-slate-900 outline-none focus:border-blue-500 dark:border-[#2a3336] dark:bg-[#11181a] dark:text-white"
                 />
               </label>
               <div className="flex flex-col justify-center rounded-lg bg-[#11181a] px-4 py-2">

@@ -17,10 +17,12 @@ import {
   TAG_ALLOCATION_DARK,
 } from "@/lib/mockData";
 import { usePortfolioView } from "@/lib/use-portfolio-view";
+import { useResolvedTheme } from "@/components/theme/ThemeProvider";
 
 // 스크린샷 4: 다크모드 포트폴리오 현황 + 트리맵
 export default function PortfolioPage() {
   const portfolioView = usePortfolioView();
+  const theme = useResolvedTheme();
   const d = portfolioView.summary;
   const accountAllocation = portfolioView.hasLiveData
     ? portfolioView.accountAllocation
@@ -33,14 +35,14 @@ export default function PortfolioPage() {
     : TAG_ALLOCATION_DARK;
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-[#111516] text-slate-200">
-      <TopNav theme="dark" />
+    <div className="min-h-screen overflow-x-hidden bg-[#f8fafc] text-slate-800 dark:bg-[#111516] dark:text-slate-200">
+      <TopNav theme={theme} />
       <main className="mx-auto min-w-0 max-w-[1640px] overflow-x-hidden px-4 py-6 sm:px-6 lg:px-8">
         {/* 제목줄 */}
         <div className="mb-4 flex min-w-0 flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
           <div className="min-w-0 flex-1">
             <div className="mb-3 flex flex-wrap items-center gap-3">
-              <h1 className="text-[20px] font-extrabold text-white">
+              <h1 className="text-[20px] font-extrabold text-slate-900 dark:text-white">
                 포트폴리오 현황
               </h1>
               <span className="text-[12.5px] text-slate-500">
@@ -57,7 +59,7 @@ export default function PortfolioPage() {
             <div className="no-scrollbar -mx-4 flex min-w-0 gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
               {PIN_TICKERS.map((t) => (
                 <div key={t.name} className="w-[210px] shrink-0 sm:w-[220px]">
-                  <MiniTickerCard ticker={t} theme="dark" />
+                  <MiniTickerCard ticker={t} theme={theme} />
                 </div>
               ))}
             </div>
@@ -89,7 +91,7 @@ export default function PortfolioPage() {
 
         {/* 요약 영역 */}
         <section className="mb-6">
-          <PortfolioSummary theme="dark" />
+          <PortfolioSummary theme={theme} />
         </section>
 
         {/* 중간 차트 3개 */}
@@ -97,18 +99,18 @@ export default function PortfolioPage() {
           <DonutChartCard
             title="계좌별 비중"
             data={accountAllocation}
-            theme="dark"
+            theme={theme}
           />
           <DonutChartCard
             title="종목별 비중 상위 15개"
             data={stockAllocation}
-            theme="dark"
+            theme={theme}
             maxLegend={15}
           />
           <DonutChartCard
             title="목적별 비중"
             data={purposeAllocation}
-            theme="dark"
+            theme={theme}
           />
         </section>
 
@@ -128,10 +130,10 @@ export default function PortfolioPage() {
             <TreemapMock />
           </div>
           <div className="min-w-0 flex-1">
-            <h2 className="mb-3 text-[15px] font-bold text-slate-300">
+            <h2 className="mb-3 text-[15px] font-bold text-slate-700 dark:text-slate-300">
               계좌 현황
             </h2>
-            <AssetAccountCards theme="dark" />
+            <AssetAccountCards theme={theme} />
           </div>
         </section>
       </main>

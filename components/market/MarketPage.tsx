@@ -31,8 +31,10 @@ import MarketMddSection from "./MarketMddSection";
 import VixChart from "./VixChart";
 import MarketTemperatureSheet from "./MarketTemperatureSheet";
 import TradingViewTreemap from "./TradingViewTreemap";
+import { useResolvedTheme } from "@/components/theme/ThemeProvider";
 
 export default function MarketPage() {
+  const theme = useResolvedTheme();
   const [range, setRange] = useState<MarketRange>("1년");
   const [briefing, setBriefing] = useState<BriefingItem[]>(MOCK_BRIEFING);
   const [fearGreed, setFearGreed] = useState<FearGreedData | null>(MOCK_FEAR_GREED);
@@ -66,18 +68,20 @@ export default function MarketPage() {
   }, [range]);
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-[#111516] text-slate-200">
-      <TopNav theme="dark" />
+    <div className="min-h-screen overflow-x-hidden bg-[#f8fafc] text-slate-800 dark:bg-[#111516] dark:text-slate-200">
+      <TopNav theme={theme} />
       <main className="mx-auto w-full min-w-0 max-w-[1640px] overflow-x-hidden px-4 py-6 sm:px-6 lg:px-8">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-[20px] font-extrabold text-white">시장 현황</h1>
-          <div className="flex items-center gap-1 rounded-lg bg-[#1b2021] p-1">
+          <h1 className="text-[20px] font-extrabold text-slate-900 dark:text-white">시장 현황</h1>
+          <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1 dark:border-transparent dark:bg-[#1b2021]">
             {MARKET_RANGES.map((r) => (
               <button
                 key={r}
                 onClick={() => setRange(r)}
                 className={`rounded-md px-2.5 py-1 text-[12.5px] font-medium transition-colors ${
-                  range === r ? "bg-blue-600 text-white" : "text-slate-400 hover:text-slate-200"
+                  range === r
+                    ? "bg-blue-600 text-white"
+                    : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
                 }`}
               >
                 {r}

@@ -192,8 +192,9 @@ function displayTickerOf(classification: Pick<DividendHoldingClassification, "di
 function withDividendDisplayTicker(holding: Holding, displayTicker: string): Holding {
   return {
     ...holding,
+    quoteTicker: holding.ticker,
     ticker: displayTicker,
-  };
+  } as Holding;
 }
 
 function hasSmallTag(holding: Holding): boolean {

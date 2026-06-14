@@ -2,11 +2,12 @@ import { ReactNode } from "react";
 
 type Tone = "gray" | "green" | "orange" | "blue";
 
-const TONE_DARK: Record<Tone, string> = {
-  gray: "bg-[#202627] border-[#2a3336]",
-  green: "bg-[#16241c] border-[#244233]",
-  orange: "bg-[#27201a] border-[#43331f]",
-  blue: "bg-[#16202e] border-[#23364f]",
+// Light surface first, dark variant second so the card themes with the page.
+const TONE: Record<Tone, string> = {
+  gray: "bg-white border-slate-200 dark:bg-[#202627] dark:border-[#2a3336]",
+  green: "bg-emerald-50 border-emerald-200 dark:bg-[#16241c] dark:border-[#244233]",
+  orange: "bg-amber-50 border-amber-200 dark:bg-[#27201a] dark:border-[#43331f]",
+  blue: "bg-blue-50 border-blue-200 dark:bg-[#16202e] dark:border-[#23364f]",
 };
 
 type Props = {
@@ -27,10 +28,10 @@ export default function MetricCard({
   valueColor,
 }: Props) {
   return (
-    <div className={`min-w-0 rounded-xl border px-4 py-4 sm:px-5 ${TONE_DARK[tone]}`}>
-      <div className="break-keep text-[12.5px] font-medium text-slate-400">{label}</div>
+    <div className={`min-w-0 rounded-xl border px-4 py-4 sm:px-5 ${TONE[tone]}`}>
+      <div className="break-keep text-[12.5px] font-medium text-slate-500 dark:text-slate-400">{label}</div>
       <div
-        className="num mt-2 break-keep text-[18px] font-extrabold leading-tight text-slate-100 sm:text-[22px]"
+        className="num mt-2 break-keep text-[18px] font-extrabold leading-tight text-slate-900 dark:text-slate-100 sm:text-[22px]"
         style={valueColor ? { color: valueColor } : undefined}
       >
         {value}
