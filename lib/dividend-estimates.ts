@@ -53,6 +53,24 @@ export type DividendHoldingEstimate = {
 
 const DAY_MS = 86_400_000;
 
+// PORTFOLIO-DIVIDEND-UX-FIX-3 #4: 환산 예상 배당.
+// 평가금액을 연 3.5%로 인출한다고 가정한 연간 예상 인출액.
+// 실제 배당소득세 계산이 아니라 인출 가정치이며, 세후 토글은 다른 배당 카드와
+// 사용감을 맞추기 위해 동일한 배당세 계수(1 - 0.154)를 적용한다.
+export const DIVIDEND_WITHDRAWAL_RATE = 0.035;
+export const DIVIDEND_AFTER_TAX_FACTOR = 0.846;
+
+export function computeConvertedAnnualDividendKRW(
+  evaluationKRW: number,
+  options: { afterTax?: boolean } = {},
+): number {
+  if (typeof evaluationKRW !== "number" || !Number.isFinite(evaluationKRW) || evaluationKRW <= 0) {
+    return 0;
+  }
+  const taxFactor = options.afterTax ? DIVIDEND_AFTER_TAX_FACTOR : 1;
+  return Math.round(evaluationKRW * DIVIDEND_WITHDRAWAL_RATE * taxFactor);
+}
+
 function isFinitePositive(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value) && value > 0;
 }

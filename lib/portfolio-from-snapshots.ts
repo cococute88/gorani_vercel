@@ -202,8 +202,9 @@ function holdingPurposeName(holding: Holding): string | undefined {
   return value;
 }
 
-// PORTFOLIO-CALCULATOR-UX-FIX-2 #3: 자산 구성을 성장/배당/현금 3개로만 분류한다.
-export type AssetPurposeGroup = "성장" | "배당" | "현금";
+// PORTFOLIO-DIVIDEND-UX-FIX-3 #3: 자산 구성을 성장/배당/현금(원)/현금(달러) 4개로 분류한다.
+// (이전 PORTFOLIO-CALCULATOR-UX-FIX-2 의 성장/배당/현금 3분류에서 현금을 통화별로 쪼갠다.)
+export type AssetPurposeGroup = "성장" | "배당" | "현금(원)" | "현금(달러)";
 
 // 현금성으로 볼 수 있는 신호 (예수금/CMA/파킹/MMF/예적금 등).
 const CASH_LIKE_SIGNALS = [
@@ -221,6 +222,9 @@ const CASH_LIKE_SIGNALS = [
   "대기자금",
   "RP",
 ];
+
+// USD/외화 현금 신호. 통화 정보가 없을 때 상품명·계좌명에서 달러 현금을 식별한다.
+const USD_CASH_SIGNALS = ["달러", "USD", "외화", "미국달러", "DOLLAR", "US$"];
 
 // 배당 목적 신호 (③배당 태그 또는 대표 배당 ETF).
 const DIVIDEND_SIGNALS = ["배당", "인컴", "커버드콜", "월배당"];
@@ -242,7 +246,27 @@ function includesAny(haystack: string, signals: string[]): boolean {
   return signals.some((signal) => upper.includes(signal.toUpperCase()));
 }
 
-// 보유종목 1건을 성장/배당/현금 중 하나로 분류한다 (기타 그룹을 만들지 않는다).
+// 통화 코드가 USD/외화인지 판단한다.
+function isUsdCurrency(currency: string | undefined): boolean {
+  if (!currency) return false;
+  const c = currency.trim().toUpperCase();
+  return c === "USD" || c === "US$" || c === "$" || c.includes("달러") || c.includes("USD");
+}
+
+// 현금성 자산을 통화별(현금(원)/현금(달러))로 분류한다.
+// 우선순위: 명시 통화 → 상품명/계좌명 신호 → 보수적으로 현금(원).
+// (통화를 알 수 없는 현금성은 기타를 만들지 않고 현금(원)으로 둔다.)
+function classifyCashCurrencyGroup(
+  haystack: string,
+  currency?: string,
+): "현금(원)" | "현금(달러)" {
+  if (isUsdCurrency(currency)) return "현금(달러)";
+  if (currency && currency.trim().toUpperCase() === "KRW") return "현금(원)";
+  if (includesAny(haystack, USD_CASH_SIGNALS)) return "현금(달러)";
+  return "현금(원)";
+}
+
+// 보유종목 1건을 성장/배당/현금(원)/현금(달러) 중 하나로 분류한다 (기타 그룹을 만들지 않는다).
 function classifyHoldingPurposeGroup(holding: Holding): AssetPurposeGroup {
   const purpose = holdingPurposeName(holding) ?? "";
   const ticker = (holding.ticker || "").trim().toUpperCase().split(".")[0];
@@ -250,13 +274,15 @@ function classifyHoldingPurposeGroup(holding: Holding): AssetPurposeGroup {
     .filter(Boolean)
     .join(" ");
 
-  if (holding.category === "현금" || includesAny(cashHaystack, CASH_LIKE_SIGNALS)) return "현금";
+  if (holding.category === "현금" || includesAny(cashHaystack, CASH_LIKE_SIGNALS)) {
+    return classifyCashCurrencyGroup(cashHaystack, holding.currency);
+  }
   if (includesAny(purpose, DIVIDEND_SIGNALS) || DIVIDEND_TICKERS.has(ticker)) return "배당";
   // 성장 신호가 명시돼 있거나, 위 어디에도 해당하지 않는 투자 종목의 기본값.
   return "성장";
 }
 
-// 재무현황(현금성 잔액) 1건을 성장/배당/현금 중 하나로 분류한다.
+// 재무현황(현금성 잔액) 1건을 성장/배당/현금(원)/현금(달러) 중 하나로 분류한다.
 function classifyFinanceAssetPurposeGroup(asset: FinanceAsset): AssetPurposeGroup {
   const haystack = [asset.category, asset.statusGroup, asset.groupName, asset.productName, asset.cleanName]
     .filter(Boolean)
@@ -265,8 +291,8 @@ function classifyFinanceAssetPurposeGroup(asset: FinanceAsset): AssetPurposeGrou
     if (includesAny(haystack, DIVIDEND_SIGNALS)) return "배당";
     return "성장";
   }
-  // 현금/예적금/기타 금융자산은 현금성으로 본다.
-  return "현금";
+  // 현금/예적금/기타 금융자산은 현금성으로 보고 통화별로 분류한다 (FinanceAsset 은 통화 필드가 없어 이름으로만 판단).
+  return classifyCashCurrencyGroup(haystack);
 }
 
 // 보유종목을 위탁/절세 트리맵 그룹으로 분류한다 (#4). 신호가 없으면 위탁으로 둔다.
@@ -466,16 +492,25 @@ function buildTreemapAndRanking(
   return { treemapItems, holdingsRankingRows };
 }
 
-// 자산 구성 도넛/리스트를 성장/배당/현금 3개 그룹으로 집계한다 (#3).
-// 보유종목은 목적·티커 기준으로, 현금성 잔액은 현금으로 분류한다.
+// 자산 구성 도넛/리스트를 성장/배당/현금(원)/현금(달러) 4개 그룹으로 집계한다 (#3).
+// 보유종목은 목적·티커 기준으로, 현금성 잔액은 통화별로 분류한다.
 const ASSET_PURPOSE_COLOR: Record<AssetPurposeGroup, string> = {
   성장: "#22c55e",
   배당: "#3b82f6",
-  현금: "#f59e0b",
+  "현금(원)": "#f59e0b",
+  "현금(달러)": "#14b8a6",
 };
-const ASSET_PURPOSE_ORDER: AssetPurposeGroup[] = ["성장", "배당", "현금"];
+const ASSET_PURPOSE_ORDER: AssetPurposeGroup[] = ["성장", "배당", "현금(원)", "현금(달러)"];
+const CASH_PURPOSE_GROUPS: AssetPurposeGroup[] = ["현금(원)", "현금(달러)"];
+const INVESTMENT_PURPOSE_GROUPS: AssetPurposeGroup[] = ["성장", "배당"];
 
-function buildAssetAllocation(holdings: Holding[], financeAssets: FinanceAsset[]): PortfolioAllocationSlice[] {
+// PORTFOLIO-DIVIDEND-UX-FIX-3 #2: 자산 구성과 투자/현금 비중이 동일한 분류 기준에서
+// 파생되도록, 두 화면이 공유하는 그룹별 합계를 한 곳에서 계산한다.
+// 표시용 항목(보유종목 + 비투자성 현금성 잔액)만 집계해 도넛/비중 합계가 어긋나지 않게 한다.
+function computeAssetPurposeTotals(
+  holdings: Holding[],
+  financeAssets: FinanceAsset[],
+): Map<AssetPurposeGroup, number> {
   const financeRows = financeAssets.filter((asset) => {
     if (!isNonDebtFinanceAsset(asset)) return false;
     if (holdings.length > 0 && asset.category === "투자성") return false;
@@ -494,8 +529,16 @@ function buildAssetAllocation(holdings: Holding[], financeAssets: FinanceAsset[]
   for (const asset of financeRows) {
     add(classifyFinanceAssetPurposeGroup(asset), positiveNumber(asset.amountKRW));
   }
+  return totals;
+}
 
-  const total = ASSET_PURPOSE_ORDER.reduce((sum, group) => sum + (totals.get(group) ?? 0), 0);
+function sumPurposeGroups(totals: Map<AssetPurposeGroup, number>, groups: AssetPurposeGroup[]): number {
+  return groups.reduce((sum, group) => sum + (totals.get(group) ?? 0), 0);
+}
+
+function buildAssetAllocation(holdings: Holding[], financeAssets: FinanceAsset[]): PortfolioAllocationSlice[] {
+  const totals = computeAssetPurposeTotals(holdings, financeAssets);
+  const total = sumPurposeGroups(totals, ASSET_PURPOSE_ORDER);
   if (total <= 0) return [];
 
   return ASSET_PURPOSE_ORDER.filter((group) => (totals.get(group) ?? 0) > 0).map((group) => {
@@ -509,18 +552,19 @@ function buildAssetAllocation(holdings: Holding[], financeAssets: FinanceAsset[]
   });
 }
 
+// 투자/현금 비중을 자산 구성과 동일한 분류에서 파생한다 (#2).
+// 투자 = 성장 + 배당, 현금 = 현금(원) + 현금(달러).
 function buildStockCashTargets(
   holdings: Holding[],
   financeAssets: FinanceAsset[],
 ): PortfolioSummaryCards["stockCashTargets"] {
-  const stockValue = holdings.reduce((sum, holding) => sum + (positiveNumber(holding.valueKRW) ?? 0), 0);
-  const cashValue = financeAssets
-    .filter((asset) => isNonDebtFinanceAsset(asset) && asset.category === "현금")
-    .reduce((sum, asset) => sum + (positiveNumber(asset.amountKRW) ?? 0), 0);
-  const total = stockValue + cashValue;
+  const totals = computeAssetPurposeTotals(holdings, financeAssets);
+  const investValue = sumPurposeGroups(totals, INVESTMENT_PURPOSE_GROUPS);
+  const cashValue = sumPurposeGroups(totals, CASH_PURPOSE_GROUPS);
+  const total = investValue + cashValue;
   if (total <= 0) return [];
   return [
-    { name: "투자", current: percent(stockValue, total), target: null },
+    { name: "투자", current: percent(investValue, total), target: null },
     { name: "현금", current: percent(cashValue, total), target: null },
   ].filter((row) => row.current > 0);
 }

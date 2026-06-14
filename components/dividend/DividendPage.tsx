@@ -11,6 +11,7 @@ import {
 } from "@/lib/mock-dividend-data";
 import {
   buildDividendEstimateForHolding,
+  computeConvertedAnnualDividendKRW,
   isKrwTicker,
   type DividendEstimateWarning,
 } from "@/lib/dividend-estimates";
@@ -247,6 +248,8 @@ export default function DividendPage() {
   const evaluationKRW = summaryRows.reduce((s, r) => s + r.valueKRW, 0);
   const annualDividendKRW = summaryRows.reduce((s, r) => s + r.annualDividendKRW, 0);
   const monthlyAvgKRW = annualDividendKRW / 12;
+  // 환산 예상 배당: 현재 선택된 범위(위탁만/절세합산)의 평가금액을 연 3.5%로 인출한다고 가정.
+  const convertedAnnualDividendKRW = computeConvertedAnnualDividendKRW(evaluationKRW, { afterTax });
 
   const targetRows = [...estimatedTaxableHoldings, ...estimatedTaxAdvantagedHoldings]
     .filter((row) => row.ticker.toUpperCase() === targetTicker.toUpperCase());
@@ -285,6 +288,7 @@ export default function DividendPage() {
           evaluationKRW={evaluationKRW}
           annualDividendKRW={annualDividendKRW}
           monthlyAvgKRW={monthlyAvgKRW}
+          convertedAnnualDividendKRW={convertedAnnualDividendKRW}
           achievementPct={achievementPct}
           afterTax={afterTax}
           includeTaxAdvantaged={includeTaxAdvantagedInSummary}
@@ -292,14 +296,16 @@ export default function DividendPage() {
           onToggleTax={setAfterTax}
           onToggleGroup={setIncludeTaxAdvantagedInSummary}
         />
-        <div className="mb-6 rounded-xl border border-amber-400/20 bg-amber-500/10 px-4 py-3 text-[13px] text-amber-200">
-          <div className="font-semibold">수량은 보유 평가금액과 현재가로 역산한 추정치입니다.</div>
-          <div className="mt-1 text-amber-100/90">
-            배당은 최근 12개월 실제 배당 이력 기준으로 계산합니다. 배당 이력이 없거나 quote/fx 조회가 실패한 종목은 예상 배당을 계산하지 않습니다.
-            {marketData.loading ? " 현재가와 배당 데이터를 불러오는 중입니다." : ""}
+        <div className="mb-6 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-[12.5px] text-slate-600 dark:border-[#2a3336] dark:bg-white/[0.03] dark:text-slate-400">
+          <div className="font-semibold text-slate-700 dark:text-slate-300">
+            수량은 평가금액과 현재가로 역산한 추정치입니다.
+          </div>
+          <div className="mt-1 leading-relaxed">
+            배당은 최근 12개월 실제 배당 이력 기준입니다. 배당 이력이 없거나 quote/fx 조회가 실패한 종목은 예상 배당을 계산하지 않습니다.
+            {marketData.loading ? " 현재가·배당 데이터를 불러오는 중입니다." : ""}
           </div>
           {marketData.warnings.length > 0 && (
-            <div className="mt-2 text-[12px] text-amber-100/80">
+            <div className="mt-2 text-[12px] text-slate-500 dark:text-slate-500">
               {marketData.warnings.slice(0, 3).join(" · ")}
               {marketData.warnings.length > 3 ? ` 외 ${marketData.warnings.length - 3}건` : ""}
             </div>

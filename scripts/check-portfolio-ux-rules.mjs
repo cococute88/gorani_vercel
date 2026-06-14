@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 
-// PORTFOLIO-CALCULATOR-UX-FIX-2 회귀 테스트.
+// PORTFOLIO-CALCULATOR-UX-FIX-2 / PORTFOLIO-DIVIDEND-UX-FIX-3 회귀 테스트.
 // - 20만원 미만 계좌 숨김 (#2)
-// - 자산 구성이 성장/배당/현금 3개로만 분류 (#3)
+// - 자산 구성이 성장/배당/현금(원)/현금(달러) 4개로만 분류 (FIX-3 #3)
+// - 투자/현금 비중이 성장+배당 vs 현금(원)+현금(달러) 기준과 일치 (FIX-3 #2)
 // - 보유종목 트리맵 최상위 그룹이 위탁/절세만 (#4)
 // - 금액 formatter 가 원화 기호와 숫자를 NBSP 로 붙여 줄바꿈을 막음 (#5)
 
@@ -114,17 +115,55 @@ function assertAssetAllocationGroups() {
         holding({ productName: "배당주", ticker: "SCHD", purposeGroup: "배당", valueKRW: 5_000_000 }),
         holding({ productName: "달러 예수금", ticker: "USD", assetType: "현금성", category: "현금", valueKRW: 3_000_000 }),
       ],
-      financeAssets: [financeAsset({ productName: "파킹통장", amountKRW: 2_000_000, category: "현금" })],
+      financeAssets: [financeAsset({ productName: "원화 파킹통장", amountKRW: 2_000_000, category: "현금" })],
     }),
   );
   const labels = result.assetAllocation.map((s) => s.name).sort();
-  const allowed = new Set(["성장", "배당", "현금"]);
+  const allowed = new Set(["성장", "배당", "현금(원)", "현금(달러)"]);
   for (const label of labels) {
-    assert.ok(allowed.has(label), `자산 구성 라벨은 성장/배당/현금만 허용 (받은 값: ${label})`);
+    assert.ok(allowed.has(label), `자산 구성 라벨은 성장/배당/현금(원)/현금(달러)만 허용 (받은 값: ${label})`);
   }
   assert.ok(!labels.includes("기타"), "기타 그룹은 만들지 않는다");
+  assert.ok(!labels.includes("현금"), "단일 현금 라벨이 아니라 통화별로 분리해야 한다");
   assert.ok(!labels.includes("주식") && !labels.includes("예적금"), "주식/예적금 라벨은 노출되지 않는다");
-  return { case: "자산 구성 성장/배당/현금", labels: labels.join("/") };
+
+  const byName = Object.fromEntries(result.assetAllocation.map((s) => [s.name, s.amountKRW]));
+  assert.equal(byName["현금(달러)"], 3_000_000, "달러 예수금은 현금(달러)로 분류");
+  assert.equal(byName["현금(원)"], 2_000_000, "원화 파킹통장은 현금(원)으로 분류");
+  assert.equal(byName["성장"], 10_000_000, "성장 종목 합계");
+  assert.equal(byName["배당"], 5_000_000, "배당 종목 합계");
+  return { case: "자산 구성 성장/배당/현금(원)/현금(달러)", labels: labels.join("/") };
+}
+
+function assertInvestCashRatioConsistency() {
+  // 투자/현금 비중이 자산 구성(성장+배당 vs 현금(원)+현금(달러))과 동일 기준에서 나와야 한다.
+  const result = buildPortfolioPageFromSnapshot(
+    snapshot({
+      holdings: [
+        holding({ productName: "성장주", ticker: "QQQ", valueKRW: 60_000_000 }),
+        holding({ productName: "배당주", ticker: "SCHD", valueKRW: 20_000_000 }),
+        holding({ productName: "달러 예수금", ticker: "USD", category: "현금", valueKRW: 10_000_000 }),
+      ],
+      financeAssets: [financeAsset({ productName: "원화 예수금", amountKRW: 10_000_000, category: "현금" })],
+    }),
+  );
+  const alloc = Object.fromEntries(result.assetAllocation.map((s) => [s.name, s.amountKRW]));
+  const investAlloc = (alloc["성장"] ?? 0) + (alloc["배당"] ?? 0);
+  const cashAlloc = (alloc["현금(원)"] ?? 0) + (alloc["현금(달러)"] ?? 0);
+  const total = investAlloc + cashAlloc;
+
+  const targets = Object.fromEntries(result.summary.stockCashTargets.map((t) => [t.name, t.current]));
+  const expectedInvestPct = Number(((investAlloc / total) * 100).toFixed(1));
+  const expectedCashPct = Number(((cashAlloc / total) * 100).toFixed(1));
+
+  assert.equal(targets["투자"], expectedInvestPct, `투자 비중은 (성장+배당)/전체 기준이어야 한다`);
+  assert.equal(targets["현금"], expectedCashPct, `현금 비중은 (현금(원)+현금(달러))/전체 기준이어야 한다`);
+  assert.ok(targets["현금"] > 15, "현금성 보유종목이 현금 비중에 반영되어 0.x% 모순이 생기지 않아야 한다");
+  return {
+    case: "투자/현금 비중 자산구성 정합성",
+    invest: targets["투자"],
+    cash: targets["현금"],
+  };
 }
 
 function assertTreemapGroups() {
@@ -167,6 +206,7 @@ function main() {
   const rows = [
     assertSmallAccountHidden(),
     assertAssetAllocationGroups(),
+    assertInvestCashRatioConsistency(),
     assertTreemapGroups(),
     assertMoneyNoWrap(),
   ];
