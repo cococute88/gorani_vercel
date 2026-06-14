@@ -22,6 +22,7 @@ import {
   deleteCalendarCustomEvent as deleteFirestoreCalendarCustomEvent,
   loadCalendarCustomEvents as loadFirestoreCalendarCustomEvents,
   loadCalendarEventMetas,
+  loadLegacyImportedCalendarEvents,
   saveCalendarCustomEvent as saveFirestoreCalendarCustomEvent,
   saveCalendarEventMeta,
   warnFirestoreFallback,
@@ -73,6 +74,7 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
   const [filters, setFilters] = useState<Record<CalendarEventType, boolean>>(DEFAULT_CALENDAR_FILTERS);
   const [activeEvent, setActiveEvent] = useState<CalendarEvent | null>(null);
   const [eventMetas, setEventMetas] = useState<Record<string, CalendarEventMeta>>({});
+  const [legacyImportedEvents, setLegacyImportedEvents] = useState<CalendarEvent[]>([]);
   const [customEvents, setCustomEvents] = useState<CalendarCustomEvent[]>([]);
   const [customDialogOpen, setCustomDialogOpen] = useState(false);
   const [editingCustomEvent, setEditingCustomEvent] = useState<CalendarCustomEvent | null>(null);
@@ -112,6 +114,10 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
         }
       })
       .catch((err) => warnFirestoreFallback("calendarEvents.load", err));
+
+    loadLegacyImportedCalendarEvents(user.uid)
+      .then(setLegacyImportedEvents)
+      .catch((err) => warnFirestoreFallback("legacyCalendarEvents.load", err));
 
     loadFirestoreCalendarCustomEvents(user.uid)
       .then((events) => {
@@ -245,11 +251,16 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
     }
   };
 
-  const events = useMemo(() => mergeGeneratedAndCustomCalendarEvents(providerResult.events, customEvents).map((event) => {
+  const generatedAndLegacyEvents = useMemo(
+    () => [...providerResult.events, ...legacyImportedEvents],
+    [legacyImportedEvents, providerResult.events],
+  );
+
+  const events = useMemo(() => mergeGeneratedAndCustomCalendarEvents(generatedAndLegacyEvents, customEvents).map((event) => {
     const meta = resolveCalendarEventMeta(event, eventMetas);
     if (!meta) return event;
     return { ...event, favorite: meta.star ? "⭐" : meta.heart ? "💗" : event.favorite, note: meta.memo ?? event.note };
-  }), [providerResult.events, customEvents, eventMetas]);
+  }), [generatedAndLegacyEvents, customEvents, eventMetas]);
   const filteredEvents = useMemo(() => events.filter((event) => filters[event.type]), [events, filters]);
   const selectedEvents = useMemo(() => filteredEvents.filter((event) => event.date === selectedDate), [filteredEvents, selectedDate]);
   const monthStartIso = useMemo(() => formatIsoDate(new Date(month.getFullYear(), month.getMonth(), 1)), [month]);

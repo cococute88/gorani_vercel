@@ -14,6 +14,7 @@ import {
 import type { PortfolioSnapshot } from "@/lib/portfolio-types";
 import type { StoredSimulatorPreview } from "@/lib/asset-simulator-types";
 import { normalizeCalendarCustomEvent, type CalendarCustomEvent } from "@/lib/calendar-custom-events";
+import { normalizeLegacyImportedCalendarEventDoc, type LegacyImportedCalendarEvent } from "@/lib/legacy-dividend-calendar-import";
 import {
   normalizeCalendarTicker,
   type CalendarEventMetaTarget,
@@ -21,6 +22,7 @@ import {
   type CalendarTickerCache,
   type CalendarTickerCacheSource,
 } from "@/lib/calendar-event-identity";
+import type { CalendarEvent } from "@/lib/mock-calendar-data";
 import { firestoreDb } from "./client";
 
 export type CalendarTickerData = {
@@ -213,6 +215,14 @@ export async function saveCalendarEventMeta(uid: string, eventId: string, meta: 
 export async function loadCalendarEventMetas(uid: string): Promise<CalendarEventMeta[]> {
   const snap = await getDocs(collection(requireDb(), "users", uid, "calendarEvents"));
   return snap.docs.map((item) => item.data() as unknown as CalendarEventMeta);
+}
+
+export async function loadLegacyImportedCalendarEvents(uid: string): Promise<CalendarEvent[]> {
+  const snap = await getDocs(collection(requireDb(), "users", uid, "calendarEvents"));
+  return snap.docs
+    .map((item) => normalizeLegacyImportedCalendarEventDoc({ id: item.id, ...item.data() }))
+    .filter((event): event is LegacyImportedCalendarEvent => Boolean(event))
+    .sort((a, b) => a.date.localeCompare(b.date) || a.ticker.localeCompare(b.ticker) || a.type.localeCompare(b.type));
 }
 
 export async function saveCalendarCustomEvent(uid: string, event: CalendarCustomEvent): Promise<void> {

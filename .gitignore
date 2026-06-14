@@ -17,3 +17,5 @@ node_modules/
 *.zip
 docs/fixtures/**/private/
 docs/fixtures/**/private/**
+private/
+private/**
