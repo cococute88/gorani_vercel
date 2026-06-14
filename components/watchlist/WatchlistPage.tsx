@@ -6,22 +6,24 @@ import StorageModeBadge from "@/components/common/StorageModeBadge";
 import { DEFAULT_WATCHLIST_TICKERS } from "@/lib/mock-dividend-data";
 import { useFirebaseAuth } from "@/lib/firebase/auth";
 import {
-  deleteCalendarTicker,
-  loadCalendarTickers,
   loadLegacyDividendCalendarMemos,
   loadLegacyDividendCalendarPortfolios,
   loadLegacyImportedCalendarEvents,
-  saveCalendarTicker,
+  loadManualCalendarTickers,
   saveLegacyDividendCalendarMemo,
+  saveManualCalendarTickers,
   warnFirestoreFallback,
 } from "@/lib/firebase/firestore-repositories";
 import { STORAGE_KEYS } from "@/lib/storage-keys";
 import { canonicalMemoTickerKey, lookupTickerMemo, mergeMemoMaps } from "@/lib/calendar-memo-matching";
 import {
+  createManualCalendarTickerList,
   extractTickersFromCalendarEvents,
   flattenLegacyPortfolioTickers,
+  readValidManualOverrideTickers,
   resolveCalendarTickers,
   uniqueCalendarTickers,
+  type ManualCalendarTickerList,
 } from "@/lib/calendar-ticker-source";
 import DividendCalendarPage from "./DividendCalendarPage";
 import TickerManager from "./TickerManager";
@@ -53,10 +55,10 @@ export default function WatchlistPage() {
   const theme = useResolvedTheme();
   const { user } = useFirebaseAuth();
 
-  // Explicit user-managed calendar ticker list (localStorage / Firestore
-  // `calendarTickers`). When the user adds/removes a ticker we promote the
-  // derived list to this explicit list. `null` means "not yet managed".
-  const [explicitTickers, setExplicitTickers] = useState<string[] | null>(null);
+  // Manual override = a metadata-tagged ticker list the user saved via the modal.
+  // Stored raw (any shape) and validated by the resolver; a stale array-only
+  // value (old QQQ/SPY/MSFT/KRX list) is ignored so it can't shadow legacy data.
+  const [manualOverride, setManualOverride] = useState<ManualCalendarTickerList | null>(null);
   // Derived legacy calendar ticker sources (priority order in resolveCalendarTickers).
   const [legacyPortfolioTickers, setLegacyPortfolioTickers] = useState<string[]>([]);
   const [legacyEventTickers, setLegacyEventTickers] = useState<string[]>([]);
@@ -64,25 +66,34 @@ export default function WatchlistPage() {
   const [manageOpen, setManageOpen] = useState(false);
   const [memoTicker, setMemoTicker] = useState<string | null>(null);
 
-  // The calendar ticker universe. NOT `/portfolio` holdings — the legacy
-  // dividend calendar universe (portfolios → imported events → memos → mock).
-  const tickers = useMemo(() => {
-    if (explicitTickers && explicitTickers.length > 0) return explicitTickers;
-    return resolveCalendarTickers({
-      legacyPortfolioTickers,
-      legacyEventTickers,
-      legacyMemoKeys: Object.keys(memos),
-      fallbackTickers: DEFAULT_WATCHLIST_TICKERS,
-    });
-  }, [explicitTickers, legacyPortfolioTickers, legacyEventTickers, memos]);
+  // The calendar ticker universe. NOT `/portfolio` holdings — a valid manual
+  // override, else the legacy dividend calendar universe (portfolios → imported
+  // events → memos → mock fallback).
+  const tickers = useMemo(
+    () =>
+      resolveCalendarTickers({
+        manualOverride,
+        legacyPortfolioTickers,
+        legacyEventTickers,
+        legacyMemoKeys: Object.keys(memos),
+        fallbackTickers: DEFAULT_WATCHLIST_TICKERS,
+      }),
+    [manualOverride, legacyPortfolioTickers, legacyEventTickers, memos],
+  );
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
       const stored = window.localStorage.getItem(WATCHLIST_STORAGE_KEY);
       if (stored) {
-        const parsed = uniqUpper(JSON.parse(stored) as string[]);
-        if (parsed.length > 0) setExplicitTickers(parsed);
+        const parsed = JSON.parse(stored) as unknown;
+        // Only accept the new metadata-tagged shape; a bare array is stale and
+        // is dropped (cleaning up the old key so legacy data can take over).
+        if (readValidManualOverrideTickers(parsed).length > 0) {
+          setManualOverride(parsed as ManualCalendarTickerList);
+        } else {
+          window.localStorage.removeItem(WATCHLIST_STORAGE_KEY);
+        }
       }
     } catch {
       window.localStorage.removeItem(WATCHLIST_STORAGE_KEY);
@@ -93,13 +104,13 @@ export default function WatchlistPage() {
   useEffect(() => {
     if (!user) return;
 
-    // Explicitly managed calendar tickers (override everything when present).
-    loadCalendarTickers(user.uid)
-      .then((items) => {
-        const enabled = items.filter((item) => item.enabled !== false).map((item) => item.ticker);
-        if (enabled.length > 0) setExplicitTickers(uniqUpper(enabled));
+    // Valid manual override (metadata-tagged) — the only thing allowed to win
+    // over the imported legacy ticker universe.
+    loadManualCalendarTickers(user.uid)
+      .then((list) => {
+        if (list) setManualOverride(list);
       })
-      .catch((err) => warnFirestoreFallback("calendarTickers.load", err));
+      .catch((err) => warnFirestoreFallback("manualCalendarTickers.load", err));
 
     // Legacy calendar ticker universe (preferred default source).
     loadLegacyDividendCalendarPortfolios(user.uid)
@@ -116,36 +127,33 @@ export default function WatchlistPage() {
       .catch((err) => warnFirestoreFallback("legacyDividendCalendarMemos.load", err));
   }, [user]);
 
-  const persistTickers = async (nextTickers: string[]) => {
+  // Persist a metadata-tagged manual override (localStorage + Firestore).
+  const persistManualTickers = async (nextTickers: string[]) => {
+    const list = createManualCalendarTickerList(nextTickers);
+    setManualOverride(list);
     if (typeof window !== "undefined") {
       try {
-        window.localStorage.setItem(WATCHLIST_STORAGE_KEY, JSON.stringify(nextTickers));
+        window.localStorage.setItem(WATCHLIST_STORAGE_KEY, JSON.stringify(list));
       } catch {
         // localStorage 사용 불가 환경에서는 화면 상태만 유지한다.
       }
     }
     if (user) {
-      await Promise.all(nextTickers.map((ticker) => saveCalendarTicker(user.uid, { ticker, enabled: true }))).catch((err) =>
-        warnFirestoreFallback("calendarTickers.save", err),
+      await saveManualCalendarTickers(user.uid, list.tickers).catch((err) =>
+        warnFirestoreFallback("manualCalendarTickers.save", err),
       );
     }
   };
 
   const handleAdd = (raw: string) => {
     const parts = raw.split(/[\s,]+/).filter(Boolean);
-    // Promote the currently displayed (possibly derived) list to an explicit list.
-    const next = uniqUpper([...tickers, ...parts]);
-    setExplicitTickers(next);
-    void persistTickers(next);
+    // Saving an edit promotes the currently displayed (possibly legacy-derived)
+    // list to a metadata-tagged manual override.
+    void persistManualTickers(uniqUpper([...tickers, ...parts]));
   };
 
   const handleRemove = (ticker: string) => {
-    const next = tickers.filter((item) => item !== ticker);
-    setExplicitTickers(next);
-    void persistTickers(next);
-    if (user) {
-      void deleteCalendarTicker(user.uid, ticker).catch((err) => warnFirestoreFallback("calendarTickers.delete", err));
-    }
+    void persistManualTickers(tickers.filter((item) => item !== ticker));
   };
 
   const handleSaveMemo = (ticker: string, memo: string) => {

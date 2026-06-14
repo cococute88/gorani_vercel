@@ -94,9 +94,11 @@ export default function CalendarGrid({
               ].join(" ")}
             >
               {/* Top line: day number + custom (user/economic) date-line text.
-                  Fixed height (h-5/h-6) on every cell so the date row never shifts
-                  and the custom text sits flush at the top, same line as the date. */}
-              <div className="flex h-5 items-center gap-1 px-1 sm:h-6 sm:px-1.5">
+                  Pinned to the cell's top-left as an absolute layer so the date
+                  number sits at the exact same y-position in every cell and the
+                  custom text shares that line — it can never be pushed down by
+                  the event-chip flow below it. */}
+              <div className="absolute inset-x-1 top-1 z-10 flex h-5 items-center gap-1 sm:inset-x-1.5 sm:h-6">
                 <span className={[
                   "flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold leading-none sm:h-6 sm:w-6 sm:text-[11px]",
                   isToday ? "bg-blue-500 text-white shadow-md shadow-blue-500/30" : "",
@@ -123,8 +125,8 @@ export default function CalendarGrid({
                   </span>
                 )}
               </div>
-              {/* Event chips */}
-              <div className="mt-0.5 flex min-w-0 flex-col gap-0.5 px-1 pb-1 sm:px-1.5 sm:pb-1.5">
+              {/* Event chips — start below the fixed top line (pt clears it). */}
+              <div className="flex min-w-0 flex-col gap-0.5 px-1 pb-1 pt-7 sm:px-1.5 sm:pb-1.5 sm:pt-8">
                 {shown.map((event) => {
                   const visual = getEventVisual(event.type);
                   return (

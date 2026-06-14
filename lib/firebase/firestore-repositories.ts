@@ -22,6 +22,13 @@ import {
 } from "@/lib/legacy-dividend-calendar-import";
 import { canonicalMemoTickerKey } from "@/lib/calendar-memo-matching";
 import {
+  MANUAL_CALENDAR_TICKERS_SOURCE,
+  MANUAL_CALENDAR_TICKERS_VERSION,
+  isValidManualCalendarTickerList,
+  uniqueCalendarTickers,
+  type ManualCalendarTickerList,
+} from "@/lib/calendar-ticker-source";
+import {
   normalizeCalendarTicker,
   type CalendarEventMetaTarget,
   type CalendarEventSourceKind,
@@ -199,6 +206,28 @@ export async function loadCalendarTickers(uid: string): Promise<CalendarTickerDa
 
 export async function deleteCalendarTicker(uid: string, ticker: string): Promise<void> {
   await deleteDoc(doc(requireDb(), "users", uid, "calendarTickers", ticker.trim().toUpperCase()));
+}
+
+// CALENDAR-UX-POLISH-4: the manual calendar ticker override is stored as a
+// single metadata-tagged doc (source/version), NOT as the legacy per-ticker
+// `calendarTickers` collection. Only this metadata shape is allowed to override
+// the imported legacy ticker universe; old array/collection values are stale.
+const MANUAL_CALENDAR_TICKERS_DOC = "manualTickers";
+
+export async function loadManualCalendarTickers(uid: string): Promise<ManualCalendarTickerList | null> {
+  const snap = await getDoc(doc(requireDb(), "users", uid, "calendarSettings", MANUAL_CALENDAR_TICKERS_DOC));
+  if (!snap.exists()) return null;
+  const data = snap.data();
+  return isValidManualCalendarTickerList(data) ? (data as ManualCalendarTickerList) : null;
+}
+
+export async function saveManualCalendarTickers(uid: string, tickers: string[]): Promise<void> {
+  await setDoc(doc(requireDb(), "users", uid, "calendarSettings", MANUAL_CALENDAR_TICKERS_DOC), {
+    source: MANUAL_CALENDAR_TICKERS_SOURCE,
+    version: MANUAL_CALENDAR_TICKERS_VERSION,
+    tickers: uniqueCalendarTickers(tickers),
+    updatedAt: serverTimestamp(),
+  });
 }
 
 export async function saveCalendarSettings(uid: string, settings: Record<string, unknown>): Promise<void> {

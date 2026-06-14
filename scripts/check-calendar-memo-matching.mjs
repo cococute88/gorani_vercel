@@ -50,13 +50,15 @@ function assertNormalization() {
 }
 
 function assertLookupOrder() {
-  // legacy memo map keyed by canonical uppercase ticker
-  const memos = { F: "ford note", OHI: "reit note", "360200.KS": "krx note" };
+  // legacy memo map keyed by canonical uppercase ticker (imported dividend-calendar tickers)
+  const memos = { F: "ford note", OHI: "reit note", FEPI: "fepi note", BCSF: "bcsf note", "360200.KS": "krx note" };
 
   // exact / uppercase / suffix-stripped resolution
   assert.equal(lookupTickerMemo(memos, "F"), "ford note", "single-letter exact match");
   assert.equal(lookupTickerMemo(memos, "f"), "ford note", "lowercase resolves via uppercase key");
   assert.equal(lookupTickerMemo(memos, "OHI"), "reit note", "exact uppercase match");
+  assert.equal(lookupTickerMemo(memos, "fepi"), "fepi note", "imported FEPI ticker resolves (lowercase)");
+  assert.equal(lookupTickerMemo(memos, "BCSF"), "bcsf note", "imported BCSF ticker resolves");
   assert.equal(lookupTickerMemo(memos, "360200.KS"), "krx note", "suffixed ticker exact match");
 
   // suffix-stripped fallback: memo stored under base ticker, displayed with suffix

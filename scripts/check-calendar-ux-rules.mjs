@@ -215,9 +215,12 @@ function assertGridSource() {
   assert.ok(grid.includes("customEvents"), "grid takes a separate always-on customEvents prop");
   assert.ok(grid.includes('event.type === "custom"') || grid.includes('type === "custom"'), "custom events are pulled out of chip slots");
 
-  // CALENDAR-UX-POLISH-3: custom/economic date-line sits on a fixed-height top
-  // line (so the date row never shifts and text is flush at the top).
-  assert.ok(/flex h-5 items-center[^"]*sm:h-6/.test(grid), "day-cell top line has a fixed height (h-5/h-6)");
+  // CALENDAR-UX-POLISH-4: custom/economic date-line is pinned to the cell top as
+  // an absolute layer, and the chip flow starts below it (so the date number and
+  // its inline text share the exact same y-position in every cell, never pushed
+  // down by chips).
+  assert.ok(/absolute inset-x-1 top-1 z-10 flex h-5 items-center[^"]*sm:h-6/.test(grid), "day-cell top line is absolutely pinned to the top with a fixed height");
+  assert.ok(/flex min-w-0 flex-col[^"]*pt-7[^"]*sm:pt-8/.test(grid), "event chip container starts below the fixed top line (pt-7/pt-8)");
   // Unnecessary legend explanations are removed.
   assert.equal(grid.includes("사용자/경제 일정 = 날짜 옆 텍스트"), false, "redundant '사용자/경제 일정' legend text removed");
   assert.equal(grid.includes("점선 = 추정"), false, "redundant '점선 = 추정' legend text removed");
