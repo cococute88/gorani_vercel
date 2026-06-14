@@ -213,6 +213,11 @@ function assertGridSource() {
   assert.ok(grid.includes("dark:hover:bg-[#1e2628]"), "the dark surface hover is gated behind dark:");
   assert.equal(/(?<!dark:)hover:bg-\[#1e2628\]/.test(grid), false, "no bare dark hover that would show black in light mode");
   assert.ok(grid.includes("customEvents"), "grid takes a separate always-on customEvents prop");
+
+  // CALENDAR-UX-POLISH-6: each day cell shows up to THREE event chips (was two)
+  // beneath the date/custom line; the rest collapse into the "+N" pill.
+  assert.ok(/dayEvents\.slice\(0,\s*3\)/.test(grid), "day cell shows up to three event chips (slice(0, 3))");
+  assert.equal(/dayEvents\.slice\(0,\s*2\)/.test(grid), false, "the old two-chip cap is gone");
   assert.ok(grid.includes('event.type === "custom"') || grid.includes('type === "custom"'), "custom events are pulled out of chip slots");
 
   // CALENDAR-UX-POLISH-5: every day cell stacks its content from the very top.

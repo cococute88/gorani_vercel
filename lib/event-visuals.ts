@@ -21,6 +21,21 @@ export function eventStatusLabel(status: CalendarEventStatus): string {
   return status === "confirmed" ? "확정" : "추정";
 }
 
+// Selected-date card status label. The card shows a 확정/예상 binary (declared /
+// confirmed → 확정, estimated / 추정 / 미확정 → 예상) alongside the date and the
+// per-$10k tax-saving estimate, so it reads "2026-06-15 · $12 · 확정".
+export function eventStatusShortLabel(status: CalendarEventStatus): string {
+  return status === "confirmed" ? "확정" : "예상";
+}
+
+// Format a per-$10k tax-saving estimate (현시세 기준) for the selected-date card.
+// Returns "—" when no computable value exists — never fabricate a number.
+export function formatTaxSavingPer10k(value: number | null | undefined): string {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) return "—";
+  // "$12" (whole) or "$8.4" (one decimal) — drop a trailing ".0".
+  return `$${value.toFixed(1).replace(/\.0$/, "")}`;
+}
+
 export function eventStateClasses(event: CalendarEvent, todayIso: string): string {
   const isPast = event.date < todayIso;
   const estimated = event.status === "estimated";
