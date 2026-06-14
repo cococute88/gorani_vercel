@@ -27,8 +27,9 @@ export default function YearPlanTable({ plans, onChange }: Props) {
         <p className="mt-1 break-keep text-[13px] text-slate-400">기본 계획은 원본처럼 초기 8년 월 300만원 적립입니다. 체크 여부와 월적립액을 바꾸면 즉시 재계산됩니다.</p>
       </div>
 
-      {/* 모바일: 연도별 카드 (가로 스크롤 없이 카드 안에 모두 표시) */}
-      <div className="space-y-2 sm:hidden">
+      {/* 모바일: 연도별 카드 (가로 스크롤 없이 카드 안에 모두 표시).
+          연차가 많으면(기본 30년) 카드 영역 안에서만 세로 스크롤하여 페이지가 과도하게 늘어나지 않게 한다. */}
+      <div className="-mr-1 max-h-[60vh] space-y-2 overflow-y-auto pr-1 sm:hidden">
         {plans.map((plan, index) => (
           <div key={plan.year} className="rounded-xl border border-[#263033] bg-[#111516] p-3">
             <div className="flex items-center justify-between gap-3">
@@ -65,10 +66,12 @@ export default function YearPlanTable({ plans, onChange }: Props) {
         ))}
       </div>
 
-      {/* sm+ : 기존 표 레이아웃 */}
-      <div className="hidden overflow-x-auto rounded-xl border border-[#263033] sm:block">
+      {/* sm+ : 기존 표 레이아웃.
+          약 10개 본문 행 + 헤더 높이로 max-height 를 제한하고, 넘치는 연차는 컨테이너 내부에서만 세로 스크롤한다.
+          헤더는 sticky 로 고정해 스크롤 중에도 읽힌다. (네이티브 스크롤바는 color-scheme 를 따라 라이트/다크 자동 대응) */}
+      <div className="hidden max-h-[556px] overflow-auto rounded-xl border border-[#263033] sm:block">
         <table className="w-full min-w-[640px] border-collapse text-sm">
-          <thead className="bg-[#111516] text-[12px] uppercase tracking-wide text-slate-400">
+          <thead className="sticky top-0 z-10 bg-[#111516] text-[12px] uppercase tracking-wide text-slate-400 shadow-[0_1px_0_0_rgba(0,0,0,0.25)]">
             <tr>
               <th className="px-3 py-3 text-left">년도</th>
               <th className="px-3 py-3 text-right">월적립액(만원)</th>

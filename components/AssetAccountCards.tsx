@@ -12,11 +12,12 @@ import {
 
 import type { LiveAccountCard } from "@/lib/portfolio-aggregate";
 
-type Props = { theme?: "dark" | "light" };
+type Props = { theme?: "dark" | "light"; compact?: boolean };
 
 // 계좌 카드 grid를 위탁 / 절세(/ 미확인)로 나눠 보여준다.
 // PORTFOLIO-PERF-UI-1: 기존 단일 "계좌 현황"을 위탁/절세 두 그룹으로 분리.
-export default function AssetAccountCards({ theme = "light" }: Props) {
+// UI-3: compact=true 면 1300px+ 우측 컬럼(트리맵 옆)에 맞춰 카드 폭을 좁혀 2열·작은 패딩으로 렌더링한다.
+export default function AssetAccountCards({ theme = "light", compact = false }: Props) {
   const { hasLiveData, accountCards } = usePortfolioView();
   const cards: LiveAccountCard[] = hasLiveData
     ? accountCards
@@ -58,7 +59,7 @@ export default function AssetAccountCards({ theme = "light" }: Props) {
         ? "bg-emerald-500/15 text-emerald-500 dark:text-emerald-400"
         : "bg-slate-500/15 text-slate-500 dark:text-slate-400";
     return (
-      <div key={a.name} className={`rounded-xl p-3 ${cardCls}`}>
+      <div key={a.name} className={`rounded-xl ${compact ? "p-3 min-[1300px]:p-2.5" : "p-3"} ${cardCls}`}>
         <div className="mb-1.5 flex items-center justify-between gap-1">
           <span className={`truncate text-[12.5px] font-bold ${nameCls}`}>{a.name}</span>
           <span className={`shrink-0 rounded px-1 py-0.5 text-[9.5px] font-medium ${taxCls}`}>
@@ -112,7 +113,13 @@ export default function AssetAccountCards({ theme = "light" }: Props) {
             )}
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-4">
+        <div
+          className={
+            compact
+              ? "grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-4 min-[1300px]:grid-cols-2 min-[1300px]:gap-2"
+              : "grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-4"
+          }
+        >
           {list.map(renderCard)}
         </div>
       </section>

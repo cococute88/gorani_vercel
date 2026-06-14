@@ -113,23 +113,28 @@ export default function PortfolioPage() {
           />
         </section>
 
-        {/* 계좌 현황: 위탁 / 절세 분리 (스냅샷 기반) */}
-        <section className="mb-8 min-w-0 overflow-x-hidden">
-          <AssetAccountCards theme={theme} />
-        </section>
+        {/* 계좌 현황 + 배당/성장 분석.
+            기본(<1300px): 기존처럼 계좌 현황 → 트리맵 순으로 세로 스택.
+            1300px+: 좌측 트리맵은 폭을 제한하고 우측 계좌 그룹(위탁·절세 세로 스택)이 남은 공간을 사용한다. */}
+        <div className="grid min-w-0 grid-cols-1 gap-6 min-[1300px]:grid-cols-[minmax(380px,560px)_minmax(0,1fr)] min-[1300px]:items-start">
+          {/* 계좌 현황: 위탁 / 절세 분리 (스냅샷 기반) — 1300px+ 우측 컬럼 */}
+          <section className="mb-8 min-w-0 overflow-x-hidden min-[1300px]:col-start-2 min-[1300px]:row-start-1 min-[1300px]:mb-0">
+            <AssetAccountCards theme={theme} compact />
+          </section>
 
-        {/* 하단 분석 블록 (실데이터 연결 전 샘플) */}
-        <section className="min-w-0 overflow-x-hidden">
-          <div className="mb-3 flex items-center gap-2">
-            <h2 className="text-[15px] font-bold text-slate-700 dark:text-slate-300">
-              배당 / 성장 분석
-            </h2>
-            <SampleBadge />
-          </div>
-          <div className="mx-auto min-w-0 w-full max-w-[560px] xl:mx-0">
-            <TreemapMock />
-          </div>
-        </section>
+          {/* 하단 분석 블록 (실데이터 연결 전 샘플) — 1300px+ 좌측 컬럼 */}
+          <section className="min-w-0 overflow-x-hidden min-[1300px]:col-start-1 min-[1300px]:row-start-1">
+            <div className="mb-3 flex items-center gap-2">
+              <h2 className="text-[15px] font-bold text-slate-700 dark:text-slate-300">
+                배당 / 성장 분석
+              </h2>
+              <SampleBadge />
+            </div>
+            <div className="mx-auto min-w-0 w-full max-w-[560px] xl:mx-0">
+              <TreemapMock />
+            </div>
+          </section>
+        </div>
       </main>
     </div>
   );
