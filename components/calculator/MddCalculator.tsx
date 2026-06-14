@@ -6,7 +6,7 @@ import { Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Too
 import MetricCard from "@/components/MetricCard";
 import CalculatorDataStatus from "./CalculatorDataStatus";
 import CalculatorWarningPanel from "./CalculatorWarningPanel";
-import { TextInput, NumberInput, DateInput, SelectInput } from "./CalculatorInputField";
+import { TextInput, DateInput } from "./CalculatorInputField";
 import { fetchQuoteHistory } from "@/lib/calculator-data-provider";
 import { calculateMdd } from "@/lib/mdd-calculator";
 import type { MddInput, PricePoint } from "@/lib/calculator-types";
@@ -99,35 +99,24 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-[15px] font-bold text-white">MDD inputs</h2>
+            <h2 className="text-[15px] font-bold text-white">입력값</h2>
             <CalculatorDataStatus source={result.source} loading={loading} updatedAt={result.updatedAt} loadingText="loading history" />
           </div>
           <button type="submit" disabled={loading} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-[13px] font-bold text-white transition-colors hover:bg-blue-700 disabled:opacity-50">
             <Search className="h-4 w-4" />
-            Calculate
+            분석 실행
           </button>
         </div>
 
-        <div className="mt-4 grid gap-3 text-[13px] text-slate-300 sm:grid-cols-2 lg:grid-cols-4">
-          <TextInput label="Ticker" value={input.ticker} onChange={(v) => update("ticker", v.toUpperCase())} />
-          <SelectInput label="Period" value={input.analysisPeriod} onChange={(v) => update("analysisPeriod", v as MddInput["analysisPeriod"])}>
-            <option value="6m">6 months</option>
-            <option value="1y">1 year</option>
-            <option value="3y">3 years</option>
-            <option value="5y">5 years</option>
-            <option value="custom">Custom</option>
-          </SelectInput>
-          <DateInput label="Start date" value={input.startDate} onChange={(v) => update("startDate", v)} />
-          <DateInput label="End date" value={input.endDate} onChange={(v) => update("endDate", v)} />
-          <SelectInput label="Currency" value={input.currency} onChange={(v) => update("currency", v as MddInput["currency"])}>
-            <option value="USD">USD</option>
-            <option value="KRW">KRW</option>
-          </SelectInput>
-          <NumberInput label="Initial amount" value={input.initialAmount} onChange={(v) => update("initialAmount", v)} />
-          <NumberInput label="Sample current price" value={input.currentPrice} onChange={(v) => update("currentPrice", v)} />
-          <NumberInput label="Sample high price" value={input.highPrice} onChange={(v) => update("highPrice", v)} />
-          <NumberInput label="Sample low price" value={input.lowPrice} onChange={(v) => update("lowPrice", v)} />
+        {/* 원본 Streamlit MDD 계산기의 입력항목만 노출한다 (#7-3). */}
+        <div className="mt-4 grid gap-3 text-[13px] text-slate-300 sm:grid-cols-3">
+          <TextInput label="티커" value={input.ticker} onChange={(v) => update("ticker", v.toUpperCase())} />
+          <DateInput label="시작일" value={input.startDate} onChange={(v) => update("startDate", v)} />
+          <DateInput label="종료일" value={input.endDate} onChange={(v) => update("endDate", v)} />
         </div>
+        <p className="mt-3 rounded-lg border border-[#2a3336] bg-[#151a1b] px-3 py-2 text-[12px] text-slate-400">
+          입력한 시작일 ~ 종료일 구간의 종가로 최대 낙폭(MDD)을 분석합니다.
+        </p>
       </form>
 
       {/* Warnings */}

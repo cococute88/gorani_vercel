@@ -136,26 +136,21 @@ export default function DividendCaptureSimulator({ input, onChange }: { input: D
           </div>
           <button type="submit" disabled={loading} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-[13px] font-bold text-white transition-colors hover:bg-blue-700 disabled:opacity-50">
             <Search className="h-4 w-4" />
-            계산 실행
+            백테스트 실행
           </button>
         </div>
-        <div className="mt-4 grid gap-3 text-[13px] text-slate-300 sm:grid-cols-2 lg:grid-cols-4">
-          <TextInput label="티커" value={input.ticker} onChange={(v) => update("ticker", v.toUpperCase())} />
-          <NumberInput label="투자금($)" value={input.investmentAmount} onChange={(v) => update("investmentAmount", v)} />
+        {/* 원본 Streamlit 배당치기 시뮬레이터의 입력항목만 노출한다 (#7-1). */}
+        <div className="mt-4 grid gap-3 text-[13px] text-slate-300 sm:grid-cols-2 lg:grid-cols-3">
+          <TextInput label="티커 (예: SCHD, ARCC)" value={input.ticker} onChange={(v) => update("ticker", v.toUpperCase())} />
+          <NumberInput label="투자자금 (달러)" value={input.investmentAmount} onChange={(v) => update("investmentAmount", v)} />
           <SelectInput label="매수가 기준" value={input.buyType} onChange={(v) => update("buyType", v as DividendCaptureInput["buyType"])}>
             <option value="D-1 종가">D-1 종가</option>
             <option value="D-1 시가">D-1 시가</option>
             <option value="D-2 종가">D-2 종가</option>
             <option value="D-2 시가">D-2 시가</option>
           </SelectInput>
-          <NumberInput label="매도허용기간(N거래일)" value={input.sellWindow} onChange={(v) => update("sellWindow", v)} />
-          <NumberInput label="기준 매수가($)" value={input.referenceBuyPrice} onChange={(v) => update("referenceBuyPrice", v)} />
-          <NumberInput label="배당락 기준가($)" value={input.referenceExOpenPrice} onChange={(v) => update("referenceExOpenPrice", v)} />
-          <NumberInput label="주당 배당($)" value={input.dividendPerShare} onChange={(v) => update("dividendPerShare", v)} />
-          <NumberInput label="세율(%)" value={input.taxRate} onChange={(v) => update("taxRate", v)} />
-          <NumberInput label="수수료(%)" value={input.commissionRate} onChange={(v) => update("commissionRate", v)} />
-          <NumberInput label="슬리피지(%)" value={input.slippageRate} onChange={(v) => update("slippageRate", v)} />
-          <NumberInput label="분석 기간(개월)" value={input.analysisMonths} onChange={(v) => update("analysisMonths", v)} />
+          <NumberInput label="매도허용기간 (N거래일)" value={input.sellWindow} onChange={(v) => update("sellWindow", v)} />
+          <NumberInput label="배당소득세율 (%)" value={input.taxRate} onChange={(v) => update("taxRate", v)} />
           <SelectInput label="최근 5년 데이터만 보기" value={input.recent5yOnly ? "true" : "false"} onChange={(v) => update("recent5yOnly", v === "true")}>
             <option value="false">아니오</option>
             <option value="true">예</option>

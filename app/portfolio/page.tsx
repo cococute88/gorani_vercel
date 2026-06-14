@@ -19,6 +19,13 @@ export default function PortfolioPage() {
   const theme = useResolvedTheme();
   const d = portfolioView.summary;
 
+  // 사용자에게 조치가 필요한 경고(warning)와 단순 안내(info)를 분리해
+  // 경고 박스가 안내성 메시지로 과하게 부풀지 않도록 한다.
+  const warningNotices = portfolioView.warnings.filter((w) => w.severity === "warning");
+  const infoNotices = portfolioView.warnings.filter(
+    (w) => w.severity === "info" && w.code !== "no_snapshot",
+  );
+
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#f8fafc] text-slate-800 dark:bg-[#111516] dark:text-slate-200">
       <TopNav theme={theme} />
@@ -26,11 +33,10 @@ export default function PortfolioPage() {
         {/* 제목줄 */}
         <div className="mb-4 flex min-w-0 flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
           <div className="min-w-0 flex-1">
-            <div className="mb-3 flex flex-wrap items-center gap-3">
+            <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
               <h1 className="text-[20px] font-extrabold text-slate-900 dark:text-white">
                 포트폴리오 현황
               </h1>
-              <SampleBadge label="시장 지표 샘플" />
               <span className="text-[12.5px] text-slate-500">
                 {portfolioView.snapshot
                   ? `${portfolioView.snapshot.snapshotDate} 스냅샷 기준`
@@ -38,6 +44,12 @@ export default function PortfolioPage() {
               </span>
             </div>
 
+            <div className="mb-1.5 flex items-center gap-2">
+              <span className="text-[11.5px] font-medium text-slate-400 dark:text-slate-500">
+                시장 지표
+              </span>
+              <SampleBadge label="샘플" />
+            </div>
             <div className="no-scrollbar -mx-4 flex min-w-0 gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
               {PIN_TICKERS.map((t) => (
                 <div key={t.name} className="w-[210px] shrink-0 sm:w-[220px]">
@@ -57,24 +69,28 @@ export default function PortfolioPage() {
           </div>
         </div>
 
-        {portfolioView.flags.hasSnapshot ? (
-          <div className="mb-4 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-2 text-[12.5px] text-emerald-200">
-            포트폴리오 관리에서 저장한 최신 스냅샷 실데이터를 표시하고 있습니다. sample fallback은 사용하지 않습니다.
+        {!portfolioView.flags.hasSnapshot ? (
+          <div className="mb-4 rounded-xl border border-amber-300/60 bg-amber-50 px-4 py-2.5 text-[12.5px] leading-relaxed text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-100">
+            아직 등록된 스냅샷이 없습니다. 포트폴리오 관리에서 엑셀을 등록하면 자산 구성과 보유종목이 여기에 표시됩니다.
           </div>
-        ) : (
-          <div className="mb-4 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-2 text-[12.5px] text-amber-200">
-            저장된 스냅샷이 없어 실데이터 섹션을 empty 상태로 표시합니다. /portfolio-manager에서 엑셀을 등록하면 최신 스냅샷으로 전환됩니다.
-          </div>
-        )}
+        ) : null}
 
-        {portfolioView.warnings.length > 0 ? (
-          <div className="mb-4 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-[12.5px] text-amber-900 dark:text-amber-100">
-            <div className="mb-1 font-bold">데이터 확인 필요</div>
+        {warningNotices.length > 0 ? (
+          <div className="mb-4 rounded-xl border border-amber-300/60 bg-amber-50 px-4 py-3 text-[12.5px] text-amber-900 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-100">
+            <div className="mb-1 font-bold">확인이 필요한 항목</div>
             <ul className="space-y-1">
-              {portfolioView.warnings.slice(0, 4).map((warning) => (
+              {warningNotices.slice(0, 4).map((warning) => (
                 <li key={warning.code}>· {warning.message}</li>
               ))}
             </ul>
+          </div>
+        ) : null}
+
+        {infoNotices.length > 0 ? (
+          <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-[12px] leading-relaxed text-slate-500 dark:border-[#2a3336] dark:bg-white/[0.03] dark:text-slate-400">
+            {infoNotices.slice(0, 3).map((warning) => (
+              <div key={warning.code}>· {warning.message}</div>
+            ))}
           </div>
         ) : null}
 
@@ -93,20 +109,20 @@ export default function PortfolioPage() {
             title="계좌별 비중"
             data={portfolioView.accountAllocation}
             theme={theme}
-            emptyMessage="financeAssets.amountKRW 또는 holdings.valueKRW 계좌 그룹이 부족해 계좌별 비중을 표시하지 않습니다."
+            emptyMessage="계좌별 평가금액 정보가 없어 계좌 비중을 표시할 수 없습니다."
           />
           <DonutChartCard
             title="종목별 비중 상위 15개"
             data={portfolioView.stockAllocation}
             theme={theme}
             maxLegend={15}
-            emptyMessage="평가금액이 있는 보유종목이 없어 종목별 비중을 표시하지 않습니다."
+            emptyMessage="평가금액이 있는 보유종목이 없어 종목 비중을 표시할 수 없습니다."
           />
           <DonutChartCard
             title="자산 구성"
             data={portfolioView.assetAllocation}
             theme={theme}
-            emptyMessage="holdings.assetType 또는 financeAssets.category 금액이 부족해 자산 구성을 표시하지 않습니다."
+            emptyMessage="자산 종류 정보가 없어 자산 구성을 표시할 수 없습니다."
           />
         </section>
 
@@ -125,7 +141,11 @@ export default function PortfolioPage() {
               <h2 className="text-[15px] font-bold text-slate-700 dark:text-slate-300">
                 보유종목 분석
               </h2>
-              {!portfolioView.flags.hasTreemap ? <SampleBadge label="empty" /> : null}
+              {!portfolioView.flags.hasTreemap ? (
+                <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-500 dark:border-[#2a3336] dark:bg-white/[0.03] dark:text-slate-400">
+                  표시할 데이터 없음
+                </span>
+              ) : null}
             </div>
             <div className="mx-auto min-w-0 w-full max-w-[560px] xl:mx-0">
               <PortfolioTreemap items={portfolioView.treemapItems} theme={theme} />

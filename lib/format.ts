@@ -1,12 +1,14 @@
 // 숫자/통화 포맷 유틸. 화면 컴포넌트에서 하드코딩 대신 사용한다.
 
+// \uc6d0\ud654 \uae30\ud638(\u20a9)\uc640 \uc22b\uc790 \uc0ac\uc774\uc5d0\ub294 \uc904\ubc14\uafc8 \ubd88\uac00 \uacf5\ubc31(NBSP, \u00a0)\uc744 \uc4f4\ub2e4.
+// \uc77c\ubc18 \uacf5\ubc31\uc744 \uc4f0\uba74 \uce74\ub4dc \ud3ed\uc774 \uc881\uc744 \ub54c "\u20a9"\uc640 \uae08\uc561\uc774 \uc11c\ub85c \ub2e4\ub978 \uc904\ub85c \ubd84\ub9ac\ub41c\ub2e4 (#5).
 export function formatWon(value: number): string {
-  return "\u20a9 " + Math.round(value).toLocaleString("ko-KR");
+  return "\u20a9\u00a0" + Math.round(value).toLocaleString("ko-KR");
 }
 
 export function formatWonSigned(value: number): string {
   const sign = value > 0 ? "+" : value < 0 ? "-" : "";
-  return sign + "\u20a9 " + Math.abs(Math.round(value)).toLocaleString("ko-KR");
+  return sign + "\u20a9\u00a0" + Math.abs(Math.round(value)).toLocaleString("ko-KR");
 }
 
 export function formatNumber(value: number, digits = 2): string {

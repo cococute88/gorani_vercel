@@ -7,17 +7,18 @@ import PreviewNotice from "./PreviewNotice";
 import DividendCaptureSimulator from "./DividendCaptureSimulator";
 import ConversionCalculator from "./ConversionCalculator";
 import MddCalculator from "./MddCalculator";
-import CalculatorPresetControls from "./CalculatorPresetControls";
 import { defaultConversionInput } from "@/lib/conversion-calculator";
 import { defaultDividendCaptureInput } from "@/lib/dividend-capture-calculator";
 import { defaultMddInput } from "@/lib/mdd-calculator";
 import type { ConversionInput, DividendCaptureInput, MddInput } from "@/lib/calculator-types";
 import { useResolvedTheme } from "@/components/theme/ThemeProvider";
 
+// PORTFOLIO-CALCULATOR-UX-FIX-2 #7: 원본 Streamlit 입력 흐름에 맞춰 입력칸을 간소화하고
+// 프리셋 저장/선택/불러오기 UI는 메인 화면에서 제거했다.
 const tabs = [
-  { key: "capture", label: "배당치기 시뮬", presetType: "dividend-capture" },
-  { key: "conversion", label: "매도전환 계산기", presetType: "conversion" },
-  { key: "mdd", label: "MDD 계산기", presetType: "mdd" },
+  { key: "capture", label: "배당치기 시뮬" },
+  { key: "conversion", label: "매도전환 계산기" },
+  { key: "mdd", label: "MDD 계산기" },
 ] as const;
 
 type TabKey = (typeof tabs)[number]["key"];
@@ -28,14 +29,6 @@ export default function CalculatorPage() {
   const [captureInput, setCaptureInput] = useState<DividendCaptureInput>(defaultDividendCaptureInput);
   const [conversionInput, setConversionInput] = useState<ConversionInput>(defaultConversionInput);
   const [mddInput, setMddInput] = useState<MddInput>(defaultMddInput);
-  const activePreset = tabs.find((tab) => tab.key === activeTab) ?? tabs[0];
-  const activeValues = activeTab === "capture" ? captureInput : activeTab === "conversion" ? conversionInput : mddInput;
-
-  const handleLoadPreset = (values: Record<string, unknown>) => {
-    if (activeTab === "capture") setCaptureInput({ ...defaultDividendCaptureInput, ...values } as DividendCaptureInput);
-    if (activeTab === "conversion") setConversionInput({ ...defaultConversionInput, ...values } as ConversionInput);
-    if (activeTab === "mdd") setMddInput({ ...defaultMddInput, ...values } as MddInput);
-  };
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#f8fafc] text-slate-800 dark:bg-[#111516] dark:text-slate-200">
@@ -69,8 +62,6 @@ export default function CalculatorPage() {
             </button>
           ))}
         </div>
-
-        <CalculatorPresetControls type={activePreset.presetType} values={activeValues as unknown as Record<string, unknown>} onLoad={handleLoadPreset} />
 
         {activeTab === "capture" && <DividendCaptureSimulator input={captureInput} onChange={setCaptureInput} />}
         {activeTab === "conversion" && <ConversionCalculator input={conversionInput} onChange={setConversionInput} />}

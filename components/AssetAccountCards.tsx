@@ -123,22 +123,26 @@ export default function AssetAccountCards({ theme = "light", compact = false }: 
     <div className="flex flex-col gap-5">
       {cards.length > 0 ? (
         <>
-          <div className={`rounded-xl border px-3 py-2 text-[12px] ${
-            isLight
-              ? "border-slate-200 bg-slate-50 text-slate-500"
-              : "border-[#2a3336] bg-white/[0.03] text-slate-400"
-          }`}>
-            계좌 현황 소스: {accountAllocationSource === "financeAssets" ? "financeAssets.amountKRW" : "holdings 계좌/금융사 그룹"}
-          </div>
+          {accountAllocationSource === "holdings" ? (
+            <div className={`rounded-xl border px-3 py-2 text-[12px] leading-relaxed ${
+              isLight
+                ? "border-slate-200 bg-slate-50 text-slate-500"
+                : "border-[#2a3336] bg-white/[0.03] text-slate-400"
+            }`}>
+              계좌별 잔액 정보가 없어 보유종목 기준으로 계좌를 분류했습니다.
+            </div>
+          ) : null}
           {ACCOUNT_STATUS_GROUP_ORDER.map(renderGroup)}
         </>
       ) : (
-        <div className={`rounded-2xl border border-dashed px-4 py-8 text-center text-[13px] ${
+        <div className={`rounded-2xl border border-dashed px-4 py-8 text-center text-[13px] leading-relaxed ${
           isLight
             ? "border-slate-200 bg-white text-slate-500"
             : "border-[#2a3336] bg-[#171c1d] text-slate-400"
         }`}>
-          계좌별 평가금액을 만들 수 있는 financeAssets.amountKRW 또는 holdings.valueKRW가 없습니다.
+          계좌별 평가금액 정보가 없어 계좌 현황을 표시할 수 없습니다.
+          <br />
+          포트폴리오 관리에서 스냅샷을 등록하면 표시됩니다.
         </div>
       )}
     </div>

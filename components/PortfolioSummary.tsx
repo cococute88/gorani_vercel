@@ -7,6 +7,7 @@ import {
   formatWonSigned,
 } from "@/lib/format";
 import { usePortfolioView } from "@/lib/use-portfolio-view";
+import MoneyText from "@/components/common/MoneyText";
 
 type Props = { theme?: "dark" | "light" };
 
@@ -52,18 +53,24 @@ function RatioRow({
   name,
   current,
   color,
+  isLight,
 }: {
   name: string;
   current: number;
   color: string;
+  isLight: boolean;
 }) {
   return (
     <div>
       <div className="mb-1 flex min-w-0 items-center justify-between gap-2 text-[12px]">
-        <span className="truncate font-semibold text-slate-300">{name}</span>
-        <span className="num shrink-0 font-bold text-white">{current.toFixed(1)}%</span>
+        <span className={`truncate font-semibold ${isLight ? "text-slate-600" : "text-slate-300"}`}>
+          {name}
+        </span>
+        <span className={`num shrink-0 font-bold ${isLight ? "text-slate-900" : "text-white"}`}>
+          {current.toFixed(1)}%
+        </span>
       </div>
-      <div className="h-2 w-full overflow-hidden rounded-full bg-[#2a3336]">
+      <div className={`h-2 w-full overflow-hidden rounded-full ${isLight ? "bg-slate-100" : "bg-[#2a3336]"}`}>
         <div
           className="h-full rounded-full"
           style={{ width: `${Math.min(current, 100)}%`, backgroundColor: color }}
@@ -88,7 +95,7 @@ export default function PortfolioSummary({ theme = "light" }: Props) {
   return (
     <div className="flex flex-col gap-3 xl:flex-row">
       <div className={`flex-1 rounded-2xl border p-4 ${panelCls}`}>
-        <div className="grid min-w-0 grid-cols-1 gap-y-4 sm:grid-cols-2 xl:grid-cols-4 xl:gap-y-0 xl:divide-x xl:divide-[#2a3336]">
+        <div className={`grid min-w-0 grid-cols-1 gap-y-4 sm:grid-cols-2 xl:grid-cols-4 xl:gap-y-0 xl:divide-x ${isLight ? "xl:divide-slate-200" : "xl:divide-[#2a3336]"}`}>
           <div className="flex min-w-0 flex-col xl:pr-5">
             <div className="mb-1 flex items-center gap-2 text-[11px]">
               <span className={`font-bold ${isLight ? "text-slate-700" : "text-slate-200"}`}>
@@ -98,14 +105,14 @@ export default function PortfolioSummary({ theme = "light" }: Props) {
                 {d.snapshotDate ? `${d.snapshotDate} 기준` : "스냅샷 없음"}
               </span>
             </div>
-            <span className={`num break-keep text-[22px] font-extrabold ${titleCls}`}>
+            <MoneyText shrink className={`break-keep font-extrabold ${titleCls}`}>
               {formatMaybeWon(d.investmentValueKRW ?? d.totalAssetKRW)}
-            </span>
+            </MoneyText>
             <span className="num mt-1 text-[12.5px] font-semibold" style={{ color: valueColor }}>
               {formatMaybeSignedWon(d.returnAmountKRW)} ({formatMaybePercent(d.returnPct)})
             </span>
             <span className={`mt-1 text-[11px] ${subCls}`}>
-              sample fallback 없이 최신 스냅샷만 사용
+              최신 스냅샷 실데이터 기준
             </span>
           </div>
 
@@ -163,20 +170,20 @@ export default function PortfolioSummary({ theme = "light" }: Props) {
           <div className="relative flex min-w-0 flex-col overflow-hidden xl:pl-5">
             <span className={`text-[11px] ${labelCls}`}>데이터 상태</span>
             <div className="relative z-10 mt-1 space-y-0.5">
-              <div>
-                <span className={`text-[10.5px] ${subCls}`}>소스 </span>
-                <span className={`break-all text-[13px] font-bold ${titleCls}`}>
+              <div className="flex min-w-0 items-baseline gap-1">
+                <span className={`shrink-0 text-[10.5px] ${subCls}`}>불러온 파일</span>
+                <span className={`truncate text-[13px] font-bold ${titleCls}`} title={d.sourceFileName || undefined}>
                   {d.sourceFileName || "—"}
                 </span>
               </div>
               <div>
-                <span className={`text-[10.5px] ${subCls}`}>사용 금액 </span>
+                <span className={`text-[10.5px] ${subCls}`}>평가 기준 </span>
                 <span className="num text-[14px] font-bold" style={{ color: valueColor }}>
                   {d.investmentValueKRW === null ? "—" : formatCompactKrw(d.investmentValueKRW)}
                 </span>
               </div>
               <div className={`text-[12px] font-semibold ${flags.hasSnapshot ? "text-emerald-500" : "text-amber-500"}`}>
-                {flags.hasSnapshot ? "실데이터 스냅샷" : "empty state"}
+                {flags.hasSnapshot ? "최신 스냅샷 실데이터" : "스냅샷 등록 전"}
               </div>
             </div>
             <div className="pointer-events-none absolute bottom-2 right-0 h-12 w-28 opacity-70">
@@ -196,7 +203,12 @@ export default function PortfolioSummary({ theme = "light" }: Props) {
         {stockCash.length > 0 ? (
           stockCash.slice(0, 2).map((item, index) => (
             <div key={item.name} className={index > 0 ? "mt-3" : undefined}>
-              <RatioRow name={item.name} current={item.current} color={index === 0 ? "#3b82f6" : "#f59e0b"} />
+              <RatioRow
+                name={item.name}
+                current={item.current}
+                color={index === 0 ? "#3b82f6" : "#f59e0b"}
+                isLight={isLight}
+              />
             </div>
           ))
         ) : (
@@ -205,7 +217,7 @@ export default function PortfolioSummary({ theme = "light" }: Props) {
               ? "border-slate-200 bg-slate-50 text-slate-500"
               : "border-[#2a3336] bg-white/[0.03] text-slate-400"
           }`}>
-            holdings.valueKRW와 financeAssets 현금 금액이 부족해 비중을 계산하지 않습니다.
+            보유종목 평가금액과 현금 잔액 정보가 부족해 비중을 표시할 수 없습니다.
           </div>
         )}
       </div>

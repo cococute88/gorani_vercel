@@ -5,7 +5,7 @@ import { Search } from "lucide-react";
 import MetricCard from "@/components/MetricCard";
 import CalculatorDataStatus from "./CalculatorDataStatus";
 import CalculatorWarningPanel from "./CalculatorWarningPanel";
-import { TextInput, NumberInput, DateInput, SelectInput } from "./CalculatorInputField";
+import { TextInput, DateInput } from "./CalculatorInputField";
 import { fetchQuoteHistory } from "@/lib/calculator-data-provider";
 import { calculateConversion } from "@/lib/conversion-calculator";
 import type { ConversionInput, ConversionPricePoint } from "@/lib/calculator-types";
@@ -104,24 +104,34 @@ export default function ConversionCalculator({ input, onChange }: { input: Conve
             <h2 className="text-[15px] font-bold text-white">입력값</h2>
             <CalculatorDataStatus source={result.source} loading={loading} updatedAt={result.updatedAt} loadingText="loading history" />
           </div>
-          <button type="submit" disabled={loading} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-[13px] font-bold text-white transition-colors hover:bg-blue-700 disabled:opacity-50">
-            <Search className="h-4 w-4" />
-            계산 실행
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setSubmitted({ ...input })}
+              disabled={loading}
+              className="inline-flex items-center gap-2 rounded-lg border border-[#2a3336] bg-[#151a1b] px-3 py-2 text-[13px] font-semibold text-slate-300 transition-colors hover:bg-[#1c2223] disabled:opacity-50"
+            >
+              캐시 초기화
+            </button>
+            <button type="submit" disabled={loading} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-[13px] font-bold text-white transition-colors hover:bg-blue-700 disabled:opacity-50">
+              <Search className="h-4 w-4" />
+              분석 실행
+            </button>
+          </div>
         </div>
-        <div className="mt-4 grid gap-3 text-[13px] text-slate-300 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
-          <TextInput label="매도 티커" value={input.sellTicker} onChange={(v) => update("sellTicker", v.toUpperCase())} />
-          <TextInput label="매수 티커" value={input.buyTicker} onChange={(v) => update("buyTicker", v.toUpperCase())} />
-          <NumberInput label="보유/매도 수량" value={input.sellShares} onChange={(v) => update("sellShares", v)} />
-          <NumberInput label="매도 현재가($)" value={input.sellPrice} onChange={(v) => update("sellPrice", v)} />
-          <NumberInput label="매수 현재가($)" value={input.buyPrice} onChange={(v) => update("buyPrice", v)} />
+        {/* 원본 Streamlit 매도전환 분석의 입력항목만 노출한다 (#7-2). */}
+        <div className="mt-4 grid gap-3 text-[13px] text-slate-300 sm:grid-cols-2 lg:grid-cols-4">
+          <TextInput label="매도 티커 (Sell)" value={input.sellTicker} onChange={(v) => update("sellTicker", v.toUpperCase())} />
+          <TextInput label="매수 티커 (Buy)" value={input.buyTicker} onChange={(v) => update("buyTicker", v.toUpperCase())} />
           <DateInput label="시작일" value={input.startDate} onChange={(v) => update("startDate", v)} />
           <DateInput label="종료일" value={input.endDate} onChange={(v) => update("endDate", v)} />
-          <NumberInput label="평균 산출 기간(개월)" value={input.averageMonths} onChange={(v) => update("averageMonths", v)} />
-          <NumberInput label="전환 기준 괴리율(%)" value={input.thresholdPct} onChange={(v) => update("thresholdPct", v)} />
-          <NumberInput label="매도 수수료(%)" value={input.sellFeeRate} onChange={(v) => update("sellFeeRate", v)} />
-          <NumberInput label="매수 수수료(%)" value={input.buyFeeRate} onChange={(v) => update("buyFeeRate", v)} />
         </div>
+        <p className="mt-3 rounded-lg border border-[#2a3336] bg-[#151a1b] px-3 py-2 text-[12px] text-slate-400">
+          두 종목의 공통 거래일 기준으로 전환비를 분석합니다.
+          {result.sellFirstDate && result.buyFirstDate
+            ? ` 공통 시작일 자동 추천: ${result.usedStartDate} ~ ${result.usedEndDate}.`
+            : " 가능한 가장 이른 공통 시작일을 자동으로 사용합니다."}
+        </p>
       </form>
 
       {/* Warnings */}

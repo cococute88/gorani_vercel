@@ -94,7 +94,7 @@ export default function PortfolioTreemap({ items, theme = "dark" }: Props) {
             ? "border-slate-200 bg-slate-50 text-slate-500"
             : "border-[#2a3336] bg-white/[0.03] text-slate-400"
         }`}>
-          평가금액 필드가 있는 보유종목이 없어 트리맵을 표시하지 않습니다.
+          평가금액이 있는 보유종목이 없어 트리맵을 표시할 수 없습니다.
         </div>
       )}
     </div>

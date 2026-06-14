@@ -30,7 +30,8 @@ export const defaultMddInput: MddInput = {
   ticker: "QQQ",
   startDate: "2025-06-10",
   endDate: "2026-06-10",
-  analysisPeriod: "1y",
+  // 간소화된 MDD 계산기는 티커 + 시작일/종료일만 입력받으므로 기간 모드는 custom 고정 (#7-3).
+  analysisPeriod: "custom",
   currency: "USD",
   initialAmount: 10_000,
   currentPrice: 485.2,

@@ -4,6 +4,12 @@ import {
   applyKrxTickerMappingsToHoldings,
   type KrxTickerNameMap,
 } from "./krx-ticker-name-map";
+import { classifyAccountStatusGroup } from "./account-status-group";
+
+// PORTFOLIO-CALCULATOR-UX-FIX-2 #2: 화면에 노출할 계좌의 최소 평가금액.
+// 이 금액 미만의 계좌 그룹은 사용자에게 의미가 없어 "표시용 계좌 항목"에서 제외한다.
+// (총자산 KPI 등 합계 지표는 줄이지 않고, 계좌 카드/계좌 비중 표시에만 적용한다.)
+export const MIN_VISIBLE_ACCOUNT_AMOUNT_KRW = 200_000;
 
 const COLORS = [
   "#3b82f6",
@@ -196,12 +202,84 @@ function holdingPurposeName(holding: Holding): string | undefined {
   return value;
 }
 
-function holdingAssetName(holding: Holding): string | undefined {
-  return holding.assetType || holding.statusGroup || "투자성";
+// PORTFOLIO-CALCULATOR-UX-FIX-2 #3: 자산 구성을 성장/배당/현금 3개로만 분류한다.
+export type AssetPurposeGroup = "성장" | "배당" | "현금";
+
+// 현금성으로 볼 수 있는 신호 (예수금/CMA/파킹/MMF/예적금 등).
+const CASH_LIKE_SIGNALS = [
+  "현금",
+  "예수금",
+  "예치금",
+  "CMA",
+  "MMF",
+  "MMW",
+  "파킹",
+  "예적금",
+  "적금",
+  "예금",
+  "통장",
+  "대기자금",
+  "RP",
+];
+
+// 배당 목적 신호 (③배당 태그 또는 대표 배당 ETF).
+const DIVIDEND_SIGNALS = ["배당", "인컴", "커버드콜", "월배당"];
+const DIVIDEND_TICKERS = new Set([
+  "SCHD",
+  "JEPI",
+  "JEPQ",
+  "SPYM",
+  "SPYD",
+  "DIVO",
+  "VYM",
+  "DGRO",
+  "O",
+  "ARCC",
+]);
+
+function includesAny(haystack: string, signals: string[]): boolean {
+  const upper = haystack.toUpperCase();
+  return signals.some((signal) => upper.includes(signal.toUpperCase()));
 }
 
-function financeAssetName(asset: FinanceAsset): string | undefined {
-  return asset.category || asset.statusGroup || asset.groupName || "기타";
+// 보유종목 1건을 성장/배당/현금 중 하나로 분류한다 (기타 그룹을 만들지 않는다).
+function classifyHoldingPurposeGroup(holding: Holding): AssetPurposeGroup {
+  const purpose = holdingPurposeName(holding) ?? "";
+  const ticker = (holding.ticker || "").trim().toUpperCase().split(".")[0];
+  const cashHaystack = [holding.assetType, holding.category, holding.productName, holding.cleanName, purpose]
+    .filter(Boolean)
+    .join(" ");
+
+  if (holding.category === "현금" || includesAny(cashHaystack, CASH_LIKE_SIGNALS)) return "현금";
+  if (includesAny(purpose, DIVIDEND_SIGNALS) || DIVIDEND_TICKERS.has(ticker)) return "배당";
+  // 성장 신호가 명시돼 있거나, 위 어디에도 해당하지 않는 투자 종목의 기본값.
+  return "성장";
+}
+
+// 재무현황(현금성 잔액) 1건을 성장/배당/현금 중 하나로 분류한다.
+function classifyFinanceAssetPurposeGroup(asset: FinanceAsset): AssetPurposeGroup {
+  const haystack = [asset.category, asset.statusGroup, asset.groupName, asset.productName, asset.cleanName]
+    .filter(Boolean)
+    .join(" ");
+  if (asset.category === "투자성") {
+    if (includesAny(haystack, DIVIDEND_SIGNALS)) return "배당";
+    return "성장";
+  }
+  // 현금/예적금/기타 금융자산은 현금성으로 본다.
+  return "현금";
+}
+
+// 보유종목을 위탁/절세 트리맵 그룹으로 분류한다 (#4). 신호가 없으면 위탁으로 둔다.
+function classifyHoldingTreemapGroup(holding: Holding): "위탁" | "절세" {
+  const name = [holding.accountGroup, holding.accountName, holding.broker, holding.productName, holding.cleanName]
+    .filter(Boolean)
+    .join(" ");
+  const group = classifyAccountStatusGroup({
+    name,
+    type: holding.assetType,
+    statusGroup: holding.statusGroup,
+  });
+  return group === "절세" ? "절세" : "위탁";
 }
 
 function financeAccountName(asset: FinanceAsset): string | undefined {
@@ -250,6 +328,7 @@ function buildAccountRowsFromFinanceAssets(financeAssets: FinanceAsset[]): Portf
   }
 
   return Array.from(totals.entries())
+    .filter(([, item]) => item.value >= MIN_VISIBLE_ACCOUNT_AMOUNT_KRW)
     .sort((a, b) => b[1].value - a[1].value)
     .map(([name, item]) => ({
       name,
@@ -283,6 +362,7 @@ function buildAccountRowsFromHoldings(holdings: Holding[]): PortfolioAccountRow[
   }
 
   return Array.from(totals.entries())
+    .filter(([, item]) => item.value >= MIN_VISIBLE_ACCOUNT_AMOUNT_KRW)
     .sort((a, b) => b[1].value - a[1].value)
     .map(([name, item]) => {
       const profit = item.principal > 0 ? item.value - item.principal : null;
@@ -335,7 +415,7 @@ function buildTreemapAndRanking(
       ticker,
       value: 0,
       principal: 0,
-      group: holdingPurposeName(holding) || "미분류",
+      group: classifyHoldingTreemapGroup(holding),
       count: 0,
     };
     current.value += value;
@@ -348,7 +428,7 @@ function buildTreemapAndRanking(
     addWarning(
       warnings,
       "treemap_excluded_invalid_value",
-      `평가금액이 없거나 유효하지 않은 보유종목 ${excluded}개는 트리맵에서 제외했습니다.`,
+      `평가금액이 확인되지 않은 종목 ${excluded}개는 트리맵에서 제외했습니다.`,
     );
   }
 
@@ -386,19 +466,47 @@ function buildTreemapAndRanking(
   return { treemapItems, holdingsRankingRows };
 }
 
+// 자산 구성 도넛/리스트를 성장/배당/현금 3개 그룹으로 집계한다 (#3).
+// 보유종목은 목적·티커 기준으로, 현금성 잔액은 현금으로 분류한다.
+const ASSET_PURPOSE_COLOR: Record<AssetPurposeGroup, string> = {
+  성장: "#22c55e",
+  배당: "#3b82f6",
+  현금: "#f59e0b",
+};
+const ASSET_PURPOSE_ORDER: AssetPurposeGroup[] = ["성장", "배당", "현금"];
+
 function buildAssetAllocation(holdings: Holding[], financeAssets: FinanceAsset[]): PortfolioAllocationSlice[] {
   const financeRows = financeAssets.filter((asset) => {
     if (!isNonDebtFinanceAsset(asset)) return false;
     if (holdings.length > 0 && asset.category === "투자성") return false;
     return true;
   });
-  const financeSlices = groupSlices(financeRows, (asset) => positiveNumber(asset.amountKRW), financeAssetName);
-  const holdingSlices = groupSlices(holdings, (holding) => positiveNumber(holding.valueKRW), holdingAssetName);
-  const combined = [
-    ...financeSlices.map((slice) => ({ name: slice.name, amountKRW: slice.amountKRW ?? 0 })),
-    ...holdingSlices.map((slice) => ({ name: slice.name, amountKRW: slice.amountKRW ?? 0 })),
-  ];
-  return groupSlices(combined, (row) => positiveNumber(row.amountKRW), (row) => row.name);
+
+  const totals = new Map<AssetPurposeGroup, number>();
+  const add = (group: AssetPurposeGroup, amount: number | null) => {
+    if (amount === null) return;
+    totals.set(group, (totals.get(group) ?? 0) + amount);
+  };
+
+  for (const holding of holdings) {
+    add(classifyHoldingPurposeGroup(holding), positiveNumber(holding.valueKRW));
+  }
+  for (const asset of financeRows) {
+    add(classifyFinanceAssetPurposeGroup(asset), positiveNumber(asset.amountKRW));
+  }
+
+  const total = ASSET_PURPOSE_ORDER.reduce((sum, group) => sum + (totals.get(group) ?? 0), 0);
+  if (total <= 0) return [];
+
+  return ASSET_PURPOSE_ORDER.filter((group) => (totals.get(group) ?? 0) > 0).map((group) => {
+    const amountKRW = Math.round(totals.get(group) ?? 0);
+    return {
+      name: group,
+      value: percent(amountKRW, total),
+      color: ASSET_PURPOSE_COLOR[group],
+      amountKRW,
+    };
+  });
 }
 
 function buildStockCashTargets(
@@ -481,13 +589,13 @@ export function buildPortfolioPageFromSnapshot(
     addWarning(warnings, "holdings_empty", "최신 스냅샷에 보유종목이 없어 종목 비중과 트리맵을 표시하지 않습니다.");
   }
   if (financeAssets.length === 0) {
-    addWarning(warnings, "finance_assets_empty", "최신 스냅샷에 financeAssets가 없어 계좌 그래프는 holdings 기반으로 계산합니다.", "info");
+    addWarning(warnings, "finance_assets_empty", "스냅샷에 계좌별 잔액 정보가 없어 보유종목 기준으로 계좌 비중을 계산했습니다.", "info");
   }
   if (mapped.appliedCount > 0) {
     addWarning(
       warnings,
       "ticker_name_map_applied",
-      `저장된 KRX 상품명 매핑 ${mapped.appliedCount}개를 표시 단계에 적용했습니다.`,
+      `직접 입력한 KRX 종목코드 ${mapped.appliedCount}개를 종목 표시에 반영했습니다.`,
       "info",
     );
   }
@@ -522,7 +630,7 @@ export function buildPortfolioPageFromSnapshot(
     addWarning(
       warnings,
       "treemap_value_unavailable",
-      "평가금액 필드가 없어 트리맵을 표시하지 않습니다.",
+      "평가금액 정보가 없어 트리맵을 표시하지 않습니다.",
     );
   }
 
@@ -536,13 +644,13 @@ export function buildPortfolioPageFromSnapshot(
     addWarning(
       warnings,
       "account_allocation_unavailable",
-      "financeAssets.amountKRW 또는 holdings.valueKRW 계좌 필드가 부족해 계좌별 그래프를 표시하지 않습니다.",
+      "계좌별 평가금액 정보가 없어 계좌 비중을 표시하지 않습니다.",
     );
   } else if (accountAllocationSource === "holdings") {
     addWarning(
       warnings,
       "account_allocation_holdings_fallback",
-      "financeAssets에서 계좌 평가금액을 만들 수 없어 holdings의 계좌/금융사 필드로 계좌별 그래프를 계산했습니다.",
+      "계좌별 잔액 정보가 없어 보유종목의 계좌·금융사 기준으로 계좌 비중을 계산했습니다.",
       "info",
     );
   }
@@ -556,14 +664,14 @@ export function buildPortfolioPageFromSnapshot(
     addWarning(
       warnings,
       "asset_allocation_unavailable",
-      "holdings.assetType 또는 financeAssets.category 금액이 부족해 자산 구성을 표시하지 않습니다.",
+      "자산 종류 정보가 없어 자산 구성을 표시하지 않습니다.",
     );
   }
   if (purposeAllocation.length === 0 && holdings.length > 0) {
     addWarning(
       warnings,
       "purpose_tags_unavailable",
-      "목적/태그 필드가 없어 태그 구성은 표시하지 않습니다.",
+      "목적·태그 정보가 없어 태그 구성은 표시하지 않습니다.",
       "info",
     );
   }

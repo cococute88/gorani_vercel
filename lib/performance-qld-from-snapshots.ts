@@ -8,6 +8,10 @@ export type PerformanceQldValuePoint = {
   valueKRW: number;
 };
 
+// PORTFOLIO-CALCULATOR-UX-FIX-2 #6: 종목 랭킹 계좌 필터 유형.
+export type PerformanceAccountType = "위탁" | "연금" | "ISA";
+export const PERFORMANCE_ACCOUNT_TYPES: PerformanceAccountType[] = ["위탁", "연금", "ISA"];
+
 export type PerformanceQldRankingRow = {
   ticker: string;
   name: string;
@@ -18,6 +22,9 @@ export type PerformanceQldRankingRow = {
   profitKRW: number | null;
   returnPct: number | null;
   sourceRows: number;
+  // 계좌 유형별 평가금액/원금 분해 — 위탁/연금/ISA 필터에서 재집계할 때 사용한다.
+  valueByAccountType: Record<PerformanceAccountType, number>;
+  principalByAccountType: Record<PerformanceAccountType, number>;
 };
 
 export type PerformanceQldSummary = {
@@ -57,6 +64,7 @@ export type PerformanceQldResult = {
   latestSnapshot: PortfolioSnapshot | null;
   summary: PerformanceQldSummary;
   valueSeries: PerformanceQldValuePoint[];
+  topHoldings: PerformanceQldRankingRow[];
   rankings: PerformanceQldRankingRow[];
   fx: PerformanceQldFxResult;
   flags: {
@@ -91,6 +99,7 @@ const RANK_COLORS = [
   "#38bdf8",
   "#f5b945",
 ];
+const SUMMARY_HOLDINGS_LIMIT = 5;
 
 function validDate(value: unknown): string | null {
   if (typeof value !== "string") return null;
@@ -125,6 +134,30 @@ function uniqueWarnings(warnings: string[]): string[] {
   return Array.from(new Set(warnings));
 }
 
+// 보유종목 1건을 위탁/연금/ISA 계좌 유형으로 분류한다 (#6). 신호가 없으면 위탁.
+const PENSION_ACCOUNT_SIGNALS = ["연금저축", "퇴직연금", "미래연금", "IRP", "연금", "PENSION"];
+export function classifyPerformanceAccountType(holding: Holding): PerformanceAccountType {
+  const haystack = [
+    holding.accountGroup,
+    holding.accountName,
+    holding.broker,
+    holding.statusGroup,
+    holding.purposeGroup,
+    holding.productName,
+    holding.cleanName,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toUpperCase();
+  if (haystack.includes("ISA")) return "ISA";
+  if (PENSION_ACCOUNT_SIGNALS.some((signal) => haystack.includes(signal.toUpperCase()))) return "연금";
+  return "위탁";
+}
+
+function emptyAccountTypeRecord(): Record<PerformanceAccountType, number> {
+  return { 위탁: 0, 연금: 0, ISA: 0 };
+}
+
 function groupName(holding: Holding): string {
   return (holding.cleanName || holding.productName || holding.ticker || "이름 없는 종목").trim();
 }
@@ -146,6 +179,8 @@ function buildRankings(holdings: Holding[], warnings: string[]): PerformanceQldR
       hasValue: boolean;
       hasPrincipal: boolean;
       sourceRows: number;
+      valueByAccountType: Record<PerformanceAccountType, number>;
+      principalByAccountType: Record<PerformanceAccountType, number>;
     }
   >();
 
@@ -161,16 +196,21 @@ function buildRankings(holdings: Holding[], warnings: string[]): PerformanceQldR
         hasValue: false,
         hasPrincipal: false,
         sourceRows: 0,
+        valueByAccountType: emptyAccountTypeRecord(),
+        principalByAccountType: emptyAccountTypeRecord(),
       };
 
+    const accountType = classifyPerformanceAccountType(holding);
     const value = positiveMoney(holding.valueKRW);
     const principal = positiveMoney(holding.principalKRW);
     if (value !== null) {
       existing.valueKRW += value;
+      existing.valueByAccountType[accountType] += value;
       existing.hasValue = true;
     }
     if (principal !== null) {
       existing.principalKRW += principal;
+      existing.principalByAccountType[accountType] += principal;
       existing.hasPrincipal = true;
     }
     existing.sourceRows += 1;
@@ -184,25 +224,27 @@ function buildRankings(holdings: Holding[], warnings: string[]): PerformanceQldR
     return [];
   }
 
+  // 상세 종목 랭킹용: Top 제한 없이 전체 종목을 평가금액순으로 반환한다 (#6).
   const rows = valueGroups
-    .map((row, index) => {
+    .map((row) => {
       const canCalculateProfit = row.hasPrincipal && row.principalKRW > 0;
       const profitKRW = canCalculateProfit ? row.valueKRW - row.principalKRW : null;
       const returnPct = profitKRW !== null ? (profitKRW / row.principalKRW) * 100 : null;
       return {
         ticker: row.ticker,
         name: row.name,
-        color: RANK_COLORS[index % RANK_COLORS.length],
+        color: RANK_COLORS[0],
         weightPct: totalValue > 0 ? (row.valueKRW / totalValue) * 100 : null,
         valueKRW: row.valueKRW,
         principalKRW: canCalculateProfit ? row.principalKRW : null,
         profitKRW,
         returnPct,
         sourceRows: row.sourceRows,
+        valueByAccountType: row.valueByAccountType,
+        principalByAccountType: row.principalByAccountType,
       } satisfies PerformanceQldRankingRow;
     })
     .sort((a, b) => (b.valueKRW ?? 0) - (a.valueKRW ?? 0))
-    .slice(0, 8)
     .map((row, index) => ({ ...row, color: RANK_COLORS[index % RANK_COLORS.length] }));
 
   if (!rows.some((row) => row.profitKRW !== null && row.returnPct !== null)) {
@@ -210,6 +252,52 @@ function buildRankings(holdings: Holding[], warnings: string[]): PerformanceQldR
   }
 
   return rows;
+}
+
+// 위탁/연금/ISA 필터 상태에 맞춰 랭킹을 재집계한다 (#6).
+// 선택된 계좌 유형의 평가금액·원금만 합산하고, 합이 0인 종목은 제외한 뒤 평가금액순으로 다시 정렬한다.
+export function filterQldRankings(
+  rows: PerformanceQldRankingRow[],
+  enabled: Iterable<PerformanceAccountType>,
+): PerformanceQldRankingRow[] {
+  const enabledSet = new Set(enabled);
+  const recomputed = rows
+    .map((row) => {
+      let value = 0;
+      let principal = 0;
+      let hasPrincipal = false;
+      for (const type of PERFORMANCE_ACCOUNT_TYPES) {
+        if (!enabledSet.has(type)) continue;
+        value += row.valueByAccountType[type] ?? 0;
+        const typePrincipal = row.principalByAccountType[type] ?? 0;
+        if (typePrincipal > 0) {
+          principal += typePrincipal;
+          hasPrincipal = true;
+        }
+      }
+      return { row, value, principal, hasPrincipal };
+    })
+    .filter((entry) => entry.value > 0)
+    .sort((a, b) => b.value - a.value);
+
+  const totalValue = recomputed.reduce((sum, entry) => sum + entry.value, 0);
+
+  return recomputed.map((entry, index) => {
+    const principalKRW = entry.hasPrincipal && entry.principal > 0 ? entry.principal : null;
+    const profitKRW = principalKRW !== null ? entry.value - principalKRW : null;
+    const returnPct = profitKRW !== null && principalKRW !== null && principalKRW > 0
+      ? (profitKRW / principalKRW) * 100
+      : null;
+    return {
+      ...entry.row,
+      color: RANK_COLORS[index % RANK_COLORS.length],
+      weightPct: totalValue > 0 ? (entry.value / totalValue) * 100 : null,
+      valueKRW: entry.value,
+      principalKRW,
+      profitKRW,
+      returnPct,
+    } satisfies PerformanceQldRankingRow;
+  });
 }
 
 function buildMdd(series: PerformanceQldValuePoint[]): Pick<
@@ -326,6 +414,8 @@ export function buildPerformanceQldFromSnapshots(
   const holdings = applyKrxTickerMappingsToHoldings(filterAggregateHoldings(latest?.snapshot.holdings ?? [])).holdings;
   if (latest && holdings.length === 0) warnings.push(NO_HOLDINGS_WARNING);
   const rankings = buildRankings(holdings, warnings);
+  // 왼쪽 투자 성과 카드의 자산 구성 preview 는 전체 평가금액순 Top 5 로 고정한다.
+  const topHoldings = rankings.slice(0, SUMMARY_HOLDINGS_LIMIT);
   const hasProfitRanking = rankings.some((row) => row.profitKRW !== null);
   const hasReturnRanking = rankings.some((row) => row.returnPct !== null);
 
@@ -354,6 +444,7 @@ export function buildPerformanceQldFromSnapshots(
       currentOverLowPct,
     },
     valueSeries,
+    topHoldings,
     rankings,
     fx: {
       available: false,

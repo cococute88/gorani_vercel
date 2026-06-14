@@ -65,10 +65,12 @@ body {
   word-break: keep-all;
 }
 
-/* 숫자 고정폭 (표 정렬용) */
+/* 숫자 고정폭 (표 정렬용). 금액/숫자는 항상 한 줄에 유지해
+   원화 기호(₩)·부호·단위가 숫자와 줄바꿈으로 분리되지 않게 한다 (#5). */
 .num {
   font-feature-settings: "tnum" 1;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 /* 스크롤바 숨김 */

@@ -9,6 +9,8 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "check:portfolio-realdata": "node scripts/check-portfolio-realdata.mjs",
+    "check:portfolio-ux-rules": "node scripts/check-portfolio-ux-rules.mjs",
+    "check:performance-ranking-filters": "node scripts/check-performance-ranking-filters.mjs",
     "check:krx-ticker-name-map": "node scripts/check-krx-ticker-name-map.mjs",
     "check:performance-snapshots": "node scripts/check-performance-snapshots.mjs",
     "check:performance-qld-snapshots": "node scripts/check-performance-qld-snapshots.mjs",

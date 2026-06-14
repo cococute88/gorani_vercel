@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { Holding } from "@/lib/portfolio-types";
+import { useResolvedTheme } from "@/components/theme/ThemeProvider";
 import {
   fetchPortfolioQuoteStatuses,
   getUniqueQuoteTickers,
@@ -18,6 +19,7 @@ function formatPrice(value: number | null): string {
 }
 
 export default function PortfolioQuoteStatusPanel({ holdings }: Props) {
+  const isLight = useResolvedTheme() === "light";
   const tickers = useMemo(() => getUniqueQuoteTickers(holdings), [holdings]);
   const tickerKey = tickers.join("|");
   const [loading, setLoading] = useState(false);
@@ -45,15 +47,14 @@ export default function PortfolioQuoteStatusPanel({ holdings }: Props) {
     };
   }, [tickerKey, holdings, tickers.length]);
 
-  if (holdings.length === 0) return null;
+  // 실시간 시세를 조회할 미국 종목이 없으면 안내 가치가 없으므로 패널 자체를 숨긴다.
+  if (holdings.length === 0 || tickers.length === 0) return null;
 
-  if (tickers.length === 0) {
-    return (
-      <div className="mb-4 rounded-xl border border-slate-700/60 bg-[#171d1e] px-4 py-2 text-[12.5px] text-slate-400">
-        Quote status: no eligible US ticker found. Snapshot values are unchanged.
-      </div>
-    );
-  }
+  const panelCls = isLight
+    ? "border-slate-200 bg-slate-50 text-slate-500"
+    : "border-[#2a3336] bg-white/[0.03] text-slate-400";
+  const strongCls = isLight ? "text-slate-700" : "text-slate-300";
+  const subCls = isLight ? "text-slate-400" : "text-slate-500";
 
   const statuses = summary?.statuses ?? [];
   const shown = statuses.slice(0, 6);
@@ -62,20 +63,20 @@ export default function PortfolioQuoteStatusPanel({ holdings }: Props) {
     (summary?.warnings.length ?? 0) + statuses.reduce((sum, status) => sum + status.warnings.length, 0);
 
   return (
-    <div className="mb-4 rounded-xl border border-slate-700/60 bg-[#171d1e] px-4 py-2 text-[12.5px] text-slate-400">
+    <div className={`mb-4 rounded-xl border px-4 py-2 text-[12.5px] ${panelCls}`}>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <span className="font-semibold text-slate-300">Quote status</span>
-        <span>{loading ? "loading..." : `${tickers.length} ticker(s)`}</span>
+        <span className={`font-semibold ${strongCls}`}>실시간 시세 (참고용)</span>
+        <span>{loading ? "불러오는 중…" : `미국 종목 ${tickers.length}개`}</span>
         {shown.map((status) => (
-          <span key={status.ticker} className="num text-slate-300">
-            {status.ticker} {formatPrice(status.price)} {status.source}
+          <span key={status.ticker} className={`num ${strongCls}`}>
+            {status.ticker} {formatPrice(status.price)}
           </span>
         ))}
-        {extraCount > 0 && <span>+{extraCount} more</span>}
+        {extraCount > 0 && <span>외 {extraCount}개</span>}
       </div>
-      <div className="mt-1 text-[11.5px] text-slate-500">
-        Latest prices are reference-only. Snapshot valuation is preserved because uploaded rows may not include quantity.
-        {warningCount > 0 ? ` ${warningCount} warning(s).` : ""}
+      <div className={`mt-1 text-[11.5px] ${subCls}`}>
+        시세는 참고용이며, 평가금액은 등록한 스냅샷 기준으로 유지됩니다.
+        {warningCount > 0 ? " 일부 종목 시세는 불러오지 못했습니다." : ""}
       </div>
     </div>
   );
