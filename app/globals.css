@@ -262,6 +262,10 @@ body {
 .light .text-amber-100 {
   color: rgb(180 83 9);
 }
+.light .text-purple-200,
+.light .text-purple-100 {
+  color: rgb(126 34 206); /* purple-700 — keep the earnings (실적) tag legible on white */
+}
 
 /* --- Recharts: light grid / axis / tooltip --------------------------- */
 /* CSS stroke/fill override the dark values recharts sets as SVG attributes. */

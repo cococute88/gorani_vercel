@@ -43,11 +43,14 @@ interface Props {
   tickers: string[];
   tickerManager: ReactNode;
   headerAccessory?: ReactNode;
+  onManagePortfolio?: () => void;
 }
 
 const CALENDAR_EVENT_META_STORAGE_KEY = STORAGE_KEYS.calendarEventMeta;
 
-const FILTER_ORDER: CalendarEventType[] = ["ex_div", "buy_by", "pay", "earnings", "custom"];
+// Custom/user events are not part of the dividend-type filter — they always show
+// on the grid as date-line text, so only the four dividend types are toggleable.
+const FILTER_ORDER: CalendarEventType[] = ["ex_div", "buy_by", "pay", "earnings"];
 
 function getCalendarEventMetaKey(event: CalendarEvent): string {
   return event.canonicalEventId ?? event.id;
@@ -65,7 +68,7 @@ function resolveCalendarEventMeta(event: CalendarEvent, metas: Record<string, Ca
   return undefined;
 }
 
-export default function DividendCalendarPage({ tickers, tickerManager, headerAccessory }: Props) {
+export default function DividendCalendarPage({ tickers, tickerManager, headerAccessory, onManagePortfolio }: Props) {
   const { user } = useFirebaseAuth();
   const today = new Date();
   const todayIso = formatIsoDate(today);
@@ -262,6 +265,8 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
     return { ...event, favorite: meta.star ? "⭐" : meta.heart ? "💗" : event.favorite, note: meta.memo ?? event.note };
   }), [generatedAndLegacyEvents, customEvents, eventMetas]);
   const filteredEvents = useMemo(() => events.filter((event) => filters[event.type]), [events, filters]);
+  // Custom events always render on the grid (date-line text) regardless of the dividend-type filter.
+  const customCalendarEvents = useMemo(() => events.filter((event) => event.type === "custom"), [events]);
   const selectedEvents = useMemo(() => filteredEvents.filter((event) => event.date === selectedDate), [filteredEvents, selectedDate]);
   const monthStartIso = useMemo(() => formatIsoDate(new Date(month.getFullYear(), month.getMonth(), 1)), [month]);
   const monthEndIso = useMemo(() => formatIsoDate(new Date(month.getFullYear(), month.getMonth() + 1, 0)), [month]);
@@ -376,7 +381,7 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
 
       {/* Filters */}
       <section className="mb-4 grid grid-cols-1 gap-3 xl:grid-cols-[280px_1fr]">
-        <PortfolioSelectorMock />
+        <PortfolioSelectorMock onManage={onManagePortfolio} />
         <div className="rounded-2xl border border-[#2a3336] bg-[#191f20] p-3 sm:p-4">
           <div className="mb-2 flex items-center justify-between gap-2">
             <h2 className="text-[13px] font-bold text-slate-300 sm:text-[14px]">필터</h2>
@@ -412,6 +417,7 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
           <CalendarGrid
             month={month}
             events={filteredEvents}
+            customEvents={customCalendarEvents}
             selectedDate={selectedDate}
             todayIso={todayIso}
             onSelectDate={setSelectedDate}
@@ -434,7 +440,7 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
 
       {/* Schedule preview */}
       <section className="mb-4">
-        <DividendSchedulePreview events={events} onOpenEvent={handleOpenEvent} />
+        <DividendSchedulePreview events={events} monthStartIso={monthStartIso} monthEndIso={monthEndIso} onOpenEvent={handleOpenEvent} />
       </section>
 
       {/* Ticker management */}

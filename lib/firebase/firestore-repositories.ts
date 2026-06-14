@@ -14,7 +14,13 @@ import {
 import type { PortfolioSnapshot } from "@/lib/portfolio-types";
 import type { StoredSimulatorPreview } from "@/lib/asset-simulator-types";
 import { normalizeCalendarCustomEvent, type CalendarCustomEvent } from "@/lib/calendar-custom-events";
-import { normalizeLegacyImportedCalendarEventDoc, type LegacyImportedCalendarEvent } from "@/lib/legacy-dividend-calendar-import";
+import {
+  LEGACY_DIVIDEND_IMPORT_SOURCE,
+  LEGACY_DIVIDEND_META_COLLECTION,
+  normalizeLegacyImportedCalendarEventDoc,
+  type LegacyImportedCalendarEvent,
+} from "@/lib/legacy-dividend-calendar-import";
+import { canonicalMemoTickerKey } from "@/lib/calendar-memo-matching";
 import {
   normalizeCalendarTicker,
   type CalendarEventMetaTarget,
@@ -215,6 +221,39 @@ export async function saveCalendarEventMeta(uid: string, eventId: string, meta: 
 export async function loadCalendarEventMetas(uid: string): Promise<CalendarEventMeta[]> {
   const snap = await getDocs(collection(requireDb(), "users", uid, "calendarEvents"));
   return snap.docs.map((item) => item.data() as unknown as CalendarEventMeta);
+}
+
+// Legacy imported ticker memos live in a single doc:
+//   users/{uid}/legacyDividendCalendarMeta/memos  ->  { items: { TICKER: memo } }
+// These are shared per-ticker memos (not per-event), matching the original
+// Streamlit `dividend_calendar.memos` behavior.
+export async function loadLegacyDividendCalendarMemos(uid: string): Promise<Record<string, string>> {
+  const snap = await getDoc(doc(requireDb(), "users", uid, LEGACY_DIVIDEND_META_COLLECTION, "memos"));
+  if (!snap.exists()) return {};
+  const items = (snap.data() as { items?: unknown } | undefined)?.items;
+  const out: Record<string, string> = {};
+  if (items && typeof items === "object" && !Array.isArray(items)) {
+    for (const [key, value] of Object.entries(items as Record<string, unknown>)) {
+      const ticker = canonicalMemoTickerKey(key);
+      if (ticker && typeof value === "string" && value.trim()) out[ticker] = value;
+    }
+  }
+  return out;
+}
+
+export async function saveLegacyDividendCalendarMemo(uid: string, ticker: string, memo: string): Promise<void> {
+  const key = canonicalMemoTickerKey(ticker);
+  if (!key) throw new Error("A valid ticker is required to save a memo");
+  await setDoc(
+    doc(requireDb(), "users", uid, LEGACY_DIVIDEND_META_COLLECTION, "memos"),
+    {
+      source: LEGACY_DIVIDEND_IMPORT_SOURCE,
+      importedFrom: "dividend_calendar.memos",
+      items: { [key]: memo },
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true },
+  );
 }
 
 export async function loadLegacyImportedCalendarEvents(uid: string): Promise<CalendarEvent[]> {

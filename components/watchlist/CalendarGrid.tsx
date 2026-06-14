@@ -6,9 +6,15 @@ import type { CalendarEvent, CalendarEventType } from "@/lib/mock-calendar-data"
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
+// Calendar legend / chip slots only cover dividend-style events. Custom (user /
+// economic) events render as a small text line next to the day number instead of
+// taking a chip slot, mirroring the original Streamlit `::before` day-cell text.
+const LEGEND_TYPES: CalendarEventType[] = ["ex_div", "buy_by", "pay", "earnings"];
+
 interface Props {
   month: Date;
   events: CalendarEvent[];
+  customEvents: CalendarEvent[];
   selectedDate: string;
   todayIso: string;
   onSelectDate: (date: string) => void;
@@ -21,6 +27,7 @@ interface Props {
 export default function CalendarGrid({
   month,
   events,
+  customEvents,
   selectedDate,
   todayIso,
   onSelectDate,
@@ -32,7 +39,12 @@ export default function CalendarGrid({
   const cells = buildMonthGrid(month);
   const eventsByDate = new Map<string, CalendarEvent[]>();
   for (const event of events) {
+    if (event.type === "custom") continue; // custom events render as date-line text, not chips
     eventsByDate.set(event.date, [...(eventsByDate.get(event.date) ?? []), event]);
+  }
+  const customByDate = new Map<string, CalendarEvent[]>();
+  for (const event of customEvents) {
+    customByDate.set(event.date, [...(customByDate.get(event.date) ?? []), event]);
   }
 
   return (
@@ -43,9 +55,9 @@ export default function CalendarGrid({
           {month.getFullYear()}년 {month.getMonth() + 1}월
         </h2>
         <div className="flex items-center gap-1.5 sm:gap-2">
-          <button type="button" onClick={onPrevMonth} className="rounded-lg bg-white/10 px-2.5 py-1.5 text-[12px] text-slate-200 hover:bg-white/15 sm:px-3 sm:text-[13px]">◀</button>
+          <button type="button" onClick={onPrevMonth} className="rounded-lg bg-black/5 px-2.5 py-1.5 text-[12px] text-slate-600 hover:bg-black/10 dark:bg-white/10 dark:text-slate-200 dark:hover:bg-white/15 sm:px-3 sm:text-[13px]">◀</button>
           <button type="button" onClick={onToday} className="rounded-lg bg-blue-600 px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-blue-500 sm:px-3 sm:text-[13px]">오늘</button>
-          <button type="button" onClick={onNextMonth} className="rounded-lg bg-white/10 px-2.5 py-1.5 text-[12px] text-slate-200 hover:bg-white/15 sm:px-3 sm:text-[13px]">▶</button>
+          <button type="button" onClick={onNextMonth} className="rounded-lg bg-black/5 px-2.5 py-1.5 text-[12px] text-slate-600 hover:bg-black/10 dark:bg-white/10 dark:text-slate-200 dark:hover:bg-white/15 sm:px-3 sm:text-[13px]">▶</button>
         </div>
       </div>
 
@@ -53,13 +65,14 @@ export default function CalendarGrid({
       <div className="grid grid-cols-7 overflow-hidden rounded-xl border border-[#232d30]">
         {/* Weekday header */}
         {WEEKDAYS.map((weekday, index) => (
-          <div key={weekday} className={`bg-[#101719] py-1.5 text-center text-[10px] font-bold sm:py-2 sm:text-[11px] ${index === 0 ? "text-red-300/80" : index === 6 ? "text-blue-300/80" : "text-slate-500"}`}>
+          <div key={weekday} className={`bg-slate-100 py-1.5 text-center text-[10px] font-bold dark:bg-[#101719] sm:py-2 sm:text-[11px] ${index === 0 ? "text-red-400 dark:text-red-300/80" : index === 6 ? "text-blue-500 dark:text-blue-300/80" : "text-slate-500"}`}>
             {weekday}
           </div>
         ))}
         {/* Day cells */}
         {cells.map((cell) => {
           const dayEvents = eventsByDate.get(cell.isoDate) ?? [];
+          const dayCustom = customByDate.get(cell.isoDate) ?? [];
           const shown = dayEvents.slice(0, 2);
           const extra = dayEvents.length - shown.length;
           const selected = selectedDate === cell.isoDate;
@@ -72,28 +85,44 @@ export default function CalendarGrid({
               onClick={() => onSelectDate(cell.isoDate)}
               className={[
                 "relative min-h-[72px] overflow-hidden border-t border-[#232d30] text-left transition sm:min-h-[100px]",
-                isCurrentMonth ? "bg-[#191f20] hover:bg-[#1e2628]" : "bg-[#141a1b]",
+                // Light-mode hover stays a faint sky tint (not the dark surface color,
+                // which the global light remap does not touch on `hover:` classes).
+                isCurrentMonth
+                  ? "bg-[#191f20] hover:bg-sky-50 dark:hover:bg-[#1e2628]"
+                  : "bg-slate-50 dark:bg-[#141a1b] hover:bg-sky-50 dark:hover:bg-[#1e2628]",
                 selected ? "ring-2 ring-inset ring-blue-400/80" : "",
               ].join(" ")}
             >
-              {/* Day number */}
-              <div className="absolute left-0 top-0 z-10">
+              {/* Top row: day number + custom (user/economic) date-line text */}
+              <div className="flex items-center gap-1 px-1 pt-0.5 sm:px-1.5">
                 <span className={[
-                  "flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold sm:h-6 sm:w-6 sm:text-[11px]",
+                  "flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold sm:h-6 sm:w-6 sm:text-[11px]",
                   isToday ? "bg-blue-500 text-white shadow-md shadow-blue-500/30" : "",
-                  !isToday && isCurrentMonth ? "text-slate-200" : "",
-                  !isToday && !isCurrentMonth ? "text-slate-600" : "",
+                  !isToday && isCurrentMonth ? "text-slate-700 dark:text-slate-200" : "",
+                  !isToday && !isCurrentMonth ? "text-slate-400 dark:text-slate-600" : "",
                 ].join(" ")}>
                   {cell.day}
                 </span>
+                {dayCustom.length > 0 && (
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    title={dayCustom.map((event) => event.title ?? event.ticker).join(", ")}
+                    onClick={(clickEvent) => { clickEvent.stopPropagation(); onSelectDate(cell.isoDate); onOpenEvent(dayCustom[0]); }}
+                    onKeyDown={(keyEvent) => { if (keyEvent.key === "Enter") onOpenEvent(dayCustom[0]); }}
+                    className={`min-w-0 flex-1 truncate text-[9px] font-medium text-amber-700 dark:text-amber-200/90 sm:text-[10px] ${cell.isoDate < todayIso ? "opacity-60" : ""}`}
+                  >
+                    {dayCustom[0].title ?? dayCustom[0].ticker}{dayCustom.length > 1 ? ` +${dayCustom.length - 1}` : ""}
+                  </span>
+                )}
+                {extra > 0 && (
+                  <span className="ml-auto shrink-0 rounded bg-black/10 px-1 py-0.5 text-[9px] font-semibold text-slate-500 dark:bg-white/10 dark:text-slate-400 sm:text-[10px]">
+                    +{extra}
+                  </span>
+                )}
               </div>
-              {extra > 0 && (
-                <span className="absolute right-1 top-1 z-10 rounded bg-white/10 px-1 py-0.5 text-[9px] font-semibold text-slate-400 sm:text-[10px]">
-                  +{extra}
-                </span>
-              )}
               {/* Event chips */}
-              <div className="absolute inset-x-0 top-5 flex min-w-0 flex-col gap-0.5 px-1 pb-1 sm:top-6 sm:px-1.5 sm:pb-1.5">
+              <div className="mt-0.5 flex min-w-0 flex-col gap-0.5 px-1 pb-1 sm:px-1.5 sm:pb-1.5">
                 {shown.map((event) => {
                   const visual = getEventVisual(event.type);
                   return (
@@ -121,11 +150,12 @@ export default function CalendarGrid({
 
       {/* Legend */}
       <div className="mt-3 flex flex-wrap gap-1.5 sm:gap-2">
-        {(Object.keys(EVENT_VISUALS) as CalendarEventType[]).map((type) => {
+        {LEGEND_TYPES.map((type) => {
           const visual = EVENT_VISUALS[type];
           return <span key={type} className={`rounded-full border px-2 py-0.5 text-[10px] font-medium sm:text-[11px] ${visual.bg} ${visual.border} ${visual.text}`}>{visual.label}</span>;
         })}
-        <span className="rounded-full border border-dashed border-white/20 px-2 py-0.5 text-[10px] text-slate-500 sm:text-[11px]">점선 = 추정</span>
+        <span className="rounded-full border border-amber-300/50 bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-200 sm:text-[11px]">사용자/경제 일정 = 날짜 옆 텍스트</span>
+        <span className="rounded-full border border-dashed border-slate-300 px-2 py-0.5 text-[10px] text-slate-500 dark:border-white/20 sm:text-[11px]">점선 = 추정</span>
       </div>
     </section>
   );

@@ -6,14 +6,25 @@ import StorageModeBadge from "@/components/common/StorageModeBadge";
 import { latestOf, usePortfolioSnapshots } from "@/lib/portfolio-store";
 import { DEFAULT_WATCHLIST_TICKERS } from "@/lib/mock-dividend-data";
 import { useFirebaseAuth } from "@/lib/firebase/auth";
-import { deleteCalendarTicker, loadCalendarTickers, saveCalendarTicker, warnFirestoreFallback } from "@/lib/firebase/firestore-repositories";
+import {
+  deleteCalendarTicker,
+  loadCalendarTickers,
+  loadLegacyDividendCalendarMemos,
+  saveCalendarTicker,
+  saveLegacyDividendCalendarMemo,
+  warnFirestoreFallback,
+} from "@/lib/firebase/firestore-repositories";
 import { STORAGE_KEYS } from "@/lib/storage-keys";
 import { applyKrxTickerMappingsToHoldings } from "@/lib/krx-ticker-name-map";
+import { canonicalMemoTickerKey, lookupTickerMemo, mergeMemoMaps } from "@/lib/calendar-memo-matching";
 import DividendCalendarPage from "./DividendCalendarPage";
 import TickerManager from "./TickerManager";
+import PortfolioManageModal from "./PortfolioManageModal";
+import TickerMemoDialog from "./TickerMemoDialog";
 import { useResolvedTheme } from "@/components/theme/ThemeProvider";
 
 const WATCHLIST_STORAGE_KEY = STORAGE_KEYS.calendarTickers;
+const MEMOS_STORAGE_KEY = STORAGE_KEYS.calendarMemos;
 
 function uniqUpper(arr: string[]): string[] {
   const seen = new Set<string>();
@@ -26,6 +37,19 @@ function uniqUpper(arr: string[]): string[] {
     }
   }
   return out;
+}
+
+function readStoredMemos(): Record<string, string> {
+  if (typeof window === "undefined") return {};
+  try {
+    const stored = window.localStorage.getItem(MEMOS_STORAGE_KEY);
+    if (!stored) return {};
+    const parsed = JSON.parse(stored) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    return mergeMemoMaps(null, parsed as Record<string, string>);
+  } catch {
+    return {};
+  }
 }
 
 export default function WatchlistPage() {
@@ -43,7 +67,9 @@ export default function WatchlistPage() {
 
   const fromPortfolio = portfolioTickers.length > 0;
   const [tickers, setTickers] = useState<string[]>(fromPortfolio ? portfolioTickers : DEFAULT_WATCHLIST_TICKERS);
-  const [portfolioName, setPortfolioName] = useState("내 포트폴리오");
+  const [memos, setMemos] = useState<Record<string, string>>({});
+  const [manageOpen, setManageOpen] = useState(false);
+  const [memoTicker, setMemoTicker] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -53,6 +79,7 @@ export default function WatchlistPage() {
     } catch {
       window.localStorage.removeItem(WATCHLIST_STORAGE_KEY);
     }
+    setMemos(readStoredMemos());
   }, []);
 
   useEffect(() => {
@@ -63,6 +90,11 @@ export default function WatchlistPage() {
         if (enabled.length > 0) setTickers(uniqUpper(enabled));
       })
       .catch((err) => warnFirestoreFallback("calendarTickers.load", err));
+
+    // Legacy imported memos are the base; locally edited memos override them.
+    loadLegacyDividendCalendarMemos(user.uid)
+      .then((legacyMemos) => setMemos((current) => mergeMemoMaps(legacyMemos, current)))
+      .catch((err) => warnFirestoreFallback("legacyDividendCalendarMemos.load", err));
   }, [user]);
 
   const persistTickers = async (nextTickers: string[]) => {
@@ -100,17 +132,30 @@ export default function WatchlistPage() {
     }
   };
 
+  const handleSaveMemo = (ticker: string, memo: string) => {
+    const key = canonicalMemoTickerKey(ticker);
+    if (!key) return;
+    setMemos((current) => {
+      const next = { ...current };
+      if (memo.trim()) next[key] = memo;
+      else delete next[key];
+      if (typeof window !== "undefined") {
+        try {
+          window.localStorage.setItem(MEMOS_STORAGE_KEY, JSON.stringify(next));
+        } catch {
+          // 화면 상태만 유지한다.
+        }
+      }
+      return next;
+    });
+    if (user) {
+      void saveLegacyDividendCalendarMemo(user.uid, key, memo).catch((err) => warnFirestoreFallback("legacyDividendCalendarMemos.save", err));
+    }
+    setMemoTicker(null);
+  };
+
   const tickerManager = (
-    <TickerManager
-      tickers={tickers}
-      portfolioName={portfolioName}
-      portfolioOptions={["내 포트폴리오", "배당 집중", "성장 집중"]}
-      onSelectPortfolio={setPortfolioName}
-      onAdd={handleAdd}
-      onRemove={handleRemove}
-      onSave={() => void persistTickers(tickers)}
-      fromPortfolio={fromPortfolio}
-    />
+    <TickerManager tickers={tickers} memos={memos} onTickerClick={setMemoTicker} fromPortfolio={fromPortfolio} />
   );
 
   return (
@@ -121,8 +166,23 @@ export default function WatchlistPage() {
           tickers={tickers}
           tickerManager={tickerManager}
           headerAccessory={<StorageModeBadge />}
+          onManagePortfolio={() => setManageOpen(true)}
         />
       </main>
+
+      <PortfolioManageModal
+        open={manageOpen}
+        tickers={tickers}
+        onAdd={handleAdd}
+        onRemove={handleRemove}
+        onClose={() => setManageOpen(false)}
+      />
+      <TickerMemoDialog
+        ticker={memoTicker}
+        initialMemo={memoTicker ? lookupTickerMemo(memos, memoTicker) : ""}
+        onSave={handleSaveMemo}
+        onClose={() => setMemoTicker(null)}
+      />
     </div>
   );
 }

@@ -168,17 +168,99 @@ function assertPageWiring() {
   return { ok: true };
 }
 
+// ---------------------------------------------------------------------------
+// 4. 전체 배당 일정 table: column order, sort, filter, earnings policy, 12-row scroll
+// ---------------------------------------------------------------------------
+function assertSchedulePreviewSource() {
+  const source = read("components/watchlist/DividendSchedulePreview.tsx");
+
+  // Korean column order: 종목 / 타입 / 상태 / 배당금 / 매수마감일 / 배당락일 / 지급일
+  const order = ["종목", "타입", "상태", "배당금", "매수마감일", "배당락일", "지급일"];
+  let cursor = -1;
+  for (const label of order) {
+    const next = source.indexOf(`label: "${label}"`);
+    assert.ok(next > cursor, `column "${label}" appears in the requested order`);
+    cursor = next;
+  }
+
+  // Sortable columns + arrow indicators.
+  assert.ok(source.includes("toggleSort"), "columns are sortable via toggleSort");
+  assert.ok(source.includes("▲") && source.includes("▼"), "asc/desc arrows present");
+
+  // Event type filter defaults to all checked.
+  assert.ok(/ex_div:\s*true/.test(source) && /buy_by:\s*true/.test(source) && /pay:\s*true/.test(source) && /earnings:\s*true/.test(source), "all event types default checked");
+
+  // Earnings policy: dividend/buy/payment blanked, exDiv = event date.
+  assert.ok(source.includes('type === "earnings"'), "earnings rows handled specially");
+
+  // 12-row cap + internal scroll + sticky header.
+  assert.ok(/max-h-\[\d+px\]/.test(source), "schedule body caps height (~12 rows)");
+  assert.ok(source.includes("overflow-auto"), "schedule body scrolls internally");
+  assert.ok(source.includes("sticky top-0"), "schedule header is sticky");
+
+  // Custom events excluded from this master table (they live on the grid).
+  assert.equal(source.includes('"custom"'), false, "custom type is not a table column/filter");
+
+  return { columns: order.length };
+}
+
+// ---------------------------------------------------------------------------
+// 5. Calendar grid: light hover, custom date-line text, muted (not grayscale) past
+// ---------------------------------------------------------------------------
+function assertGridSource() {
+  const grid = read("components/watchlist/CalendarGrid.tsx");
+  assert.ok(grid.includes("hover:bg-sky-50"), "light day hover is a faint sky tint");
+  assert.ok(grid.includes("dark:hover:bg-[#1e2628]"), "the dark surface hover is gated behind dark:");
+  assert.equal(/(?<!dark:)hover:bg-\[#1e2628\]/.test(grid), false, "no bare dark hover that would show black in light mode");
+  assert.ok(grid.includes("customEvents"), "grid takes a separate always-on customEvents prop");
+  assert.ok(grid.includes('event.type === "custom"') || grid.includes('type === "custom"'), "custom events are pulled out of chip slots");
+
+  const visuals = read("lib/event-visuals.ts");
+  assert.equal(visuals.includes("grayscale"), false, "past events no longer fully grayscale (keep type color)");
+  assert.ok(/isPast \? "opacity-/.test(visuals), "past events get a muted opacity veil");
+
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// 6. Ticker manager + portfolio manage modal + memo dialog wiring
+// ---------------------------------------------------------------------------
+function assertTickerAndMemoWiring() {
+  const tickerManager = read("components/watchlist/TickerManager.tsx");
+  assert.ok(tickerManager.includes("onTickerClick"), "ticker chip click opens memo");
+  assert.equal(tickerManager.includes("onRemove"), false, "lower ticker chips no longer expose delete");
+  assert.equal(/<X\s/.test(tickerManager), false, "no X delete icon in lower ticker grid");
+
+  const manageModal = read("components/watchlist/PortfolioManageModal.tsx");
+  assert.ok(manageModal.includes("기본 포트폴리오 관리"), "manage modal title present");
+  assert.ok(manageModal.includes("onAdd") && manageModal.includes("onRemove"), "manage modal can add/remove tickers");
+
+  const memoDialog = read("components/watchlist/TickerMemoDialog.tsx");
+  assert.ok(memoDialog.includes("종목 메모"), "memo dialog present");
+  assert.ok(memoDialog.includes("onSave"), "memo dialog saves");
+
+  const page = read("components/watchlist/WatchlistPage.tsx");
+  assert.ok(page.includes("loadLegacyDividendCalendarMemos"), "legacy memos load on the page");
+  assert.ok(page.includes("PortfolioManageModal") && page.includes("TickerMemoDialog"), "page renders both new dialogs");
+  assert.ok(page.includes("onManagePortfolio"), "manage button wired to modal");
+
+  return { ok: true };
+}
+
 function main() {
   const taxSort = assertTaxSavingSortAndHighlight();
   const econ = assertEconomicWeekSplit();
   const taxSource = assertTaxTableSource();
   const econSource = assertEconomicSectionSource();
   const pageWiring = assertPageWiring();
+  const schedule = assertSchedulePreviewSource();
+  const grid = assertGridSource();
+  const tickerMemo = assertTickerAndMemoWiring();
 
   console.log("Calendar UX rules passed.");
   console.table([taxSort]);
   console.table([econ]);
-  console.table([{ ...taxSource, ...econSource, ...pageWiring }]);
+  console.table([{ ...taxSource, ...econSource, ...pageWiring, ...schedule, ...grid, ...tickerMemo }]);
 }
 
 main();

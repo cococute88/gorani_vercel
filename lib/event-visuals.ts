@@ -24,8 +24,11 @@ export function eventStatusLabel(status: CalendarEventStatus): string {
 export function eventStateClasses(event: CalendarEvent, todayIso: string): string {
   const isPast = event.date < todayIso;
   const estimated = event.status === "estimated";
+  // Past events keep their event-type color but get a light muted veil (~60%
+  // opacity) instead of a full desaturated wash, so Ex-Div/Buy/Pay/Earn remain
+  // distinguishable in both light and dark mode. Estimated events stay dashed.
   return [
-    isPast ? "opacity-45 grayscale" : "opacity-100",
-    estimated ? "border-dashed opacity-60" : "border-solid",
+    isPast ? "opacity-60" : "opacity-100",
+    estimated ? "border-dashed" : "border-solid",
   ].join(" ");
 }
