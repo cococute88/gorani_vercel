@@ -7,9 +7,8 @@ import PortfolioSummary from "@/components/PortfolioSummary";
 import DonutChartCard from "@/components/DonutChartCard";
 import AssetAccountCards from "@/components/AssetAccountCards";
 import TreemapMock from "@/components/TreemapMock";
+import SampleBadge from "@/components/common/SampleBadge";
 import PortfolioQuoteStatusPanel from "@/components/portfolio/PortfolioQuoteStatusPanel";
-import QldAccountBarChart from "@/components/qld/QldAccountBarChart";
-import QldValueFxChart from "@/components/qld/QldValueFxChart";
 import {
   PIN_TICKERS,
   ACCOUNT_ALLOCATION,
@@ -114,26 +113,21 @@ export default function PortfolioPage() {
           />
         </section>
 
-        {/* 계좌별 평가금액 / 총 평가금액 및 환율 추이 */}
-        <section className="mb-6 grid min-w-0 grid-cols-1 gap-4 overflow-x-hidden xl:grid-cols-[minmax(0,1.05fr)_minmax(0,1.55fr)]">
-          <div className="min-w-0">
-            <QldAccountBarChart compact />
-          </div>
-          <div className="min-w-0">
-            <QldValueFxChart compact />
-          </div>
+        {/* 계좌 현황: 위탁 / 절세 분리 (스냅샷 기반) */}
+        <section className="mb-8 min-w-0 overflow-x-hidden">
+          <AssetAccountCards theme={theme} />
         </section>
 
-        {/* 배당 / 성장 트리맵 + 계좌현황 */}
-        <section className="grid min-w-0 grid-cols-1 gap-5 overflow-x-hidden xl:grid-cols-[minmax(360px,520px)_minmax(0,1fr)]">
+        {/* 하단 분석 블록 (실데이터 연결 전 샘플) */}
+        <section className="min-w-0 overflow-x-hidden">
+          <div className="mb-3 flex items-center gap-2">
+            <h2 className="text-[15px] font-bold text-slate-700 dark:text-slate-300">
+              배당 / 성장 분석
+            </h2>
+            <SampleBadge />
+          </div>
           <div className="mx-auto min-w-0 w-full max-w-[560px] xl:mx-0">
             <TreemapMock />
-          </div>
-          <div className="min-w-0 flex-1">
-            <h2 className="mb-3 text-[15px] font-bold text-slate-700 dark:text-slate-300">
-              계좌 현황
-            </h2>
-            <AssetAccountCards theme={theme} />
           </div>
         </section>
       </main>

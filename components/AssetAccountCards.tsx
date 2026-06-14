@@ -3,12 +3,19 @@
 import { ACCOUNT_CARDS } from "@/lib/mockData";
 import { formatWon, formatWonSigned, formatPercent } from "@/lib/format";
 import { usePortfolioView } from "@/lib/use-portfolio-view";
+import {
+  classifyAccountStatusGroup,
+  ACCOUNT_STATUS_GROUP_ORDER,
+  ACCOUNT_STATUS_GROUP_LABEL,
+  type AccountStatusGroup,
+} from "@/lib/account-status-group";
 
 import type { LiveAccountCard } from "@/lib/portfolio-aggregate";
 
 type Props = { theme?: "dark" | "light" };
 
-// 하단 계좌 카드 grid (다크에서는 제목 패널 래핑 + 조밀한 카드).
+// 계좌 카드 grid를 위탁 / 절세(/ 미확인)로 나눠 보여준다.
+// PORTFOLIO-PERF-UI-1: 기존 단일 "계좌 현황"을 위탁/절세 두 그룹으로 분리.
 export default function AssetAccountCards({ theme = "light" }: Props) {
   const { hasLiveData, accountCards } = usePortfolioView();
   const cards: LiveAccountCard[] = hasLiveData
@@ -18,6 +25,7 @@ export default function AssetAccountCards({ theme = "light" }: Props) {
         statusGroup: card.type,
         holdingCount: 0,
       }));
+
   const isLight = theme === "light";
   const cardCls = isLight
     ? "bg-white border border-slate-200 shadow-sm"
@@ -25,68 +33,95 @@ export default function AssetAccountCards({ theme = "light" }: Props) {
   const nameCls = isLight ? "text-slate-800" : "text-slate-100";
   const labelCls = isLight ? "text-slate-400" : "text-slate-500";
   const valueCls = isLight ? "text-slate-900" : "text-slate-100";
+  const sectionTitleCls = isLight ? "text-slate-700" : "text-slate-200";
+  const sectionSubCls = isLight ? "text-slate-400" : "text-slate-500";
+  const dividerCls = isLight ? "border-slate-200" : "border-[#2a3336]";
 
-  const grid = (
-    <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-4">
-      {cards.map((a) => {
-        const profitStyle = { color: a.profit >= 0 ? "#e5484d" : "#3b82f6" };
-        const taxCls =
-          a.tax === "비과세"
-            ? "bg-emerald-500/15 text-emerald-400"
-            : "bg-slate-500/15 text-slate-400";
-        return (
-          <div key={a.name} className={`rounded-xl p-3 ${cardCls}`}>
-            <div className="mb-1.5 flex items-center justify-between gap-1">
-              <span className={`truncate text-[12.5px] font-bold ${nameCls}`}>
-                {a.name}
-              </span>
-              <span
-                className={`shrink-0 rounded px-1 py-0.5 text-[9.5px] font-medium ${taxCls}`}
-              >
-                {hasLiveData ? a.statusGroup : a.tax}
-              </span>
-            </div>
-            <div className="space-y-0.5">
-              <div className="flex items-center justify-between">
-                <span className={`text-[10.5px] ${labelCls}`}>평가</span>
-                <span className={`num text-[12.5px] font-bold ${valueCls}`}>
-                  {formatWon(a.value)}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className={`text-[10.5px] ${labelCls}`}>수익</span>
-                <span
-                  className="num text-[11.5px] font-semibold"
-                  style={profitStyle}
-                >
-                  {a.profit === 0 ? "-" : formatWonSigned(a.profit)}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className={`text-[10.5px] ${labelCls}`}>수익률</span>
-                <span
-                  className="num text-[11.5px] font-semibold"
-                  style={profitStyle}
-                >
-                  {a.rate === 0 ? "-" : formatPercent(a.rate)}
-                </span>
-              </div>
-            </div>
+  // 카드를 위탁 / 절세 / 미확인 그룹으로 분류.
+  const groups = new Map<AccountStatusGroup, LiveAccountCard[]>();
+  for (const card of cards) {
+    const group = classifyAccountStatusGroup({
+      name: card.name,
+      type: card.type,
+      tax: card.tax,
+      statusGroup: card.statusGroup,
+    });
+    const list = groups.get(group) ?? [];
+    list.push(card);
+    groups.set(group, list);
+  }
+
+  const renderCard = (a: LiveAccountCard) => {
+    const profitStyle = { color: a.profit >= 0 ? "#e5484d" : "#3b82f6" };
+    const taxCls =
+      a.tax === "비과세"
+        ? "bg-emerald-500/15 text-emerald-500 dark:text-emerald-400"
+        : "bg-slate-500/15 text-slate-500 dark:text-slate-400";
+    return (
+      <div key={a.name} className={`rounded-xl p-3 ${cardCls}`}>
+        <div className="mb-1.5 flex items-center justify-between gap-1">
+          <span className={`truncate text-[12.5px] font-bold ${nameCls}`}>{a.name}</span>
+          <span className={`shrink-0 rounded px-1 py-0.5 text-[9.5px] font-medium ${taxCls}`}>
+            {hasLiveData ? a.statusGroup : a.tax}
+          </span>
+        </div>
+        <div className="space-y-0.5">
+          <div className="flex items-center justify-between">
+            <span className={`text-[10.5px] ${labelCls}`}>평가</span>
+            <span className={`num text-[12.5px] font-bold ${valueCls}`}>{formatWon(a.value)}</span>
           </div>
-        );
-      })}
-    </div>
-  );
+          <div className="flex items-center justify-between">
+            <span className={`text-[10.5px] ${labelCls}`}>수익</span>
+            <span className="num text-[11.5px] font-semibold" style={profitStyle}>
+              {a.profit === 0 ? "-" : formatWonSigned(a.profit)}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className={`text-[10.5px] ${labelCls}`}>수익률</span>
+            <span className="num text-[11.5px] font-semibold" style={profitStyle}>
+              {a.rate === 0 ? "-" : formatPercent(a.rate)}
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
-  if (isLight) return grid;
+  const renderGroup = (group: AccountStatusGroup) => {
+    const list = groups.get(group);
+    if (!list || list.length === 0) return null;
+    const totalValue = list.reduce((sum, a) => sum + a.value, 0);
+    const totalProfit = list.reduce((sum, a) => sum + a.profit, 0);
+    const profitStyle = { color: totalProfit >= 0 ? "#e5484d" : "#3b82f6" };
+
+    return (
+      <section key={group} className="min-w-0">
+        <div className={`mb-2.5 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-b pb-2 ${dividerCls}`}>
+          <h3 className={`text-[14px] font-bold ${sectionTitleCls}`}>
+            {ACCOUNT_STATUS_GROUP_LABEL[group]}
+            <span className={`ml-2 text-[11.5px] font-medium ${sectionSubCls}`}>
+              {list.length}개 계좌
+            </span>
+          </h3>
+          <div className="flex items-baseline gap-2">
+            <span className={`num text-[14px] font-extrabold ${valueCls}`}>{formatWon(totalValue)}</span>
+            {totalProfit !== 0 && (
+              <span className="num text-[11.5px] font-semibold" style={profitStyle}>
+                {formatWonSigned(totalProfit)}
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-4">
+          {list.map(renderCard)}
+        </div>
+      </section>
+    );
+  };
 
   return (
-    <div className="rounded-2xl border border-[#2a3336] bg-[#191f20] p-4">
-      <div className="mb-2.5 flex items-center justify-between gap-2 text-[14px] font-bold text-slate-200">
-        <span>계좌 현황</span>
-        {hasLiveData && <span className="text-[11px] font-medium text-emerald-300">④현황 기준</span>}
-      </div>
-      {grid}
+    <div className="flex flex-col gap-5">
+      {ACCOUNT_STATUS_GROUP_ORDER.map(renderGroup)}
     </div>
   );
 }
