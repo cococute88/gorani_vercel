@@ -17,6 +17,7 @@
     "check:portfolio-parser": "node scripts/check-portfolio-parser.mjs",
     "check:portfolio-parser:private": "node scripts/check-portfolio-parser.mjs --private docs/fixtures/portfolio-parser/private/2025-06-12~2026-06-12.xlsx",
     "check:calendar-provider": "node scripts/check-calendar-provider.mjs",
+    "check:calendar-ux-rules": "node scripts/check-calendar-ux-rules.mjs",
     "check:legacy-calendar-import": "node scripts/check-legacy-calendar-import.mjs",
     "check:tax-saving": "node scripts/check-tax-saving-calculator.mjs",
     "check:asset-map": "node scripts/check-asset-map-exposure.mjs",

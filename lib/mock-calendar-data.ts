@@ -234,6 +234,9 @@ export function buildTaxSavingRows(events: CalendarEvent[], options: BuildTaxSav
   }
 
   return Array.from(rows.values()).sort((a, b) => {
+    // Tickers with a buy_by event in the visible month float to the top, then
+    // each group is ordered by computable rows first and tax saving descending.
+    if (a.shouldBuyThisMonth !== b.shouldBuyThisMonth) return a.shouldBuyThisMonth ? -1 : 1;
     if (a.canCalculate !== b.canCalculate) return a.canCalculate ? -1 : 1;
     if (a.canCalculate && b.canCalculate) return b.taxSavingUsd - a.taxSavingUsd;
     if (a.isLoading !== b.isLoading) return a.isLoading ? -1 : 1;

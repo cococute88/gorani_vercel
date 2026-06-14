@@ -32,9 +32,9 @@ import { STORAGE_KEYS } from "@/lib/storage-keys";
 import { EVENT_VISUALS } from "@/lib/event-visuals";
 import CalendarGrid from "./CalendarGrid";
 import CalendarEventDialog from "./CalendarEventDialog";
-import CalendarEventList from "./CalendarEventList";
 import CustomEventDialog, { type CustomEventSubmitInput } from "./CustomEventDialog";
 import DividendSchedulePreview from "./DividendSchedulePreview";
+import EconomicCalendarSection from "./EconomicCalendarSection";
 import PortfolioSelectorMock from "./PortfolioSelectorMock";
 import SelectedDateList from "./SelectedDateList";
 import TaxSavingTable from "./TaxSavingTable";
@@ -266,7 +266,6 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
   const monthStartIso = useMemo(() => formatIsoDate(new Date(month.getFullYear(), month.getMonth(), 1)), [month]);
   const monthEndIso = useMemo(() => formatIsoDate(new Date(month.getFullYear(), month.getMonth() + 1, 0)), [month]);
   const monthEvents = useMemo(() => events.filter((event) => event.date >= monthStartIso && event.date <= monthEndIso), [events, monthEndIso, monthStartIso]);
-  const keyEvents = useMemo(() => filteredEvents.filter((event) => event.date >= monthStartIso && event.date <= monthEndIso).slice(0, 5), [filteredEvents, monthEndIso, monthStartIso]);
   const taxCandidateRows = useMemo(() => buildTaxSavingRows(monthEvents, { todayIso }), [monthEvents, todayIso]);
   const taxQuoteTickerKey = useMemo(() => taxCandidateRows.map((row) => row.ticker).join("|"), [taxCandidateRows]);
 
@@ -408,7 +407,7 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
       </section>
 
       {/* Main content */}
-      <section className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+      <section className="mb-4 grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_260px]">
         <div className="space-y-4">
           <CalendarGrid
             month={month}
@@ -423,10 +422,14 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
           />
           <SelectedDateList selectedDate={selectedDate} events={selectedEvents} todayIso={todayIso} onOpenEvent={handleOpenEvent} />
         </div>
-        <aside className="space-y-4">
+        <aside className="xl:sticky xl:top-4">
           <TaxSavingTable rows={taxRows} />
-          <CalendarEventList title="이번 달 주요 일정" events={keyEvents} todayIso={todayIso} onOpenEvent={handleOpenEvent} />
         </aside>
+      </section>
+
+      {/* U.S. economic calendar (this week / next week) */}
+      <section className="mb-4">
+        <EconomicCalendarSection />
       </section>
 
       {/* Schedule preview */}
