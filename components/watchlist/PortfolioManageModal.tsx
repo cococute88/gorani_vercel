@@ -34,7 +34,7 @@ export default function PortfolioManageModal({ open, tickers, onAdd, onRemove, o
         <div className="mb-3 flex items-start justify-between gap-3">
           <div>
             <h2 className="text-[17px] font-extrabold text-white sm:text-[19px]">기본 포트폴리오 관리</h2>
-            <p className="mt-0.5 text-[12px] text-slate-500 dark:text-slate-400">캘린더에 표시할 티커를 추가/삭제합니다.</p>
+            <p className="mt-0.5 text-[12px] text-slate-500 dark:text-slate-400">배당캘린더 티커(legacy 기준)를 추가/삭제합니다.</p>
           </div>
           <button type="button" onClick={onClose} className="shrink-0 rounded-full bg-black/5 px-3 py-1.5 text-[12px] font-semibold text-slate-600 hover:bg-black/10 dark:bg-white/10 dark:text-slate-300 dark:hover:bg-white/15">✕</button>
         </div>

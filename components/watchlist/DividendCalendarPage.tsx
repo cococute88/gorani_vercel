@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { formatIsoDate } from "@/lib/calendar-grid";
-import { getCalendarEventsForTickers, getCalendarEventsForTickersWithProvider, isCustomCalendarEventLike, mergeGeneratedAndCustomCalendarEvents } from "@/lib/calendar-event-provider";
+import { getCalendarEventsForTickers, getCalendarEventsForTickersWithProvider, isCustomCalendarEventLike, mergeGeneratedAndCustomCalendarEvents, selectCalendarDividendEvents } from "@/lib/calendar-event-provider";
 import type { CalendarTickersProviderResult } from "@/lib/calendar-event-provider";
 import {
   createCalendarCustomEvent,
@@ -254,16 +254,20 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
     }
   };
 
-  const generatedAndLegacyEvents = useMemo(
-    () => [...providerResult.events, ...legacyImportedEvents],
+  // When imported (legacy/Firestore) calendar events exist, they are the single
+  // source of truth — the mock/real provider events are NOT mixed in (prevents
+  // stray SPY/QQQ/MSFT preview rows from polluting an imported calendar).
+  const usedImportedEvents = legacyImportedEvents.length > 0;
+  const dividendEvents = useMemo(
+    () => selectCalendarDividendEvents({ providerEvents: providerResult.events, importedEvents: legacyImportedEvents }).events,
     [legacyImportedEvents, providerResult.events],
   );
 
-  const events = useMemo(() => mergeGeneratedAndCustomCalendarEvents(generatedAndLegacyEvents, customEvents).map((event) => {
+  const events = useMemo(() => mergeGeneratedAndCustomCalendarEvents(dividendEvents, customEvents).map((event) => {
     const meta = resolveCalendarEventMeta(event, eventMetas);
     if (!meta) return event;
     return { ...event, favorite: meta.star ? "⭐" : meta.heart ? "💗" : event.favorite, note: meta.memo ?? event.note };
-  }), [generatedAndLegacyEvents, customEvents, eventMetas]);
+  }), [dividendEvents, customEvents, eventMetas]);
   const filteredEvents = useMemo(() => events.filter((event) => filters[event.type]), [events, filters]);
   // Custom events always render on the grid (date-line text) regardless of the dividend-type filter.
   const customCalendarEvents = useMemo(() => events.filter((event) => event.type === "custom"), [events]);
@@ -349,14 +353,16 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
     setSelectedDate(todayIso);
   };
 
-  const sourceLabel = isProviderLoading ? "LOADING" : providerResult.source.toUpperCase();
-  const sourceColor = isProviderLoading
-    ? "bg-yellow-500/15 border-yellow-400/40 text-yellow-300"
-    : providerResult.source === "mock" || providerResult.source === "sample"
-      ? "bg-slate-500/15 border-slate-400/40 text-slate-300"
-      : providerResult.source === "cache"
-        ? "bg-cyan-500/15 border-cyan-400/40 text-cyan-300"
-        : "bg-emerald-500/15 border-emerald-400/40 text-emerald-300";
+  const sourceLabel = usedImportedEvents ? "IMPORTED" : isProviderLoading ? "LOADING" : providerResult.source.toUpperCase();
+  const sourceColor = usedImportedEvents
+    ? "bg-emerald-500/15 border-emerald-400/40 text-emerald-300"
+    : isProviderLoading
+      ? "bg-yellow-500/15 border-yellow-400/40 text-yellow-300"
+      : providerResult.source === "mock" || providerResult.source === "sample"
+        ? "bg-slate-500/15 border-slate-400/40 text-slate-300"
+        : providerResult.source === "cache"
+          ? "bg-cyan-500/15 border-cyan-400/40 text-cyan-300"
+          : "bg-emerald-500/15 border-emerald-400/40 text-emerald-300";
 
   return (
     <>
@@ -372,7 +378,7 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
           </div>
         </div>
         <p className="mt-1 text-[12px] text-slate-500 sm:text-[13px]">배당락·매수마감·지급·실적을 한 화면에서 확인합니다.</p>
-        {providerResult.warnings.length > 0 && (
+        {!usedImportedEvents && providerResult.warnings.length > 0 && (
           <p className="mt-1 truncate text-[11px] text-slate-500" title={providerResult.warnings.join(" | ")}>
             ⚠ {providerResult.warnings[0]}
           </p>

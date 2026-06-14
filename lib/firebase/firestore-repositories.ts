@@ -241,6 +241,24 @@ export async function loadLegacyDividendCalendarMemos(uid: string): Promise<Reco
   return out;
 }
 
+// Legacy imported portfolios live in a single doc:
+//   users/{uid}/legacyDividendCalendarMeta/portfolios  ->  { items: { name: ticker[] } }
+// This is the calendar's preferred ticker universe (NOT /portfolio holdings).
+export async function loadLegacyDividendCalendarPortfolios(uid: string): Promise<Record<string, string[]>> {
+  const snap = await getDoc(doc(requireDb(), "users", uid, LEGACY_DIVIDEND_META_COLLECTION, "portfolios"));
+  if (!snap.exists()) return {};
+  const items = (snap.data() as { items?: unknown } | undefined)?.items;
+  const out: Record<string, string[]> = {};
+  if (items && typeof items === "object" && !Array.isArray(items)) {
+    for (const [name, value] of Object.entries(items as Record<string, unknown>)) {
+      if (!Array.isArray(value)) continue;
+      const tickers = value.map((item) => normalizeCalendarTicker(String(item))).filter(Boolean);
+      out[name] = Array.from(new Set(tickers));
+    }
+  }
+  return out;
+}
+
 export async function saveLegacyDividendCalendarMemo(uid: string, ticker: string, memo: string): Promise<void> {
   const key = canonicalMemoTickerKey(ticker);
   if (!key) throw new Error("A valid ticker is required to save a memo");

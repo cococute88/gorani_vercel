@@ -215,9 +215,20 @@ function assertGridSource() {
   assert.ok(grid.includes("customEvents"), "grid takes a separate always-on customEvents prop");
   assert.ok(grid.includes('event.type === "custom"') || grid.includes('type === "custom"'), "custom events are pulled out of chip slots");
 
+  // CALENDAR-UX-POLISH-3: custom/economic date-line sits on a fixed-height top
+  // line (so the date row never shifts and text is flush at the top).
+  assert.ok(/flex h-5 items-center[^"]*sm:h-6/.test(grid), "day-cell top line has a fixed height (h-5/h-6)");
+  // Unnecessary legend explanations are removed.
+  assert.equal(grid.includes("사용자/경제 일정 = 날짜 옆 텍스트"), false, "redundant '사용자/경제 일정' legend text removed");
+  assert.equal(grid.includes("점선 = 추정"), false, "redundant '점선 = 추정' legend text removed");
+
   const visuals = read("lib/event-visuals.ts");
   assert.equal(visuals.includes("grayscale"), false, "past events no longer fully grayscale (keep type color)");
   assert.ok(/isPast \? "opacity-/.test(visuals), "past events get a muted opacity veil");
+  // Non-declared (estimated) events are faded (~30-40%) but past events keep a
+  // lighter veil — the estimated opacity must be the strongest fade.
+  assert.ok(/estimated \? "opacity-40"/.test(visuals), "estimated events get the strongest opacity fade (~40%)");
+  assert.ok(visuals.includes("border-dashed"), "estimated events stay dashed");
 
   return { ok: true };
 }
@@ -230,6 +241,9 @@ function assertTickerAndMemoWiring() {
   assert.ok(tickerManager.includes("onTickerClick"), "ticker chip click opens memo");
   assert.equal(tickerManager.includes("onRemove"), false, "lower ticker chips no longer expose delete");
   assert.equal(/<X\s/.test(tickerManager), false, "no X delete icon in lower ticker grid");
+  // CALENDAR-UX-POLISH-3: misleading "포트폴리오 보유종목 연동됨" badge is gone.
+  assert.equal(tickerManager.includes("포트폴리오 보유종목 연동됨"), false, "misleading portfolio-linked badge removed");
+  assert.equal(tickerManager.includes("fromPortfolio"), false, "fromPortfolio prop removed");
 
   const manageModal = read("components/watchlist/PortfolioManageModal.tsx");
   assert.ok(manageModal.includes("기본 포트폴리오 관리"), "manage modal title present");
@@ -243,6 +257,12 @@ function assertTickerAndMemoWiring() {
   assert.ok(page.includes("loadLegacyDividendCalendarMemos"), "legacy memos load on the page");
   assert.ok(page.includes("PortfolioManageModal") && page.includes("TickerMemoDialog"), "page renders both new dialogs");
   assert.ok(page.includes("onManagePortfolio"), "manage button wired to modal");
+  // CALENDAR-UX-POLISH-3: calendar tickers come from the legacy calendar source,
+  // NOT from /portfolio snapshot holdings.
+  assert.ok(page.includes("resolveCalendarTickers"), "page resolves tickers via the legacy calendar source");
+  assert.ok(page.includes("loadLegacyDividendCalendarPortfolios"), "page loads legacy portfolios as a ticker source");
+  assert.equal(page.includes("usePortfolioSnapshots"), false, "page no longer derives tickers from /portfolio snapshots");
+  assert.equal(page.includes("applyKrxTickerMappingsToHoldings"), false, "page no longer maps portfolio holdings into tickers");
 
   return { ok: true };
 }

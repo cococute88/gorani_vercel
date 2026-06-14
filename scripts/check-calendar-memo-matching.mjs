@@ -84,10 +84,29 @@ function assertMerge() {
   assert.equal("F" in cleared, false, "empty memo clears the entry");
 }
 
+function assertSaveReadRoundtrip() {
+  // Simulate: legacy import loads { F: ... }, user opens F (sees legacy memo),
+  // edits it, saves under the canonical key, reloads → same key resolves.
+  const legacy = { F: "ford legacy memo", "360200.KS": "krx legacy memo" };
+
+  // Open before any edit → legacy memo is the initial value.
+  assert.equal(lookupTickerMemo(legacy, "f"), "ford legacy memo", "single-letter F shows legacy memo on open");
+  assert.equal(lookupTickerMemo(legacy, "360200.ks"), "krx legacy memo", ".KS ticker shows legacy memo on open");
+  assert.equal(lookupTickerMemo(legacy, "ZZZ"), "", "missing memo → empty textarea");
+
+  // Save an edit under the canonical key, then reload (merge legacy ⊕ local).
+  const savedKey = canonicalMemoTickerKey("f");
+  const local = { [savedKey]: "ford edited memo" };
+  const reloaded = mergeMemoMaps(legacy, local);
+  assert.equal(lookupTickerMemo(reloaded, "F"), "ford edited memo", "edit persists across reload under same key");
+  assert.equal(lookupTickerMemo(reloaded, "360200.KS"), "krx legacy memo", "untouched legacy memo survives reload");
+}
+
 function main() {
   assertNormalization();
   assertLookupOrder();
   assertMerge();
+  assertSaveReadRoundtrip();
   console.log("Calendar memo matching rules passed.");
 }
 

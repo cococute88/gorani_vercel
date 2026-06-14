@@ -426,6 +426,27 @@ export function buildCalendarTickerCacheFromEvents(
   });
 }
 
+/**
+ * Pick the dividend-event source for the grid / schedule table.
+ *
+ * Policy (CALENDAR-UX-POLISH-3): when imported (Firestore/legacy) calendar
+ * events exist, they are the single source of truth and the generated mock/real
+ * provider events are NOT mixed in. Mock/preview events only fill in when no
+ * imported events are present. Custom events are layered on top separately.
+ */
+export function selectCalendarDividendEvents({
+  providerEvents,
+  importedEvents,
+}: {
+  providerEvents: CalendarEvent[];
+  importedEvents: CalendarEvent[];
+}): { events: CalendarEvent[]; usedImported: boolean } {
+  if (importedEvents.length > 0) {
+    return { events: importedEvents, usedImported: true };
+  }
+  return { events: providerEvents, usedImported: false };
+}
+
 export function mergeGeneratedAndCustomCalendarEvents(
   generatedEvents: CalendarEvent[],
   customEvents: CalendarCustomEvent[],

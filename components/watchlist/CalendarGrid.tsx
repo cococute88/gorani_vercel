@@ -93,10 +93,12 @@ export default function CalendarGrid({
                 selected ? "ring-2 ring-inset ring-blue-400/80" : "",
               ].join(" ")}
             >
-              {/* Top row: day number + custom (user/economic) date-line text */}
-              <div className="flex items-center gap-1 px-1 pt-0.5 sm:px-1.5">
+              {/* Top line: day number + custom (user/economic) date-line text.
+                  Fixed height (h-5/h-6) on every cell so the date row never shifts
+                  and the custom text sits flush at the top, same line as the date. */}
+              <div className="flex h-5 items-center gap-1 px-1 sm:h-6 sm:px-1.5">
                 <span className={[
-                  "flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold sm:h-6 sm:w-6 sm:text-[11px]",
+                  "flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold leading-none sm:h-6 sm:w-6 sm:text-[11px]",
                   isToday ? "bg-blue-500 text-white shadow-md shadow-blue-500/30" : "",
                   !isToday && isCurrentMonth ? "text-slate-700 dark:text-slate-200" : "",
                   !isToday && !isCurrentMonth ? "text-slate-400 dark:text-slate-600" : "",
@@ -110,13 +112,13 @@ export default function CalendarGrid({
                     title={dayCustom.map((event) => event.title ?? event.ticker).join(", ")}
                     onClick={(clickEvent) => { clickEvent.stopPropagation(); onSelectDate(cell.isoDate); onOpenEvent(dayCustom[0]); }}
                     onKeyDown={(keyEvent) => { if (keyEvent.key === "Enter") onOpenEvent(dayCustom[0]); }}
-                    className={`min-w-0 flex-1 truncate text-[9px] font-medium text-amber-700 dark:text-amber-200/90 sm:text-[10px] ${cell.isoDate < todayIso ? "opacity-60" : ""}`}
+                    className={`min-w-0 flex-1 truncate text-[9px] font-medium leading-none text-amber-700 dark:text-amber-200/90 sm:text-[10px] ${cell.isoDate < todayIso ? "opacity-60" : ""}`}
                   >
                     {dayCustom[0].title ?? dayCustom[0].ticker}{dayCustom.length > 1 ? ` +${dayCustom.length - 1}` : ""}
                   </span>
                 )}
                 {extra > 0 && (
-                  <span className="ml-auto shrink-0 rounded bg-black/10 px-1 py-0.5 text-[9px] font-semibold text-slate-500 dark:bg-white/10 dark:text-slate-400 sm:text-[10px]">
+                  <span className="ml-auto shrink-0 rounded bg-black/10 px-1 py-0.5 text-[9px] font-semibold leading-none text-slate-500 dark:bg-white/10 dark:text-slate-400 sm:text-[10px]">
                     +{extra}
                   </span>
                 )}
@@ -148,14 +150,12 @@ export default function CalendarGrid({
         })}
       </div>
 
-      {/* Legend */}
+      {/* Legend — only the four dividend event types (no extra explanatory text) */}
       <div className="mt-3 flex flex-wrap gap-1.5 sm:gap-2">
         {LEGEND_TYPES.map((type) => {
           const visual = EVENT_VISUALS[type];
           return <span key={type} className={`rounded-full border px-2 py-0.5 text-[10px] font-medium sm:text-[11px] ${visual.bg} ${visual.border} ${visual.text}`}>{visual.label}</span>;
         })}
-        <span className="rounded-full border border-amber-300/50 bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-200 sm:text-[11px]">사용자/경제 일정 = 날짜 옆 텍스트</span>
-        <span className="rounded-full border border-dashed border-slate-300 px-2 py-0.5 text-[10px] text-slate-500 dark:border-white/20 sm:text-[11px]">점선 = 추정</span>
       </div>
     </section>
   );

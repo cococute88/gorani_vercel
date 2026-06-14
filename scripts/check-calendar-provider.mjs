@@ -47,7 +47,15 @@ const {
   mergeGeneratedAndCustomCalendarEvents,
   normalizeCalendarEventForCache,
   projectEstimatedDividendEvents,
+  selectCalendarDividendEvents,
 } = require("../lib/calendar-event-provider.ts");
+
+const {
+  resolveCalendarTickerSource,
+  resolveCalendarTickers,
+  extractTickersFromCalendarEvents,
+  flattenLegacyPortfolioTickers,
+} = require("../lib/calendar-ticker-source.ts");
 
 const {
   createCalendarTickerCacheEntry,
@@ -439,6 +447,99 @@ function assertCustomEventFoundation() {
   };
 }
 
+// ---------------------------------------------------------------------------
+// CALENDAR-UX-POLISH-3: imported events gate mock/fallback events
+// ---------------------------------------------------------------------------
+function assertImportedEventsGateMock() {
+  const providerEvents = [
+    { id: "dividend:SPY:ex_div:2026-06-20", ticker: "SPY", type: "ex_div", date: "2026-06-20" },
+    { id: "dividend:QQQ:ex_div:2026-06-21", ticker: "QQQ", type: "ex_div", date: "2026-06-21" },
+  ];
+  const importedEvents = [
+    { id: "legacy_OTF_ex_div_2026-06-18", ticker: "OTF", type: "ex_div", date: "2026-06-18" },
+    { id: "legacy_FEPI_ex_div_2026-06-19", ticker: "FEPI", type: "ex_div", date: "2026-06-19" },
+  ];
+
+  // When imported events exist, mock/provider events are NOT mixed in.
+  const withImported = selectCalendarDividendEvents({ providerEvents, importedEvents });
+  assert.equal(withImported.usedImported, true, "imported events take over when present");
+  assert.deepEqual(withImported.events.map((event) => event.ticker), ["OTF", "FEPI"], "no SPY/QQQ mock pollution");
+  assert.equal(withImported.events.some((event) => event.ticker === "SPY"), false, "SPY mock event excluded");
+
+  // When no imported events exist, the provider/mock fallback is used.
+  const withoutImported = selectCalendarDividendEvents({ providerEvents, importedEvents: [] });
+  assert.equal(withoutImported.usedImported, false, "mock fallback only when nothing imported");
+  assert.deepEqual(withoutImported.events.map((event) => event.ticker), ["SPY", "QQQ"], "provider events used as fallback");
+
+  return { importedTickers: withImported.events.length, fallbackTickers: withoutImported.events.length };
+}
+
+// ---------------------------------------------------------------------------
+// CALENDAR-UX-POLISH-3: calendar ticker source priority
+//   legacy portfolios → imported events → memo keys → mock fallback
+//   (/portfolio holdings are NEVER a source)
+// ---------------------------------------------------------------------------
+function assertCalendarTickerSourcePriority() {
+  const fallback = ["SCHD", "QQF"];
+
+  // 1. portfolios win over everything else.
+  const portfolios = resolveCalendarTickerSource({
+    legacyPortfolioTickers: ["otf", "FEPI", "otf"],
+    legacyEventTickers: ["BCSF"],
+    legacyMemoKeys: ["F"],
+    fallbackTickers: fallback,
+  });
+  assert.equal(portfolios.source, "legacy-portfolios");
+  assert.deepEqual(portfolios.tickers, ["OTF", "FEPI"], "portfolios normalized + deduped");
+
+  // 2. imported events when no portfolios.
+  const events = resolveCalendarTickerSource({
+    legacyPortfolioTickers: [],
+    legacyEventTickers: ["bcsf", "NMFC"],
+    legacyMemoKeys: ["F"],
+    fallbackTickers: fallback,
+  });
+  assert.equal(events.source, "legacy-events");
+  assert.deepEqual(events.tickers, ["BCSF", "NMFC"]);
+
+  // 3. memo keys when no portfolios/events.
+  const memos = resolveCalendarTickerSource({
+    legacyMemoKeys: ["f", "UWMC"],
+    fallbackTickers: fallback,
+  });
+  assert.equal(memos.source, "legacy-memos");
+  assert.deepEqual(memos.tickers, ["F", "UWMC"], "single-letter ticker F preserved");
+
+  // 4. mock fallback only when nothing legacy exists.
+  const mock = resolveCalendarTickerSource({ fallbackTickers: fallback });
+  assert.equal(mock.source, "fallback");
+  assert.deepEqual(mock.tickers, ["SCHD", "QQF"]);
+
+  // empty everything → empty.
+  const empty = resolveCalendarTickerSource({});
+  assert.equal(empty.source, "empty");
+  assert.deepEqual(empty.tickers, []);
+
+  // helper extraction
+  assert.deepEqual(
+    extractTickersFromCalendarEvents([
+      { ticker: "OTF", type: "ex_div" },
+      { ticker: "OTF", type: "buy_by" },
+      { ticker: "CUSTOMX", type: "custom" },
+    ]),
+    ["OTF"],
+    "custom events excluded + deduped",
+  );
+  assert.deepEqual(
+    flattenLegacyPortfolioTickers({ "기본": ["otf", "fepi"], growth: ["fepi", "bcsf"] }),
+    ["OTF", "FEPI", "BCSF"],
+    "portfolios flattened + deduped across groups",
+  );
+  assert.deepEqual(resolveCalendarTickers({ legacyPortfolioTickers: ["otf"] }), ["OTF"], "resolveCalendarTickers returns the tickers");
+
+  return { portfolios: portfolios.tickers.length, events: events.tickers.length, memos: memos.tickers.length };
+}
+
 async function main() {
   const historical = assertHistoricalEventGeneration();
   const buyDeadlines = assertBuyDeadlineHelper();
@@ -446,6 +547,8 @@ async function main() {
   const estimated = assertEstimatedProjection();
   const cacheFallback = await assertCacheFallbackPriority();
   const customEvents = assertCustomEventFoundation();
+  const importedGate = assertImportedEventsGateMock();
+  const tickerSource = assertCalendarTickerSourcePriority();
 
   console.log("Calendar provider regression passed.");
   console.table([historical]);
@@ -453,6 +556,7 @@ async function main() {
   console.table([estimated]);
   console.table([cacheFallback]);
   console.table([customEvents]);
+  console.table([{ ...importedGate, ...tickerSource }]);
   console.log("Buy deadline fixture results:");
   console.table([buyDeadlines]);
 }

@@ -9,7 +9,7 @@ export default function PortfolioSelectorMock({ onManage }: Props) {
       <div className="mt-2 flex items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[15px] font-bold text-white">기본 포트폴리오</p>
-          <p className="text-[12px] text-slate-400">저장/동기화 없이 미리보기 데이터만 사용합니다.</p>
+          <p className="text-[12px] text-slate-400">배당캘린더 티커 목록(legacy 기준)을 관리합니다.</p>
         </div>
         <button
           type="button"

@@ -24,11 +24,14 @@ export function eventStatusLabel(status: CalendarEventStatus): string {
 export function eventStateClasses(event: CalendarEvent, todayIso: string): string {
   const isPast = event.date < todayIso;
   const estimated = event.status === "estimated";
-  // Past events keep their event-type color but get a light muted veil (~60%
-  // opacity) instead of a full desaturated wash, so Ex-Div/Buy/Pay/Earn remain
-  // distinguishable in both light and dark mode. Estimated events stay dashed.
-  return [
-    isPast ? "opacity-60" : "opacity-100",
-    estimated ? "border-dashed" : "border-solid",
-  ].join(" ");
+  // Opacity policy:
+  //  - declared/confirmed & upcoming → full opacity
+  //  - declared/confirmed & past     → light muted veil (~60%)
+  //  - non-declared (estimated)      → faint (~40%) so 확정 vs 추정 reads at a
+  //    glance, but still legible (we never stack two opacity utilities).
+  // Past events keep their full event-type color (no desaturation) so
+  // Ex-Div/Buy/Pay/Earn stay distinguishable in light and dark mode. Estimated
+  // events stay dashed.
+  const opacity = estimated ? "opacity-40" : isPast ? "opacity-60" : "opacity-100";
+  return [opacity, estimated ? "border-dashed" : "border-solid"].join(" ");
 }

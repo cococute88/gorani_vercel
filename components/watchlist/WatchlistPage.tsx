@@ -3,20 +3,26 @@
 import { useEffect, useMemo, useState } from "react";
 import TopNav from "@/components/TopNav";
 import StorageModeBadge from "@/components/common/StorageModeBadge";
-import { latestOf, usePortfolioSnapshots } from "@/lib/portfolio-store";
 import { DEFAULT_WATCHLIST_TICKERS } from "@/lib/mock-dividend-data";
 import { useFirebaseAuth } from "@/lib/firebase/auth";
 import {
   deleteCalendarTicker,
   loadCalendarTickers,
   loadLegacyDividendCalendarMemos,
+  loadLegacyDividendCalendarPortfolios,
+  loadLegacyImportedCalendarEvents,
   saveCalendarTicker,
   saveLegacyDividendCalendarMemo,
   warnFirestoreFallback,
 } from "@/lib/firebase/firestore-repositories";
 import { STORAGE_KEYS } from "@/lib/storage-keys";
-import { applyKrxTickerMappingsToHoldings } from "@/lib/krx-ticker-name-map";
 import { canonicalMemoTickerKey, lookupTickerMemo, mergeMemoMaps } from "@/lib/calendar-memo-matching";
+import {
+  extractTickersFromCalendarEvents,
+  flattenLegacyPortfolioTickers,
+  resolveCalendarTickers,
+  uniqueCalendarTickers,
+} from "@/lib/calendar-ticker-source";
 import DividendCalendarPage from "./DividendCalendarPage";
 import TickerManager from "./TickerManager";
 import PortfolioManageModal from "./PortfolioManageModal";
@@ -27,16 +33,7 @@ const WATCHLIST_STORAGE_KEY = STORAGE_KEYS.calendarTickers;
 const MEMOS_STORAGE_KEY = STORAGE_KEYS.calendarMemos;
 
 function uniqUpper(arr: string[]): string[] {
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const value of arr) {
-    const ticker = value.trim().toUpperCase();
-    if (ticker && !seen.has(ticker)) {
-      seen.add(ticker);
-      out.push(ticker);
-    }
-  }
-  return out;
+  return uniqueCalendarTickers(arr);
 }
 
 function readStoredMemos(): Record<string, string> {
@@ -55,27 +52,38 @@ function readStoredMemos(): Record<string, string> {
 export default function WatchlistPage() {
   const theme = useResolvedTheme();
   const { user } = useFirebaseAuth();
-  const snapshots = usePortfolioSnapshots();
-  const portfolioTickers = useMemo(() => {
-    const latest = latestOf(snapshots);
-    return uniqUpper(
-      applyKrxTickerMappingsToHoldings(latest?.holdings ?? []).holdings
-        .map((holding) => holding.ticker || "")
-        .filter((ticker) => ticker && ticker !== "CASH" && ticker !== "CASH_LIKE"),
-    );
-  }, [snapshots]);
 
-  const fromPortfolio = portfolioTickers.length > 0;
-  const [tickers, setTickers] = useState<string[]>(fromPortfolio ? portfolioTickers : DEFAULT_WATCHLIST_TICKERS);
+  // Explicit user-managed calendar ticker list (localStorage / Firestore
+  // `calendarTickers`). When the user adds/removes a ticker we promote the
+  // derived list to this explicit list. `null` means "not yet managed".
+  const [explicitTickers, setExplicitTickers] = useState<string[] | null>(null);
+  // Derived legacy calendar ticker sources (priority order in resolveCalendarTickers).
+  const [legacyPortfolioTickers, setLegacyPortfolioTickers] = useState<string[]>([]);
+  const [legacyEventTickers, setLegacyEventTickers] = useState<string[]>([]);
   const [memos, setMemos] = useState<Record<string, string>>({});
   const [manageOpen, setManageOpen] = useState(false);
   const [memoTicker, setMemoTicker] = useState<string | null>(null);
+
+  // The calendar ticker universe. NOT `/portfolio` holdings — the legacy
+  // dividend calendar universe (portfolios → imported events → memos → mock).
+  const tickers = useMemo(() => {
+    if (explicitTickers && explicitTickers.length > 0) return explicitTickers;
+    return resolveCalendarTickers({
+      legacyPortfolioTickers,
+      legacyEventTickers,
+      legacyMemoKeys: Object.keys(memos),
+      fallbackTickers: DEFAULT_WATCHLIST_TICKERS,
+    });
+  }, [explicitTickers, legacyPortfolioTickers, legacyEventTickers, memos]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
       const stored = window.localStorage.getItem(WATCHLIST_STORAGE_KEY);
-      if (stored) setTickers(uniqUpper(JSON.parse(stored) as string[]));
+      if (stored) {
+        const parsed = uniqUpper(JSON.parse(stored) as string[]);
+        if (parsed.length > 0) setExplicitTickers(parsed);
+      }
     } catch {
       window.localStorage.removeItem(WATCHLIST_STORAGE_KEY);
     }
@@ -84,12 +92,23 @@ export default function WatchlistPage() {
 
   useEffect(() => {
     if (!user) return;
+
+    // Explicitly managed calendar tickers (override everything when present).
     loadCalendarTickers(user.uid)
       .then((items) => {
         const enabled = items.filter((item) => item.enabled !== false).map((item) => item.ticker);
-        if (enabled.length > 0) setTickers(uniqUpper(enabled));
+        if (enabled.length > 0) setExplicitTickers(uniqUpper(enabled));
       })
       .catch((err) => warnFirestoreFallback("calendarTickers.load", err));
+
+    // Legacy calendar ticker universe (preferred default source).
+    loadLegacyDividendCalendarPortfolios(user.uid)
+      .then((portfolios) => setLegacyPortfolioTickers(flattenLegacyPortfolioTickers(portfolios)))
+      .catch((err) => warnFirestoreFallback("legacyDividendCalendarPortfolios.load", err));
+
+    loadLegacyImportedCalendarEvents(user.uid)
+      .then((events) => setLegacyEventTickers(extractTickersFromCalendarEvents(events)))
+      .catch((err) => warnFirestoreFallback("legacyCalendarEventTickers.load", err));
 
     // Legacy imported memos are the base; locally edited memos override them.
     loadLegacyDividendCalendarMemos(user.uid)
@@ -114,19 +133,16 @@ export default function WatchlistPage() {
 
   const handleAdd = (raw: string) => {
     const parts = raw.split(/[\s,]+/).filter(Boolean);
-    setTickers((current) => {
-      const next = uniqUpper([...current, ...parts]);
-      void persistTickers(next);
-      return next;
-    });
+    // Promote the currently displayed (possibly derived) list to an explicit list.
+    const next = uniqUpper([...tickers, ...parts]);
+    setExplicitTickers(next);
+    void persistTickers(next);
   };
 
   const handleRemove = (ticker: string) => {
-    setTickers((current) => {
-      const next = current.filter((item) => item !== ticker);
-      void persistTickers(next);
-      return next;
-    });
+    const next = tickers.filter((item) => item !== ticker);
+    setExplicitTickers(next);
+    void persistTickers(next);
     if (user) {
       void deleteCalendarTicker(user.uid, ticker).catch((err) => warnFirestoreFallback("calendarTickers.delete", err));
     }
@@ -155,7 +171,7 @@ export default function WatchlistPage() {
   };
 
   const tickerManager = (
-    <TickerManager tickers={tickers} memos={memos} onTickerClick={setMemoTicker} fromPortfolio={fromPortfolio} />
+    <TickerManager tickers={tickers} memos={memos} onTickerClick={setMemoTicker} />
   );
 
   return (
