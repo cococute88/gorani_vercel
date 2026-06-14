@@ -82,17 +82,45 @@ const RANGE_POINTS: Record<MarketRange, number> = {
 
 const TEMP_TICKERS = ["QQQ", "QLD", "TQQQ", "SCHD", "SPY"];
 
+// VIX 변동성 기준선 (참고 그래프 reference line 에서 사용).
+export const VIX_THRESHOLDS = { high: 30, watch: 20 } as const;
+
 function seeded(n: number): number {
   const x = Math.sin(n) * 10000;
   return x - Math.floor(x);
 }
 
+function toISODate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+// 차트 x축용 날짜 라벨(ISO YYYY-MM-DD)을 최근 날짜에서 과거로 거슬러 생성한다.
+// 6개월/1년은 주간(7일) 간격, 그 외(3년/5년/전체)는 월간 간격으로 둔다.
+function buildSeriesDates(range: MarketRange): string[] {
+  const n = RANGE_POINTS[range];
+  const weekly = range === "6개월" || range === "1년";
+  const end = new Date();
+  const out: string[] = [];
+  for (let i = 0; i < n; i++) {
+    const idxFromEnd = n - 1 - i; // 0 = 가장 최근
+    const d = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+    if (weekly) d.setDate(d.getDate() - idxFromEnd * 7);
+    else d.setMonth(d.getMonth() - idxFromEnd);
+    out.push(toISODate(d));
+  }
+  return out;
+}
+
 /** 기간별 RSI 시계열 (mock). */
 export function buildRsiSeries(range: MarketRange): SeriesPoint[] {
   const n = RANGE_POINTS[range];
+  const dates = buildSeriesDates(range);
   const out: SeriesPoint[] = [];
   for (let i = 0; i < n; i++) {
-    const point: SeriesPoint = { date: `T-${n - i}` };
+    const point: SeriesPoint = { date: dates[i] };
     TEMP_TICKERS.forEach((t, ti) => {
       const base = 50 + Math.sin(i / 4 + ti) * 18 + (seeded(i + ti * 7) - 0.5) * 8;
       point[t] = Math.round(Math.max(10, Math.min(90, base)));
@@ -105,9 +133,10 @@ export function buildRsiSeries(range: MarketRange): SeriesPoint[] {
 /** 기간별 고점대비 하락률 시계열 (mock, 음수 %). */
 export function buildDrawdownSeries(range: MarketRange): SeriesPoint[] {
   const n = RANGE_POINTS[range];
+  const dates = buildSeriesDates(range);
   const out: SeriesPoint[] = [];
   for (let i = 0; i < n; i++) {
-    const point: SeriesPoint = { date: `T-${n - i}` };
+    const point: SeriesPoint = { date: dates[i] };
     TEMP_TICKERS.forEach((t, ti) => {
       const base = -(Math.abs(Math.sin(i / 5 + ti)) * (8 + ti * 3));
       point[t] = Math.round(base * 10) / 10;
@@ -120,10 +149,11 @@ export function buildDrawdownSeries(range: MarketRange): SeriesPoint[] {
 /** VIX 시계열 (mock). */
 export function buildVixSeries(range: MarketRange): SeriesPoint[] {
   const n = RANGE_POINTS[range];
+  const dates = buildSeriesDates(range);
   const out: SeriesPoint[] = [];
   for (let i = 0; i < n; i++) {
     const v = 13 + Math.abs(Math.sin(i / 6)) * 12 + (seeded(i) - 0.5) * 3;
-    out.push({ date: `T-${n - i}`, VIX: Math.round(v * 10) / 10 });
+    out.push({ date: dates[i], VIX: Math.round(v * 10) / 10 });
   }
   return out;
 }

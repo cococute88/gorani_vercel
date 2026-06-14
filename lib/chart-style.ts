@@ -22,3 +22,36 @@ export const LEGEND_STYLE = { fontSize: 12, color: "#94a3b8" };
 export const UP_COLOR = "#e5484d";
 export const DOWN_COLOR = "#3b82f6";
 export const SERIES_COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ef4444", "#14b8a6"];
+
+// 차트 x축 입력을 안전하게 Date 로 변환한다.
+// - YYYY-MM / YYYY-MM-DD 문자열은 로컬 시간 기준으로 직접 파싱(타임존 시프트 방지)
+// - timestamp(number), Date 객체도 처리
+// - 변환 불가하면 null
+function toChartDate(value: unknown): Date | null {
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
+  if (typeof value === "number") {
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  if (typeof value === "string") {
+    // YYYY-MM 또는 YYYY-MM-DD(시간 접미사 포함) 만 신뢰한다.
+    // 그 외 임의 문자열은 Date 파서가 엉뚱하게 해석할 수 있어 null 처리한다.
+    const m = value.trim().match(/^(\d{4})-(\d{2})(?:-(\d{2}))?/);
+    if (m) {
+      const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3] ?? "1"));
+      return Number.isNaN(d.getTime()) ? null : d;
+    }
+    return null;
+  }
+  return null;
+}
+
+// 차트 x축 월 단위 틱 포맷: 다양한 날짜 입력을 "YY/MM" 으로 변환한다 (예: 2026-03 → 26/03).
+// invalid date 는 원본 문자열을 그대로 반환하거나 빈 문자열로 안전 처리한다.
+export function formatChartMonthTick(value: unknown): string {
+  const date = toChartDate(value);
+  if (!date) return typeof value === "string" ? value : "";
+  const yy = String(date.getFullYear()).slice(-2);
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  return `${yy}/${mm}`;
+}

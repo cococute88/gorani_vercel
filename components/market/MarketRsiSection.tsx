@@ -12,7 +12,14 @@ import {
   YAxis,
 } from "recharts";
 import type { EtfTemperature, SeriesPoint } from "@/lib/market-data";
-import { AXIS_LINE, AXIS_TICK_SM, CHART_GRID, CHART_MARGIN, TOOLTIP_STYLE } from "@/lib/chart-style";
+import {
+  AXIS_LINE,
+  AXIS_TICK_SM,
+  CHART_GRID,
+  CHART_MARGIN,
+  TOOLTIP_STYLE,
+  formatChartMonthTick,
+} from "@/lib/chart-style";
 
 interface Props {
   temps: EtfTemperature[];
@@ -64,7 +71,14 @@ export default function MarketRsiSection({ temps, rsi }: Props) {
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={rsi} margin={CHART_MARGIN}>
               <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} vertical={false} />
-              <XAxis dataKey="date" tick={AXIS_TICK_SM} tickLine={false} axisLine={AXIS_LINE} minTickGap={28} />
+              <XAxis
+                dataKey="date"
+                tick={AXIS_TICK_SM}
+                tickLine={false}
+                axisLine={AXIS_LINE}
+                minTickGap={28}
+                tickFormatter={formatChartMonthTick}
+              />
               <YAxis domain={[0, 100]} tick={AXIS_TICK_SM} tickLine={false} axisLine={false} width={32} />
               <ReferenceLine y={70} stroke="#e5484d" strokeDasharray="4 4" />
               <ReferenceLine y={30} stroke="#3b82f6" strokeDasharray="4 4" />

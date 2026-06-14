@@ -23,7 +23,8 @@
     "check:dividend-estimates": "node scripts/check-dividend-estimates.mjs",
     "check:dividend-summary-cards": "node scripts/check-dividend-summary-cards.mjs",
     "check:dividend-holdings": "node scripts/check-dividend-holdings-groups.mjs",
-    "check:dividends-data": "node scripts/check-dividend-holdings-groups.mjs && node scripts/check-portfolio-parser.mjs"
+    "check:dividends-data": "node scripts/check-dividend-holdings-groups.mjs && node scripts/check-portfolio-parser.mjs",
+    "check:market-chart-formatters": "node scripts/check-market-chart-formatters.mjs"
   },
   "dependencies": {
     "next": "14.2.5",

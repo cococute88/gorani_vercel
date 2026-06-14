@@ -17,8 +17,9 @@ const FNG_GRADIENT =
 
 // 원본 Streamlit 시장온도 상단 구조: 왼쪽 큰 공포&탐욕 카드 + 오른쪽 지수/매크로 카드.
 export default function MarketTopBriefing({ fearGreed, briefing }: Props) {
-  // 큰 카드로 대체되는 Fear & Greed 항목은 우측 카드 그리드에서 제외한다.
-  const cards = briefing.filter((item) => item.key !== "fng");
+  // 큰 카드로 대체되는 Fear & Greed 항목, 그리고 단독으로 떨어져 보이던 VIX 항목은
+  // 우측 카드 그리드에서 제외한다. (VIX 는 하단 참고 그래프에서만 확인한다.)
+  const cards = briefing.filter((item) => item.key !== "fng" && item.key !== "vix");
 
   return (
     <section className="mb-6">
