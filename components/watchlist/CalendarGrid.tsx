@@ -84,7 +84,7 @@ export default function CalendarGrid({
               type="button"
               onClick={() => onSelectDate(cell.isoDate)}
               className={[
-                "relative min-h-[72px] overflow-hidden border-t border-[#232d30] text-left transition sm:min-h-[100px]",
+                "relative flex min-h-[72px] flex-col justify-start overflow-hidden border-t border-[#232d30] text-left transition sm:min-h-[100px]",
                 // Light-mode hover stays a faint sky tint (not the dark surface color,
                 // which the global light remap does not touch on `hover:` classes).
                 isCurrentMonth
@@ -93,12 +93,14 @@ export default function CalendarGrid({
                 selected ? "ring-2 ring-inset ring-blue-400/80" : "",
               ].join(" ")}
             >
-              {/* Top line: day number + custom (user/economic) date-line text.
-                  Pinned to the cell's top-left as an absolute layer so the date
-                  number sits at the exact same y-position in every cell and the
-                  custom text shares that line — it can never be pushed down by
-                  the event-chip flow below it. */}
-              <div className="absolute inset-x-1 top-1 z-10 flex h-5 items-center gap-1 sm:inset-x-1.5 sm:h-6">
+              {/* Top line (first normal-flow row): day number + custom
+                  (user/economic) inline text. The day cell is a top-anchored
+                  flex column (justify-start), so this row sits flush with the
+                  cell top in every cell and the chip block below stacks directly
+                  beneath it. No absolute pinning, no vertical centering — that
+                  is what previously let the <button> UA layout float the in-flow
+                  chips to the middle of the cell. */}
+              <div className="flex h-5 shrink-0 items-start gap-1 px-1 pt-1 leading-none sm:h-6 sm:px-1.5 sm:pt-1.5">
                 <span className={[
                   "flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold leading-none sm:h-6 sm:w-6 sm:text-[11px]",
                   isToday ? "bg-blue-500 text-white shadow-md shadow-blue-500/30" : "",
@@ -114,7 +116,7 @@ export default function CalendarGrid({
                     title={dayCustom.map((event) => event.title ?? event.ticker).join(", ")}
                     onClick={(clickEvent) => { clickEvent.stopPropagation(); onSelectDate(cell.isoDate); onOpenEvent(dayCustom[0]); }}
                     onKeyDown={(keyEvent) => { if (keyEvent.key === "Enter") onOpenEvent(dayCustom[0]); }}
-                    className={`min-w-0 flex-1 truncate text-[9px] font-medium leading-none text-amber-700 dark:text-amber-200/90 sm:text-[10px] ${cell.isoDate < todayIso ? "opacity-60" : ""}`}
+                    className={`min-w-0 flex-1 truncate pt-0.5 text-[9px] font-medium leading-none text-amber-700 dark:text-amber-200/90 sm:text-[10px] ${cell.isoDate < todayIso ? "opacity-60" : ""}`}
                   >
                     {dayCustom[0].title ?? dayCustom[0].ticker}{dayCustom.length > 1 ? ` +${dayCustom.length - 1}` : ""}
                   </span>
@@ -125,8 +127,9 @@ export default function CalendarGrid({
                   </span>
                 )}
               </div>
-              {/* Event chips — start below the fixed top line (pt clears it). */}
-              <div className="flex min-w-0 flex-col gap-0.5 px-1 pb-1 pt-7 sm:px-1.5 sm:pb-1.5 sm:pt-8">
+              {/* Event chips stack directly below the date line — top-anchored
+                  (justify-start), small gap, never vertically centered. */}
+              <div className="mt-0.5 flex min-h-0 min-w-0 flex-col justify-start gap-0.5 overflow-hidden px-1 pb-1 sm:px-1.5 sm:pb-1.5">
                 {shown.map((event) => {
                   const visual = getEventVisual(event.type);
                   return (
