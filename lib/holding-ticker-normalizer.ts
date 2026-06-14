@@ -1,4 +1,5 @@
 import type { Holding } from "./portfolio-types";
+import { findKrxTickerMappingForHolding } from "./krx-ticker-name-map";
 import {
   findKoreanEtfMapping,
   inferKoreanEtfFallbackBucket,
@@ -11,7 +12,7 @@ export type NormalizedHoldingTickerInfo = {
   exposureProxy?: string;
   displayTicker?: string;
   isCashLike: boolean;
-  source: "manual" | "korean-etf-registry" | "marker" | "fallback" | "cash-like" | "unknown";
+  source: "manual" | "manual-name-map" | "korean-etf-registry" | "marker" | "fallback" | "cash-like" | "unknown";
   warnings: string[];
 };
 
@@ -126,11 +127,25 @@ export function normalizeHoldingTickerInfo(
 
   const registry = findKoreanEtfMapping(searchableText);
   const fallback = registry ? null : inferKoreanEtfFallbackBucket(searchableText);
+  const nameMapping = quoteTicker ? null : findKrxTickerMappingForHolding(input);
   const dividendBucket = markerBucket ?? registry?.dividendBucket ?? fallback?.dividendBucket;
   const exposureProxy = markerBucket ?? registry?.exposureProxy ?? fallback?.exposureProxy;
   const isBucketLikeTicker = quoteTicker ? BUCKET_LIKE_TICKERS.has(quoteTicker) : false;
 
   if (!registry?.quoteTicker && fallback) warnings.push("missing_krx_code_mapping");
+
+  if (nameMapping) {
+    return {
+      quoteTicker: nameMapping.displayTicker,
+      krxCode: nameMapping.ticker,
+      dividendBucket,
+      exposureProxy,
+      displayTicker: nameMapping.displayTicker,
+      isCashLike: false,
+      source: "manual-name-map",
+      warnings,
+    };
+  }
 
   if (registry && registry.quoteTicker && isBucketLikeTicker) {
     warnings.push("upgraded_bucket_ticker_to_korean_quote_ticker");

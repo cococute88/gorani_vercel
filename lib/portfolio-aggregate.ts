@@ -2,6 +2,7 @@ import type { Slice } from "./mockData";
 import { ACCOUNT_CARDS, PORTFOLIO_SUMMARY_DARK } from "./mockData";
 import type { FinanceAsset, Holding, PortfolioSnapshot } from "./portfolio-types";
 import { filterAggregateHoldings } from "./portfolio-summary-row";
+import { applyKrxTickerMappingsToHoldings } from "./krx-ticker-name-map";
 
 const COLORS = [
   "#3b82f6",
@@ -109,7 +110,7 @@ export function buildPortfolioViewModel(snapshot: PortfolioSnapshot | null): Por
     };
   }
 
-  const holdings = filterAggregateHoldings(snapshot.holdings ?? []);
+  const holdings = applyKrxTickerMappingsToHoldings(filterAggregateHoldings(snapshot.holdings ?? [])).holdings;
   const investmentValue = holdings.reduce((sum, h) => sum + h.valueKRW, 0);
   const principal = holdings.reduce((sum, h) => sum + h.principalKRW, 0);
   const profit = investmentValue - principal;

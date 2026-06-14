@@ -9,15 +9,40 @@ interface Props {
   onToggle: (id: string) => void;
   onTickerChange: (id: string, ticker: string) => void;
   readOnly?: boolean;
+  tickerMapNotice?: {
+    tone: "success" | "error" | "info";
+    text: string;
+  } | null;
 }
 
 const card = "rounded-2xl border border-[#2a3336] bg-[#191f20] p-5";
 
 // 포트폴리오 관리용 보유종목 리스트 (ticker 수정 가능, 확인상태 표시)
-export default function HoldingsTable({ holdings, selected, onToggle, onTickerChange, readOnly = false }: Props) {
+export default function HoldingsTable({
+  holdings,
+  selected,
+  onToggle,
+  onTickerChange,
+  readOnly = false,
+  tickerMapNotice = null,
+}: Props) {
+  const noticeToneClass =
+    tickerMapNotice?.tone === "error"
+      ? "border-rose-500/25 bg-rose-500/10 text-rose-300"
+      : tickerMapNotice?.tone === "info"
+        ? "border-blue-500/25 bg-blue-500/10 text-blue-300"
+        : "border-emerald-500/25 bg-emerald-500/10 text-emerald-300";
+
   return (
     <div className={card}>
-      <h2 className="mb-4 text-[15px] font-bold text-slate-300">보유종목 리스트</h2>
+      <div className="mb-4 flex min-w-0 flex-wrap items-center justify-between gap-2">
+        <h2 className="text-[15px] font-bold text-slate-300">보유종목 리스트</h2>
+        {tickerMapNotice ? (
+          <span className={`max-w-full break-keep rounded-md border px-2.5 py-1 text-[11.5px] ${noticeToneClass}`}>
+            {tickerMapNotice.text}
+          </span>
+        ) : null}
+      </div>
 
       {/* 모바일: 카드 리스트 (가로 스크롤 없이 카드 안에 핵심 정보 표시) */}
       <div className="space-y-2.5 lg:hidden">

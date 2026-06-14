@@ -18,6 +18,11 @@ import { MOCK_LATEST_SNAPSHOT } from "@/lib/mock-portfolio-data";
 import type { Holding, PortfolioSnapshot } from "@/lib/portfolio-types";
 import { filterAggregateHoldings } from "@/lib/portfolio-summary-row";
 import { applyKnownQuoteTickerToHolding } from "@/lib/holding-ticker-normalizer";
+import {
+  applyKrxTickerMappingsToHoldings,
+  normalizeKrxTickerForTickerMap,
+  upsertKrxTickerMapping,
+} from "@/lib/krx-ticker-name-map";
 import ExcelUploadCard from "./ExcelUploadCard";
 import PortfolioParsePreview from "./PortfolioParsePreview";
 import HoldingsTable from "./HoldingsTable";
@@ -94,10 +99,15 @@ export default function PortfolioPage() {
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [previewSnapshotId, setPreviewSnapshotId] = useState<string | null>(null);
+  const [tickerMapNotice, setTickerMapNotice] = useState<{
+    tone: "success" | "error" | "info";
+    text: string;
+  } | null>(null);
 
   const applyResult = (r: ParseResult) => {
     setPreviewSnapshotId(null);
-    const cleanHoldings = filterAggregateHoldings(r.holdings).map(applyKnownQuoteTickerToHolding);
+    const mapped = applyKrxTickerMappingsToHoldings(filterAggregateHoldings(r.holdings));
+    const cleanHoldings = mapped.holdings.map(applyKnownQuoteTickerToHolding);
     const investmentPrincipalKRW = cleanHoldings.reduce((sum, h) => sum + h.principalKRW, 0);
     const investmentValueKRW = cleanHoldings.reduce((sum, h) => sum + h.valueKRW, 0);
     const returnAmountKRW = investmentValueKRW - investmentPrincipalKRW;
@@ -116,6 +126,14 @@ export default function PortfolioPage() {
     const sel: Record<string, boolean> = {};
     cleanHoldings.forEach((h) => (sel[h.id] = true));
     setSelected(sel);
+    setTickerMapNotice(
+      mapped.appliedCount > 0
+        ? {
+            tone: "info",
+            text: `저장된 KRX 티커 매핑 ${mapped.appliedCount}개를 적용했어요.`,
+          }
+        : null,
+    );
   };
 
   const handleParse = async () => {
@@ -193,8 +211,54 @@ export default function PortfolioPage() {
 
   const onToggle = (id: string) =>
     setSelected((prev) => ({ ...prev, [id]: !(prev[id] ?? true) }));
-  const onTickerChange = (id: string, ticker: string) =>
-    setHoldings((prev) => prev.map((h) => (h.id === id ? { ...h, ticker } : h)));
+  const onTickerChange = (id: string, ticker: string) => {
+    const normalized = normalizeKrxTickerForTickerMap(ticker);
+
+    if (!normalized) {
+      setHoldings((prev) => prev.map((h) => (h.id === id ? { ...h, ticker } : h)));
+      const compact = ticker.trim().replace(/\s+/g, "").toUpperCase();
+      if (compact.length >= 6 && compact !== "") {
+        setTickerMapNotice({
+          tone: "error",
+          text: "KRX 티커는 6자리 숫자 또는 005930.KS/KQ 형식만 저장돼요.",
+        });
+      } else {
+        setTickerMapNotice(null);
+      }
+      return;
+    }
+
+    const target = holdings.find((holding) => holding.id === id);
+    if (!target) return;
+
+    const upserted = upsertKrxTickerMapping({ holding: target, tickerInput: ticker });
+    if (!upserted.ok) {
+      setTickerMapNotice({
+        tone: "error",
+        text: upserted.error === "invalid_product_name"
+          ? "상품명을 확인할 수 없어 KRX 티커 매핑을 저장하지 못했어요."
+          : "KRX 티커는 6자리 숫자 또는 005930.KS/KQ 형식만 저장돼요.",
+      });
+      return;
+    }
+
+    const next = holdings.map((holding) =>
+      holding.id === id
+        ? {
+            ...holding,
+            ticker: upserted.entry.displayTicker,
+            tickerConfidence: "high" as const,
+            needsReview: false,
+          }
+        : holding,
+    );
+    const applied = applyKrxTickerMappingsToHoldings(next, upserted.map);
+    setHoldings(applied.holdings.map(applyKnownQuoteTickerToHolding));
+    setTickerMapNotice({
+      tone: "success",
+      text: `KRX 티커 ${upserted.entry.displayTicker} 저장 · 같은 상품명 ${applied.appliedCount}개 자동 적용`,
+    });
+  };
 
   const previewSnapshot = useMemo(
     () => snapshots.find((snapshot) => snapshot.id === previewSnapshotId) ?? null,
@@ -203,7 +267,7 @@ export default function PortfolioPage() {
   const displayedHoldings = useMemo(
     () =>
       previewSnapshot
-        ? filterAggregateHoldings(previewSnapshot.holdings ?? []).map(applyKnownQuoteTickerToHolding)
+        ? applyKrxTickerMappingsToHoldings(filterAggregateHoldings(previewSnapshot.holdings ?? [])).holdings.map(applyKnownQuoteTickerToHolding)
         : holdings,
     [holdings, previewSnapshot],
   );
@@ -270,6 +334,7 @@ export default function PortfolioPage() {
             onToggle={previewSnapshot ? () => undefined : onToggle}
             onTickerChange={previewSnapshot ? () => undefined : onTickerChange}
             readOnly={Boolean(previewSnapshot)}
+            tickerMapNotice={previewSnapshot ? null : tickerMapNotice}
           />
         </section>
 

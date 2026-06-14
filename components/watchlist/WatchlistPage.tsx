@@ -8,6 +8,7 @@ import { DEFAULT_WATCHLIST_TICKERS } from "@/lib/mock-dividend-data";
 import { useFirebaseAuth } from "@/lib/firebase/auth";
 import { deleteCalendarTicker, loadCalendarTickers, saveCalendarTicker, warnFirestoreFallback } from "@/lib/firebase/firestore-repositories";
 import { STORAGE_KEYS } from "@/lib/storage-keys";
+import { applyKrxTickerMappingsToHoldings } from "@/lib/krx-ticker-name-map";
 import DividendCalendarPage from "./DividendCalendarPage";
 import TickerManager from "./TickerManager";
 import { useResolvedTheme } from "@/components/theme/ThemeProvider";
@@ -34,7 +35,7 @@ export default function WatchlistPage() {
   const portfolioTickers = useMemo(() => {
     const latest = latestOf(snapshots);
     return uniqUpper(
-      (latest?.holdings ?? [])
+      applyKrxTickerMappingsToHoldings(latest?.holdings ?? []).holdings
         .map((holding) => holding.ticker || "")
         .filter((ticker) => ticker && ticker !== "CASH" && ticker !== "CASH_LIKE"),
     );

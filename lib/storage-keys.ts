@@ -13,6 +13,7 @@ export const STORAGE_KEYS = {
   marketCache: "gorani.market.cache.v1",
   uiPreferences: "gorani.ui-preferences.v1",
   trackerConfig: "gorani.tracker-config.v1",
+  krxTickerNameMap: "gorani.krx-ticker-name-map.v1",
 } as const;
 
 export type StorageKeyName = keyof typeof STORAGE_KEYS;
