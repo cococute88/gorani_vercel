@@ -36,6 +36,15 @@ export function formatTaxSavingPer10k(value: number | null | undefined): string 
   return `$${value.toFixed(1).replace(/\.0$/, "")}`;
 }
 
+// Format a per-$10k tax-saving estimate for a monthly calendar chip, mirroring
+// the right-rail 절세액 table's two-decimal `$17.25` rendering (same source
+// value). Returns null when no computable value exists so the chip keeps its
+// plain `CRBG 매수` label instead of fabricating an amount.
+export function formatTaxSavingChipAmount(value: number | null | undefined): string | null {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) return null;
+  return `$${value.toFixed(2)}`;
+}
+
 export function eventStateClasses(event: CalendarEvent, todayIso: string): string {
   const isPast = event.date < todayIso;
   const estimated = event.status === "estimated";

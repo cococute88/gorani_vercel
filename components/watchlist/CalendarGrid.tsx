@@ -2,7 +2,8 @@
 
 import { buildMonthGrid } from "@/lib/calendar-grid";
 import { sortCalendarEventsByPriority } from "@/lib/calendar-event-sort";
-import { eventChipLabel, eventStateClasses, EVENT_VISUALS, getEventVisual } from "@/lib/event-visuals";
+import { eventChipLabel, eventStateClasses, EVENT_VISUALS, formatTaxSavingChipAmount, getEventVisual } from "@/lib/event-visuals";
+import type { TaxSavingByTicker } from "./CalendarEventList";
 import type { CalendarEvent, CalendarEventType } from "@/lib/mock-calendar-data";
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
@@ -23,6 +24,16 @@ interface Props {
   onPrevMonth: () => void;
   onNextMonth: () => void;
   onToday: () => void;
+  // Per-ticker tax-saving estimate (현시세 기준 · 만달러당) — same source as the
+  // right-rail 절세액 table. When present and computable it is appended to the chip
+  // (`CRBG 매수 $17.25`), hidden on narrow cells. Missing → plain chip label.
+  taxSavingByTicker?: TaxSavingByTicker;
+  // Bottom legend doubles as the dividend-type filter toggle (no separate filter
+  // card). `filters` drives the ON/OFF visual state, `onToggleFilter` flips one.
+  filters: Record<CalendarEventType, boolean>;
+  onToggleFilter: (type: CalendarEventType) => void;
+  // "+ 일정 추가" lives on the calendar's bottom toolbar row.
+  onAddEvent: () => void;
 }
 
 export default function CalendarGrid({
@@ -36,6 +47,10 @@ export default function CalendarGrid({
   onPrevMonth,
   onNextMonth,
   onToday,
+  taxSavingByTicker,
+  filters,
+  onToggleFilter,
+  onAddEvent,
 }: Props) {
   const cells = buildMonthGrid(month);
   const eventsByDate = new Map<string, CalendarEvent[]>();
@@ -74,9 +89,10 @@ export default function CalendarGrid({
         {cells.map((cell) => {
           const dayEvents = sortCalendarEventsByPriority(eventsByDate.get(cell.isoDate) ?? []);
           const dayCustom = customByDate.get(cell.isoDate) ?? [];
-          // Show up to three event chips per cell (date + custom/economic text
-          // line stays on top); anything beyond three collapses into a "+N" pill.
-          const shown = dayEvents.slice(0, 3);
+          // Show up to four event chips per cell (date + custom/economic text
+          // line stays on top); anything beyond four collapses into a "+N" pill.
+          // Taller cells (see min-h below) keep four chips legible.
+          const shown = dayEvents.slice(0, 4);
           const extra = dayEvents.length - shown.length;
           const selected = selectedDate === cell.isoDate;
           const isToday = todayIso === cell.isoDate;
@@ -87,7 +103,7 @@ export default function CalendarGrid({
               type="button"
               onClick={() => onSelectDate(cell.isoDate)}
               className={[
-                "relative flex min-h-[72px] flex-col justify-start overflow-hidden border-t border-[#232d30] text-left transition sm:min-h-[100px]",
+                "relative flex min-h-[88px] flex-col justify-start overflow-hidden border-t border-[#232d30] text-left transition sm:min-h-[140px] lg:min-h-[152px]",
                 // Light-mode hover stays a faint sky tint (not the dark surface color,
                 // which the global light remap does not touch on `hover:` classes).
                 isCurrentMonth
@@ -135,6 +151,10 @@ export default function CalendarGrid({
               <div className="mt-0.5 flex min-h-0 min-w-0 flex-col justify-start gap-0.5 overflow-hidden px-1 pb-1 sm:px-1.5 sm:pb-1.5">
                 {shown.map((event) => {
                   const visual = getEventVisual(event.type);
+                  const taxRow = taxSavingByTicker?.[event.ticker.trim().toUpperCase()];
+                  const taxAmount = taxRow && taxRow.canCalculate && !taxRow.isLoading
+                    ? formatTaxSavingChipAmount(taxRow.taxSavingUsd)
+                    : null;
                   return (
                     <span
                       key={event.id}
@@ -149,6 +169,9 @@ export default function CalendarGrid({
                       ].join(" ")}
                     >
                       {event.favorite ? `${event.favorite} ` : ""}{eventChipLabel(event)}
+                      {/* Tax-saving amount shown on wider cells only (hidden on
+                          mobile / narrow columns to avoid breaking the cell). */}
+                      {taxAmount && <span className="hidden font-bold sm:inline"> {taxAmount}</span>}
                     </span>
                   );
                 })}
@@ -158,12 +181,35 @@ export default function CalendarGrid({
         })}
       </div>
 
-      {/* Legend — only the four dividend event types (no extra explanatory text) */}
-      <div className="mt-3 flex flex-wrap gap-1.5 sm:gap-2">
-        {LEGEND_TYPES.map((type) => {
-          const visual = EVENT_VISUALS[type];
-          return <span key={type} className={`rounded-full border px-2 py-0.5 text-[10px] font-medium sm:text-[11px] ${visual.bg} ${visual.border} ${visual.text}`}>{visual.label}</span>;
-        })}
+      {/* Bottom toolbar — the four dividend event types double as clickable
+          filter toggles (ON = colored, OFF = faint outline), with the
+          "+ 일정 추가" action pinned to the right end of the same row. */}
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap gap-1.5 sm:gap-2">
+          {LEGEND_TYPES.map((type) => {
+            const visual = EVENT_VISUALS[type];
+            const active = filters[type];
+            return (
+              <button
+                key={type}
+                type="button"
+                onClick={() => onToggleFilter(type)}
+                aria-pressed={active}
+                title={`${visual.label} ${active ? "끄기" : "켜기"}`}
+                className={`rounded-full border px-2.5 py-1 text-[10px] font-bold transition sm:text-[11px] ${active ? `${visual.bg} ${visual.border} ${visual.text}` : "border-white/10 bg-white/5 text-slate-500 opacity-60 hover:opacity-90"}`}
+              >
+                {visual.label}
+              </button>
+            );
+          })}
+        </div>
+        <button
+          type="button"
+          onClick={onAddEvent}
+          className="inline-flex shrink-0 items-center gap-1 rounded-full border border-amber-300/40 bg-amber-500/15 px-2.5 py-1 text-[11px] font-bold text-amber-100 transition hover:bg-amber-500/25 sm:text-[12px]"
+        >
+          + 일정 추가
+        </button>
       </div>
     </section>
   );

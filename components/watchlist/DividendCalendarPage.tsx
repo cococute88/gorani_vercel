@@ -30,13 +30,11 @@ import {
   type CalendarEventMeta,
 } from "@/lib/firebase/firestore-repositories";
 import { STORAGE_KEYS } from "@/lib/storage-keys";
-import { EVENT_VISUALS } from "@/lib/event-visuals";
 import CalendarGrid from "./CalendarGrid";
 import CalendarEventDialog from "./CalendarEventDialog";
 import CustomEventDialog, { type CustomEventSubmitInput } from "./CustomEventDialog";
 import DividendSchedulePreview from "./DividendSchedulePreview";
 import EconomicCalendarSection from "./EconomicCalendarSection";
-import PortfolioSelectorMock from "./PortfolioSelectorMock";
 import SelectedDateList from "./SelectedDateList";
 import TaxSavingTable from "./TaxSavingTable";
 
@@ -52,10 +50,6 @@ interface Props {
 }
 
 const CALENDAR_EVENT_META_STORAGE_KEY = STORAGE_KEYS.calendarEventMeta;
-
-// Custom/user events are not part of the dividend-type filter — they always show
-// on the grid as date-line text, so only the four dividend types are toggleable.
-const FILTER_ORDER: CalendarEventType[] = ["ex_div", "buy_by", "pay", "earnings"];
 
 function getCalendarEventMetaKey(event: CalendarEvent): string {
   return event.canonicalEventId ?? event.id;
@@ -400,40 +394,10 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
         )}
       </div>
 
-      {/* Filters */}
-      <section className="mb-4 grid grid-cols-1 gap-3 xl:grid-cols-[280px_1fr]">
-        <PortfolioSelectorMock onManage={onManagePortfolio} />
-        <div className="rounded-2xl border border-[#2a3336] bg-[#191f20] p-3 sm:p-4">
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <h2 className="text-[13px] font-bold text-slate-300 sm:text-[14px]">필터</h2>
-            <button
-              type="button"
-              onClick={openCreateCustomEvent}
-              className="inline-flex shrink-0 items-center gap-1 rounded-full border border-amber-300/40 bg-amber-500/15 px-2.5 py-1 text-[11px] font-bold text-amber-100 transition hover:bg-amber-500/25 sm:text-[12px]"
-            >
-              + 일정 추가
-            </button>
-          </div>
-          <div className="flex flex-wrap gap-1.5 sm:gap-2">
-            {FILTER_ORDER.map((type) => {
-              const visual = EVENT_VISUALS[type];
-              return (
-                <button
-                  key={type}
-                  type="button"
-                  onClick={() => setFilters((current) => ({ ...current, [type]: !current[type] }))}
-                  className={`rounded-full border px-2.5 py-1 text-[11px] font-bold transition sm:px-3 sm:py-1.5 sm:text-[12px] ${filters[type] ? `${visual.bg} ${visual.border} ${visual.text}` : "border-white/10 bg-white/5 text-slate-500"}`}
-                >
-                  {visual.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* Main content */}
-      <section className="mb-4 grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_260px]">
+      {/* Main content — wide calendar + narrow 절세액 rail. The top filter card
+          and portfolio card are gone; filters now live on the calendar's bottom
+          toolbar and portfolio management moved into the 티커 관리 section. */}
+      <section className="mb-4 grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_280px]">
         <div className="space-y-4">
           <CalendarGrid
             month={month}
@@ -446,6 +410,10 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
             onPrevMonth={() => moveMonth(-1)}
             onNextMonth={() => moveMonth(1)}
             onToday={goToday}
+            taxSavingByTicker={taxSavingByTicker}
+            filters={filters}
+            onToggleFilter={(type) => setFilters((current) => ({ ...current, [type]: !current[type] }))}
+            onAddEvent={openCreateCustomEvent}
           />
           <SelectedDateList
             selectedDate={selectedDate}
@@ -471,9 +439,23 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
         <DividendSchedulePreview events={events} monthStartIso={monthStartIso} monthEndIso={monthEndIso} onOpenEvent={handleOpenEvent} />
       </section>
 
-      {/* Ticker management */}
+      {/* Ticker management — also hosts portfolio management (merged from the
+          removed top 포트폴리오 card). The "포트폴리오 관리" button opens the existing
+          add/remove modal; the ticker grid + legacy memo wiring are unchanged. */}
       <section className="mb-4 rounded-2xl border border-[#2a3336] bg-[#151b1d] p-3 sm:p-4">
-        <h2 className="mb-3 text-[14px] font-bold text-slate-200">티커 관리</h2>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div className="min-w-0">
+            <h2 className="text-[14px] font-bold text-slate-200">티커 관리</h2>
+            <p className="mt-0.5 text-[12px] text-slate-500 dark:text-slate-400">기본 포트폴리오 · 배당캘린더 티커 목록(legacy 메모 연동)</p>
+          </div>
+          <button
+            type="button"
+            onClick={onManagePortfolio}
+            className="shrink-0 whitespace-nowrap rounded-lg border border-blue-400/40 bg-blue-500/10 px-3 py-1.5 text-[12px] font-semibold text-blue-600 transition hover:bg-blue-500/20 dark:text-blue-200"
+          >
+            포트폴리오 관리
+          </button>
+        </div>
         {tickerManager}
       </section>
 
