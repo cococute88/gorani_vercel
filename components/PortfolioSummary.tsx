@@ -99,39 +99,40 @@ export default function PortfolioSummary({ theme = "light" }: Props) {
           <div className="flex min-w-0 flex-col xl:pr-5">
             <div className="mb-1 flex items-center gap-2 text-[11px]">
               <span className={`font-bold ${isLight ? "text-slate-700" : "text-slate-200"}`}>
-                총 평가금액
+                총 금융자산
               </span>
               <span className={subCls}>
                 {d.snapshotDate ? `${d.snapshotDate} 기준` : "스냅샷 없음"}
               </span>
             </div>
             <MoneyText shrink className={`break-keep font-extrabold ${titleCls}`}>
-              {formatMaybeWon(d.investmentValueKRW ?? d.totalAssetKRW)}
+              {formatMaybeWon(d.totalAssetKRW)}
             </MoneyText>
+            <span className={`mt-1 text-[11px] ${subCls}`}>총 금융자산 = 투자 평가금액 + 현금성/기타 자산</span>
             <span className="num mt-1 text-[12.5px] font-semibold" style={{ color: valueColor }}>
-              {formatMaybeSignedWon(d.returnAmountKRW)} ({formatMaybePercent(d.returnPct)})
+              누적 손익 {formatMaybeSignedWon(d.returnAmountKRW)} ({formatMaybePercent(d.returnPct)})
             </span>
             <span className={`mt-1 text-[11px] ${subCls}`}>
-              최신 스냅샷 실데이터 기준
+              최신 스냅샷 기준
             </span>
           </div>
 
           <div className="flex flex-col xl:px-5">
-            <span className={`text-[11px] ${labelCls}`}>원금 / 손익</span>
+            <span className={`text-[11px] ${labelCls}`}>투자 평가금액</span>
             <span className={`num mt-1 text-[19px] font-extrabold ${titleCls}`}>
-              {formatMaybeWon(d.investmentPrincipalKRW)}
+              {formatMaybeWon(d.investmentValueKRW)}
             </span>
             <div className={`mt-1 space-y-1 text-[11px] ${subCls}`}>
               <div className="flex justify-between gap-3">
-                <span>투자 평가</span>
+                <span>현금성/기타 자산</span>
                 <span className={`num font-semibold ${isLight ? "text-slate-800" : "text-slate-300"}`}>
-                  {formatMaybeWon(d.investmentValueKRW)}
+                  {formatMaybeWon(d.cashAndOtherKRW)}
                 </span>
               </div>
               <div className="flex justify-between gap-3">
-                <span>총 금융자산</span>
+                <span>투자원금</span>
                 <span className={`num font-semibold ${isLight ? "text-slate-800" : "text-slate-300"}`}>
-                  {formatMaybeWon(d.totalAssetKRW)}
+                  {formatMaybeWon(d.investmentPrincipalKRW)}
                 </span>
               </div>
             </div>
@@ -177,7 +178,7 @@ export default function PortfolioSummary({ theme = "light" }: Props) {
                 </span>
               </div>
               <div>
-                <span className={`text-[10.5px] ${subCls}`}>평가 기준 </span>
+                <span className={`text-[10.5px] ${subCls}`}>투자 평가금액 </span>
                 <span className="num text-[14px] font-bold" style={{ color: valueColor }}>
                   {d.investmentValueKRW === null ? "—" : formatCompactKrw(d.investmentValueKRW)}
                 </span>
@@ -217,7 +218,7 @@ export default function PortfolioSummary({ theme = "light" }: Props) {
               ? "border-slate-200 bg-slate-50 text-slate-500"
               : "border-[#2a3336] bg-white/[0.03] text-slate-400"
           }`}>
-            보유종목 평가금액과 현금 잔액 정보가 부족해 비중을 표시할 수 없습니다.
+            보유종목 평가금액과 현금성 자산 정보가 부족해 비중을 표시할 수 없습니다.
           </div>
         )}
       </div>
