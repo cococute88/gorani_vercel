@@ -8,10 +8,9 @@ import {
   saveSnapshot,
   deleteSnapshot,
   hasSnapshotDate,
-  replaceSnapshots,
 } from "@/lib/portfolio-store";
 import { useFirebaseAuth } from "@/lib/firebase/auth";
-import { deletePortfolioSnapshot, loadPortfolioSnapshots, savePortfolioSnapshot, warnFirestoreFallback } from "@/lib/firebase/firestore-repositories";
+import { deletePortfolioSnapshot, savePortfolioSnapshot, warnFirestoreFallback } from "@/lib/firebase/firestore-repositories";
 import { parseBanksaladFile } from "@/lib/banksalad-parser";
 import type { ParseResult } from "@/lib/banksalad-parser";
 import { MOCK_LATEST_SNAPSHOT } from "@/lib/mock-portfolio-data";
@@ -32,6 +31,7 @@ import PortfolioPerformanceChart from "./PortfolioPerformanceChart";
 import PortfolioQuoteStatusPanel from "./PortfolioQuoteStatusPanel";
 import AssetMapSection from "@/components/asset-map/AssetMapSection";
 import { useResolvedTheme } from "@/components/theme/ThemeProvider";
+import { usePortfolioCloudSync } from "@/lib/portfolio-cloud-sync";
 
 function snapshotToResult(s: PortfolioSnapshot): ParseResult {
   return {
@@ -91,7 +91,8 @@ function resultToSnapshot(r: ParseResult, holdings: Holding[]): PortfolioSnapsho
 
 export default function PortfolioPage() {
   const snapshots = usePortfolioSnapshots();
-  const { user, configured } = useFirebaseAuth();
+  const { user, loading: authLoading, configured } = useFirebaseAuth();
+  const syncState = usePortfolioCloudSync();
 
   const [files, setFiles] = useState<File[]>([]);
   const [parsing, setParsing] = useState(false);
@@ -171,15 +172,6 @@ export default function PortfolioPage() {
   };
 
   const handleLoadMock = () => applyResult(snapshotToResult(MOCK_LATEST_SNAPSHOT));
-
-  useEffect(() => {
-    if (!user) return;
-    loadPortfolioSnapshots(user.uid)
-      .then((cloudSnapshots) => {
-        if (cloudSnapshots.length > 0) replaceSnapshots(cloudSnapshots);
-      })
-      .catch((err) => warnFirestoreFallback("portfolioSnapshots.load", err));
-  }, [user]);
 
   const handleRegister = async () => {
     if (!result || !result.ok) return;
@@ -298,6 +290,8 @@ export default function PortfolioPage() {
             : configured
               ? "로그아웃 상태에서는 이 브라우저에만 임시 저장돼요."
               : "Firebase 설정이 없어 로컬 미리보기 모드로 동작합니다."}
+          {syncState.status === "syncing" || authLoading ? " 로그인/클라우드 스냅샷을 확인 중입니다." : ""}
+          {syncState.status === "failed" ? " 동기화 실패: 로컬 저장은 유지됩니다." : ""}
         </p>
 
         <section className="mb-6 grid grid-cols-1 gap-5 xl:grid-cols-2">
@@ -358,6 +352,7 @@ export default function PortfolioPage() {
             onDelete={handleDeleteSnapshot}
             onSelect={(snapshot) => setPreviewSnapshotId(snapshot.id)}
             selectedSnapshotId={previewSnapshotId}
+            loading={authLoading || syncState.status === "syncing"}
           />
         </section>
 

@@ -29,7 +29,8 @@
     "check:dividend-summary-cards": "node scripts/check-dividend-summary-cards.mjs",
     "check:dividend-holdings": "node scripts/check-dividend-holdings-groups.mjs",
     "check:dividends-data": "node scripts/check-dividend-holdings-groups.mjs && node scripts/check-portfolio-parser.mjs",
-    "check:market-chart-formatters": "node scripts/check-market-chart-formatters.mjs"
+    "check:market-chart-formatters": "node scripts/check-market-chart-formatters.mjs",
+    "check:auth-firestore-persistence": "node scripts/check-auth-firestore-persistence.mjs"
   },
   "dependencies": {
     "next": "14.2.5",

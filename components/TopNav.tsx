@@ -8,6 +8,7 @@ import { NAV_ITEMS } from "@/lib/mockData";
 import LoginButton from "@/components/auth/LoginButton";
 import ThemeToggle from "@/components/theme/ThemeToggle";
 import StorageModeBadge from "@/components/common/StorageModeBadge";
+import { usePortfolioCloudSync } from "@/lib/portfolio-cloud-sync";
 
 // Safe initial count: always small enough to never overflow on first paint,
 // the ResizeObserver expands it on mount.
@@ -23,6 +24,7 @@ type Props = {
 // - 넓은 폭(lg 이상): 로고 | 네비 | 우측 컨트롤의 1행 레이아웃.
 // 두 경우 모두 들어갈 수 있는 만큼 항목을 노출하고, 숨겨진 항목이 있으면 더보기를 우측에 고정한다.
 export default function TopNav({ theme = "dark" }: Props) {
+  usePortfolioCloudSync();
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_COUNT);

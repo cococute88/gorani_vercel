@@ -9,12 +9,13 @@ interface Props {
   onDelete: (id: string) => void;
   onSelect?: (snapshot: PortfolioSnapshot) => void;
   selectedSnapshotId?: string | null;
+  loading?: boolean;
 }
 
 const card = "rounded-2xl border border-[#2a3336] bg-[#191f20] p-5";
 
 // 등록된 스냅샷 히스토리 (날짜/총자산/평가금액/원금/수익률/삭제)
-export default function SnapshotHistory({ snapshots, onDelete, onSelect, selectedSnapshotId }: Props) {
+export default function SnapshotHistory({ snapshots, onDelete, onSelect, selectedSnapshotId, loading = false }: Props) {
   const sorted = [...snapshots].sort((a, b) => (a.snapshotDate < b.snapshotDate ? 1 : -1));
   return (
     <div className={card}>
@@ -32,7 +33,12 @@ export default function SnapshotHistory({ snapshots, onDelete, onSelect, selecte
             </tr>
           </thead>
           <tbody>
-            {sorted.length === 0 && (
+            {sorted.length === 0 && loading && (
+              <tr>
+                <td colSpan={6} className="px-3 py-6 text-center text-slate-400">로그인/클라우드 스냅샷을 확인 중입니다.</td>
+              </tr>
+            )}
+            {sorted.length === 0 && !loading && (
               <tr>
                 <td colSpan={6} className="px-3 py-6 text-center text-slate-500">등록된 스냅샷이 없습니다.</td>
               </tr>

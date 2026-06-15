@@ -8,14 +8,24 @@ type Props = {
 };
 
 export default function StorageModeBadge({ className = "" }: Props) {
-  const { user, configured } = useFirebaseAuth();
+  const { user, loading, configured } = useFirebaseAuth();
   const isLight = useResolvedTheme() === "light";
-  const label = !configured ? "Firebase 미설정 · 로컬 저장" : user ? "클라우드 동기화" : "비로그인 · 로컬 저장";
+  const label = !configured
+    ? "Firebase 미설정 · 로컬 저장"
+    : loading
+      ? "로그인 확인 중"
+      : user
+        ? "클라우드 동기화"
+        : "로그인 필요 · 로컬 저장";
   const tone = !configured
     ? isLight
       ? "border-amber-200 bg-amber-50 text-amber-700"
       : "border-amber-400/20 bg-amber-500/10 text-amber-200"
-    : user
+    : loading
+      ? isLight
+        ? "border-blue-200 bg-blue-50 text-blue-700"
+        : "border-blue-400/20 bg-blue-500/10 text-blue-200"
+      : user
       ? isLight
         ? "border-emerald-200 bg-emerald-50 text-emerald-700"
         : "border-emerald-400/20 bg-emerald-500/10 text-emerald-200"
