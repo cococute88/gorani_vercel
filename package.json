@@ -33,7 +33,8 @@
     "check:auth-firestore-persistence": "node scripts/check-auth-firestore-persistence.mjs",
     "check:calendar-memo-taxsource-dialog": "node scripts/check-calendar-memo-taxsource-dialog.mjs",
     "check:asset-portfolio-ux-polish": "node scripts/check-asset-portfolio-ux-polish.mjs",
-    "check:asset-allocation-donut": "node scripts/check-asset-allocation-donut.mjs"
+    "check:asset-allocation-donut": "node scripts/check-asset-allocation-donut.mjs",
+    "check:asset-map-etf-decomposition": "node scripts/check-asset-map-etf-decomposition.mjs"
   },
   "dependencies": {
     "next": "14.2.5",

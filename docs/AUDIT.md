@@ -60,6 +60,8 @@ Step 5B-4 historical tax-saving pure helper date: 2026-06-13 (`docs/STEP5B4_HIST
 
 Step 5B-5 historical tax-saving service/composition date: 2026-06-13 (`docs/STEP5B5_HISTORICAL_TAX_SAVING_SERVICE.md`)
 
+ASSET-MAP-ETF-DECOMPOSITION-FIX-1 date: 2026-06-15 (`docs/ASSET_MAP_ETF_DECOMPOSITION_FIX1.md`)
+
 ## Project Root Decision
 
 - Actual working directory: `C:\gv\gorani_vercel`

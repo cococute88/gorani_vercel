@@ -93,14 +93,15 @@ export default function AssetMapSection() {
     : hasSnapshotHoldings
       ? `최신 스냅샷 ${latestSnapshot?.snapshotDate} · 보유종목 ${portfolioHoldings.length}개 감지 · 유효한 투시 대상이 없어 목업 데이터로 표시합니다.`
     : "저장된 스냅샷이 없어 목업 데이터로 표시합니다.";
-  const warningText = usePortfolioExposure && exposure.warnings.length > 0
-    ? ` ${exposure.warnings.slice(0, 2).join(" ")}`
-    : "";
+  const visibleWarnings = usePortfolioExposure ? exposure.warnings.slice(0, 3) : [];
   const coverageText = usePortfolioExposure
     ? `ETF 평가액 ${formatCompactKrw(exposure.etfValueKRW)} · 투시 커버리지 ${exposure.coveragePct.toFixed(2)}%`
     : "목업 ETF 35개 · 커버리지 91%";
   const analyzedText = usePortfolioExposure
     ? `분석금액 ${formatCompactKrw(exposure.analyzedValueKRW)}`
+    : null;
+  const excludedText = usePortfolioExposure && exposure.excludedHoldings.length > 0
+    ? `제외금액 ${formatCompactKrw(exposure.uncoveredEtfValueKRW + exposure.excludedHoldings.filter((row) => row.reason !== "constituents_unavailable").reduce((sum, row) => sum + row.amountKRW, 0))}`
     : null;
 
   return (
@@ -112,8 +113,15 @@ export default function AssetMapSection() {
         </div>
       </div>
 
-      <div className="mb-3 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-[12.5px] text-amber-200">
-        {statusText}{warningText}
+      <div className="mb-3 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-[12.5px] text-amber-900 dark:text-amber-100">
+        <div>{statusText}</div>
+        {visibleWarnings.length > 0 ? (
+          <ul className="mt-2 list-disc space-y-1 pl-4 text-amber-800 dark:text-amber-100">
+            {visibleWarnings.map((warning) => (
+              <li key={warning}>{warning}</li>
+            ))}
+          </ul>
+        ) : null}
       </div>
 
       <div className="mb-5 rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-[#2a3336] dark:bg-[#191f20]">
@@ -124,6 +132,7 @@ export default function AssetMapSection() {
               {" "}· <b className="text-slate-900 dark:text-white">{analyzedText}</b>
             </>
           ) : null}
+          {excludedText ? <> · {excludedText}</> : null}
         </span>
       </div>
 

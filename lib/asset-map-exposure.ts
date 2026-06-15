@@ -39,6 +39,12 @@ export type AssetMapExposureResult = {
     sources: string[];
   }>;
   warnings: string[];
+  excludedHoldings: Array<{
+    name: string;
+    ticker: string | null;
+    reason: "ticker_unresolved" | "constituents_unavailable" | "not_look_through_target";
+    amountKRW: number;
+  }>;
 };
 
 type EffectiveHoldingAccumulator = {
@@ -52,6 +58,7 @@ type EffectiveHoldingAccumulator = {
 const LEADING_SYMBOLS_RE = /^[\s#①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳]+/;
 const US_TICKER_RE = /^[A-Z][A-Z0-9.-]{0,9}$/;
 const KR_TICKER_RE = /^\d{6}\.KS$/;
+const WRAPPER_KEYWORDS_RE = /(ETF|ETN|펀드|위탁|연금|ISA|ACE|TIGER|RISE|KODEX|SOL|KBSTAR|키움|토스|삼성|미래)/i;
 
 function cleanTickerCandidate(value: string): string {
   return value
@@ -79,6 +86,7 @@ function findKnownTickerInText(text: string): string | null {
     "NFLX",
     "AMZN",
     "META",
+    "SPYM",
     "005930.KS",
     "000660.KS",
   ];
@@ -131,6 +139,11 @@ function isEtfHolding(ticker: string, holding: AssetMapPortfolioHoldingInput): b
   );
 }
 
+function isLikelyWrapperHolding(holding: AssetMapPortfolioHoldingInput): boolean {
+  const haystack = `${holding.assetType ?? ""} ${holding.name ?? ""} ${holding.ticker ?? ""}`;
+  return WRAPPER_KEYWORDS_RE.test(haystack) || /\d{6}\.(KS|KQ)/i.test(haystack);
+}
+
 function addEffectiveHolding(
   rows: Map<string, EffectiveHoldingAccumulator>,
   input: {
@@ -170,6 +183,7 @@ export function buildAssetMapExposureFromHoldings(
 ): AssetMapExposureResult {
   const effectiveRows = new Map<string, EffectiveHoldingAccumulator>();
   const warnings: string[] = [];
+  const excludedHoldings: AssetMapExposureResult["excludedHoldings"] = [];
   const uncoveredEtfs = new Set<string>();
   const partialEtfs = new Map<string, number>();
 
@@ -187,7 +201,14 @@ export function buildAssetMapExposureFromHoldings(
 
     const ticker = normalizeAssetMapTicker(holding);
     if (!ticker) {
-      warnings.push(`티커를 확인할 수 없는 보유종목은 제외됐습니다: ${holding.name ?? "이름 없음"}`);
+      const reason = isLikelyWrapperHolding(holding) ? "not_look_through_target" : "ticker_unresolved";
+      excludedHoldings.push({
+        name: holding.name ?? "이름 없음",
+        ticker: null,
+        reason,
+        amountKRW: Math.round(amountKRW),
+      });
+      warnings.push(`${reason === "not_look_through_target" ? "look-through 대상 아님" : "티커 확인 불가"}: ${holding.name ?? "이름 없음"}`);
       continue;
     }
 
@@ -199,6 +220,12 @@ export function buildAssetMapExposureFromHoldings(
       if (!etfFixture) {
         uncoveredEtfValueKRW += amountKRW;
         uncoveredEtfs.add(ticker);
+        excludedHoldings.push({
+          name: holding.name ?? ticker,
+          ticker,
+          reason: "constituents_unavailable",
+          amountKRW: Math.round(amountKRW),
+        });
         continue;
       }
 
@@ -279,5 +306,6 @@ export function buildAssetMapExposureFromHoldings(
     sectorAllocation,
     effectiveHoldingsTop,
     warnings,
+    excludedHoldings,
   };
 }
