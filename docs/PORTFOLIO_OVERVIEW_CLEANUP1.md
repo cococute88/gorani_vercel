@@ -92,6 +92,16 @@ npm run check:calendar-provider
 
 `check:portfolio-overview-cleanup`을 확장해 strip 복구/live 재사용/금지값 미사용/상태 문구 존재를 함께 검증한다.
 
+## FOLLOWUP-2: live 미니 스파크라인 복구 (PORTFOLIO-OVERVIEW-CLEANUP-1-FOLLOWUP-2)
+
+복구한 compact strip에 기존 UI처럼 각 카드 오른쪽 미니 스파크라인을 다시 추가했다. **fake/random/sine/static이 아닌 실데이터**만 사용한다.
+
+- 데이터: `lib/server/market-fetchers.ts`의 briefing은 이미 `fetchPrices(item.ticker, "1m")`(Yahoo 1개월 daily close)을 가져와 등락률을 계산하고 있었다. 이 series를 버리지 않고 `BriefingItem.sparkline`(최근 30 daily close, `{date, value}[]`)으로 함께 내려준다.
+- 타입: `lib/market-data.ts`의 `BriefingItem`에 `sparkline?: { date: string; value: number }[]` 추가.
+- UI: `PortfolioMarketIndicatorStrip`에 작은 SVG `Sparkline`(line + gradient area) 추가. 상승 빨강/하락 파랑, `changePct`가 `null`(조회 불가)이거나 포인트가 2개 미만이면 차트를 생략하고 텍스트만 표시. 카드 폭은 168px로 compact 유지, 숫자 줄바꿈 없음, dark/light 가독성 유지, 모바일 가로 스크롤/wrap.
+- `/market`의 CNN/Yahoo fetcher·RSI/MDD/VIX 로직은 변경하지 않았다(briefing에 선택적 필드만 추가). 신규 chart library 없음(기존 SVG sparkline 방식 재사용).
+- `check:portfolio-overview-cleanup`에 sparkline 렌더 경로(`Sparkline`/`item.sparkline`), fake 곡선 금지(`Math.random`/`Math.sin` 미사용), 서버 `sparkline = prices…` 파생 검증을 추가했다.
+
 ## 남은 한계
 
 - compact strip은 `briefing` 값(전일 대비 등락)만 사용하며 스파크라인/세부 차트는 표시하지 않는다. 상세 시장현황은 `/market`에서 확인한다.

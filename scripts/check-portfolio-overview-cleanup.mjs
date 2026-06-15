@@ -23,6 +23,8 @@ function read(relPath) {
 const page = read("app/portfolio/page.tsx");
 const summary = read("components/PortfolioSummary.tsx");
 const strip = read("components/portfolio/PortfolioMarketIndicatorStrip.tsx");
+const marketData = read("lib/market-data.ts");
+const marketFetchers = read("lib/server/market-fetchers.ts");
 
 const rows = [];
 
@@ -58,6 +60,20 @@ assertPresent(strip, "시장 데이터 Live", "market strip");
 assertPresent(strip, "시장 데이터 일부 조회 불가", "market strip");
 assertPresent(strip, "시장 데이터 조회 불가", "market strip");
 rows.push({ case: "live/partial/unavailable 상태 문구", ok: true });
+
+// 3b. 각 카드에 live sparkline 렌더링 경로가 있고, 데이터는 briefing live payload(item.sparkline)에서 온다.
+assertPresent(strip, "Sparkline", "market strip");
+assertPresent(strip, "item.sparkline", "market strip");
+// fake/random/sine 곡선 금지.
+assert.ok(!/Math\.random|Math\.sin\(/.test(strip), "market strip 은 fake random/sine sparkline 을 만들면 안 된다");
+// briefing 타입과 서버 payload 가 실데이터 sparkline 을 함께 내려준다.
+assertPresent(marketData, "sparkline", "lib/market-data.ts");
+assertPresent(marketFetchers, "sparkline", "lib/server/market-fetchers.ts");
+assert.ok(
+  /sparkline\s*=\s*prices/.test(marketFetchers),
+  "market-fetchers sparkline 은 실제 Yahoo prices 에서 파생되어야 한다",
+);
+rows.push({ case: "live sparkline (briefing 실데이터)", ok: true });
 
 // 4. 동작하지 않는 계좌 추가 버튼 / Plus 아이콘 제거 유지
 assertAbsent(page, "계좌 추가", "portfolio page");

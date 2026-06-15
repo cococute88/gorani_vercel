@@ -148,7 +148,12 @@ export async function buildMarketPayload(range: MarketRange = "1년"): Promise<M
       const latest = prices.at(-1); const prev = prices.at(-2);
       if (!latest || !prev) throw new Error("not enough prices");
       const changePct = round((latest.close / prev.close - 1) * 100, 2);
-      return { key: item.key, label: item.label, value: formatValue(latest.close, item.digits, "prefix" in item ? item.prefix : ""), changePct, up: changePct >= 0, source: "yahoo", updatedAt: latest.date, error: undefined };
+      // 이미 가져온 1개월 daily close 를 그대로 mini sparkline 으로 함께 내려준다 (실데이터, 최근 30포인트).
+      const sparkline = prices
+        .filter((p) => finite(p.close))
+        .slice(-30)
+        .map((p) => ({ date: p.date, value: round(p.close, item.digits) }));
+      return { key: item.key, label: item.label, value: formatValue(latest.close, item.digits, "prefix" in item ? item.prefix : ""), changePct, up: changePct >= 0, source: "yahoo", updatedAt: latest.date, error: undefined, sparkline };
     } catch (e) {
       warnings.push({ code: `${item.key}_unavailable`, message: e instanceof Error ? e.message : String(e) });
       return { key: item.key, label: item.label, value: "조회 불가", changePct: null, up: false, source: "unavailable", updatedAt: null, error: "조회 불가" };
