@@ -6,6 +6,7 @@ import {
 } from "./krx-ticker-name-map";
 import { classifyAccountStatusGroup } from "./account-status-group";
 import { holdingDisplayLabel } from "./holding-display-label";
+import { reconcilePortfolioTotals } from "./portfolio-totals-reconcile";
 
 // ASSET-PORTFOLIO-UX-POLISH-1 #3: 트리맵에는 전체 평가금액 대비 2% 이상인 종목만 표시한다.
 // (합계/랭킹/요약 수치는 원본 그대로 유지하고 트리맵 "표시"에서만 작은 종목을 제외한다.)
@@ -51,7 +52,10 @@ export interface PortfolioSummaryCards {
   snapshotDate: string | null;
   sourceFileName: string | null;
   totalAssetKRW: number | null;
+  totalFinancialAssetSource?: string;
   investmentValueKRW: number | null;
+  investmentValueSource?: string;
+  cashAndOtherKRW: number | null;
   investmentPrincipalKRW: number | null;
   returnAmountKRW: number | null;
   returnPct: number | null;
@@ -597,7 +601,10 @@ export function buildPortfolioPageFromSnapshot(
         snapshotDate: null,
         sourceFileName: null,
         totalAssetKRW: null,
+        totalFinancialAssetSource: "unavailable",
         investmentValueKRW: null,
+        investmentValueSource: "unavailable",
+        cashAndOtherKRW: null,
         investmentPrincipalKRW: null,
         returnAmountKRW: null,
         returnPct: null,
@@ -660,22 +667,14 @@ export function buildPortfolioPageFromSnapshot(
     (sum, holding) => sum + (finiteNumber(holding.principalKRW) ?? 0),
     0,
   );
-  const snapshotInvestmentValue = positiveNumber(snapshot.investmentValueKRW);
-  const snapshotTotalAsset = positiveNumber(snapshot.totalAssetKRW);
+  const totals = reconcilePortfolioTotals({ ...snapshot, holdings, financeAssets });
+  totals.warnings.forEach((warning) => addWarning(warnings, warning.code, warning.message, "info"));
   const investmentValueKRW =
-    snapshotInvestmentValue ?? (investmentValueFromHoldings > 0 ? investmentValueFromHoldings : snapshotTotalAsset);
+    totals.investmentValueKRW ?? (investmentValueFromHoldings > 0 ? investmentValueFromHoldings : null);
   const investmentPrincipalKRW =
-    positiveNumber(snapshot.investmentPrincipalKRW) ?? (principalFromHoldings > 0 ? principalFromHoldings : null);
-  const returnAmountKRW =
-    investmentValueKRW !== null && investmentPrincipalKRW !== null
-      ? investmentValueKRW - investmentPrincipalKRW
-      : finiteNumber(snapshot.returnAmountKRW);
-  const returnPct =
-    returnAmountKRW !== null && investmentPrincipalKRW !== null && investmentPrincipalKRW > 0
-      ? (returnAmountKRW / investmentPrincipalKRW) * 100
-      : investmentPrincipalKRW !== null && investmentPrincipalKRW > 0
-        ? finiteNumber(snapshot.returnPct)
-        : null;
+    totals.investmentPrincipalKRW ?? (principalFromHoldings > 0 ? principalFromHoldings : null);
+  const returnAmountKRW = totals.returnAmountKRW;
+  const returnPct = totals.returnPct;
 
   const { treemapItems, holdingsRankingRows } = buildTreemapAndRanking(holdings, warnings);
   if (holdings.length > 0 && treemapItems.length === 0) {
@@ -740,8 +739,11 @@ export function buildPortfolioPageFromSnapshot(
     summary: {
       snapshotDate: snapshot.snapshotDate,
       sourceFileName: snapshot.sourceFileName,
-      totalAssetKRW: snapshotTotalAsset,
+      totalAssetKRW: totals.totalFinancialAssetKRW,
+      totalFinancialAssetSource: totals.totalFinancialAssetSource,
       investmentValueKRW,
+      investmentValueSource: totals.investmentValueSource,
+      cashAndOtherKRW: totals.cashAndOtherKRW,
       investmentPrincipalKRW,
       returnAmountKRW,
       returnPct,

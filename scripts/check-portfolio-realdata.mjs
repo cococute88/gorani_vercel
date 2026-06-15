@@ -217,13 +217,14 @@ function assertInvalidNumbersDefense() {
       financeAssets: [financeAsset({ amountKRW: null })],
     }),
   );
-  assert.equal(result.summary.investmentValueKRW, 9_000_000);
+  assert.equal(result.summary.totalAssetKRW, 9_000_000);
+  assert.equal(result.summary.investmentValueKRW, null);
   assert.equal(result.summary.investmentPrincipalKRW, null);
   assert.equal(result.summary.returnAmountKRW, null);
   assert.equal(result.summary.returnPct, null);
   assert.equal(result.accountAllocation.length, 0);
   assert.ok(hasWarning(result, "account_allocation_unavailable"));
-  return { case: "invalid number 방어", value: result.summary.investmentValueKRW };
+  return { case: "invalid number 방어", value: result.summary.totalAssetKRW };
 }
 
 function assertTicker4MappingAndNoOverwrite() {
