@@ -7,6 +7,7 @@ import {
 import { classifyAccountStatusGroup } from "./account-status-group";
 import { holdingDisplayLabel } from "./holding-display-label";
 import { reconcilePortfolioTotals } from "./portfolio-totals-reconcile";
+import { buildPortfolioAccountReturnRows } from "./portfolio-account-returns";
 
 // ASSET-PORTFOLIO-UX-POLISH-1 #3: 트리맵에는 전체 평가금액 대비 2% 이상인 종목만 표시한다.
 // (합계/랭킹/요약 수치는 원본 그대로 유지하고 트리맵 "표시"에서만 작은 종목을 제외한다.)
@@ -70,11 +71,14 @@ export interface PortfolioAccountRow {
   type: string;
   tax: "과세" | "비과세" | "미확인";
   value: number;
+  principal: number | null;
   profit: number | null;
   rate: number | null;
   statusGroup: string;
   holdingCount: number;
-  source: "financeAssets" | "holdings";
+  source: "financeAssets" | "holdings" | "mixed" | "unavailable";
+  principalSource?: "financeAssets" | "holdings" | "mixed" | "unavailable";
+  warnings?: string[];
 }
 
 export interface PortfolioTreemapItem {
@@ -345,74 +349,30 @@ function isNonDebtFinanceAsset(asset: FinanceAsset): boolean {
   return asset.isDebt !== true;
 }
 
-function buildAccountRowsFromFinanceAssets(financeAssets: FinanceAsset[]): PortfolioAccountRow[] {
-  const totals = new Map<string, { value: number; type: string; count: number }>();
-  for (const asset of financeAssets) {
-    if (!isNonDebtFinanceAsset(asset)) continue;
-    const amount = positiveNumber(asset.amountKRW);
-    if (amount === null) continue;
-    const name = financeAccountName(asset)?.trim() || "미분류";
-    const current = totals.get(name) ?? {
-      value: 0,
-      type: asset.statusGroup || asset.category || asset.groupName || "기타",
-      count: 0,
-    };
-    current.value += amount;
-    current.count += 1;
-    totals.set(name, current);
-  }
+function buildAccountRowsFromSnapshot(
+  snapshot: PortfolioSnapshot,
+  warnings: PortfolioPageWarning[],
+): { rows: PortfolioAccountRow[]; source: "financeAssets" | "holdings" | "none" } {
+  const result = buildPortfolioAccountReturnRows(snapshot);
+  result.warnings.forEach((warning) => addWarning(warnings, warning.code, warning.message, "info"));
 
-  return Array.from(totals.entries())
-    .filter(([, item]) => item.value >= MIN_VISIBLE_ACCOUNT_AMOUNT_KRW)
-    .sort((a, b) => b[1].value - a[1].value)
-    .map(([name, item]) => ({
-      name,
-      type: item.type,
-      tax: taxTypeFromName(name, item.type),
-      value: Math.round(item.value),
-      profit: null,
-      rate: null,
-      statusGroup: item.type,
-      holdingCount: item.count,
-      source: "financeAssets" as const,
-    }));
-}
+  const rows = result.rows.map((row): PortfolioAccountRow => ({
+    name: row.label,
+    type: row.type,
+    tax: row.tax,
+    value: row.valueKRW ?? 0,
+    principal: row.principalKRW,
+    profit: row.returnAmountKRW,
+    rate: row.returnPct,
+    statusGroup: row.statusGroup,
+    holdingCount: row.holdingCount,
+    source: row.source.value === "mixed" || row.source.value === "unavailable" ? row.source.value : row.source.value,
+    principalSource: row.source.principal,
+    warnings: row.warnings,
+  }));
 
-function buildAccountRowsFromHoldings(holdings: Holding[]): PortfolioAccountRow[] {
-  const totals = new Map<string, { value: number; principal: number; count: number; type: string }>();
-  for (const holding of holdings) {
-    const value = positiveNumber(holding.valueKRW);
-    if (value === null) continue;
-    const name = holdingAccountName(holding)?.trim() || "미분류";
-    const current = totals.get(name) ?? {
-      value: 0,
-      principal: 0,
-      count: 0,
-      type: holding.statusGroup || holding.assetType || "기타",
-    };
-    current.value += value;
-    current.principal += finiteNumber(holding.principalKRW) ?? 0;
-    current.count += 1;
-    totals.set(name, current);
-  }
-
-  return Array.from(totals.entries())
-    .filter(([, item]) => item.value >= MIN_VISIBLE_ACCOUNT_AMOUNT_KRW)
-    .sort((a, b) => b[1].value - a[1].value)
-    .map(([name, item]) => {
-      const profit = item.principal > 0 ? item.value - item.principal : null;
-      return {
-        name,
-        type: item.type,
-        tax: taxTypeFromName(name, item.type),
-        value: Math.round(item.value),
-        profit,
-        rate: profit !== null && item.principal > 0 ? (profit / item.principal) * 100 : null,
-        statusGroup: item.type,
-        holdingCount: item.count,
-        source: "holdings" as const,
-      };
-    });
+  const source = result.valueSource === "financeAssets" || result.valueSource === "holdings" ? result.valueSource : "none";
+  return { rows, source };
 }
 
 function buildTreemapAndRanking(
@@ -685,11 +645,10 @@ export function buildPortfolioPageFromSnapshot(
     );
   }
 
-  const financeAccountRows = buildAccountRowsFromFinanceAssets(financeAssets);
-  const accountRows =
-    financeAccountRows.length > 0 ? financeAccountRows : buildAccountRowsFromHoldings(holdings);
-  const accountAllocationSource =
-    financeAccountRows.length > 0 ? "financeAssets" : accountRows.length > 0 ? "holdings" : "none";
+  const { rows: accountRows, source: accountAllocationSource } = buildAccountRowsFromSnapshot(
+    { ...snapshot, holdings, financeAssets },
+    warnings,
+  );
 
   if (accountRows.length === 0) {
     addWarning(

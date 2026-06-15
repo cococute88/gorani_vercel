@@ -38,7 +38,8 @@
     "check:portfolio-totals-reconcile": "node scripts/check-portfolio-totals-reconcile.mjs",
     "check:performance-donut-ranking": "node scripts/check-performance-donut-ranking.mjs",
     "check:asset-class-donut-labels": "node scripts/check-asset-class-donut-labels.mjs",
-    "check:market-data-real": "node scripts/check-market-data-real.mjs"
+    "check:market-data-real": "node scripts/check-market-data-real.mjs",
+    "check:portfolio-account-returns": "node scripts/check-portfolio-account-returns.mjs"
   },
   "dependencies": {
     "next": "14.2.5",
