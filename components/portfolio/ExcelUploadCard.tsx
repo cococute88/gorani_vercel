@@ -13,7 +13,7 @@ interface Props {
   parsing: boolean;
 }
 
-const card = "rounded-2xl border border-[#2a3336] bg-[#191f20] p-5";
+const card = "h-full rounded-2xl border border-[#2a3336] bg-[#191f20] p-5";
 
 // 엑셀 업로드 카드 (드래그앤드롭 / 파일 선택 / 다중 업로드)
 export default function ExcelUploadCard({
