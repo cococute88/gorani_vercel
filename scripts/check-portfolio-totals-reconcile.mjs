@@ -42,7 +42,7 @@ function snapshot(overrides = {}) {
 {
   const result = reconcilePortfolioTotals(snapshot({ totalAssetKRW: 0, investmentValueKRW: Number.NaN, financeAssets: [], holdings: [{ id: "h", broker: "A", assetType: "ETF", productName: "ETF", principalKRW: 10, valueKRW: 77 }] }));
   assert.equal(result.totalFinancialAssetKRW, 77);
-  assert.equal(result.totalFinancialAssetSource, "investmentValueKRW");
+  assert.equal(result.totalFinancialAssetSource, "holdings.sum");
   assert.equal(result.investmentValueSource, "holdings.sum");
 }
 {
@@ -66,6 +66,7 @@ const summary = readFileSync("components/PortfolioSummary.tsx", "utf8");
 assert.ok(summary.includes("총 금융자산"));
 assert.ok(summary.includes("투자 평가금액"));
 assert.ok(summary.includes("현금성/기타 자산"));
+assert.ok(summary.includes("총 금융자산 = 투자 평가금액 + 현금성/기타 자산"));
 assert.ok(!summary.includes("총 평가금액"));
 assert.ok(!summary.includes("총평가금액"));
 console.log("portfolio totals reconciliation checks passed");

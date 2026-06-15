@@ -140,8 +140,8 @@ export function reconcilePortfolioTotals(
   } else if (financeAssetsSum !== null) {
     totalFinancialAssetKRW = financeAssetsSum;
     totalFinancialAssetSource = "financeAssets.sum";
-  } else if (investmentValueKRW !== null) {
-    totalFinancialAssetKRW = investmentValueKRW;
+  } else if (snapshotInvestment !== null) {
+    totalFinancialAssetKRW = Math.round(snapshotInvestment);
     totalFinancialAssetSource = "investmentValueKRW";
   } else if (holdingsSum !== null) {
     totalFinancialAssetKRW = holdingsSum;

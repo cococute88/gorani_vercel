@@ -22,7 +22,7 @@
 
 1. `snapshot.totalAssetKRW`
 2. `financeAssets`의 비부채 자산 합계
-3. 투자 평가금액
+3. 유효한 `snapshot.investmentValueKRW`
 4. holdings 평가금액 합계
 5. unavailable
 
@@ -59,3 +59,4 @@
 
 - 실제 브라우저/preview에서 light/dark 및 320px/390px 모바일 캡처 검증은 배포 preview가 제공될 때 추가 확인이 필요하다.
 - 과거 스냅샷에 `totalAssetKRW` 자체가 잘못 저장된 경우 helper는 source priority에 따라 fallback하지만 원본 데이터 보정은 하지 않는다.
+- `snapshot.investmentValueKRW`가 invalid이고 holdings 합계로 투자 평가금액을 보정한 경우, 총 금융자산 source는 `investmentValueKRW`가 아니라 `holdings.sum`으로 남겨 원본 필드와 fallback 출처를 구분한다.
