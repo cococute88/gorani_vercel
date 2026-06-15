@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import type { SimulatorInputs } from "@/lib/asset-simulator-types";
 
 const INPUTS: Array<{ key: keyof SimulatorInputs; label: string; suffix: string; step?: number; min?: number; max?: number }> = [
@@ -20,9 +21,26 @@ type Props = {
   inputs: SimulatorInputs;
   onChange: (nextInputs: SimulatorInputs) => void;
   onReset: () => void;
+  onSave?: () => void;
 };
 
-export default function SimulatorInputPanel({ inputs, onChange, onReset }: Props) {
+export default function SimulatorInputPanel({ inputs, onChange, onReset, onSave }: Props) {
+  const [justSaved, setJustSaved] = useState(false);
+  const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (savedTimer.current) clearTimeout(savedTimer.current);
+    };
+  }, []);
+
+  const handleSave = () => {
+    onSave?.();
+    setJustSaved(true);
+    if (savedTimer.current) clearTimeout(savedTimer.current);
+    savedTimer.current = setTimeout(() => setJustSaved(false), 2000);
+  };
+
   const updateInput = (key: keyof SimulatorInputs, rawValue: string) => {
     const item = INPUTS.find((input) => input.key === key);
     const parsed = Number(rawValue);
@@ -40,16 +58,30 @@ export default function SimulatorInputPanel({ inputs, onChange, onReset }: Props
           <h2 className="text-base font-extrabold text-white">기본 설정 입력폼</h2>
           <p className="mt-1 text-[13px] text-slate-400">Streamlit 원본 자산 시뮬레이터의 입력 순서와 항목을 기준으로 구성했습니다.</p>
         </div>
-        <button
-          type="button"
-          onClick={onReset}
-          className="w-full rounded-xl border border-slate-600 px-3 py-2 text-[13px] font-bold text-slate-200 transition-colors hover:bg-white/5 sm:w-auto"
-        >
-          초기화
-        </button>
+        <div className="flex w-full items-center gap-2 sm:w-auto">
+          {justSaved ? (
+            <span className="text-[12px] font-semibold text-emerald-400" role="status">
+              저장됨
+            </span>
+          ) : null}
+          <button
+            type="button"
+            onClick={handleSave}
+            className="flex-1 rounded-xl bg-blue-600 px-3 py-2 text-[13px] font-bold text-white transition-colors hover:bg-blue-700 sm:flex-none"
+          >
+            Save
+          </button>
+          <button
+            type="button"
+            onClick={onReset}
+            className="flex-1 rounded-xl border border-slate-600 px-3 py-2 text-[13px] font-bold text-slate-200 transition-colors hover:bg-white/5 sm:flex-none"
+          >
+            초기화
+          </button>
+        </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {INPUTS.map((item) => (
           <label key={item.key} className="rounded-xl border border-[#263033] bg-[#111516] p-3">
             <span className="text-[12px] font-semibold text-slate-400">{item.label}</span>
