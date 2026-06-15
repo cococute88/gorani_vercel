@@ -44,3 +44,9 @@ npm run build
 ## 남은 한계
 
 CNN/Yahoo가 차단되거나 응답 형식을 변경하면 해당 섹션은 unavailable로 표시된다. 이 작업은 유료 API key나 신규 외부 의존성을 추가하지 않았다.
+
+## MARKET-FEAR-GREED-CHART-LABELS-1
+
+- `/market` 공포탐욕 차트의 하단 x축은 history item의 `date`를 기준으로 월 tick을 `YY.MM` 형식(예: `25.07`, `26.03`)으로 표시한다.
+- tooltip 상단 label은 `YYYY.MM.DD` 형식(예: `2026.03.12`)의 사용자용 날짜만 표시하며, Recharts index 숫자(`142`, `245` 등), raw timestamp, 개발자 필드명을 노출하지 않는다.
+- tooltip 값 label은 영문 `value` 대신 `공포탐욕 지수`를 사용한다.
