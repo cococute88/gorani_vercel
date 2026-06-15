@@ -38,7 +38,7 @@ require.extensions[".ts"] = function transpileTypeScript(module, filename) {
   module._compile(output.outputText, filename);
 };
 
-const { formatChartMonthTick } = require("../lib/chart-style.ts");
+const { formatChartMonthTick, formatFearGreedAxisTick, formatFearGreedTooltipLabel } = require("../lib/chart-style.ts");
 const {
   VIX_THRESHOLDS,
   buildRsiSeries,
@@ -65,6 +65,30 @@ function assertMonthTickFormatter() {
   assert.equal(formatChartMonthTick(Number.NaN), "");
 
   return { case: "month tick formatter", sample: formatChartMonthTick("2026-03") };
+}
+
+function assertFearGreedChartFormatters() {
+  assert.equal(formatFearGreedAxisTick("2026-03-12"), "26.03");
+  assert.equal(formatFearGreedAxisTick("2025-07-01"), "25.07");
+  assert.equal(formatFearGreedTooltipLabel("2026-03-12"), "2026.03.12");
+  assert.notEqual(formatFearGreedTooltipLabel("142"), "142", "index number must not leak as tooltip label");
+  assert.equal(formatFearGreedTooltipLabel("142"), "날짜 없음");
+  assert.equal(formatFearGreedAxisTick(null), "");
+  assert.equal(formatFearGreedAxisTick("not-a-date"), "");
+  assert.equal(formatFearGreedTooltipLabel(null), "");
+  assert.equal(formatFearGreedTooltipLabel("not-a-date"), "날짜 없음");
+
+  const fngSource = fs.readFileSync(path.join(rootDir, "components/market/MarketTopBriefing.tsx"), "utf8");
+  assert.match(fngSource, /<XAxis[\s\S]*dataKey="date"/, "Fear & Greed chart must use date-based XAxis");
+  assert.match(fngSource, /labelFormatter=\{formatFearGreedTooltipLabel\}/, "Fear & Greed tooltip must format date labels");
+  assert.match(fngSource, /dataKey="value"\s+name="공포탐욕 지수"/, "Fear & Greed tooltip value label must be Korean");
+  assert.doesNotMatch(fngSource, /<Tooltip\s+contentStyle=\{TOOLTIP_STYLE\}\s*\/>/, "default tooltip must not expose index labels");
+
+  return {
+    case: "fear greed axis + tooltip formatters",
+    axis: formatFearGreedAxisTick("2026-03-12"),
+    tooltip: formatFearGreedTooltipLabel("2026-03-12"),
+  };
 }
 
 function assertSeriesDates() {
@@ -106,6 +130,7 @@ function assertVixThresholds() {
 function main() {
   const rows = [
     assertMonthTickFormatter(),
+    assertFearGreedChartFormatters(),
     assertSeriesDates(),
     assertDrawdownIsNegativeFromZero(),
     assertVixThresholds(),

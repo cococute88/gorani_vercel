@@ -55,3 +55,33 @@ export function formatChartMonthTick(value: unknown): string {
   const mm = String(date.getMonth() + 1).padStart(2, "0");
   return `${yy}/${mm}`;
 }
+
+
+function formatDateParts(value: unknown, separator: string, includeDay: boolean, invalidStringFallback: string): string {
+  if (typeof value === "string") {
+    const m = value.trim().match(/^(\d{4})-(\d{2})(?:-(\d{2}))?/);
+    if (m) {
+      const yyOrYear = includeDay ? m[1] : m[1].slice(-2);
+      const day = m[3] ?? "01";
+      return includeDay ? `${yyOrYear}${separator}${m[2]}${separator}${day}` : `${yyOrYear}${separator}${m[2]}`;
+    }
+    return invalidStringFallback;
+  }
+
+  const date = toChartDate(value);
+  if (!date) return "";
+  const year = String(date.getFullYear());
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return includeDay ? `${year}${separator}${month}${separator}${day}` : `${year.slice(-2)}${separator}${month}`;
+}
+
+// 공포탐욕 차트 x축 월 tick: YYYY-MM-DD 문자열을 타임존 시프트 없이 "YY.MM" 으로 표시한다.
+export function formatFearGreedAxisTick(value: unknown): string {
+  return formatDateParts(value, ".", false, "");
+}
+
+// 공포탐욕 차트 tooltip label: 사용자에게 날짜만 "YYYY.MM.DD" 로 보여주고 index/raw key 노출을 막는다.
+export function formatFearGreedTooltipLabel(value: unknown): string {
+  return formatDateParts(value, ".", true, "날짜 없음");
+}

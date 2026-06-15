@@ -1,9 +1,9 @@
 "use client";
 
-import { Line, LineChart, ResponsiveContainer, Tooltip, YAxis } from "recharts";
+import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { fearGreedColor, fearGreedRating } from "@/lib/market-data";
 import type { BriefingItem, FearGreedData } from "@/lib/market-data";
-import { TOOLTIP_STYLE } from "@/lib/chart-style";
+import { AXIS_LINE, AXIS_TICK_SM, formatFearGreedAxisTick, formatFearGreedTooltipLabel, TOOLTIP_LABEL_STYLE, TOOLTIP_STYLE } from "@/lib/chart-style";
 
 interface Props {
   fearGreed: FearGreedData | null;
@@ -96,10 +96,23 @@ function FngCard({ data }: { data: FearGreedData | null }) {
       {/* 히스토리 추이 */}
       <div className="mt-4 h-[120px]">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data.history}>
+          <LineChart data={data.history} margin={{ top: 6, right: 8, left: 8, bottom: 0 }}>
+            <XAxis
+              dataKey="date"
+              tickFormatter={formatFearGreedAxisTick}
+              tick={AXIS_TICK_SM}
+              axisLine={AXIS_LINE}
+              tickLine={false}
+              minTickGap={24}
+              interval="preserveStartEnd"
+            />
             <YAxis domain={[0, 100]} hide />
-            <Tooltip contentStyle={TOOLTIP_STYLE} />
-            <Line type="monotone" dataKey="value" stroke={color} strokeWidth={2} dot={false} />
+            <Tooltip
+              contentStyle={TOOLTIP_STYLE}
+              labelStyle={TOOLTIP_LABEL_STYLE}
+              labelFormatter={formatFearGreedTooltipLabel}
+            />
+            <Line type="monotone" dataKey="value" name="공포탐욕 지수" stroke={color} strokeWidth={2} dot={false} />
           </LineChart>
         </ResponsiveContainer>
       </div>
