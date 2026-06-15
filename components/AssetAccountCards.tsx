@@ -29,6 +29,7 @@ export default function AssetAccountCards({ theme = "light", compact = false }: 
   const valueCls = isLight ? "text-slate-900" : "text-slate-100";
   const sectionTitleCls = isLight ? "text-slate-700" : "text-slate-200";
   const sectionSubCls = isLight ? "text-slate-400" : "text-slate-500";
+  const hintCls = isLight ? "text-amber-700 bg-amber-50 border-amber-200" : "text-amber-200 bg-amber-500/10 border-amber-500/20";
   const dividerCls = isLight ? "border-slate-200" : "border-[#2a3336]";
 
   // 카드를 위탁 / 절세 / 미확인 그룹으로 분류.
@@ -44,6 +45,8 @@ export default function AssetAccountCards({ theme = "light", compact = false }: 
     list.push(card);
     groups.set(group, list);
   }
+
+  const hasMissingPrincipal = cards.some((card) => card.principal === null);
 
   const renderCard = (a: PortfolioAccountRow) => {
     const profitStyle = { color: (a.profit ?? 0) >= 0 ? "#e5484d" : "#3b82f6" };
@@ -65,18 +68,27 @@ export default function AssetAccountCards({ theme = "light", compact = false }: 
             <span className={`num text-[12.5px] font-bold ${valueCls}`}>{formatWon(a.value)}</span>
           </div>
           <div className="flex items-center justify-between">
+            <span className={`text-[10.5px] ${labelCls}`}>원금</span>
+            <span className={`num text-[11.5px] font-semibold ${valueCls}`}>
+              {a.principal === null ? "—" : formatWon(a.principal)}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
             <span className={`text-[10.5px] ${labelCls}`}>수익</span>
             <span className="num text-[11.5px] font-semibold" style={profitStyle}>
-              {a.profit === null || a.profit === 0 ? "—" : formatWonSigned(a.profit)}
+              {a.profit === null ? "—" : formatWonSigned(a.profit)}
             </span>
           </div>
           <div className="flex items-center justify-between">
             <span className={`text-[10.5px] ${labelCls}`}>수익률</span>
             <span className="num text-[11.5px] font-semibold" style={profitStyle}>
-              {a.rate === null || a.rate === 0 ? "—" : formatPercent(a.rate)}
+              {a.rate === null ? "—" : formatPercent(a.rate)}
             </span>
           </div>
         </div>
+        {a.principal === null ? (
+          <p className={`mt-1.5 text-[10.5px] ${sectionSubCls}`}>원금 정보 없음</p>
+        ) : null}
       </div>
     );
   };
@@ -123,6 +135,11 @@ export default function AssetAccountCards({ theme = "light", compact = false }: 
     <div className="flex flex-col gap-5">
       {cards.length > 0 ? (
         <>
+          {hasMissingPrincipal ? (
+            <div className={`rounded-xl border px-3 py-2 text-[12px] leading-relaxed ${hintCls}`}>
+              일부 계좌는 원금 정보가 없어 수익률을 계산하지 않습니다.
+            </div>
+          ) : null}
           {accountAllocationSource === "holdings" ? (
             <div className={`rounded-xl border px-3 py-2 text-[12px] leading-relaxed ${
               isLight
