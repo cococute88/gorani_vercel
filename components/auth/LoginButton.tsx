@@ -14,8 +14,8 @@ export default function LoginButton() {
   const isLight = useResolvedTheme() === "light";
 
   const signedIn = Boolean(user);
-  const label = signedIn ? "로그아웃" : "Google 로그인";
-  const shortLabel = signedIn ? "계정" : "로그인";
+  const label = signedIn ? "Logout" : "Google 로그인";
+  const shortLabel = signedIn ? "Logout" : "로그인";
   const disabled = loading || (!configured && !signedIn);
 
   return (
@@ -35,7 +35,7 @@ export default function LoginButton() {
         disabled={disabled}
         aria-label={label}
         title={configured ? label : "Firebase 미설정 · 로컬 저장 모드 (로그인 불가)"}
-        className={`inline-flex h-8 items-center gap-1 rounded-md px-2 text-[12px] font-medium disabled:cursor-not-allowed disabled:opacity-50 sm:px-3 sm:text-[13px] ${
+        className={`inline-flex h-8 min-w-[72px] items-center justify-center gap-1 whitespace-nowrap rounded-md px-2 text-[12px] font-medium disabled:cursor-not-allowed disabled:opacity-50 sm:min-w-0 sm:px-3 sm:text-[13px] ${
           isLight
             ? "border border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
             : "bg-white/10 text-white hover:bg-white/20"

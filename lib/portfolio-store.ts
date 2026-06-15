@@ -110,6 +110,20 @@ export function getSnapshots(): PortfolioSnapshot[] {
   return [...read()].sort((a, b) => (a.snapshotDate < b.snapshotDate ? -1 : 1));
 }
 
+export function mergePortfolioSnapshots(
+  localSnapshots: PortfolioSnapshot[],
+  cloudSnapshots: PortfolioSnapshot[],
+): PortfolioSnapshot[] {
+  const byDate = new Map<string, PortfolioSnapshot>();
+  for (const snapshot of sanitizeSnapshots(localSnapshots)) {
+    byDate.set(snapshot.snapshotDate, snapshot);
+  }
+  for (const snapshot of sanitizeSnapshots(cloudSnapshots)) {
+    byDate.set(snapshot.snapshotDate, snapshot);
+  }
+  return Array.from(byDate.values()).sort((a, b) => (a.snapshotDate < b.snapshotDate ? -1 : 1));
+}
+
 /** 같은 snapshotDate 가 이미 있는지 (덮어쓰기 확인용). */
 export function hasSnapshotDate(date: string): boolean {
   return read().some((s) => s.snapshotDate === date);
