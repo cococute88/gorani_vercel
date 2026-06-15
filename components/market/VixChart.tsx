@@ -11,7 +11,6 @@ import {
   YAxis,
 } from "recharts";
 import type { SeriesPoint } from "@/lib/market-data";
-import { VIX_THRESHOLDS } from "@/lib/mock-market-data";
 import {
   AXIS_LINE,
   AXIS_TICK_SM,
@@ -20,6 +19,8 @@ import {
   TOOLTIP_STYLE,
   formatChartMonthTick,
 } from "@/lib/chart-style";
+
+const VIX_THRESHOLDS = { high: 30, watch: 20 } as const;
 
 interface Props {
   data: SeriesPoint[];
@@ -51,7 +52,10 @@ export default function VixChart({ data }: Props) {
   return (
     <section className="mb-6">
       <div className={card}>
-        <h2 className="mb-4 text-[15px] font-bold text-slate-300">VIX (변동성 지수)</h2>
+        <div className="mb-4 flex items-center justify-between gap-2"><h2 className="text-[15px] font-bold text-slate-300">VIX (변동성 지수)</h2><span className="text-[12px] text-slate-500">Yahoo Finance</span></div>
+        {data.length === 0 ? (
+          <div className="flex h-[240px] items-center justify-center text-[13px] text-slate-500">VIX 데이터를 조회할 수 없습니다.</div>
+        ) : (
         <div className="h-[240px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={data} margin={CHART_MARGIN}>
@@ -96,6 +100,7 @@ export default function VixChart({ data }: Props) {
             </AreaChart>
           </ResponsiveContainer>
         </div>
+        )}
       </div>
     </section>
   );

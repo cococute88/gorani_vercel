@@ -20,6 +20,7 @@ export default function MarketTemperatureTable({ rows }: Props) {
     <section className="mb-6">
       <h2 className="mb-3 text-[15px] font-bold text-slate-300">관심 ETF 시장온도</h2>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        {rows.length === 0 && <div className="col-span-full rounded-xl border border-[#2a3336] bg-[#191f20] p-4 text-center text-[13px] text-slate-500">ETF 시장온도 조회 불가</div>}
         {rows.map((r) => (
           <div key={r.ticker} className={card}>
             <div className="flex items-center justify-between">

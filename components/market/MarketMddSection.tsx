@@ -62,7 +62,7 @@ export default function MarketMddSection({ temps, drawdown }: Props) {
                 <span className="text-[12px] text-slate-500">52주 고점대비</span>
               </div>
               <div className="num mt-2 text-[26px] font-extrabold text-blue-400">
-                {t ? `${t.drawdownPct.toFixed(1)}%` : "N/A"}
+                {t ? `${t.drawdownPct.toFixed(1)}%` : "조회 불가"}
               </div>
               <div className="mt-1 text-[11.5px] text-slate-500">현재 낙폭</div>
             </div>
@@ -76,7 +76,7 @@ export default function MarketMddSection({ temps, drawdown }: Props) {
           <span className="text-[12px] text-slate-500">0% 기준 · 기준선 -10 · -20</span>
         </div>
         <div className="h-[300px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
+          {drawdown.length === 0 ? <div className="flex h-full items-center justify-center text-[13px] text-slate-500">MDD 추이 데이터를 조회할 수 없습니다.</div> : <ResponsiveContainer width="100%" height="100%">
             <LineChart data={drawdown} margin={CHART_MARGIN}>
               <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} vertical={false} />
               <XAxis
@@ -109,7 +109,7 @@ export default function MarketMddSection({ temps, drawdown }: Props) {
                 <Line key={t} type="monotone" dataKey={t} stroke={TICKER_COLORS[t]} strokeWidth={1.8} dot={false} />
               ))}
             </LineChart>
-          </ResponsiveContainer>
+          </ResponsiveContainer>}
         </div>
       </div>
     </section>

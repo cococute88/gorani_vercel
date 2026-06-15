@@ -1,37 +1,59 @@
 // =============================================================
-// 시장 데이터 어댑터.
-// 화면은 이 파일의 async 함수만 호출한다 (mock 반환).
-// 추후 서버 API route(/api/market/...)로 교체해도 화면 코드 변경 없이 동작하도록 분리.
-// 외부 API 호출이 실패해도 페이지가 깨지지 않도록 try/catch + fallback.
-// TODO(codex): 실제 CNN Fear&Greed / 지수 / 환율 / yfinance RSI 연결.
+// /market live data adapter.
+// Client components call this file only; it fetches the normalized
+// server route and never falls back to fake/mock market curves.
 // =============================================================
-import {
-  MOCK_BRIEFING,
-  MOCK_ETF_TEMPERATURE,
-  MOCK_FEAR_GREED,
-  buildDrawdownSeries,
-  buildRsiSeries,
-  buildVixSeries,
-} from "./mock-market-data";
-import type {
-  BriefingItem,
-  EtfTemperature,
-  FearGreedData,
-  MarketRange,
-  SeriesPoint,
-} from "./mock-market-data";
 
-export type { BriefingItem, EtfTemperature, FearGreedData, MarketRange, SeriesPoint };
-export { MARKET_RANGES } from "./mock-market-data";
+export type MarketRange = "6개월" | "1년" | "3년" | "5년" | "전체";
+export const MARKET_RANGES: MarketRange[] = ["6개월", "1년", "3년", "5년", "전체"];
 
-export type FearGreedRating =
-  | "극단적 공포"
-  | "공포"
-  | "중립"
-  | "탐욕"
-  | "극단적 탐욕";
+export interface BriefingItem {
+  key: string;
+  label: string;
+  value: string;
+  changePct: number;
+  up: boolean;
+  source?: "yahoo" | "unavailable" | string;
+  error?: string;
+}
 
-/** Fear & Greed 점수 → 등급 */
+export interface FearGreedData {
+  score: number;
+  history: { date: string; value: number }[];
+  source?: string;
+  updatedAt?: string | null;
+  error?: string;
+}
+
+export interface EtfTemperature {
+  ticker: string;
+  price: number;
+  changePct: number;
+  drawdownPct: number;
+  rsi: number;
+  source?: string;
+}
+
+export interface SeriesPoint {
+  date: string;
+  [ticker: string]: number | string;
+}
+
+export type MarketWarning = { code: string; message: string };
+export interface MarketPayload {
+  source: "live" | "unavailable";
+  updatedAt: string | null;
+  fearGreed: FearGreedData | null;
+  briefing: BriefingItem[];
+  temperatures: EtfTemperature[];
+  rsi: SeriesPoint[];
+  drawdown: SeriesPoint[];
+  vix: SeriesPoint[];
+  warnings: MarketWarning[];
+}
+
+export type FearGreedRating = "극단적 공포" | "공포" | "중립" | "탐욕" | "극단적 탐욕";
+
 export function fearGreedRating(score: number): FearGreedRating {
   if (score < 25) return "극단적 공포";
   if (score < 45) return "공포";
@@ -48,57 +70,24 @@ export function fearGreedColor(score: number): string {
   return "#22c55e";
 }
 
-// 의도적으로 Promise 로 감싸 추후 fetch 로 교체 쉬운 형태
-async function delay<T>(value: T): Promise<T> {
-  return value;
-}
+const EMPTY_PAYLOAD: MarketPayload = {
+  source: "unavailable",
+  updatedAt: null,
+  fearGreed: null,
+  briefing: [],
+  temperatures: [],
+  rsi: [],
+  drawdown: [],
+  vix: [],
+  warnings: [{ code: "client_fetch_failed", message: "시장 데이터 조회 불가" }],
+};
 
-export async function fetchMarketBriefing(): Promise<BriefingItem[]> {
+export async function fetchMarketPayload(range: MarketRange): Promise<MarketPayload> {
   try {
-    // TODO(codex): await fetch("/api/market/briefing")
-    return await delay(MOCK_BRIEFING);
-  } catch {
-    return [];
-  }
-}
-
-export async function fetchFearGreed(): Promise<FearGreedData | null> {
-  try {
-    // TODO(codex): await fetch("/api/market/fear-greed")
-    return await delay(MOCK_FEAR_GREED);
-  } catch {
-    return null;
-  }
-}
-
-export async function fetchEtfTemperatures(): Promise<EtfTemperature[]> {
-  try {
-    // TODO(codex): await fetch("/api/market/etf-temperature")
-    return await delay(MOCK_ETF_TEMPERATURE);
-  } catch {
-    return [];
-  }
-}
-
-export interface RsiDrawdownResult {
-  rsi: SeriesPoint[];
-  drawdown: SeriesPoint[];
-}
-
-export async function fetchRsiDrawdownSeries(range: MarketRange): Promise<RsiDrawdownResult> {
-  try {
-    // TODO(codex): await fetch(`/api/market/rsi?range=${range}`)
-    return await delay({ rsi: buildRsiSeries(range), drawdown: buildDrawdownSeries(range) });
-  } catch {
-    return { rsi: [], drawdown: [] };
-  }
-}
-
-export async function fetchVixSeries(range: MarketRange): Promise<SeriesPoint[]> {
-  try {
-    // TODO(codex): await fetch(`/api/market/vix?range=${range}`)
-    return await delay(buildVixSeries(range));
-  } catch {
-    return [];
+    const response = await fetch(`/api/market?range=${encodeURIComponent(range)}`, { cache: "no-store" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return (await response.json()) as MarketPayload;
+  } catch (error) {
+    return { ...EMPTY_PAYLOAD, warnings: [{ code: "client_fetch_failed", message: error instanceof Error ? error.message : String(error) }] };
   }
 }
