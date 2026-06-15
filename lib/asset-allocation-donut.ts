@@ -14,13 +14,12 @@
 //   - SPYM 을 spy(S&P/SNP 계열)로 분류한다. 원본 exact-match 에서는
 //     bare "SPYM" 이 other 로 떨어지지만, 이번 작업 요구사항(한국상장
 //     S&P500 wrapper 를 S&P 계열로 묶기)에 맞춰 spy 키워드에 추가했다.
-//   - 현금성 키워드에 예수금/예치금/SGOV/MMW 를 추가했다(원본 키워드 확장).
+//   - 현금성 키워드에 예수금/예치금/SGOV/MMW/CASH 계열을 추가했다(원본 키워드 확장).
 //   - ETF look-through(구성종목 분해)는 이번 작업 범위가 아니다.
 // =============================================================
 
 import type { Slice } from "./mockData";
 import type { FinanceAsset, Holding } from "./portfolio-types";
-import { holdingDisplayLabel } from "./holding-display-label";
 
 export type AssetTypeKey =
   | "dollar"
@@ -65,12 +64,12 @@ const FIXED_TYPE_COLOR: Record<Exclude<AssetTypeKey, "other">, string> = {
 
 // 자산군 표시 라벨 (도넛 옆/안 자산군명).
 export const ASSET_TYPE_LABEL: Record<AssetTypeKey, string> = {
-  leverage: "레버리지",
+  leverage: "나스닥 레버리지",
   nasdaq: "나스닥",
   spy: "S&P500",
   dividend: "배당",
   dollar: "달러",
-  cash: "현금성",
+  cash: "현금",
   other: "기타",
 };
 
@@ -92,7 +91,7 @@ export const SUPER_GROUP_LABEL: Record<AssetSuperGroupKey, string> = {
 const DOLLAR_TOKENS = ["usd", "dollar"];
 const DOLLAR_SUBS = ["달러", "us$"];
 
-const CASH_TOKENS = ["rp", "cma", "mmf", "mmw", "sgov"];
+const CASH_TOKENS = ["rp", "cma", "mmf", "mmw", "sgov", "cash", "cash_like"];
 const CASH_SUBS = [
   "현금",
   "예금",
@@ -107,14 +106,14 @@ const CASH_SUBS = [
 ];
 
 const LEVERAGE_TOKENS = ["tqqq", "qld", "upro", "soxl", "tecl", "fngu", "bulz", "sso"];
-const LEVERAGE_SUBS = ["레버리지", "3x", "2x"];
+const LEVERAGE_SUBS = ["tqqq", "qld", "레버리지", "3x", "2x"];
 
 const NASDAQ_TOKENS = ["qqq", "qqqm"];
-const NASDAQ_SUBS = ["나스닥", "nasdaq"];
+const NASDAQ_SUBS = ["나스닥", "nasdaq", "qqq"];
 
 // SPYM 은 요구사항에 맞춰 추가(원본에는 없음).
 const SPY_TOKENS = ["spy", "spym", "voo", "ivv", "splg"];
-const SPY_SUBS = ["s&p", "sp500", "snp"];
+const SPY_SUBS = ["s&p", "sp500", "snp", "spym"];
 
 const DIVIDEND_TOKENS = [
   "msft",
@@ -130,7 +129,7 @@ const DIVIDEND_TOKENS = [
   "vug",
   "dia",
 ];
-const DIVIDEND_SUBS = ["배당", "dividend"];
+const DIVIDEND_SUBS = ["schd", "배당", "dividend"];
 
 export interface AssetClassifyInput {
   ticker?: string | null;
@@ -177,10 +176,15 @@ export interface AssetAllocationItem extends AssetClassifyInput {
 }
 
 export interface AssetAllocationSlice extends Slice {
+  key: AssetTypeKey;
+  label: string;
   amountKRW: number;
+  valueKRW: number;
+  percent: number;
   assetType: AssetTypeKey;
   assetTypeLabel: string;
   superGroup: AssetSuperGroupKey;
+  sourceHoldingCount: number;
 }
 
 export interface AssetAllocationResult {
@@ -193,34 +197,31 @@ function isValidValue(value: unknown): value is number {
 }
 
 // 자산군 도넛 슬라이스를 만든다.
-//   1) 표시 라벨별로 유효 금액을 집계한다(invalid/0/NaN 방어).
+//   1) 원문 보유종목명이 아니라 최종 자산군 타입별로 유효 금액을 집계한다(invalid/0/NaN 방어).
 //   2) 원본 sort_tags_by_super_group 와 동일하게
-//      (슈퍼그룹 합계, 타입 합계, 개별 금액) 내림차순으로 정렬해
+//      (슈퍼그룹 합계, 타입 합계, 카테고리 금액) 내림차순으로 정렬해
 //      유사 자산군이 이웃하도록 배치한다.
 //   3) 자산군별 고정 색을 부여하고, other 는 팔레트를 순환한다.
 export function buildAssetAllocationDonut(
   items: readonly AssetAllocationItem[] | null | undefined,
 ): AssetAllocationResult {
-  const byLabel = new Map<
-    string,
-    { label: string; value: number; type: AssetTypeKey }
+  const byType = new Map<
+    AssetTypeKey,
+    { type: AssetTypeKey; value: number; sourceHoldingCount: number }
   >();
 
   for (const item of items ?? []) {
     if (!item || !isValidValue(item.valueKRW)) continue;
-    const label = holdingDisplayLabel({
-      name: item.name ?? undefined,
-      ticker: item.ticker ?? undefined,
-      cleanName: item.cleanName ?? undefined,
-      productName: item.productName ?? undefined,
-    });
     const type = getAssetType(item);
-    const existing = byLabel.get(label);
-    if (existing) existing.value += item.valueKRW;
-    else byLabel.set(label, { label, value: item.valueKRW, type });
+    const existing = byType.get(type);
+    if (existing) {
+      existing.value += item.valueKRW;
+      existing.sourceHoldingCount += 1;
+    } else {
+      byType.set(type, { type, value: item.valueKRW, sourceHoldingCount: 1 });
+    }
   }
-
-  const entries = Array.from(byLabel.values());
+  const entries = Array.from(byType.values());
   const totalKRW = entries.reduce((sum, entry) => sum + entry.value, 0);
   if (entries.length === 0 || totalKRW <= 0) return { slices: [], totalKRW: 0 };
 
@@ -240,7 +241,7 @@ export function buildAssetAllocationDonut(
     const tB = typeTotals.get(b.type) ?? 0;
     if (tB !== tA) return tB - tA;
     if (b.value !== a.value) return b.value - a.value;
-    return a.label.localeCompare(b.label);
+    return ASSET_TYPE_LABEL[a.type].localeCompare(ASSET_TYPE_LABEL[b.type]);
   });
 
   let otherIdx = 0;
@@ -250,13 +251,18 @@ export function buildAssetAllocationDonut(
         ? COLOR_OTHER[otherIdx++ % COLOR_OTHER.length]
         : FIXED_TYPE_COLOR[entry.type];
     return {
-      name: entry.label,
+      key: entry.type,
+      label: ASSET_TYPE_LABEL[entry.type],
+      name: ASSET_TYPE_LABEL[entry.type],
       value: Number(((entry.value / totalKRW) * 100).toFixed(1)),
+      percent: Number(((entry.value / totalKRW) * 100).toFixed(1)),
       color,
       amountKRW: Math.round(entry.value),
+      valueKRW: Math.round(entry.value),
       assetType: entry.type,
       assetTypeLabel: ASSET_TYPE_LABEL[entry.type],
       superGroup: getSuperGroup(entry.type),
+      sourceHoldingCount: entry.sourceHoldingCount,
     };
   });
 
