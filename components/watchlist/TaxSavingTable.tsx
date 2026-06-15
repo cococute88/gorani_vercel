@@ -1,8 +1,13 @@
+"use client";
+
+import { useMemo, useState } from "react";
 import type { TaxSavingRow } from "@/lib/mock-calendar-data";
 
 interface Props {
   rows: TaxSavingRow[];
 }
+
+type TaxSortDirection = "asc" | "desc";
 
 function formatTaxSaving(row: TaxSavingRow): string {
   if (row.isLoading) return "...";
@@ -10,8 +15,29 @@ function formatTaxSaving(row: TaxSavingRow): string {
   return `$${row.taxSavingUsd.toFixed(2)}`;
 }
 
+function getSortableTaxSaving(row: TaxSavingRow): number | null {
+  return row.canCalculate && Number.isFinite(row.taxSavingUsd) ? row.taxSavingUsd : null;
+}
+
+function compareTaxSavingRows(a: TaxSavingRow, b: TaxSavingRow, direction: TaxSortDirection): number {
+  const av = getSortableTaxSaving(a);
+  const bv = getSortableTaxSaving(b);
+  const aMissing = av == null;
+  const bMissing = bv == null;
+  if (aMissing && bMissing) return a.ticker.localeCompare(b.ticker);
+  if (aMissing) return 1;
+  if (bMissing) return -1;
+  const delta = direction === "desc" ? bv - av : av - bv;
+  return delta || a.ticker.localeCompare(b.ticker);
+}
+
 export default function TaxSavingTable({ rows }: Props) {
+  const [taxSortDirection, setTaxSortDirection] = useState<TaxSortDirection>("desc");
   const buyCount = rows.filter((row) => row.shouldBuyThisMonth).length;
+  const sortedRows = useMemo(
+    () => rows.map((row, index) => ({ row, index })).sort((a, b) => compareTaxSavingRows(a.row, b.row, taxSortDirection) || a.index - b.index).map(({ row }) => row),
+    [rows, taxSortDirection],
+  );
 
   return (
     // flex-col + capped scroll body keeps the rail from running far past the calendar.
@@ -32,18 +58,28 @@ export default function TaxSavingTable({ rows }: Props) {
           <thead className="sticky top-0 z-10 bg-[#191f20]">
             <tr className="border-b border-[#2a3336] text-left text-slate-400">
               <th className="py-1.5 pr-2 font-medium sm:py-2">종목</th>
-              <th className="py-1.5 pl-2 text-right font-medium sm:py-2">절세액</th>
+              <th className="py-1.5 pl-2 text-right font-medium sm:py-2">
+                <button
+                  type="button"
+                  onClick={() => setTaxSortDirection((current) => (current === "desc" ? "asc" : "desc"))}
+                  className="inline-flex items-center justify-end gap-1 whitespace-nowrap rounded px-1 py-0.5 text-right transition hover:text-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/50"
+                  aria-label={`절세액 ${taxSortDirection === "desc" ? "내림차순" : "오름차순"} 정렬`}
+                >
+                  <span>절세액</span>
+                  <span aria-hidden>{taxSortDirection === "desc" ? "↓" : "↑"}</span>
+                </button>
+              </th>
             </tr>
           </thead>
           <tbody>
-            {rows.length === 0 && (
+            {sortedRows.length === 0 && (
               <tr>
                 <td colSpan={2} className="py-6 text-center text-[12px] text-slate-500">
                   표시할 종목이 없습니다.
                 </td>
               </tr>
             )}
-            {rows.map((row) => {
+            {sortedRows.map((row) => {
               const warningText = row.warnings.join(" | ");
               const highlight = row.shouldBuyThisMonth;
               return (

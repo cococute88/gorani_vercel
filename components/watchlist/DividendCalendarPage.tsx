@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { formatIsoDate } from "@/lib/calendar-grid";
+import { sortCalendarEventsByPriority } from "@/lib/calendar-event-sort";
 import { getCalendarEventsForTickers, getCalendarEventsForTickersWithProvider, isCustomCalendarEventLike, mergeGeneratedAndCustomCalendarEvents, selectCalendarDividendEvents } from "@/lib/calendar-event-provider";
 import type { CalendarTickersProviderResult } from "@/lib/calendar-event-provider";
 import {
@@ -275,7 +276,7 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
   const filteredEvents = useMemo(() => events.filter((event) => filters[event.type]), [events, filters]);
   // Custom events always render on the grid (date-line text) regardless of the dividend-type filter.
   const customCalendarEvents = useMemo(() => events.filter((event) => event.type === "custom"), [events]);
-  const selectedEvents = useMemo(() => filteredEvents.filter((event) => event.date === selectedDate), [filteredEvents, selectedDate]);
+  const selectedEvents = useMemo(() => sortCalendarEventsByPriority(filteredEvents.filter((event) => event.date === selectedDate)), [filteredEvents, selectedDate]);
   const monthStartIso = useMemo(() => formatIsoDate(new Date(month.getFullYear(), month.getMonth(), 1)), [month]);
   const monthEndIso = useMemo(() => formatIsoDate(new Date(month.getFullYear(), month.getMonth() + 1, 0)), [month]);
   const monthEvents = useMemo(() => events.filter((event) => event.date >= monthStartIso && event.date <= monthEndIso), [events, monthEndIso, monthStartIso]);
