@@ -55,7 +55,7 @@ export default function PerformancePage() {
     valueColor?: string;
   }> = [
     {
-      label: "현재 평가액",
+      label: "투자 평가금액",
       value: moneyOrDash(metrics.currentValueKRW),
       sub: metrics.latestSnapshotDate ? `${metrics.latestSnapshotDate} 스냅샷` : "스냅샷 데이터 없음",
       tone: "gray",
@@ -114,7 +114,7 @@ export default function PerformancePage() {
           </div>
         </div>
         <p className="mb-5 text-[12.5px] text-slate-500">
-          저장된 포트폴리오 스냅샷 히스토리로 누적원금 · 평가액 · 배당금을 분석합니다.
+          저장된 포트폴리오 스냅샷 히스토리로 누적원금 · 투자 평가금액 · 배당금을 분석합니다.
           {!hasSnapshots && " 저장된 스냅샷이 없어 계산 가능한 성과 데이터가 없습니다."}
         </p>
 
@@ -160,7 +160,7 @@ export default function PerformancePage() {
               )}
             </div>
             <p className="mt-1 text-[12.5px] text-slate-500">
-              최신 포트폴리오 스냅샷의 평가금액과 보유종목으로 분석합니다. 환율 히스토리 필드는 없어 환율 추이는 표시하지 않습니다.
+              최신 포트폴리오 스냅샷의 투자 평가금액과 보유종목으로 분석합니다. 환율 히스토리 필드는 없어 환율 추이는 표시하지 않습니다.
             </p>
             {qldPerformance.warnings.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-1.5">

@@ -108,7 +108,7 @@ export default function PortfolioSummary({ theme = "light" }: Props) {
             <MoneyText shrink className={`break-keep font-extrabold ${titleCls}`}>
               {formatMaybeWon(d.totalAssetKRW)}
             </MoneyText>
-            <span className={`mt-1 text-[11px] ${subCls}`}>총 금융자산 = 투자 평가금액 + 현금성/기타 자산</span>
+            <span className={`mt-1 text-[11px] ${subCls}`}>총 금융자산은 투자 평가금액과 현금성/기타 자산을 포함합니다.</span>
             <span className="num mt-1 text-[12.5px] font-semibold" style={{ color: valueColor }}>
               누적 손익 {formatMaybeSignedWon(d.returnAmountKRW)} ({formatMaybePercent(d.returnPct)})
             </span>
