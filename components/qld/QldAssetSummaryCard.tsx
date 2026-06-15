@@ -2,6 +2,7 @@
 
 import { ArrowDown, ArrowUp, Minus } from "lucide-react";
 import type { PerformanceQldResult } from "@/lib/performance-qld-from-snapshots";
+import PerformanceAllocationDonut from "@/components/performance/PerformanceAllocationDonut";
 
 const won = (v: number) => `${Math.round(v).toLocaleString("ko-KR")}원`;
 const moneyOrDash = (v: number | null) => (v === null ? "—" : won(v));
@@ -9,10 +10,9 @@ const pctOrDash = (v: number | null) => (v === null ? "—" : `${v > 0 ? "+" : "
 const toneCls = (v: number | null) =>
   v === null || v === 0 ? "text-slate-400" : v > 0 ? "text-emerald-400" : "text-rose-400";
 
-// 스크린샷 1 왼쪽 카드: 총 평가금액 + 자산 구성 stacked bar + 종목별 보유 목록
+// 투자 성과 왼쪽 카드: 총 평가금액 + 자산 구성 도넛(정규화 종목군 합산, PERFORMANCE-DONUT-RANKING-1)
 export default function QldAssetSummaryCard({ data }: { data: PerformanceQldResult }) {
-  const { summary, topHoldings, flags } = data;
-  const totalWeight = topHoldings.reduce((acc, h) => acc + (h.weightPct ?? 0), 0);
+  const { summary, assetGroups, flags } = data;
   const change = summary.previousChangeKRW;
   const changeRate = summary.previousChangePct;
   const ChangeIcon = change === null || change === 0 ? Minus : change > 0 ? ArrowUp : ArrowDown;
@@ -68,57 +68,14 @@ export default function QldAssetSummaryCard({ data }: { data: PerformanceQldResu
         </div>
       </div>
 
-      <div className="mt-5">
-        <div className="mb-2 flex items-center justify-between gap-2">
-          <span className="text-[12.5px] font-medium text-slate-400">자산 구성</span>
-          {topHoldings.length > 0 && (
-            <span className="rounded-md border border-[#2a3142] bg-[#0e111a] px-2 py-0.5 text-[10.5px] font-semibold text-slate-500">
-              Top 5
-            </span>
-          )}
-        </div>
-        <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-[#1b2030]">
-          {topHoldings.length > 0 && totalWeight > 0 ? (
-            topHoldings.map((h) => {
-              const barStyle = { width: `${((h.weightPct ?? 0) / totalWeight) * 100}%`, backgroundColor: h.color };
-              return <div key={h.ticker} style={barStyle} title={`${h.ticker} ${(h.weightPct ?? 0).toFixed(2)}%`} />;
-            })
-          ) : (
-            <div className="h-full w-full bg-[#242938]" />
-          )}
-        </div>
-      </div>
-
-      <div className="mt-4 flex-1 space-y-0.5">
-        {!flags.hasHoldings && (
+      <div className="mt-5 flex-1">
+        {!flags.hasHoldings ? (
           <div className="rounded-xl border border-[#242938] bg-[#0e111a] px-3 py-4 text-center text-[12.5px] text-slate-500">
             최신 스냅샷에 보유종목이 없어 자산 구성과 랭킹을 표시할 수 없습니다.
           </div>
+        ) : (
+          <PerformanceAllocationDonut data={assetGroups} />
         )}
-        {flags.hasHoldings && topHoldings.length === 0 && (
-          <div className="rounded-xl border border-[#242938] bg-[#0e111a] px-3 py-4 text-center text-[12.5px] text-slate-500">
-            보유종목의 평가금액 필드가 없어 자산 구성 랭킹을 만들 수 없습니다.
-          </div>
-        )}
-        {topHoldings.map((h) => {
-          const dotStyle = { backgroundColor: h.color };
-          return (
-            <div
-              key={h.ticker}
-              className="flex items-center gap-2.5 rounded-md px-1.5 py-1.5 transition-colors hover:bg-white/[0.03]"
-            >
-              <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={dotStyle} />
-              <span className="max-w-[92px] shrink-0 truncate text-[13px] font-bold text-slate-100">{h.ticker}</span>
-              <span className="flex-1 truncate text-[12px] text-slate-500">{h.name}</span>
-              <span className="num shrink-0 rounded bg-white/[0.06] px-1.5 py-0.5 text-[11.5px] font-semibold text-slate-300">
-                {h.weightPct === null ? "—" : `${h.weightPct.toFixed(1)}%`}
-              </span>
-              <span className="num w-[96px] shrink-0 text-right text-[13px] font-semibold tabular-nums text-slate-200 sm:w-[110px]">
-                {moneyOrDash(h.valueKRW)}
-              </span>
-            </div>
-          );
-        })}
       </div>
     </div>
   );

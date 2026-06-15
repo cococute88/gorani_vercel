@@ -1,6 +1,10 @@
 import type { Holding, PortfolioSnapshot } from "./portfolio-types";
 import { filterAggregateHoldings } from "./portfolio-summary-row";
 import { applyKrxTickerMappingsToHoldings } from "./krx-ticker-name-map";
+import {
+  buildPerformanceAssetGroups,
+  type PerformanceAssetGroupResult,
+} from "./performance-asset-group";
 
 export type PerformanceQldValuePoint = {
   date: string;
@@ -66,6 +70,8 @@ export type PerformanceQldResult = {
   valueSeries: PerformanceQldValuePoint[];
   topHoldings: PerformanceQldRankingRow[];
   rankings: PerformanceQldRankingRow[];
+  // 자산 구성 도넛: 정규화 종목군(TQQQ/QLD/QQQ/SPY/SCHD/MSFT/달러/현금/예적금/기타) 합산.
+  assetGroups: PerformanceAssetGroupResult;
   fx: PerformanceQldFxResult;
   flags: {
     hasSnapshots: boolean;
@@ -416,6 +422,17 @@ export function buildPerformanceQldFromSnapshots(
   const rankings = buildRankings(holdings, warnings);
   // 왼쪽 투자 성과 카드의 자산 구성 preview 는 전체 평가금액순 Top 5 로 고정한다.
   const topHoldings = rankings.slice(0, SUMMARY_HOLDINGS_LIMIT);
+  // 자산 구성 도넛: 원본 상품명이 아니라 정규화 종목군 단위로 합산한다.
+  const assetGroups = buildPerformanceAssetGroups(
+    holdings.map((h) => ({
+      ticker: h.ticker,
+      productName: h.productName,
+      cleanName: h.cleanName,
+      tag: h.tag,
+      valueKRW: h.valueKRW,
+      principalKRW: h.principalKRW,
+    })),
+  );
   const hasProfitRanking = rankings.some((row) => row.profitKRW !== null);
   const hasReturnRanking = rankings.some((row) => row.returnPct !== null);
 
@@ -446,6 +463,7 @@ export function buildPerformanceQldFromSnapshots(
     valueSeries,
     topHoldings,
     rankings,
+    assetGroups,
     fx: {
       available: false,
       latestRate: null,
