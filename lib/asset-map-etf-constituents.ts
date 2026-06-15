@@ -97,6 +97,13 @@ export const ASSET_MAP_ETF_CONSTITUENTS: Record<string, AssetMapEtfConstituentFi
     notes: "Deterministic top-holdings fixture. It is intentionally not a full constituent list.",
     constituents: SP500_CONSTITUENTS,
   },
+  SPYM: {
+    ticker: "SPYM",
+    name: "SPDR Portfolio S&P 500 High Dividend ETF",
+    underlyingProxy: "SPY",
+    notes: "Uses the same S&P 500 top-holdings fixture as SPY for conservative asset-map look-through.",
+    constituents: SP500_CONSTITUENTS,
+  },
   VOO: {
     ticker: "VOO",
     name: "Vanguard S&P 500 ETF",
