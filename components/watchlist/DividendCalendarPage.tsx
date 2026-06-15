@@ -44,10 +44,10 @@ interface Props {
   tickerManager: ReactNode;
   headerAccessory?: ReactNode;
   onManagePortfolio?: () => void;
-  // Legacy/imported 종목 메모 (ticker → memo). Already resolved by the parent; the
-  // selected-date card shows it when present. The memo source/matching wiring is
-  // tracked separately (CALENDAR-MEMO-SOURCE-FIX-1) and untouched here.
+  // Legacy/imported 종목 메모 (ticker → memo). Already resolved by the parent;
+  // selected-date cards and the event detail dialog share this ticker-level source.
   tickerMemos?: Record<string, string>;
+  onSaveTickerMemo?: (ticker: string, memo: string) => void;
 }
 
 const CALENDAR_EVENT_META_STORAGE_KEY = STORAGE_KEYS.calendarEventMeta;
@@ -72,7 +72,7 @@ function resolveCalendarEventMeta(event: CalendarEvent, metas: Record<string, Ca
   return undefined;
 }
 
-export default function DividendCalendarPage({ tickers, tickerManager, headerAccessory, onManagePortfolio, tickerMemos }: Props) {
+export default function DividendCalendarPage({ tickers, tickerManager, headerAccessory, onManagePortfolio, tickerMemos, onSaveTickerMemo }: Props) {
   const { user } = useFirebaseAuth();
   const today = new Date();
   const todayIso = formatIsoDate(today);
@@ -480,6 +480,9 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
         event={activeEvent}
         meta={activeEvent ? resolveCalendarEventMeta(activeEvent, eventMetas) : undefined}
         onSaveMeta={persistEventMeta}
+        onSaveTickerMemo={onSaveTickerMemo}
+        tickerMemos={tickerMemos}
+        taxSavingByTicker={taxSavingByTicker}
         onClose={() => setActiveEvent(null)}
       />
 

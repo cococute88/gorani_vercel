@@ -30,7 +30,8 @@
     "check:dividend-holdings": "node scripts/check-dividend-holdings-groups.mjs",
     "check:dividends-data": "node scripts/check-dividend-holdings-groups.mjs && node scripts/check-portfolio-parser.mjs",
     "check:market-chart-formatters": "node scripts/check-market-chart-formatters.mjs",
-    "check:auth-firestore-persistence": "node scripts/check-auth-firestore-persistence.mjs"
+    "check:auth-firestore-persistence": "node scripts/check-auth-firestore-persistence.mjs",
+    "check:calendar-memo-taxsource-dialog": "node scripts/check-calendar-memo-taxsource-dialog.mjs"
   },
   "dependencies": {
     "next": "14.2.5",

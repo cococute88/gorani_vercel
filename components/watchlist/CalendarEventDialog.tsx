@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { eventStatusLabel, getEventVisual } from "@/lib/event-visuals";
+import { eventStatusLabel, formatTaxSavingPer10k, getEventVisual } from "@/lib/event-visuals";
+import { lookupTickerMemo } from "@/lib/calendar-memo-matching";
 import { isCustomCalendarEventLike } from "@/lib/calendar-event-provider";
 import type { HistoricalTaxSavingMetricLoadResult } from "@/lib/historical-tax-saving-service";
 import { loadHistoricalTaxSavingMetricCached } from "@/lib/historical-tax-saving-session-cache";
@@ -12,6 +13,9 @@ interface Props {
   event: CalendarEvent | null;
   meta?: CalendarEventMeta;
   onSaveMeta: (event: CalendarEvent, meta: CalendarEventMeta) => void;
+  onSaveTickerMemo?: (ticker: string, memo: string) => void;
+  tickerMemos?: Record<string, string>;
+  taxSavingByTicker?: Record<string, { taxSavingUsd: number; canCalculate: boolean; isLoading?: boolean } | undefined>;
   onClose: () => void;
 }
 
@@ -26,7 +30,7 @@ function isHistoricalMetricEligible(event: CalendarEvent): boolean {
   return HISTORICAL_METRIC_EVENT_TYPES.has(event.type);
 }
 
-export default function CalendarEventDialog({ event, meta, onSaveMeta, onClose }: Props) {
+export default function CalendarEventDialog({ event, meta, onSaveMeta, onSaveTickerMemo, tickerMemos, taxSavingByTicker, onClose }: Props) {
   const [memo, setMemo] = useState("");
   const [historicalMetric, setHistoricalMetric] = useState<HistoricalTaxSavingMetricLoadResult | null>(null);
   const [isHistoricalMetricLoading, setIsHistoricalMetricLoading] = useState(false);
@@ -35,8 +39,13 @@ export default function CalendarEventDialog({ event, meta, onSaveMeta, onClose }
   const historicalTicker = event && isHistoricalMetricEligible(event) ? event.ticker : null;
 
   useEffect(() => {
-    setMemo(meta?.memo ?? event?.note ?? "");
-  }, [canonicalEventId, event?.note, meta?.memo]);
+    if (!event) {
+      setMemo("");
+      return;
+    }
+    const tickerMemo = lookupTickerMemo(tickerMemos, event.ticker);
+    setMemo(tickerMemo || meta?.memo || event.note || "");
+  }, [canonicalEventId, event, event?.note, meta?.memo, tickerMemos]);
 
   // Load the five-year historical tax-saving metric for eligible dividend events
   // only. Ignore stale async results if the dialog closes or the ticker changes.
@@ -84,9 +93,22 @@ export default function CalendarEventDialog({ event, meta, onSaveMeta, onClose }
       sourceKind: event.sourceKind ?? meta?.sourceKind,
       star,
       heart,
-      memo,
       ...patch,
     });
+  };
+
+  const taxSavingRow = event.ticker ? taxSavingByTicker?.[event.ticker.trim().toUpperCase()] : undefined;
+  const taxSavingLabel = taxSavingRow && !taxSavingRow.isLoading && taxSavingRow.canCalculate
+    ? formatTaxSavingPer10k(taxSavingRow.taxSavingUsd)
+    : event.taxSavingUsd > 0
+      ? formatTaxSavingPer10k(event.taxSavingUsd)
+      : "—";
+  const saveTickerMemo = () => {
+    if (onSaveTickerMemo && event.ticker?.trim()) {
+      onSaveTickerMemo(event.ticker, memo);
+      return;
+    }
+    saveMeta({ memo });
   };
 
   return (
@@ -120,8 +142,8 @@ export default function CalendarEventDialog({ event, meta, onSaveMeta, onClose }
           <Info label="배당락일" value={event.exDivDate || "—"} />
           <Info label="지급일" value={event.paymentDate || "—"} />
           {/* 정적 0/기본값은 실제 계산값이 아니므로 라이브 보조지표 옆에서 오해를 줄이기 위해 '—'로 표시한다 (display only). */}
-          <Info label="연간 수익률" value={event.annualYield > 0 ? `${event.annualYield.toFixed(2)}%` : "—"} />
-          <Info label="절세액($10k)" value={event.taxSavingUsd > 0 ? `$${event.taxSavingUsd.toFixed(1)}` : "—"} />
+          <Info label="연간 배당률" value={event.annualYield > 0 ? `${event.annualYield.toFixed(2)}%` : "—"} />
+          <Info label="절세액($10K)" value={taxSavingLabel} />
         </dl>
 
         {/* Source info */}
@@ -138,7 +160,7 @@ export default function CalendarEventDialog({ event, meta, onSaveMeta, onClose }
         <label className="mt-4 block text-[12px] font-semibold text-slate-300 sm:text-[13px]" htmlFor="calendar-note">메모</label>
         <textarea id="calendar-note" value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="메모를 입력하세요" className="mt-1.5 h-20 w-full resize-none rounded-xl border border-[#303b3f] bg-[#0f1415] p-3 text-[13px] text-slate-200 outline-none placeholder:text-slate-600 focus:border-blue-500/50 sm:h-24" />
         <div className="mt-2 flex justify-end">
-          <button type="button" onClick={() => saveMeta({ memo })} className="rounded-lg bg-blue-600 px-4 py-2 text-[12px] font-semibold text-white hover:bg-blue-500 sm:text-[13px]">저장</button>
+          <button type="button" onClick={saveTickerMemo} className="rounded-lg bg-blue-600 px-4 py-2 text-[12px] font-semibold text-white hover:bg-blue-500 sm:text-[13px]">저장</button>
         </div>
       </div>
     </div>
@@ -185,7 +207,7 @@ function HistoricalTaxSavingSection({
   return (
     <div className="mt-3 rounded-xl border border-[#273235] bg-[#101719] p-3" title={firstWarning || undefined}>
       <div className="flex items-baseline justify-between gap-2">
-        <span className="text-[11px] font-semibold text-slate-300">5년 회복 기준 절세효과</span>
+        <span className="text-[11px] font-semibold text-slate-300">1회 절세 예상(과거5년)</span>
         <span className={`num shrink-0 text-[15px] font-bold ${valueClass}`}>{valueText}</span>
       </div>
       <p className="mt-1 text-[11px] text-slate-400">{detailText}</p>
