@@ -40,7 +40,8 @@
     "check:asset-class-donut-labels": "node scripts/check-asset-class-donut-labels.mjs",
     "check:market-data-real": "node scripts/check-market-data-real.mjs",
     "check:portfolio-account-returns": "node scripts/check-portfolio-account-returns.mjs",
-    "check:portfolio-overview-cleanup": "node scripts/check-portfolio-overview-cleanup.mjs"
+    "check:portfolio-overview-cleanup": "node scripts/check-portfolio-overview-cleanup.mjs",
+    "check:portfolio-market-indicators-live": "node scripts/check-portfolio-market-indicators-live.mjs"
   },
   "dependencies": {
     "next": "14.2.5",
