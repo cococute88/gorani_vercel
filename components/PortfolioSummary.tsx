@@ -82,6 +82,11 @@ function RatioRow({
 
 export default function PortfolioSummary({ theme = "light" }: Props) {
   const { summary: d, warnings, flags } = usePortfolioView();
+  // 상단의 장황한 안내 박스를 없애는 대신, 안내(info)성 caveat 가 있을 때만
+  // summary 하단에 아주 짧은 보조문구 한 줄로 축약해 둔다.
+  const hasInfoNotice = warnings.some(
+    (w) => w.severity === "info" && w.code !== "no_snapshot",
+  );
   const isLight = theme === "light";
   const panelCls = isLight
     ? "border-slate-200 bg-white shadow-sm"
@@ -95,7 +100,7 @@ export default function PortfolioSummary({ theme = "light" }: Props) {
   return (
     <div className="flex flex-col gap-3 xl:flex-row">
       <div className={`flex-1 rounded-2xl border p-4 ${panelCls}`}>
-        <div className={`grid min-w-0 grid-cols-1 gap-y-4 sm:grid-cols-2 xl:grid-cols-4 xl:gap-y-0 xl:divide-x ${isLight ? "xl:divide-slate-200" : "xl:divide-[#2a3336]"}`}>
+        <div className={`grid min-w-0 grid-cols-1 gap-y-4 sm:grid-cols-2 xl:grid-cols-3 xl:gap-y-0 xl:divide-x ${isLight ? "xl:divide-slate-200" : "xl:divide-[#2a3336]"}`}>
           <div className="flex min-w-0 flex-col xl:pr-5">
             <div className="mb-1 flex items-center gap-2 text-[11px]">
               <span className={`font-bold ${isLight ? "text-slate-700" : "text-slate-200"}`}>
@@ -138,36 +143,6 @@ export default function PortfolioSummary({ theme = "light" }: Props) {
             </div>
           </div>
 
-          <div className="flex flex-col xl:px-5">
-            <span className={`text-[11px] ${labelCls}`}>구성 요약</span>
-            <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-2 text-[10.5px] text-slate-500">
-              <span>
-                계좌
-                <span className={`num mt-0.5 block text-[15px] font-bold ${titleCls}`}>
-                  {d.accountCount}개
-                </span>
-              </span>
-              <span>
-                종목
-                <span className={`num mt-0.5 block text-[15px] font-bold ${titleCls}`}>
-                  {d.holdingCount}개
-                </span>
-              </span>
-              <span>
-                자산 행
-                <span className={`num mt-0.5 block text-[13px] font-bold ${titleCls}`}>
-                  {d.financeAssetCount}개
-                </span>
-              </span>
-              <span>
-                경고
-                <span className={`num mt-0.5 block text-[13px] font-bold ${warnings.length > 0 ? "text-amber-500" : titleCls}`}>
-                  {warnings.length}개
-                </span>
-              </span>
-            </div>
-          </div>
-
           <div className="relative flex min-w-0 flex-col overflow-hidden xl:pl-5">
             <span className={`text-[11px] ${labelCls}`}>데이터 상태</span>
             <div className="relative z-10 mt-1 space-y-0.5">
@@ -192,6 +167,11 @@ export default function PortfolioSummary({ theme = "light" }: Props) {
             </div>
           </div>
         </div>
+        {hasInfoNotice ? (
+          <p className={`mt-3 text-[11px] ${subCls}`}>
+            일부 수익률은 원금 정보가 있는 계좌만 계산됩니다.
+          </p>
+        ) : null}
       </div>
 
       <div className={`w-full rounded-2xl border p-4 xl:w-[230px] ${panelCls}`}>

@@ -16,6 +16,8 @@ export interface BriefingItem {
   source?: "yahoo" | "unavailable" | string;
   updatedAt?: string | null;
   error?: string;
+  // 실데이터 기반 미니 스파크라인(최근 daily close). 조회 실패 시 생략한다.
+  sparkline?: { date: string; value: number }[];
 }
 
 export interface FearGreedData {

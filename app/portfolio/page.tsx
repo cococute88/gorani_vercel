@@ -1,16 +1,12 @@
 "use client";
 
-import { Plus } from "lucide-react";
 import TopNav from "@/components/TopNav";
-import MiniTickerCard from "@/components/MiniTickerCard";
 import PortfolioSummary from "@/components/PortfolioSummary";
 import DonutChartCard from "@/components/DonutChartCard";
 import AssetAllocationDonut from "@/components/portfolio/AssetAllocationDonut";
 import AssetAccountCards from "@/components/AssetAccountCards";
-import SampleBadge from "@/components/common/SampleBadge";
-import PortfolioQuoteStatusPanel from "@/components/portfolio/PortfolioQuoteStatusPanel";
 import AssetClassDonut from "@/components/portfolio/AssetClassDonut";
-import { PIN_TICKERS } from "@/lib/mockData";
+import PortfolioMarketIndicatorStrip from "@/components/portfolio/PortfolioMarketIndicatorStrip";
 import { usePortfolioView } from "@/lib/use-portfolio-view";
 import { buildAssetClassAllocation } from "@/lib/asset-class-allocation";
 import { useResolvedTheme } from "@/components/theme/ThemeProvider";
@@ -20,7 +16,6 @@ import { useMemo } from "react";
 export default function PortfolioPage() {
   const portfolioView = usePortfolioView();
   const theme = useResolvedTheme();
-  const d = portfolioView.summary;
 
   // 하단 "보유 자산군 분석": 보유종목/현금성 잔액을 TQQQ·QLD·QQQ·SPY·SCHD·MSFT·달러·현금·예적금·기타
   // 자산군 단위로 합산해 Streamlit 방식 도넛으로 표시한다 (원본 상품명 단위로 쪼개지 않는다).
@@ -29,55 +24,29 @@ export default function PortfolioPage() {
     [portfolioView.mappedHoldings, portfolioView.snapshot],
   );
 
-  // 사용자에게 조치가 필요한 경고(warning)와 단순 안내(info)를 분리해
-  // 경고 박스가 안내성 메시지로 과하게 부풀지 않도록 한다.
+  // 조치가 필요한 경고(severity: warning)만 화면에 남긴다. 단순 안내(info)와
+  // 평상시 경고 카운트는 상단을 어지럽히므로 제거하고, 남은 경고도 기본은
+  // 접힌(<details>) 형태로 두어 화면을 넓게 유지한다.
   const warningNotices = portfolioView.warnings.filter((w) => w.severity === "warning");
-  const infoNotices = portfolioView.warnings.filter(
-    (w) => w.severity === "info" && w.code !== "no_snapshot",
-  );
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#f8fafc] text-slate-800 dark:bg-[#111516] dark:text-slate-200">
       <TopNav theme={theme} />
       <main className="mx-auto min-w-0 max-w-[1640px] overflow-x-hidden px-4 py-6 sm:px-6 lg:px-8">
-        {/* 제목줄 */}
-        <div className="mb-4 flex min-w-0 flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
-          <div className="min-w-0 flex-1">
-            <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-              <h1 className="text-[20px] font-extrabold text-slate-900 dark:text-white">
-                포트폴리오 현황
-              </h1>
-              <span className="text-[12.5px] text-slate-500">
-                {portfolioView.snapshot
-                  ? `${portfolioView.snapshot.snapshotDate} 스냅샷 기준`
-                  : "저장된 스냅샷 없음"}
-              </span>
-            </div>
-
-            <div className="mb-1.5 flex items-center gap-2">
-              <span className="text-[11.5px] font-medium text-slate-400 dark:text-slate-500">
-                시장 지표
-              </span>
-              <SampleBadge label="샘플" />
-            </div>
-            <div className="no-scrollbar -mx-4 flex min-w-0 gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
-              {PIN_TICKERS.map((t) => (
-                <div key={t.name} className="w-[210px] shrink-0 sm:w-[220px]">
-                  <MiniTickerCard ticker={t} theme={theme} />
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex shrink-0 flex-wrap items-center gap-3">
-            <span className="text-[13px] text-slate-400">
-              계좌 {d.accountCount}개 · 종목 {d.holdingCount}개
-            </span>
-            <button className="flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-[13px] font-semibold text-white hover:bg-blue-700">
-              <Plus size={15} /> 계좌 추가
-            </button>
-          </div>
+        {/* 제목줄: 제목 + 스냅샷 기준일만 유지. 상단 마켓 strip / 계좌·종목 카운트 / 비동작 버튼은 제거했다. */}
+        <div className="mb-4 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5">
+          <h1 className="text-[20px] font-extrabold text-slate-900 dark:text-white">
+            포트폴리오 현황
+          </h1>
+          <span className="text-[12.5px] text-slate-500">
+            {portfolioView.snapshot
+              ? `${portfolioView.snapshot.snapshotDate} 스냅샷 기준`
+              : "저장된 스냅샷 없음"}
+          </span>
         </div>
+
+        {/* 상단 compact 시장지표 strip: /api/market live briefing 재사용 (mock 미사용) */}
+        <PortfolioMarketIndicatorStrip theme={theme} />
 
         {!portfolioView.flags.hasSnapshot ? (
           <div className="mb-4 rounded-xl border border-amber-300/60 bg-amber-50 px-4 py-2.5 text-[12.5px] leading-relaxed text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-100">
@@ -86,26 +55,16 @@ export default function PortfolioPage() {
         ) : null}
 
         {warningNotices.length > 0 ? (
-          <div className="mb-4 rounded-xl border border-amber-300/60 bg-amber-50 px-4 py-3 text-[12.5px] text-amber-900 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-100">
-            <div className="mb-1 font-bold">확인이 필요한 항목</div>
-            <ul className="space-y-1">
+          <details className="mb-4 rounded-xl border border-amber-300/50 bg-amber-50/70 px-4 py-2 text-[12px] text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/[0.07] dark:text-amber-100">
+            <summary className="cursor-pointer list-none font-semibold marker:content-['']">
+              확인이 필요한 항목 {warningNotices.length}건
+            </summary>
+            <ul className="mt-2 space-y-1">
               {warningNotices.slice(0, 4).map((warning) => (
                 <li key={warning.code}>· {warning.message}</li>
               ))}
             </ul>
-          </div>
-        ) : null}
-
-        {infoNotices.length > 0 ? (
-          <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-[12px] leading-relaxed text-slate-500 dark:border-[#2a3336] dark:bg-white/[0.03] dark:text-slate-400">
-            {infoNotices.slice(0, 3).map((warning) => (
-              <div key={warning.code}>· {warning.message}</div>
-            ))}
-          </div>
-        ) : null}
-
-        {portfolioView.snapshot ? (
-          <PortfolioQuoteStatusPanel holdings={portfolioView.mappedHoldings} />
+          </details>
         ) : null}
 
         {/* 요약 영역 */}
