@@ -104,6 +104,24 @@ export default function AssetSimulatorPage() {
     setYearPlans((currentPlans) => normalizeYearPlans(normalizedInputs, currentPlans));
   };
 
+  const handleSave = () => {
+    if (typeof window !== "undefined") {
+      try {
+        window.localStorage.setItem(
+          ASSET_SIMULATOR_STORAGE_KEY,
+          JSON.stringify({ inputs, yearPlans }),
+        );
+      } catch {
+        // 브라우저 저장소 제한이 있으면 화면 계산만 유지한다.
+      }
+    }
+    if (user) {
+      void saveAssetSimulatorConfig(user.uid, { inputs, yearPlans }).catch((err) =>
+        warnFirestoreFallback("assetSimulator.save", err),
+      );
+    }
+  };
+
   const handleReset = () => {
     const plans = buildDefaultYearPlans();
     setInputs(DEFAULT_SIMULATOR_INPUTS);
@@ -137,7 +155,7 @@ export default function AssetSimulatorPage() {
 
         <div className="space-y-5">
           <SimulatorPreviewNotice />
-          <SimulatorInputPanel inputs={inputs} onChange={handleInputsChange} onReset={handleReset} />
+          <SimulatorInputPanel inputs={inputs} onChange={handleInputsChange} onReset={handleReset} onSave={handleSave} />
           <YearPlanTable plans={projection.yearPlans} onChange={setYearPlans} />
           <SimulatorMetricCards summary={projection.summary} />
           <SimulatorResultTabs projection={projection} />

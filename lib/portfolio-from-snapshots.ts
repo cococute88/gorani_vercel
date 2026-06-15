@@ -5,6 +5,11 @@ import {
   type KrxTickerNameMap,
 } from "./krx-ticker-name-map";
 import { classifyAccountStatusGroup } from "./account-status-group";
+import { holdingDisplayLabel } from "./holding-display-label";
+
+// ASSET-PORTFOLIO-UX-POLISH-1 #3: 트리맵에는 전체 평가금액 대비 2% 이상인 종목만 표시한다.
+// (합계/랭킹/요약 수치는 원본 그대로 유지하고 트리맵 "표시"에서만 작은 종목을 제외한다.)
+export const TREEMAP_MIN_WEIGHT_PCT = 2;
 
 // PORTFOLIO-CALCULATOR-UX-FIX-2 #2: 화면에 노출할 계좌의 최소 평가금액.
 // 이 금액 미만의 계좌 그룹은 사용자에게 의미가 없어 "표시용 계좌 항목"에서 제외한다.
@@ -461,17 +466,20 @@ function buildTreemapAndRanking(
   const totalValue = Array.from(totals.values()).reduce((sum, item) => sum + item.value, 0);
   const sorted = Array.from(totals.values()).sort((a, b) => b.value - a.value);
 
-  const treemapItems = sorted.map((item) => {
-    const profit = item.principal > 0 ? item.value - item.principal : null;
-    return {
-      name: item.name,
-      ticker: item.ticker,
-      valueKRW: Math.round(item.value),
-      weightPct: percent(item.value, totalValue),
-      returnPct: profit !== null ? (profit / item.principal) * 100 : null,
-      group: item.group,
-    };
-  });
+  const treemapItems = sorted
+    .map((item) => {
+      const profit = item.principal > 0 ? item.value - item.principal : null;
+      return {
+        name: item.name,
+        ticker: item.ticker,
+        valueKRW: Math.round(item.value),
+        weightPct: percent(item.value, totalValue),
+        returnPct: profit !== null ? (profit / item.principal) * 100 : null,
+        group: item.group,
+      };
+    })
+    // 2% 미만은 트리맵 표시에서만 제외한다 (#3). 랭킹/요약은 영향받지 않는다.
+    .filter((item) => item.weightPct >= TREEMAP_MIN_WEIGHT_PCT);
 
   const holdingsRankingRows = sorted.map((item, index) => {
     const principal = item.principal > 0 ? item.principal : null;
@@ -700,7 +708,13 @@ export function buildPortfolioPageFromSnapshot(
   }
 
   const accountAllocation = groupSlices(accountRows, (row) => positiveNumber(row.value), (row) => row.name);
-  const stockAllocation = groupSlices(holdingsRankingRows, (row) => positiveNumber(row.valueKRW), (row) => row.ticker || row.name, 15);
+  // 종목별 비중 상위: KRX 숫자 티커는 한글 상품명으로 라벨링한다 (#4, 트리맵과 동일 helper).
+  const stockAllocation = groupSlices(
+    holdingsRankingRows,
+    (row) => positiveNumber(row.valueKRW),
+    (row) => holdingDisplayLabel({ name: row.name, ticker: row.ticker }),
+    15,
+  );
   const assetAllocation = buildAssetAllocation(holdings, financeAssets);
   const purposeAllocation = groupSlices(holdings, (holding) => positiveNumber(holding.valueKRW), holdingPurposeName);
 

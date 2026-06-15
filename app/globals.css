@@ -116,6 +116,22 @@ body {
   scrollbar-color: #cbd5e1 transparent;
 }
 
+/* ASSET-PORTFOLIO-UX-POLISH-1 #5: 라이트모드 검은 스크롤바 복구.
+   많은 표/카드 컴포넌트(HoldingsTable, AssetTable, SnapshotHistory, 배당/캘린더
+   테이블 등)가 테마와 무관하게 `scroll-dark` 를 하드코딩하고 있어, 라이트모드에서
+   흰 카드 위에 어두운(#2f3a3d) 스크롤바가 "검은 스크롤바"로 보였다.
+   라이트 클래스가 적용된 동안에는 `scroll-dark` 도 밝은 중립색으로 분기한다.
+   다크모드(`.dark`)에서는 기존 어두운 스크롤바가 그대로 유지된다. */
+.light .scroll-dark::-webkit-scrollbar-thumb {
+  background: #cbd5e1; /* slate-300 */
+}
+.light .scroll-dark::-webkit-scrollbar-track {
+  background: #f8fafc; /* slate-50 */
+}
+.light .scroll-dark {
+  scrollbar-color: #cbd5e1 #f8fafc;
+}
+
 /* recharts focus 테두리 제거 */
 .recharts-wrapper:focus,
 .recharts-surface:focus {
