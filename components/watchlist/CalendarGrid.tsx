@@ -1,6 +1,7 @@
 "use client";
 
 import { buildMonthGrid } from "@/lib/calendar-grid";
+import { sortCalendarEventsByPriority } from "@/lib/calendar-event-sort";
 import { eventChipLabel, eventStateClasses, EVENT_VISUALS, getEventVisual } from "@/lib/event-visuals";
 import type { CalendarEvent, CalendarEventType } from "@/lib/mock-calendar-data";
 
@@ -71,7 +72,7 @@ export default function CalendarGrid({
         ))}
         {/* Day cells */}
         {cells.map((cell) => {
-          const dayEvents = eventsByDate.get(cell.isoDate) ?? [];
+          const dayEvents = sortCalendarEventsByPriority(eventsByDate.get(cell.isoDate) ?? []);
           const dayCustom = customByDate.get(cell.isoDate) ?? [];
           // Show up to three event chips per cell (date + custom/economic text
           // line stays on top); anything beyond three collapses into a "+N" pill.

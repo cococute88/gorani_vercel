@@ -256,11 +256,12 @@ export default function DividendSchedulePreview({ events, monthStartIso, monthEn
                 )}
                 {visibleRows.map((row) => {
                   const visual = getEventVisual(row.type);
+                  const isEstimated = row.status === "estimated";
                   return (
                     <tr
                       key={row.event.id}
                       onClick={() => onOpenEvent(row.event)}
-                      className="cursor-pointer border-t border-[#20282a] hover:bg-black/[0.03] dark:hover:bg-white/[0.03]"
+                      className={`cursor-pointer border-t border-[#20282a] hover:bg-black/[0.03] dark:hover:bg-white/[0.03] ${isEstimated ? "bg-slate-50 dark:bg-slate-800/40" : ""}`}
                     >
                       <td className="whitespace-nowrap px-2 py-2 font-bold text-slate-900 dark:text-white sm:px-3">
                         {row.favorite ? `${row.favorite} ` : ""}{row.ticker}
