@@ -185,7 +185,7 @@ export default function WatchlistPage() {
   return (
     <div className="min-h-screen bg-[#f8fafc] text-slate-800 dark:bg-[#111516] dark:text-slate-200">
       <TopNav theme={theme} />
-      <main className="mx-auto max-w-[1280px] px-3 py-4 sm:px-5 sm:py-6 lg:px-8">
+      <main className="mx-auto w-full min-w-0 max-w-[1640px] overflow-x-hidden px-4 py-6 sm:px-6 lg:px-8">
         <DividendCalendarPage
           tickers={tickers}
           tickerManager={tickerManager}

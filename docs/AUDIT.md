@@ -481,3 +481,5 @@ Dependency warnings observed:
 - PORTFOLIO-MARKET-INDICATORS-LIVE-VERIFY-1: /portfolio 시장지표 sample/static source 점검 및 /api/market live data 재사용 정리. See `docs/PORTFOLIO_MARKET_INDICATORS_LIVE1.md`.
 
 - 2026-06-15 Step CALENDAR-PRIORITY-SORT-TAX-SORT-ESTIMATE-STYLE-1: 캘린더 하트/별 우선정렬, 절세액 정렬, 추정 일정 회색 row 스타일 추가. See `docs/CALENDAR_PRIORITY_TAX_STYLE1.md`.
+
+- 2026-06-15 Step CALENDAR-LAYOUT-WIDE-STREAMLIT-POLISH-1: 배당캘린더 와이드 레이아웃, 하단 필터 toggle, 일정 chip 절세액 표시, 포트폴리오 관리/티커 관리 병합. See `docs/CALENDAR_WIDE_LAYOUT_POLISH1.md`.
