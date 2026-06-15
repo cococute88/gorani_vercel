@@ -55,7 +55,7 @@ export default function MarketRsiSection({ temps, rsi }: Props) {
                 <span className="text-[14px] font-bold text-white">{ticker}</span>
                 {state && <span className={`text-[12px] font-semibold ${state.cls}`}>{state.label}</span>}
               </div>
-              <div className="num mt-2 text-[26px] font-extrabold text-white">{t ? t.rsi : "N/A"}</div>
+              <div className="num mt-2 text-[26px] font-extrabold text-white">{t ? t.rsi : "조회 불가"}</div>
               <div className="mt-1 text-[11.5px] text-slate-500">현재 RSI 14</div>
             </div>
           );
@@ -68,7 +68,7 @@ export default function MarketRsiSection({ temps, rsi }: Props) {
           <span className="text-[12px] text-slate-500">과매수 70 · 과매도 30</span>
         </div>
         <div className="h-[300px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
+          {rsi.length === 0 ? <div className="flex h-full items-center justify-center text-[13px] text-slate-500">RSI 추이 데이터를 조회할 수 없습니다.</div> : <ResponsiveContainer width="100%" height="100%">
             <LineChart data={rsi} margin={CHART_MARGIN}>
               <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} vertical={false} />
               <XAxis
@@ -88,7 +88,7 @@ export default function MarketRsiSection({ temps, rsi }: Props) {
                 <Line key={t} type="monotone" dataKey={t} stroke={TICKER_COLORS[t]} strokeWidth={1.8} dot={false} />
               ))}
             </LineChart>
-          </ResponsiveContainer>
+          </ResponsiveContainer>}
         </div>
       </div>
     </section>

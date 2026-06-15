@@ -37,7 +37,7 @@ export default function MarketTopBriefing({ fearGreed, briefing }: Props) {
               <div className="truncate text-[12px] text-slate-400">{it.label}</div>
               <div className="num mt-1.5 text-[18px] font-extrabold text-white">{it.value}</div>
               <div className={`num mt-1 text-[12.5px] font-semibold ${it.up ? "text-red-400" : "text-blue-400"}`}>
-                {it.up ? "▲" : "▼"} {Math.abs(it.changePct).toFixed(2)}%
+                {it.source === "unavailable" ? "조회 불가" : `${it.up ? "▲" : "▼"} ${Math.abs(it.changePct).toFixed(2)}%`}
               </div>
             </div>
           ))}
@@ -53,7 +53,7 @@ function FngCard({ data }: { data: FearGreedData | null }) {
       <div className="rounded-2xl border border-[#2a3336] bg-[#191f20] p-5">
         <h3 className="mb-3 text-[15px] font-bold text-slate-300">공포 &amp; 탐욕 지수</h3>
         <div className="flex h-[200px] items-center justify-center text-center text-[13px] text-slate-500">
-          지수를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.
+          공포 & 탐욕 지수 조회 불가
         </div>
       </div>
     );
@@ -67,7 +67,7 @@ function FngCard({ data }: { data: FearGreedData | null }) {
     <div className="rounded-2xl border border-[#2a3336] bg-[#191f20] p-5">
       <div className="mb-3 flex items-center justify-between gap-2">
         <h3 className="text-[15px] font-bold text-slate-300">공포 &amp; 탐욕 지수</h3>
-        <span className="shrink-0 text-[11px] text-slate-500">CNN Fear &amp; Greed</span>
+        <span className="shrink-0 text-[11px] text-slate-500">{data.source ?? "CNN Fear & Greed"}</span>
       </div>
       <div className="flex items-baseline gap-3">
         <span className="num text-[44px] font-black leading-none" style={{ color }}>
