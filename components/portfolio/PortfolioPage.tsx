@@ -24,6 +24,7 @@ import {
 } from "@/lib/krx-ticker-name-map";
 import ExcelUploadCard from "./ExcelUploadCard";
 import PortfolioParsePreview from "./PortfolioParsePreview";
+import AssetAllocationDonut from "./AssetAllocationDonut";
 import HoldingsTable from "./HoldingsTable";
 import AssetTable from "./AssetTable";
 import SnapshotHistory from "./SnapshotHistory";
@@ -276,6 +277,26 @@ export default function PortfolioPage() {
   const canRegister = useMemo(() => !!result && result.ok, [result]);
   const theme = useResolvedTheme();
 
+  // 최신 등록 스냅샷 (파싱 preview 가 없을 때 자산군 도넛의 기준).
+  const latestSnapshot = useMemo(
+    () =>
+      snapshots.length > 0
+        ? snapshots.reduce((latest, item) =>
+            item.snapshotDate >= latest.snapshotDate ? item : latest,
+          )
+        : null,
+    [snapshots],
+  );
+
+  // 상단 3-카드 도넛 기준: 파싱 preview 우선 → 없으면 최신 스냅샷 → 없으면 empty.
+  const donutHoldings = result ? holdings : latestSnapshot?.holdings ?? [];
+  const donutFinanceAssets = result
+    ? result.financeAssets ?? []
+    : latestSnapshot?.financeAssets ?? [];
+  const donutEmptyMessage = result
+    ? "평가금액이 있는 항목이 없어 자산군 비중을 표시할 수 없습니다."
+    : "엑셀을 업로드하면 자산군 비중이 표시됩니다.";
+
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#f8fafc] text-slate-800 dark:bg-[#111516] dark:text-slate-200">
       <TopNav theme={theme} />
@@ -294,7 +315,9 @@ export default function PortfolioPage() {
           {syncState.status === "failed" ? " 동기화 실패: 로컬 저장은 유지됩니다." : ""}
         </p>
 
-        <section className="mb-6 grid grid-cols-1 gap-5 xl:grid-cols-2">
+        {/* 한 줄에 엑셀 업로드 / 자산군 도넛 / 파싱결과 요약 3개 카드.
+            wide(xl): 3열 · tablet(md): 2열(요약은 한 줄 차지) · mobile: 1열 */}
+        <section className="mb-6 grid grid-cols-1 items-stretch gap-5 md:grid-cols-2 xl:grid-cols-3">
           <ExcelUploadCard
             files={files}
             onAddFiles={(fs) => setFiles((prev) => [...prev, ...fs])}
@@ -303,7 +326,16 @@ export default function PortfolioPage() {
             onLoadMock={handleLoadMock}
             parsing={parsing}
           />
-          <PortfolioParsePreview result={result} />
+          <AssetAllocationDonut
+            holdings={donutHoldings}
+            financeAssets={donutFinanceAssets}
+            theme="dark"
+            title="자산군 비중"
+            emptyMessage={donutEmptyMessage}
+          />
+          <div className="h-full md:col-span-2 xl:col-span-1">
+            <PortfolioParsePreview result={result} />
+          </div>
         </section>
 
         <section className="mb-6">
@@ -319,6 +351,17 @@ export default function PortfolioPage() {
               >
                 최신 스냅샷 보기
               </button>
+            </div>
+          )}
+          {previewSnapshot && (
+            <div className="mb-4">
+              <AssetAllocationDonut
+                holdings={displayedHoldings}
+                financeAssets={previewSnapshot.financeAssets ?? []}
+                theme="dark"
+                title={`자산군 비중 · ${previewSnapshot.snapshotDate} 기준`}
+                emptyMessage="이 스냅샷에는 표시할 자산군 비중이 없습니다."
+              />
             </div>
           )}
           <PortfolioQuoteStatusPanel holdings={displayedHoldings} />

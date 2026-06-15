@@ -8,7 +8,7 @@ interface Props {
   result: ParseResult | null;
 }
 
-const card = "rounded-2xl border border-[#2a3336] bg-[#191f20] p-5";
+const card = "h-full rounded-2xl border border-[#2a3336] bg-[#191f20] p-5";
 
 function Metric({ label, value, tone }: { label: string; value: string; tone?: string }) {
   return (

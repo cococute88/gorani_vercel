@@ -5,6 +5,7 @@ import TopNav from "@/components/TopNav";
 import MiniTickerCard from "@/components/MiniTickerCard";
 import PortfolioSummary from "@/components/PortfolioSummary";
 import DonutChartCard from "@/components/DonutChartCard";
+import AssetAllocationDonut from "@/components/portfolio/AssetAllocationDonut";
 import AssetAccountCards from "@/components/AssetAccountCards";
 import SampleBadge from "@/components/common/SampleBadge";
 import PortfolioQuoteStatusPanel from "@/components/portfolio/PortfolioQuoteStatusPanel";
@@ -111,12 +112,12 @@ export default function PortfolioPage() {
             theme={theme}
             emptyMessage="계좌별 평가금액 정보가 없어 계좌 비중을 표시할 수 없습니다."
           />
-          <DonutChartCard
-            title="종목별 비중 상위 15개"
-            data={portfolioView.stockAllocation}
+          <AssetAllocationDonut
+            title="자산군 비중"
+            holdings={portfolioView.mappedHoldings}
+            financeAssets={portfolioView.snapshot?.financeAssets ?? []}
             theme={theme}
-            maxLegend={15}
-            emptyMessage="평가금액이 있는 보유종목이 없어 종목 비중을 표시할 수 없습니다."
+            emptyMessage="평가금액이 있는 보유종목이 없어 자산군 비중을 표시할 수 없습니다."
           />
           <DonutChartCard
             title="자산 구성"
