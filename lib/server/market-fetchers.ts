@@ -6,7 +6,7 @@ import type { BriefingItem, EtfTemperature, FearGreedData, MarketRange, SeriesPo
 
 export type MarketWarning = { code: string; message: string };
 export type MarketPayload = {
-  source: "live" | "unavailable";
+  source: "live" | "partial" | "unavailable";
   updatedAt: string | null;
   fearGreed: (FearGreedData & { source: string; updatedAt: string | null; error?: string }) | null;
   briefing: BriefingItem[];
@@ -30,11 +30,29 @@ const BRIEFING_SYMBOLS = [
 
 const RANGE_TO_YAHOO: Record<MarketRange, string> = { "6개월": "6m", "1년": "1y", "3년": "3y", "5년": "5y", "전체": "5y" };
 const CNN_URL = "https://production.dataviz.cnn.io/index/fearandgreed/graphdata";
+const CNN_TIMEOUT_MS = 8_000;
 
 function nowIso() { return new Date().toISOString(); }
 function finite(value: unknown): value is number { return typeof value === "number" && Number.isFinite(value); }
 function round(value: number, digits = 2) { return Number(value.toFixed(digits)); }
 function formatValue(value: number, digits = 2, prefix = "") { return `${prefix}${value.toLocaleString("en-US", { maximumFractionDigits: digits, minimumFractionDigits: digits })}`; }
+function toSafeIsoTimestamp(value: unknown): string | null {
+  if (value == null) return null;
+  const date = new Date(typeof value === "number" ? (value > 10_000_000_000 ? value : value * 1000) : String(value));
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
+async function fetchJsonWithTimeout(url: string, init: RequestInit & { next?: { revalidate: number } } = {}, timeoutMs = CNN_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, { ...init, signal: controller.signal });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json();
+  } finally {
+    clearTimeout(timeout);
+  }
+}
 
 function yahooPrices(payload: Awaited<ReturnType<typeof fetchYahooChart>>): QuoteHistoryPrice[] {
   const result = payload.chart?.result?.[0];
@@ -101,12 +119,11 @@ function mergeSeries(seriesByTicker: Record<string, Array<{ date: string; value:
 }
 
 async function fetchFearGreed(): Promise<MarketPayload["fearGreed"]> {
-  const response = await fetch(CNN_URL, { headers: { accept: "application/json", "user-agent": "Mozilla/5.0 market-data" }, next: { revalidate: 60 * 30 } });
-  if (!response.ok) throw new Error(`CNN Fear & Greed HTTP ${response.status}`);
-  const json = await response.json() as any;
+  const json = await fetchJsonWithTimeout(CNN_URL, { headers: { accept: "application/json", "user-agent": "Mozilla/5.0 market-data" }, next: { revalidate: 60 * 30 } }) as any;
   const current = json.fear_and_greed ?? json.fearGreed ?? json;
   const rawScore = current.score ?? current.value ?? current.rating;
   const score = typeof rawScore === "string" ? Number(rawScore) : rawScore;
+  const rawUpdatedAt = current.timestamp ?? current.previous_close ?? current.updated_at ?? current.updatedAt ?? null;
   const historySource = json.fear_and_greed_historical?.data ?? json.fearGreedHistorical?.data ?? json.history ?? [];
   const history = (Array.isArray(historySource) ? historySource : []).flatMap((p: any) => {
     const value = Number(p.y ?? p.value ?? p.score);
@@ -115,7 +132,8 @@ async function fetchFearGreed(): Promise<MarketPayload["fearGreed"]> {
     return [{ date: typeof x === "number" ? toIsoDate(x) : toIsoDate(String(x).slice(0, 10)), value: round(value, 2) }];
   }).slice(-370);
   if (!finite(score)) throw new Error("CNN Fear & Greed score missing");
-  return { score: round(score, 0), history, source: "CNN Fear & Greed", updatedAt: nowIso() };
+  const updatedAt = toSafeIsoTimestamp(rawUpdatedAt) ?? nowIso();
+  return { score: round(score, 0), history, source: "CNN Fear & Greed", updatedAt };
 }
 
 export async function buildMarketPayload(range: MarketRange = "1년"): Promise<MarketPayload> {
@@ -130,10 +148,10 @@ export async function buildMarketPayload(range: MarketRange = "1년"): Promise<M
       const latest = prices.at(-1); const prev = prices.at(-2);
       if (!latest || !prev) throw new Error("not enough prices");
       const changePct = round((latest.close / prev.close - 1) * 100, 2);
-      return { key: item.key, label: item.label, value: formatValue(latest.close, item.digits, "prefix" in item ? item.prefix : ""), changePct, up: changePct >= 0, source: "yahoo", error: undefined };
+      return { key: item.key, label: item.label, value: formatValue(latest.close, item.digits, "prefix" in item ? item.prefix : ""), changePct, up: changePct >= 0, source: "yahoo", updatedAt: latest.date, error: undefined };
     } catch (e) {
       warnings.push({ code: `${item.key}_unavailable`, message: e instanceof Error ? e.message : String(e) });
-      return { key: item.key, label: item.label, value: "조회 불가", changePct: 0, up: false, source: "unavailable", error: "조회 불가" };
+      return { key: item.key, label: item.label, value: "조회 불가", changePct: null, up: false, source: "unavailable", updatedAt: null, error: "조회 불가" };
     }
   })));
 
@@ -159,5 +177,6 @@ export async function buildMarketPayload(range: MarketRange = "1년"): Promise<M
   catch (e) { warnings.push({ code: "vix_unavailable", message: e instanceof Error ? e.message : String(e) }); }
 
   const hasLive = Boolean(fearGreed || briefing.some((b) => b.source !== "unavailable") || temperatures.length || vix.length);
-  return { source: hasLive ? "live" : "unavailable", updatedAt: hasLive ? nowIso() : null, fearGreed, briefing, temperatures, rsi: mergeSeries(rsiByTicker), drawdown: mergeSeries(ddByTicker), vix, warnings };
+  const source = !hasLive ? "unavailable" : warnings.length > 0 ? "partial" : "live";
+  return { source, updatedAt: hasLive ? nowIso() : null, fearGreed, briefing, temperatures, rsi: mergeSeries(rsiByTicker), drawdown: mergeSeries(ddByTicker), vix, warnings };
 }

@@ -11,9 +11,10 @@ export interface BriefingItem {
   key: string;
   label: string;
   value: string;
-  changePct: number;
+  changePct: number | null;
   up: boolean;
   source?: "yahoo" | "unavailable" | string;
+  updatedAt?: string | null;
   error?: string;
 }
 
@@ -41,7 +42,7 @@ export interface SeriesPoint {
 
 export type MarketWarning = { code: string; message: string };
 export interface MarketPayload {
-  source: "live" | "unavailable";
+  source: "live" | "partial" | "unavailable";
   updatedAt: string | null;
   fearGreed: FearGreedData | null;
   briefing: BriefingItem[];

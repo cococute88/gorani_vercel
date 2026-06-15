@@ -37,7 +37,7 @@ export default function MarketTopBriefing({ fearGreed, briefing }: Props) {
               <div className="truncate text-[12px] text-slate-400">{it.label}</div>
               <div className="num mt-1.5 text-[18px] font-extrabold text-white">{it.value}</div>
               <div className={`num mt-1 text-[12.5px] font-semibold ${it.up ? "text-red-400" : "text-blue-400"}`}>
-                {it.source === "unavailable" ? "조회 불가" : `${it.up ? "▲" : "▼"} ${Math.abs(it.changePct).toFixed(2)}%`}
+                {it.source === "unavailable" || it.changePct == null ? "조회 불가" : `${it.up ? "▲" : "▼"} ${Math.abs(it.changePct).toFixed(2)}%`}
               </div>
             </div>
           ))}
