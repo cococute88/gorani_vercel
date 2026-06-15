@@ -477,3 +477,5 @@ Dependency warnings observed:
 - PORTFOLIO-OVERVIEW-CLEANUP-1: /portfolio 상단 sample market badge, verbose notices, 구성 요약, 비동작 계좌 추가 버튼 제거. See `docs/PORTFOLIO_OVERVIEW_CLEANUP1.md`.
 - PORTFOLIO-OVERVIEW-CLEANUP-1-FOLLOWUP: /portfolio 상단 compact 시장지표 strip을 `/api/market` live briefing 기반으로 복구(mock/static·샘플 표시 없이 live/partial/unavailable 상태만 표기). `components/portfolio/PortfolioMarketIndicatorStrip.tsx` 추가.
 - PORTFOLIO-OVERVIEW-CLEANUP-1-FOLLOWUP-2: 시장지표 카드 오른쪽에 live 미니 스파크라인 복구. `BriefingItem.sparkline`(실데이터 Yahoo 1개월 daily close)을 `lib/server/market-fetchers.ts`에서 함께 내려주고 strip이 SVG로 렌더(상승 빨강/하락 파랑, fake/random 미사용).
+
+- PORTFOLIO-MARKET-INDICATORS-LIVE-VERIFY-1: /portfolio 시장지표 sample/static source 점검 및 /api/market live data 재사용 정리. See `docs/PORTFOLIO_MARKET_INDICATORS_LIVE1.md`.
