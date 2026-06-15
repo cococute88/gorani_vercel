@@ -6,6 +6,7 @@ import DonutChartCard from "@/components/DonutChartCard";
 import AssetAllocationDonut from "@/components/portfolio/AssetAllocationDonut";
 import AssetAccountCards from "@/components/AssetAccountCards";
 import AssetClassDonut from "@/components/portfolio/AssetClassDonut";
+import PortfolioMarketIndicatorStrip from "@/components/portfolio/PortfolioMarketIndicatorStrip";
 import { usePortfolioView } from "@/lib/use-portfolio-view";
 import { buildAssetClassAllocation } from "@/lib/asset-class-allocation";
 import { useResolvedTheme } from "@/components/theme/ThemeProvider";
@@ -43,6 +44,9 @@ export default function PortfolioPage() {
               : "저장된 스냅샷 없음"}
           </span>
         </div>
+
+        {/* 상단 compact 시장지표 strip: /api/market live briefing 재사용 (mock 미사용) */}
+        <PortfolioMarketIndicatorStrip theme={theme} />
 
         {!portfolioView.flags.hasSnapshot ? (
           <div className="mb-4 rounded-xl border border-amber-300/60 bg-amber-50 px-4 py-2.5 text-[12.5px] leading-relaxed text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-100">

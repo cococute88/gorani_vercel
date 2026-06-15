@@ -475,3 +475,4 @@ Dependency warnings observed:
 - 2026-06-15 Step PORTFOLIO-TOTALS-RECONCILE-1-FINALIZE: Finalized `/portfolio` total financial asset headline semantics, clarified investment/cash-other supporting labels, added totals source metadata checks, and aligned `/performance` KPI wording with investment evaluation semantics. See `docs/PORTFOLIO_TOTALS_RECONCILE1.md`.
 - MARKET-FEAR-GREED-CHART-LABELS-1: 공포탐욕 차트 x축 월 표기와 tooltip 날짜 표기 수정
 - PORTFOLIO-OVERVIEW-CLEANUP-1: /portfolio 상단 sample market badge, verbose notices, 구성 요약, 비동작 계좌 추가 버튼 제거. See `docs/PORTFOLIO_OVERVIEW_CLEANUP1.md`.
+- PORTFOLIO-OVERVIEW-CLEANUP-1-FOLLOWUP: /portfolio 상단 compact 시장지표 strip을 `/api/market` live briefing 기반으로 복구(mock/static·샘플 표시 없이 live/partial/unavailable 상태만 표기). `components/portfolio/PortfolioMarketIndicatorStrip.tsx` 추가.

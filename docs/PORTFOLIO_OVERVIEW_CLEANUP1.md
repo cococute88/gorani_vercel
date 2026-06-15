@@ -16,7 +16,7 @@
 
 | 항목 | 위치 | 처리 |
 | --- | --- | --- |
-| 시장 지표 sample strip (`PIN_TICKERS`/`MiniTickerCard`/`SampleBadge`) | `app/portfolio/page.tsx` 제목줄 | 제거 |
+| 시장 지표 sample strip (`PIN_TICKERS`/`MiniTickerCard`/`SampleBadge`) | `app/portfolio/page.tsx` 제목줄 | 제거 → FOLLOWUP에서 live strip으로 복구 (아래 참조) |
 | `실시간 시세 (참고용)` strip (`PortfolioQuoteStatusPanel`) | `app/portfolio/page.tsx` | `/portfolio`에서 제거 |
 | 우측 `계좌 n개 · 종목 n개` 카운트 | `app/portfolio/page.tsx` 제목줄 | 제거 |
 | 비동작 `+ 계좌 추가` 버튼 (`Plus` 아이콘 포함) | `app/portfolio/page.tsx` 제목줄 | 제거 |
@@ -36,7 +36,7 @@ summary 좌측 카드는 기존 4열 그리드에서 `구성 요약`을 빼고 3
 ## 시장 지표 sample 처리 정책
 
 기존 `/portfolio` 시장 지표는 `lib/mockData.ts`의 `PIN_TICKERS` static mock 값이었고 `샘플` 배지를 달고 있었다.
-`/market`에 이미 `/api/market` live briefing 기반의 상세 시장현황 페이지가 있으므로, mock 값을 live처럼 보여주는 위험을 피하고 화면을 단순화하기 위해 **`/portfolio` 상단의 시장 지표 strip 자체를 제거**했다. 시장현황이 필요한 사용자는 `/market`을 사용한다.
+1차 작업에서는 mock 값을 live처럼 보여주는 위험을 피하기 위해 strip 자체를 제거했으나, FOLLOWUP에서 **mock을 쓰지 않는 `/api/market` live briefing 기반 compact strip**으로 복구했다(아래 FOLLOWUP 절 참조). 상세 시장현황은 여전히 `/market`이 담당한다.
 
 ## 안내/경고 처리 정책
 
@@ -75,8 +75,26 @@ npm run check:dividend-estimates
 npm run check:calendar-provider
 ```
 
+## FOLLOWUP: compact 시장지표 strip 복구 (PORTFOLIO-OVERVIEW-CLEANUP-1-FOLLOWUP)
+
+최초 작업에서 시장지표 strip을 통째로 제거한 것은 과했다는 피드백에 따라, **mock/static을 쓰지 않는 live 기반 compact strip**으로 복구했다.
+
+- 신규 컴포넌트 `components/portfolio/PortfolioMarketIndicatorStrip.tsx`
+  - 위치: `포트폴리오 현황` 제목 아래, summary 카드 위
+  - client `useEffect`에서 `fetchMarketPayload("6개월")`로 `/api/market` live briefing 재사용 (build time fetch 없음)
+  - 노출 항목: `S&P 500 · Nasdaq · USD/KRW · VIX · WTI` (briefing key `sp500/nasdaq/usdkrw/vix/wti`)만 compact 카드로 표시
+  - 모바일에서는 가로 스크롤(`overflow-x-auto`), `sm` 이상에서는 wrap. 320/390px overflow 없음
+  - 상태 문구: `source === "live"` → `시장 데이터 Live`(emerald), `"partial"` → `시장 데이터 일부 조회 불가`(amber), `"unavailable"` → 카드 대신 `시장 데이터 조회 불가`(muted)
+  - 개별 항목 `changePct === null`(item source `unavailable`)이면 fake 값 대신 `조회 불가` 표시
+  - 상승 빨강/하락 파랑(국내 관습) 유지, 장황한 설명/경고 박스 없음
+- 금지 사항 준수: `PIN_TICKERS`/`lib/mockData` 시장값/`샘플` 배지/`MiniTickerCard`(mock props 구조) 미사용. `/market`의 CNN/Yahoo fetcher·RSI/MDD/VIX 로직 미변경.
+- `/portfolio` 전체가 `/api/market` 실패로 깨지지 않도록 `fetchMarketPayload`는 실패 시 `unavailable` 페이로드를 반환하고 strip은 작은 문구만 노출한다.
+
+`check:portfolio-overview-cleanup`을 확장해 strip 복구/live 재사용/금지값 미사용/상태 문구 존재를 함께 검증한다.
+
 ## 남은 한계
 
-- `/portfolio`에서는 시장 지표를 더 이상 보여주지 않는다. 향후 live 시장 요약이 `/portfolio`에 필요하면 `/api/market` briefing을 재사용하는 소형 strip을 별도 작업으로 추가할 수 있다.
+- compact strip은 `briefing` 값(전일 대비 등락)만 사용하며 스파크라인/세부 차트는 표시하지 않는다. 상세 시장현황은 `/market`에서 확인한다.
+- strip은 페이지 로드마다 `/api/market`(no-store)를 client에서 1회 조회한다. 별도 캐싱/공유 store는 두지 않았다.
 - `+ 계좌 추가` 버튼은 동작 자체가 없었으므로 숨겼을 뿐, 계좌 추가 기능을 새로 구현하지 않았다.
 - `PortfolioQuoteStatusPanel`(실시간 시세 strip)은 `/portfolio`에서만 제거했고 `/portfolio-manager`에는 그대로 남아 있다.
