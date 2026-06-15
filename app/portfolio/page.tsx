@@ -8,16 +8,25 @@ import DonutChartCard from "@/components/DonutChartCard";
 import AssetAccountCards from "@/components/AssetAccountCards";
 import SampleBadge from "@/components/common/SampleBadge";
 import PortfolioQuoteStatusPanel from "@/components/portfolio/PortfolioQuoteStatusPanel";
-import PortfolioTreemap from "@/components/PortfolioTreemap";
+import AssetClassDonut from "@/components/portfolio/AssetClassDonut";
 import { PIN_TICKERS } from "@/lib/mockData";
 import { usePortfolioView } from "@/lib/use-portfolio-view";
+import { buildAssetClassAllocation } from "@/lib/asset-class-allocation";
 import { useResolvedTheme } from "@/components/theme/ThemeProvider";
+import { useMemo } from "react";
 
-// 스크린샷 4: 다크모드 포트폴리오 현황 + 트리맵
+// 스크린샷 4: 다크모드 포트폴리오 현황 + 자산군 도넛
 export default function PortfolioPage() {
   const portfolioView = usePortfolioView();
   const theme = useResolvedTheme();
   const d = portfolioView.summary;
+
+  // 하단 "보유 자산군 분석": 보유종목/현금성 잔액을 TQQQ·QLD·QQQ·SPY·SCHD·MSFT·달러·현금·예적금·기타
+  // 자산군 단위로 합산해 Streamlit 방식 도넛으로 표시한다 (원본 상품명 단위로 쪼개지 않는다).
+  const assetClassSlices = useMemo(
+    () => buildAssetClassAllocation(portfolioView.mappedHoldings, portfolioView.snapshot?.financeAssets ?? []),
+    [portfolioView.mappedHoldings, portfolioView.snapshot],
+  );
 
   // 사용자에게 조치가 필요한 경고(warning)와 단순 안내(info)를 분리해
   // 경고 박스가 안내성 메시지로 과하게 부풀지 않도록 한다.
@@ -135,20 +144,21 @@ export default function PortfolioPage() {
             <AssetAccountCards theme={theme} compact />
           </section>
 
-          {/* 하단 분석 블록 — 1300px+ 좌측 컬럼 */}
+          {/* 하단 분석 블록 — 1300px+ 좌측 컬럼.
+              기존 트리맵을 제거하고 Streamlit 방식 자산군 도넛으로 교체한다. */}
           <section className="min-w-0 overflow-x-hidden min-[1300px]:col-start-1 min-[1300px]:row-start-1">
             <div className="mb-3 flex items-center gap-2">
               <h2 className="text-[15px] font-bold text-slate-700 dark:text-slate-300">
-                보유종목 분석
+                보유 자산군 분석
               </h2>
-              {!portfolioView.flags.hasTreemap ? (
+              {assetClassSlices.length === 0 ? (
                 <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-500 dark:border-[#2a3336] dark:bg-white/[0.03] dark:text-slate-400">
                   표시할 데이터 없음
                 </span>
               ) : null}
             </div>
             <div className="mx-auto min-w-0 w-full max-w-[560px] xl:mx-0">
-              <PortfolioTreemap items={portfolioView.treemapItems} theme={theme} />
+              <AssetClassDonut slices={assetClassSlices} theme={theme} />
             </div>
           </section>
         </div>
