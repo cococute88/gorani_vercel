@@ -3,12 +3,16 @@
 //
 // 기존 lib/asset-allocation-donut.ts 는 TQQQ·QLD 를 하나의 "나스닥 레버리지"
 // 슈퍼그룹으로 합치지만, /performance 도넛은 사용자가 원하는 더 세분화된
-// canonical 종목군 단위(TQQQ / QLD / QQQ / SPY / SCHD / MSFT / 달러 / 현금 /
-// 예적금 / 기타)로 합산해 보여줘야 한다.
+// canonical 종목군 단위(TQQQ / QLD / QQQ / SPY / SCHD / MSFT / 달러 / 원화 /
+// 기타)로 합산해 보여줘야 한다.
 //
 // "보유 상품명" (키움TQQQ1, 삼성위탁TQQQ 등) 이 아니라 정규화된 종목군 key 로
 // 묶는 것이 목적이다. ticker / cleanName / productName / tag 를 종합 판정한다.
 // 한국상장 ETF(예: ACE 미국나스닥100, TIGER 미국S&P500) 도 본질 종목군으로 편입.
+//
+// ASSET-CLASS-DONUT-POLISH-2: /portfolio 와 동일하게 현금성 라벨을 "달러" / "원화"
+// 두 가지로 통합한다. 예적금·원화 현금성 자산은 모두 "원화"로 합산하고, USD/외화만
+// "달러"로 유지한다. "현금" / "예적금" 라벨은 더 이상 별도로 노출하지 않는다.
 // =============================================================
 
 export type PerformanceGroupKey =
@@ -19,8 +23,7 @@ export type PerformanceGroupKey =
   | "SCHD"
   | "MSFT"
   | "달러"
-  | "현금"
-  | "예적금"
+  | "원화"
   | "기타";
 
 // canonical 노출 우선순위 (동일 값일 때 안정 정렬, 색상 매핑 기준).
@@ -32,24 +35,23 @@ export const PERFORMANCE_GROUP_ORDER: PerformanceGroupKey[] = [
   "SCHD",
   "MSFT",
   "달러",
-  "현금",
-  "예적금",
+  "원화",
   "기타",
 ];
 
-// 색상 규칙 (작업 요구사항). 다크/라이트 모두 가독성 좋은 채도로 선택.
-//   TQQQ 진빨강 / QLD 빨강 / QQQ 핑크 / SPY 주황 / MSFT 진노랑 / SCHD 노랑 /
-//   기타 하늘색 / 달러 진초록 / 현금 연두 / 예적금 녹색
+// 색상 규칙 (ASSET-CLASS-DONUT-POLISH-2). 다크/라이트 모두 가독성 좋은 채도로 선택.
+//   TQQQ 진빨강 / QLD 빨강 / QQQ 핑크·빨강 / SPY 주황 / MSFT 진노랑 / SCHD 노랑 /
+//   달러 진한 연두(진초록) / 원화 연두 / 기타 하늘색.
+//   하늘색은 오직 "기타"에만 쓴다(예적금/원화가 하늘색으로 잡히면 안 됨).
 export const PERFORMANCE_GROUP_COLOR: Record<PerformanceGroupKey, string> = {
   TQQQ: "#B71C1C", // 진빨강
   QLD: "#E53935", // 빨강
-  QQQ: "#EC407A", // 핑크
+  QQQ: "#EC407A", // 핑크·빨강
   SPY: "#FB8C00", // 주황
   MSFT: "#F9A825", // 진노랑(골드)
   SCHD: "#FDD835", // 노랑
-  달러: "#2E7D32", // 진초록
-  현금: "#7CB342", // 연두
-  예적금: "#43A047", // 녹색
+  달러: "#2E7D32", // 진초록(진한 연두)
+  원화: "#7CB342", // 연두
   기타: "#38BDF8", // 하늘색
 };
 
@@ -80,16 +82,19 @@ export function classifyPerformanceGroup(
   const hasSub = (kw: string) => text.includes(kw) || tickerBase.includes(kw);
   const match = (tk: string[], sub: string[]) => tk.some(hasToken) || sub.some(hasSub);
 
-  // 현금성 계열을 종목 ticker 보다 먼저 본다(달러 → 예적금 → 현금 순).
-  if (match(["usd", "dollar"], ["달러", "us$"])) return "달러";
-  if (match([], ["예적금", "예금", "적금", "저축", "적립"])) return "예적금";
+  // 현금성 계열을 종목 ticker 보다 먼저 본다.
+  // USD/달러/외화/$ 신호는 "달러", KRW/원화/예적금/현금성 원화는 모두 "원화"로 합산한다.
+  if (match(["usd", "dollar"], ["달러", "us$", "$"])) return "달러";
   if (
     match(
       ["rp", "cma", "mmf", "mmw", "sgov", "cash", "cash_like", "krw"],
-      ["현금", "예수금", "예치금", "파킹", "입출금", "채권"],
+      [
+        "예적금", "예금", "적금", "저축", "적립",
+        "현금", "예수금", "예치금", "파킹", "입출금", "채권", "원화",
+      ],
     )
   ) {
-    return "현금";
+    return "원화";
   }
 
   // 레버리지(TQQQ/QLD) 를 일반 나스닥(QQQ) 보다 먼저 본다.

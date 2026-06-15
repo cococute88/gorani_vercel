@@ -2,10 +2,15 @@ import type { FinanceAsset, Holding } from "./portfolio-types";
 
 // =============================================================
 // PORTFOLIO-TREEMAP-TO-STREAMLIT-DONUT-1
-// 보유종목/현금성 잔액을 "자산군"(TQQQ·QLD·QQQ·SPY·SCHD·MSFT·달러·현금·예적금·기타)
+// 보유종목/현금성 잔액을 "자산군"(TQQQ·QLD·QQQ·SPY·SCHD·MSFT·달러·원화·기타)
 // 단위로 합산한다. 원본 Streamlit 자산 트래커(original/pages_app/2_asset_tracker.py)의
 // get_asset_type 분류를 Next.js로 옮기되, 레버리지를 TQQQ/QLD로, 나스닥을 QQQ로
 // 더 세분화해 "키움TQQQ1" 같은 원본 상품명 단위가 아니라 자산군 단위로 표시한다.
+//
+// ASSET-CLASS-DONUT-POLISH-2: 현금성 라벨을 "달러" / "원화" 두 가지로 통합한다.
+//   - 예적금·원화 현금·예수금 등 KRW 현금성 자산은 모두 "원화"로 합산한다.
+//   - USD/외화 현금성 자산만 "달러"로 유지하고, 구분 불가한 현금성은 보수적으로 "원화".
+//   - "현금" / "예적금" 은 더 이상 별도 자산군 라벨로 노출하지 않는다.
 // =============================================================
 
 export type AssetClassName =
@@ -16,8 +21,7 @@ export type AssetClassName =
   | "SCHD"
   | "MSFT"
   | "달러"
-  | "현금"
-  | "예적금"
+  | "원화"
   | "기타";
 
 export interface AssetClassSlice {
@@ -31,19 +35,21 @@ export interface AssetClassSlice {
   color: string;
 }
 
-// 자산군별 색상. 원본 Streamlit 팔레트(레버리지=짙은 빨강, 나스닥=빨강, SPY=주황,
-// 배당=노랑, 달러=짙은 녹색, 현금=형광 녹색)를 따르되 세분화한 항목은 인접 색을 쓴다.
+// 자산군별 색상 (ASSET-CLASS-DONUT-POLISH-2 색상 정책).
+//   TQQQ 진빨강 / QLD 빨강 / QQQ 핑크·빨강 / SPY 주황 / SCHD 노랑 / MSFT 진노랑 /
+//   달러 진한 연두(진초록) / 원화 연두 / 기타 하늘색.
+// 하늘색은 오직 "기타"에만 쓴다(예적금/원화가 하늘색으로 잡히면 안 됨).
+// 라이트/다크 모두 글씨 가독성이 유지되는 채도로 선택한다.
 const ASSET_CLASS_COLOR: Record<AssetClassName, string> = {
-  TQQQ: "#890600",
-  QLD: "#ef4444",
-  QQQ: "#fc3a2f",
-  SPY: "#ff6600",
-  SCHD: "#facc15",
-  MSFT: "#818cf8",
-  달러: "#2e7d32",
-  현금: "#76ff03",
-  예적금: "#06b6d4",
-  기타: "#9c27b0",
+  TQQQ: "#B71C1C",
+  QLD: "#E53935",
+  QQQ: "#EC407A",
+  SPY: "#FB8C00",
+  SCHD: "#FDD835",
+  MSFT: "#F9A825",
+  달러: "#2E7D32",
+  원화: "#7CB342",
+  기타: "#38BDF8",
 };
 
 function finiteNumber(value: unknown): number | null {
@@ -69,10 +75,19 @@ export function classifyAssetClass(text: string): AssetClassName {
   if (includesAny(t, ["spy", "voo", "ivv", "splg", "s&p", "sp500", "snp"])) return "SPY";
   if (t.includes("schd")) return "SCHD";
   if (t.includes("msft") || t.includes("마이크로소프트")) return "MSFT";
-  if (includesAny(t, ["달러", "dollar", "usd", "외화", "미국달러", "us$"])) return "달러";
-  if (includesAny(t, ["예적금", "적금", "예금", "저축", "채권", "청약"])) return "예적금";
-  if (includesAny(t, ["현금", "예수금", "예치금", "cma", "mmf", "mmw", "파킹", "입출금", "대기자금", "통장", "rp"]))
-    return "현금";
+  // USD/달러/외화/$ 신호가 있는 현금성 자산은 "달러".
+  if (includesAny(t, ["달러", "dollar", "usd", "외화", "미국달러", "us$", "$"])) return "달러";
+  // KRW/원화/예적금/현금성 원화 자산은 모두 "원화"로 합산한다.
+  // (예적금·적금·예금·저축·채권·청약 + 현금·예수금·CMA·MMF·파킹 등 + 명시적 원화/KRW 신호.)
+  if (
+    includesAny(t, [
+      "예적금", "적금", "예금", "저축", "채권", "청약",
+      "현금", "예수금", "예치금", "cma", "mmf", "mmw", "파킹", "입출금", "대기자금", "통장", "rp",
+      "원화", "krw",
+    ])
+  ) {
+    return "원화";
+  }
   return "기타";
 }
 

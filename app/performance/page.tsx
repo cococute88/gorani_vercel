@@ -149,7 +149,7 @@ export default function PerformancePage() {
         <section className="mt-8 border-t border-slate-200 pt-6 dark:border-[#242938]">
           <div className="mb-4">
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-[18px] font-extrabold text-slate-900 dark:text-white">평가금액 · 환율 추이 분석</h2>
+              <h2 className="text-[18px] font-extrabold text-slate-900 dark:text-white">투자 평가금액 · 환율 추이 분석</h2>
               <span className="rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-600 dark:border-[#2a3336] dark:bg-[#1e2324] dark:text-slate-300">
                 스냅샷 실데이터
               </span>

@@ -354,7 +354,10 @@ export default function PortfolioPage() {
             </div>
           )}
           {previewSnapshot && (
-            <div className="mb-4">
+            // ASSET-CLASS-DONUT-POLISH-2: 와이드 화면에서 도넛과 범례가 과하게 벌어지지 않도록
+            // 상단 3-카드 중 "자산군 비중" 카드와 비슷한 밀도(폭)로 max-width 를 제한한다.
+            // 모바일(<sm)에서는 max-width 가 화면보다 커서 기존처럼 자연스럽게 세로로 채워진다.
+            <div className="mb-4 w-full min-w-0 max-w-[520px]">
               <AssetAllocationDonut
                 holdings={displayedHoldings}
                 financeAssets={previewSnapshot.financeAssets ?? []}
