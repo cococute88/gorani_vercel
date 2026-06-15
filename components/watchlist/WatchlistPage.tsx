@@ -192,6 +192,7 @@ export default function WatchlistPage() {
           headerAccessory={<StorageModeBadge />}
           onManagePortfolio={() => setManageOpen(true)}
           tickerMemos={memos}
+          onSaveTickerMemo={handleSaveMemo}
         />
       </main>
 
