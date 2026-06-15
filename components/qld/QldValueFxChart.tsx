@@ -78,7 +78,7 @@ export default function QldValueFxChart({
   return (
     <div className={`flex h-full flex-col rounded-[18px] border border-[#242938] bg-[#12151e] ${compact ? "p-3" : "p-5"}`}>
       <div className={`${compact ? "mb-2" : "mb-3"} flex flex-wrap items-center justify-between gap-2`}>
-        <span className="text-[15px] font-bold text-slate-100">총 평가금액 및 환율 추이</span>
+        <span className="text-[15px] font-bold text-slate-100">투자 평가금액 및 환율 추이</span>
         <span className="rounded-md border border-amber-500/25 bg-amber-500/10 px-2 py-1 text-[11px] font-semibold text-amber-300">
           환율 추이 미제공
         </span>

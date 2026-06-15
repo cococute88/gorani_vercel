@@ -10,7 +10,9 @@ const pctOrDash = (v: number | null) => (v === null ? "—" : `${v > 0 ? "+" : "
 const toneCls = (v: number | null) =>
   v === null || v === 0 ? "text-slate-400" : v > 0 ? "text-emerald-400" : "text-rose-400";
 
-// 투자 성과 왼쪽 카드: 총 평가금액 + 자산 구성 도넛(정규화 종목군 합산, PERFORMANCE-DONUT-RANKING-1)
+// 투자 성과 왼쪽 카드: 투자 평가금액 + 자산 구성 도넛(정규화 종목군 합산, PERFORMANCE-DONUT-RANKING-1)
+// ASSET-CLASS-DONUT-POLISH-2: 이 큰 KPI 는 전체 금융자산 총액이 아니라 스냅샷 투자 평가금액이므로
+// /portfolio 의 "총 금융자산" 과 혼동되지 않도록 라벨을 "투자 평가금액" 으로 표기한다.
 export default function QldAssetSummaryCard({ data }: { data: PerformanceQldResult }) {
   const { summary, assetGroups, flags } = data;
   const change = summary.previousChangeKRW;
@@ -26,7 +28,7 @@ export default function QldAssetSummaryCard({ data }: { data: PerformanceQldResu
   return (
     <div className="flex h-full flex-col rounded-[18px] border border-[#242938] bg-[#12151e] p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="text-[13px] font-medium text-slate-400">총 평가금액</div>
+        <div className="text-[13px] font-medium text-slate-400">투자 평가금액</div>
         <span className="rounded-md border border-[#2a3142] bg-[#0e111a] px-2 py-1 text-[11px] font-semibold text-slate-400">
           스냅샷 기반
         </span>
