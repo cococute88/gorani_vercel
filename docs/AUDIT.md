@@ -471,3 +471,5 @@ Dependency warnings observed:
 
 - MARKET-DATA-1: /market mock/static market curves replaced with a server-backed CNN/Yahoo live data adapter and explicit unavailable states.
 - 2026-06-15 Step PORTFOLIO-ACCOUNT-RETURNS-RECONCILE-1: Reconciled `/portfolio` account-status cards so account principal/profit/return rate are calculated when account-level holdings principal can be matched, while preserving financeAssets-first valuation, 200k visibility filtering, 위탁/절세/미확인 classification, and safe missing-principal warnings. See `docs/PORTFOLIO_ACCOUNT_RETURNS_RECONCILE1.md`.
+
+- 2026-06-15 Step PORTFOLIO-TOTALS-RECONCILE-1-FINALIZE: Finalized `/portfolio` total financial asset headline semantics, clarified investment/cash-other supporting labels, added totals source metadata checks, and aligned `/performance` KPI wording with investment evaluation semantics. See `docs/PORTFOLIO_TOTALS_RECONCILE1.md`.

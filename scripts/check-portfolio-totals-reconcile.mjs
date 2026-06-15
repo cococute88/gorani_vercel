@@ -55,6 +55,7 @@ function snapshot(overrides = {}) {
   const result = reconcilePortfolioTotals(snapshot({ totalAssetKRW: 50, investmentValueKRW: 100 }));
   assert.equal(result.cashAndOtherKRW, 0);
   assert.ok(result.warnings.some((w) => w.code === "total_less_than_investment"));
+  assert.equal(result.sources.cashAndOther, "total-minus-investment");
 }
 {
   const result = reconcilePortfolioTotals(snapshot({ totalAssetKRW: Number.NaN, investmentValueKRW: Number.NaN, financeAssets: [{ id: "bad", groupName: "bad", productName: "bad", amountKRW: Number.NaN }], holdings: [] }));
@@ -62,11 +63,29 @@ function snapshot(overrides = {}) {
   assert.ok(result.warnings.some((w) => w.code === "invalid_numeric_field_ignored"));
 }
 
+{
+  const result = reconcilePortfolioTotals(snapshot({
+    totalAssetKRW: 657_130_417,
+    investmentValueKRW: 588_134_175,
+    investmentPrincipalKRW: 377_777_733,
+  }));
+  assert.deepEqual(result.sources, {
+    totalFinancialAsset: "snapshot.totalAssetKRW",
+    investmentValue: "snapshot.investmentValueKRW",
+    cashAndOther: "total-minus-investment",
+  });
+}
+
 const summary = readFileSync("components/PortfolioSummary.tsx", "utf8");
 assert.ok(summary.includes("총 금융자산"));
 assert.ok(summary.includes("투자 평가금액"));
 assert.ok(summary.includes("현금성/기타 자산"));
-assert.ok(summary.includes("총 금융자산 = 투자 평가금액 + 현금성/기타 자산"));
+assert.ok(summary.includes("총 금융자산은 투자 평가금액과 현금성/기타 자산을 포함합니다."));
 assert.ok(!summary.includes("총 평가금액"));
 assert.ok(!summary.includes("총평가금액"));
+const performancePage = readFileSync("app/performance/page.tsx", "utf8");
+const qldSummary = readFileSync("components/qld/QldAssetSummaryCard.tsx", "utf8");
+assert.ok(performancePage.includes('label: "투자 평가금액"'));
+assert.ok(qldSummary.includes("투자 평가금액"));
+assert.ok(!qldSummary.includes("investmentValueKRW 없음, totalAssetKRW 사용"));
 console.log("portfolio totals reconciliation checks passed");

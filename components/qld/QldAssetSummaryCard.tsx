@@ -38,7 +38,7 @@ export default function QldAssetSummaryCard({ data }: { data: PerformanceQldResu
       </div>
       <div className="mt-1 text-[11.5px] text-slate-500">
         {summary.latestSnapshotDate ? `${summary.latestSnapshotDate} 최신 스냅샷` : "저장된 스냅샷 없음"}
-        {summary.evaluationSource === "totalAssetKRW" && " · investmentValueKRW 없음, totalAssetKRW 사용"}
+        {summary.evaluationSource === "totalAssetKRW" && " · 투자 평가금액 대체 기준 사용"}
       </div>
 
       <div className="mt-3">

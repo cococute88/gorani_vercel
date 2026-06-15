@@ -25,6 +25,11 @@ export interface PortfolioTotalsReconciliation {
   cashAndOtherSource: CashAndOtherSource;
   returnAmountKRW: number | null;
   returnPct: number | null;
+  sources: {
+    totalFinancialAsset: TotalFinancialAssetSource;
+    investmentValue: InvestmentValueSource;
+    cashAndOther: CashAndOtherSource;
+  };
   warnings: PortfolioTotalsWarning[];
 }
 
@@ -107,6 +112,11 @@ export function reconcilePortfolioTotals(
       cashAndOtherSource: "unavailable",
       returnAmountKRW: null,
       returnPct: null,
+      sources: {
+        totalFinancialAsset: "unavailable",
+        investmentValue: "unavailable",
+        cashAndOther: "unavailable",
+      },
       warnings,
     };
   }
@@ -191,6 +201,11 @@ export function reconcilePortfolioTotals(
     cashAndOtherSource,
     returnAmountKRW,
     returnPct,
+    sources: {
+      totalFinancialAsset: totalFinancialAssetSource,
+      investmentValue: investmentValueSource,
+      cashAndOther: cashAndOtherSource,
+    },
     warnings,
   };
 }
