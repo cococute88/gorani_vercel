@@ -35,7 +35,8 @@
     "check:asset-portfolio-ux-polish": "node scripts/check-asset-portfolio-ux-polish.mjs",
     "check:asset-allocation-donut": "node scripts/check-asset-allocation-donut.mjs",
     "check:asset-map-etf-decomposition": "node scripts/check-asset-map-etf-decomposition.mjs",
-    "check:portfolio-totals-reconcile": "node scripts/check-portfolio-totals-reconcile.mjs"
+    "check:portfolio-totals-reconcile": "node scripts/check-portfolio-totals-reconcile.mjs",
+    "check:performance-donut-ranking": "node scripts/check-performance-donut-ranking.mjs"
   },
   "dependencies": {
     "next": "14.2.5",
