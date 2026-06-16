@@ -35,7 +35,7 @@
 ## 복구 정책
 
 - `최근 5년 데이터만 보기 = 예`: `/api/quote/history`, `/api/quote/dividends`에 `range=5y`를 사용한다.
-- `최근 5년 데이터만 보기 = 아니오`: `range=max`와 충분히 이른 start date를 사용해 가능한 전체 Yahoo history를 요청한다.
+- `최근 5년 데이터만 보기 = 아니오`: 클라이언트는 `range=max`를 보내고 `start`를 생략한다. 서버는 이를 Yahoo chart `range=max` 요청으로 변환하여 Streamlit 원본의 `history(period="max")`와 같은 full-history 경로를 사용한다.
 - 서버 quote fetcher는 `range=max`를 `period1` 없이 Yahoo `range=max`로 처리할 수 있다.
 - 가격 history는 배당 이벤트 기간 전체를 커버해야 하며, 배당 이벤트는 있지만 D-1/D-2 또는 sell-window 가격 row가 실제로 없을 때만 skip한다.
 - skip warning은 이벤트별 장문 반복 대신 집계형 warning으로 표시한다.
@@ -60,3 +60,12 @@
 ## 남은 한계
 
 Yahoo Finance가 특정 종목의 과거 배당/가격 데이터를 제한하거나 네트워크 오류가 발생하면 전체 기간이 줄어들 수 있다. 이 경우 sample을 생성하지 않고 warning/unavailable 상태로 원인을 표시한다.
+
+
+## 현재 Vercel 구현과 원본 대조 상세
+
+- 현재 Vercel의 12회 수준 분석 문제는 UI가 최근 5년/36개월성 기간을 요청하거나 계산 단계에서 최신 일부 row만 남기는 구조에서 발생했다. 복구 후 full-history 모드는 dividend event array 전체를 순회한다.
+- 배당락일이 가격 row와 정확히 일치하지 않으면 같은 날짜 이후의 첫 거래일로 보정한다. 단, D-1/D-2 매수 기준에 필요한 과거 거래일이나 매도허용기간에 필요한 미래 row가 실제로 없을 때만 skip한다.
+- ARCC 같은 장기 배당 종목은 Yahoo가 제공하는 가격/배당 데이터 한계 안에서 2004년대 이벤트부터 분석된다. Yahoo 장애나 종목별 source 제한이 있으면 fake row를 만들지 않고 warning으로 노출한다.
+- 메인 카드에서 기존 Vercel의 매수 가능 수량/세후 배당금/예상 가격 하락/손익분기 가격/평균 회복일 중심 구성을 제거하고, 원본 Streamlit KPI 6개를 우선 표시한다.
+- 다른 계산기(MDD, 매도전환), 포트폴리오/캘린더/배당/마켓/자산시뮬레이터/Auth/Firestore 파일은 변경 대상에서 제외했다.

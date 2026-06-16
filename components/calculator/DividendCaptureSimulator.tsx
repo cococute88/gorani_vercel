@@ -63,9 +63,11 @@ function DividendTooltip({ active, payload }: { active?: boolean; payload?: Arra
 }
 
 function toQuoteRequest(input: DividendCaptureInput) {
-  const { start, end } = resolveDividendCaptureDates(input);
+  const { end } = resolveDividendCaptureDates(input);
   if (input.recent5yOnly) return { ticker: input.ticker, range: "5y", end };
-  return { ticker: input.ticker, range: "max", start, end };
+  // Streamlit 원본의 yfinance history(period="max")와 맞추기 위해 full-history는
+  // start를 강제로 보내지 않고 서버가 Yahoo range=max를 그대로 사용하게 한다.
+  return { ticker: input.ticker, range: "max", end };
 }
 
 export default function DividendCaptureSimulator({ input, onChange }: { input: DividendCaptureInput; onChange: (input: DividendCaptureInput) => void }) {
