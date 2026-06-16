@@ -510,3 +510,5 @@ DIVIDEND-CAPTURE-STREAMLIT-RESTORE-1: 배당치기 시뮬레이터를 원본 Str
 DIVIDENDS-PERFORMANCE-BACKCAST-GROUP-FIX-2: /dividends 위탁/절세 계좌 성과 그래프가 최신 보유종목 기준으로 표시되도록 수정하고, 전체 합산 성과 y축 및 월별 손익 null month/총자산/연간손익 표시를 보정
 
 DIVIDENDS-PERFORMANCE-GROUP-BACKCAST-FOLLOWUP-3: /dividends 위탁/절세 성과가 여전히 데이터 부족으로 표시되던 문제를 실제 enriched holdings/price history 경로 기준으로 수정하고, 월별 손익 chart를 손익축/총자산축으로 분리
+
+DIVIDEND-CAPTURE-STREAMLIT-PARITY-FIX-2: 배당치기 시뮬레이터 ARCC 전체/최근5년 결과가 원본 Streamlit과 맞지 않던 성공판정·실패손실·손익비·그래프 색상 회귀를 수정하고 parity 검증 추가
