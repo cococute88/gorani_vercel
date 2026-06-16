@@ -39,13 +39,11 @@ const COLOR_PORTFOLIO = "#2DD4BF"; // 청록 실선
 const COLOR_DEPOSIT = "#CBD5E1"; // 연회색 점선
 const COLOR_SP500 = "#F97316"; // 주황 점선
 const COLOR_KOSPI = "#3B82F6"; // 파랑 점선
-const COLOR_QQQ = "#EC4899"; // 분홍 점선
 const COLOR_PROFIT = "#EF4444"; // 수익 bar (빨강)
 const COLOR_LOSS = "#3B82F6"; // 손실 bar (파랑)
 
 // 벤치마크 티커: 기존 quote/history API를 재사용한다 (신규 의존성 없음).
 const SP500_TICKER = "SPY";
-const QQQ_TICKER = "QQQ";
 const KOSPI_TICKER = "^KS11";
 const FX_TICKER = "KRW=X";
 
@@ -65,7 +63,7 @@ function tooltipFormatter(value: number, name: string): [string, string] {
 }
 
 type BenchmarkLine = {
-  key: "sp500" | "kospi" | "qqq";
+  key: "sp500" | "kospi";
   name: string;
   color: string;
   available: boolean;
@@ -133,7 +131,7 @@ function Kpi({
 
 function GroupBlock({ view }: { view: GroupView }) {
   const { group, base, benchmarks } = view;
-  const sourceBadge = base.available ? "스냅샷 기반" : "데이터 부족";
+  const sourceBadge = base.available ? "최신 보유 기준 역산" : "데이터 부족";
   const badgeClass = base.available
     ? "bg-blue-500/10 text-blue-400"
     : "bg-amber-500/10 text-amber-400";
@@ -165,7 +163,7 @@ function GroupBlock({ view }: { view: GroupView }) {
   const annualProfit = selectedYear == null ? null : base.yearlyProfitKRW[selectedYear] ?? null;
 
   const sp500 = benchmarks.find((benchmark) => benchmark.key === "sp500");
-  const extraBenchmark = benchmarks.find((benchmark) => benchmark.key === "kospi" || benchmark.key === "qqq");
+  const extraBenchmark = benchmarks.find((benchmark) => benchmark.key === "kospi");
 
   return (
     <div className={card}>
@@ -181,12 +179,12 @@ function GroupBlock({ view }: { view: GroupView }) {
           <div className="font-semibold text-slate-700 dark:text-slate-300">
             {base.unavailableReason ?? "성과분석 데이터 부족"}
           </div>
-          <div className="mt-1">스냅샷 기록이 부족합니다. 샘플/가짜 그래프는 표시하지 않습니다.</div>
+          <div className="mt-1">과거 가격 데이터를 불러오지 못했습니다. 샘플/가짜 그래프는 표시하지 않습니다.</div>
         </div>
       ) : (
         <>
           <p className="mb-4 text-[12px] text-slate-500">
-            누적 입금(투자원금) 대비 평가금액 추이. 벤치마크는 동일한 순투자금 흐름을 투자했다고 가정합니다.
+            최신 보유종목을 현재 수량으로 고정하고, 과거 가격을 대입해 역산한 참고 성과입니다.
           </p>
           <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
             <Kpi label="누적 입금" value={base.latest?.depositKRW} accent={COLOR_DEPOSIT} />
@@ -204,10 +202,10 @@ function GroupBlock({ view }: { view: GroupView }) {
               unavailable={!sp500?.available}
             />
             <Kpi
-              label={group === "위탁" ? "KOSPI 투자 시" : "QQQ 투자 시"}
+              label="KOSPI 투자 시"
               value={extraBenchmark?.latestValue}
               rate={extraBenchmark?.returnPct}
-              accent={group === "위탁" ? COLOR_KOSPI : COLOR_QQQ}
+              accent={COLOR_KOSPI}
               unavailable={!extraBenchmark?.available}
             />
           </div>
@@ -249,24 +247,12 @@ function GroupBlock({ view }: { view: GroupView }) {
                     connectNulls
                   />
                 )}
-                {group === "위탁" && extraBenchmark?.available && (
+                {extraBenchmark?.available && (
                   <Line
                     type="monotone"
                     dataKey="kospi"
                     name="KOSPI 투자 시"
                     stroke={COLOR_KOSPI}
-                    strokeWidth={1.6}
-                    strokeDasharray="5 4"
-                    dot={false}
-                    connectNulls
-                  />
-                )}
-                {group === "절세" && extraBenchmark?.available && (
-                  <Line
-                    type="monotone"
-                    dataKey="qqq"
-                    name="QQQ 투자 시"
-                    stroke={COLOR_QQQ}
                     strokeWidth={1.6}
                     strokeDasharray="5 4"
                     dot={false}
@@ -348,43 +334,39 @@ function GroupBlock({ view }: { view: GroupView }) {
 }
 
 export default function DividendAccountPerformanceSection({ snapshots }: Props) {
-  const bases = useMemo(
-    () => ACCOUNT_PERF_GROUPS.map((group) => buildAccountGroupPerformance(snapshots, group)),
-    [snapshots],
-  );
+  const latestSnapshot = useMemo(() => [...snapshots].filter((snapshot) => snapshot.snapshotDate).sort((a, b) => (a.snapshotDate < b.snapshotDate ? 1 : -1))[0], [snapshots]);
+  const accountTickers = useMemo(() => Array.from(new Set((latestSnapshot?.holdings ?? []).map((holding) => (holding.ticker ?? "").trim().toUpperCase()).filter(Boolean))).sort(), [latestSnapshot]);
 
-  const earliestDate = useMemo(() => {
-    const dates = bases.flatMap((base) => base.points.map((point) => point.date));
-    return dates.length > 0 ? dates.sort()[0] : null;
-  }, [bases]);
+
+  const earliestDate = latestSnapshot?.snapshotDate ?? null;
 
   const [histories, setHistories] = useState<{
     sp500: BenchmarkPricePoint[] | null;
-    qqq: BenchmarkPricePoint[] | null;
     kospi: BenchmarkPricePoint[] | null;
     fx: BenchmarkPricePoint[] | null;
+    holdingPrices: Record<string, BenchmarkPricePoint[]>;
     loaded: boolean;
-  }>({ sp500: null, qqq: null, kospi: null, fx: null, loaded: false });
+  }>({ sp500: null, kospi: null, fx: null, holdingPrices: {}, loaded: false });
 
   useEffect(() => {
     if (!earliestDate) {
-      setHistories({ sp500: null, qqq: null, kospi: null, fx: null, loaded: false });
+      setHistories({ sp500: null, kospi: null, fx: null, holdingPrices: {}, loaded: false });
       return;
     }
     let active = true;
     async function load(start: string) {
-      const [sp500, qqq, kospi, fx] = await Promise.all([
+      const [sp500, kospi, fx, holdingEntries] = await Promise.all([
         fetchHistory(SP500_TICKER, start),
-        fetchHistory(QQQ_TICKER, start),
         fetchHistory(KOSPI_TICKER, start),
         fetchHistory(FX_TICKER, start),
+        Promise.all(accountTickers.map(async (ticker) => [ticker, toPriceSeries(await fetchHistory(ticker, start)) ?? []] as const)),
       ]);
       if (!active) return;
       setHistories({
         sp500: toPriceSeries(sp500),
-        qqq: toPriceSeries(qqq),
         kospi: toPriceSeries(kospi),
         fx: toPriceSeries(fx),
+        holdingPrices: Object.fromEntries(holdingEntries),
         loaded: true,
       });
     }
@@ -392,7 +374,13 @@ export default function DividendAccountPerformanceSection({ snapshots }: Props) 
     return () => {
       active = false;
     };
-  }, [earliestDate]);
+  }, [earliestDate, accountTickers]);
+
+
+  const bases = useMemo(
+    () => ACCOUNT_PERF_GROUPS.map((group) => buildAccountGroupPerformance(snapshots, group, { priceHistories: histories.holdingPrices, fxHistory: histories.fx, latestDate: latestSnapshot?.snapshotDate, months: 24 })),
+    [histories.fx, histories.holdingPrices, latestSnapshot?.snapshotDate, snapshots],
+  );
 
   const views: GroupView[] = useMemo(() => {
     return bases.map((base) => {
@@ -422,16 +410,10 @@ export default function DividendAccountPerformanceSection({ snapshots }: Props) 
         };
       }
 
-      const benchmarks: BenchmarkLine[] =
-        base.group === "위탁"
-          ? [
-              makeLine("sp500", "S&P 500 투자 시", COLOR_SP500, histories.sp500, true),
-              makeLine("kospi", "KOSPI 투자 시", COLOR_KOSPI, histories.kospi, false),
-            ]
-          : [
-              makeLine("sp500", "S&P 500 투자 시", COLOR_SP500, histories.sp500, true),
-              makeLine("qqq", "QQQ 투자 시", COLOR_QQQ, histories.qqq, true),
-            ];
+      const benchmarks: BenchmarkLine[] = [
+        makeLine("sp500", "S&P 500 투자 시", COLOR_SP500, histories.sp500, true),
+        makeLine("kospi", "KOSPI 투자 시", COLOR_KOSPI, histories.kospi, false),
+      ];
 
       return { group: base.group, base, benchmarks };
     });

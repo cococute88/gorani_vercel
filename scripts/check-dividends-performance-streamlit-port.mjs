@@ -14,7 +14,7 @@ function registerTs() {
   return () => { if (old) require.extensions[".ts"] = old; };
 }
 const restore = registerTs();
-const { buildDividendPerformanceFromSnapshots } = require("../lib/dividend-performance-from-snapshots.ts");
+const { buildDividendPerformanceBackcast } = require("../lib/dividend-performance-from-snapshots.ts");
 const { computeSchdEquivalentGoalProgress } = require("../lib/dividend-estimates.ts");
 restore();
 
@@ -22,25 +22,27 @@ const perfComponent = readFileSync("components/dividend/DividendPerformanceSecti
 const dividendPage = readFileSync("components/dividend/DividendPage.tsx", "utf8");
 assert.ok(!perfComponent.includes("샘플 데이터"), "sample badge must not be rendered in performance section");
 assert.ok(!dividendPage.includes("DIVIDEND_PERFORMANCE_SERIES"), "dividends page must not use mock performance series");
-assert.ok(dividendPage.includes("buildDividendPerformanceFromSnapshots"), "snapshot performance builder must be wired");
-assert.ok(perfComponent.includes("샘플 그래프는 표시하지 않습니다"), "empty state must explain no fake chart");
+assert.ok(dividendPage.includes("buildDividendPerformanceBackcast"), "latest holdings backcast builder must be wired");
+assert.ok(perfComponent.includes("샘플/가짜 그래프는 표시하지 않습니다"), "empty state must explain no fake chart");
 assert.ok(perfComponent.includes("monthlyProfit"), "monthly P/L bar series must exist");
 assert.ok(perfComponent.includes("연간 손익"), "annual P/L label must exist");
 
-const snapshots = [
-  { id: "1", snapshotDate: "2026-01-31", sourceFileName: "a", totalAssetKRW: 11_000_000, totalDebtKRW: 0, netAssetKRW: 11_000_000, investmentPrincipalKRW: 10_000_000, investmentValueKRW: 11_000_000, returnAmountKRW: 1_000_000, returnPct: 10, holdings: [], financeAssets: [], createdAt: "" },
-  { id: "2", snapshotDate: "2026-02-28", sourceFileName: "b", totalAssetKRW: 14_500_000, totalDebtKRW: 0, netAssetKRW: 14_500_000, investmentPrincipalKRW: 13_000_000, investmentValueKRW: 14_500_000, returnAmountKRW: 1_500_000, returnPct: 11.5, holdings: [], financeAssets: [], createdAt: "" },
-];
-const result = buildDividendPerformanceFromSnapshots(snapshots);
+const result = buildDividendPerformanceBackcast({
+  holdings: [{ ticker: "QQQ", quantity: 10, valueKRW: 7_000_000 }],
+  priceHistories: { QQQ: [{ date: "2024-06-28", close: 400 }, { date: "2026-06-15", close: 500 }] },
+  fxHistory: [{ date: "2024-06-28", close: 1300 }, { date: "2026-06-15", close: 1400 }],
+  latestDate: "2026-06-15",
+  months: 24,
+});
 assert.equal(result.sampleFallbackUsed, false);
 assert.equal(result.available, true);
-assert.equal(result.kpis.cumulativeDepositKRW, 13_000_000);
-assert.equal(result.kpis.portfolioValueKRW, 14_500_000);
+assert.equal(result.dataSource, "latest-holdings-backcast");
+assert.ok(result.kpis.cumulativeDepositKRW > 0);
+assert.ok(result.kpis.portfolioValueKRW > result.kpis.cumulativeDepositKRW);
 assert.equal(result.kpis.kospiValueKRW, null);
-assert.equal(result.points[1].netInvestment, 3_000_000);
-assert.equal(result.points[1].monthlyProfit, 500_000, "월별 손익 = 이번 달 말 평가액 - 지난 달 말 평가액 - 이번 달 순투자금");
-assert.equal(result.yearlyProfitKRW[2026], 1_500_000);
-assert.equal(buildDividendPerformanceFromSnapshots([snapshots[0]]).available, false);
+assert.equal(result.points[1].netInvestment, 0);
+assert.ok(result.points[1].monthlyProfit > 0);
+assert.equal(buildDividendPerformanceBackcast({ holdings: [{ ticker: "QQQ", quantity: 10, valueKRW: 1 }], priceHistories: {}, latestDate: "2026-06-15" }).available, false);
 
 const targetQty = 3300;
 const equivalentShares = 817.4;
