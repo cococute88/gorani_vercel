@@ -43,7 +43,8 @@
     "check:portfolio-overview-cleanup": "node scripts/check-portfolio-overview-cleanup.mjs",
     "check:portfolio-market-indicators-live": "node scripts/check-portfolio-market-indicators-live.mjs",
     "check:calendar-priority-tax-style": "node scripts/check-calendar-priority-tax-style.mjs",
-    "check:calendar-wide-layout-polish": "node scripts/check-calendar-wide-layout-polish.mjs"
+    "check:calendar-wide-layout-polish": "node scripts/check-calendar-wide-layout-polish.mjs",
+    "check:asset-simulator-persistence": "node scripts/check-asset-simulator-persistence.mjs"
   },
   "dependencies": {
     "next": "14.2.5",
