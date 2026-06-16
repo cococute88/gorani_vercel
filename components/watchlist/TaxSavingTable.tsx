@@ -40,8 +40,9 @@ export default function TaxSavingTable({ rows }: Props) {
   );
 
   return (
-    // flex-col + capped scroll body keeps the rail from running far past the calendar.
-    <section className="flex flex-col overflow-hidden rounded-2xl border border-[#2a3336] bg-[#191f20]">
+    // flex-col fills the stretched aside so the rail height tracks the calendar
+    // card; the scroll body grows to fill that height (xl) or caps on mobile.
+    <section className="flex h-full flex-col overflow-hidden rounded-2xl border border-[#2a3336] bg-[#191f20]">
       <div className="shrink-0 p-3 pb-2 sm:p-4 sm:pb-2">
         <h2 className="text-[14px] font-bold text-slate-200 sm:text-[15px]">종목별 예상 절세액</h2>
         <p className="text-[11px] text-slate-400 sm:text-[12px]">투자금 $10,000 기준 1회 절세 예상</p>
@@ -49,7 +50,7 @@ export default function TaxSavingTable({ rows }: Props) {
           <p className="mt-1 text-[10.5px] text-blue-300/90 sm:text-[11px]">파란 음영 = 이번 달 매수 대상 {buyCount}종목</p>
         )}
       </div>
-      <div className="max-h-[420px] overflow-y-auto px-3 pb-3 sm:px-4 sm:pb-4 xl:max-h-[600px]">
+      <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3 sm:px-4 sm:pb-4 max-h-[420px] xl:max-h-none">
         <table className="w-full table-fixed text-[11.5px] sm:text-[12.5px]">
           <colgroup>
             <col className="w-[52%]" />

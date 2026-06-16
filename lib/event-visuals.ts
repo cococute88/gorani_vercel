@@ -52,7 +52,7 @@ export function eventStateClasses(event: CalendarEvent, todayIso: string): strin
   //  - declared/confirmed & upcoming → full opacity
   //  - declared/confirmed & past     → light muted veil (~60%)
   //  - non-declared (estimated)      → subtle (~80%) so 확정 vs 추정 reads at a
-  //    glance, but still legible (we never stack two opacity utilities).
+  //    glance, but still legible. The dashed border is the primary 추정 cue.
   // Past events keep their full event-type color (no desaturation) so
   // Ex-Div/Buy/Pay/Earn stay distinguishable in light and dark mode. Estimated
   // events stay dashed.

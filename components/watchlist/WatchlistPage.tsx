@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import TopNav from "@/components/TopNav";
-import StorageModeBadge from "@/components/common/StorageModeBadge";
 import { DEFAULT_WATCHLIST_TICKERS } from "@/lib/mock-dividend-data";
 import { useFirebaseAuth } from "@/lib/firebase/auth";
 import {
@@ -189,7 +188,6 @@ export default function WatchlistPage() {
         <DividendCalendarPage
           tickers={tickers}
           tickerManager={tickerManager}
-          headerAccessory={<StorageModeBadge />}
           onManagePortfolio={() => setManageOpen(true)}
           tickerMemos={memos}
           onSaveTickerMemo={handleSaveMemo}
