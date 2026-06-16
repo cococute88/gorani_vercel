@@ -54,7 +54,8 @@
     "check:calculators-table-sort-scroll": "node scripts/check-calculators-table-sort-scroll.mjs",
     "check:dividends-performance-backcast": "node scripts/check-dividends-performance-backcast.mjs",
     "check:dividend-capture-streamlit-restore": "node scripts/check-dividend-capture-streamlit-restore.mjs",
-    "check:dividends-performance-group-backcast": "node scripts/check-dividends-performance-group-backcast.mjs"
+    "check:dividends-performance-group-backcast": "node scripts/check-dividends-performance-group-backcast.mjs",
+    "check:dividend-capture-streamlit-parity": "node scripts/check-dividend-capture-streamlit-parity.mjs"
   },
   "dependencies": {
     "next": "14.2.5",

@@ -217,14 +217,17 @@ export function simulateDividendCaptureFromHistory(
     const windowData = prices.slice(index, index + input.sellWindow + 1);
     const maxHigh = Math.max(...windowData.map((point) => point.high));
     const isSuccess = maxHigh >= breakevenPrice;
-    const sellPrice = isSuccess ? breakevenPrice : windowData.at(-1)?.close ?? prices[index].close;
+    const sellPrice = windowData.at(-1)?.close ?? prices[index].close;
     const futureRecovery = prices.slice(index).find((point) => point.high >= breakevenPrice);
     const recoveryDate = isSuccess ? undefined : futureRecovery?.date;
     const grossDividend = shares * dividend.amount;
     const netDividend = shares * afterTaxDividend;
     const costs = shares * buyPrice * totalCostRate * 2;
     const pricePnL = (sellPrice - buyPrice) * shares;
-    const totalPnL = isSuccess ? netDividend - costs : pricePnL + netDividend - costs;
+    const streamlitProfitPct = isSuccess
+      ? (afterTaxDividend / buyPrice) * 100
+      : ((sellPrice + afterTaxDividend - buyPrice) / buyPrice) * 100;
+    const totalPnL = (streamlitProfitPct / 100) * shares * buyPrice - costs;
     const recoveryTradingDays = recoveryDate ? Math.max(0, prices.findIndex((point) => point.date === recoveryDate) - index) : null;
 
     return [{
@@ -240,7 +243,7 @@ export function simulateDividendCaptureFromHistory(
       netDividend: round(netDividend),
       pricePnL: round(pricePnL),
       totalPnL: round(totalPnL),
-      profitPct: round((totalPnL / Math.max(shares * buyPrice, 1)) * 100, 2),
+      profitPct: round(streamlitProfitPct - totalCostRate * 100 * 2, 2),
       result: isSuccess ? "성공" : "실패",
       recoveryDate: isSuccess ? "-" : recoveryDate ?? "회복불가",
       recoveryDays: recoveryTradingDays ?? 0,

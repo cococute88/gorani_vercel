@@ -212,10 +212,10 @@ export default function DividendCaptureSimulator({ input, onChange }: { input: D
               <YAxis dataKey="profitPct" name="수익률" unit="%" stroke="#94a3b8" tick={{ fontSize: 11 }} />
               <Tooltip cursor={{ strokeDasharray: "3 3" }} content={<DividendTooltip />} />
               <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Scatter data={result.rows.filter((row) => row.result === "성공")} name="성공">
+              <Scatter data={result.rows.filter((row) => row.result === "성공")} name="성공" fill="#3b82f6">
                 {result.rows.filter((row) => row.result === "성공").map((entry) => <Cell key={entry.exDate} fill="#3b82f6" />)}
               </Scatter>
-              <Scatter data={result.rows.filter((row) => row.result === "실패")} name="실패">
+              <Scatter data={result.rows.filter((row) => row.result === "실패")} name="실패" fill="#93c5fd">
                 {result.rows.filter((row) => row.result === "실패").map((entry) => <Cell key={entry.exDate} fill="#93c5fd" />)}
               </Scatter>
             </ScatterChart>
