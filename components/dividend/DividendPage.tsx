@@ -24,6 +24,7 @@ import DividendSummaryCards from "./DividendSummaryCards";
 import MonthlyDividendChart from "./MonthlyDividendChart";
 import DividendHoldingsTable from "./DividendHoldingsTable";
 import DividendPerformanceSection from "./DividendPerformanceSection";
+import DividendAccountPerformanceSection from "./DividendAccountPerformanceSection";
 import { useResolvedTheme } from "@/components/theme/ThemeProvider";
 import { buildDividendPerformanceFromSnapshots } from "@/lib/dividend-performance-from-snapshots";
 
@@ -443,6 +444,7 @@ export default function DividendPage() {
             </div>
           </div>
         </section>
+        <DividendAccountPerformanceSection snapshots={snapshots} />
         <DividendPerformanceSection result={dividendPerformance} />
       </main>
     </div>
