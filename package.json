@@ -55,7 +55,8 @@
     "check:dividends-performance-backcast": "node scripts/check-dividends-performance-backcast.mjs",
     "check:dividend-capture-streamlit-restore": "node scripts/check-dividend-capture-streamlit-restore.mjs",
     "check:dividends-performance-group-backcast": "node scripts/check-dividends-performance-group-backcast.mjs",
-    "check:dividend-capture-streamlit-parity": "node scripts/check-dividend-capture-streamlit-parity.mjs"
+    "check:dividend-capture-streamlit-parity": "node scripts/check-dividend-capture-streamlit-parity.mjs",
+    "check:dividends-performance-benchmark-axis": "node scripts/check-dividends-performance-benchmark-axis.mjs"
   },
   "dependencies": {
     "next": "14.2.5",
