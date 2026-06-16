@@ -12,6 +12,7 @@ import {
 import {
   buildDividendEstimateForHolding,
   computeConvertedAnnualDividendKRW,
+  computeSchdEquivalentGoalProgress,
   isKrwTicker,
   type DividendEstimateWarning,
 } from "@/lib/dividend-estimates";
@@ -37,6 +38,8 @@ type DividendMarketDataState = {
   fx?: QuoteFxResponse;
   warnings: string[];
 };
+
+const WITHDRAWAL_MODE_STORAGE_KEY = "gorani.dividends.withdrawal-mode.v1";
 
 const EMPTY_MARKET_DATA: DividendMarketDataState = {
   loading: false,
@@ -70,11 +73,29 @@ export default function DividendPage() {
   const snapshots = usePortfolioSnapshots();
   const [afterTax, setAfterTax] = useState(true);
   const [includeTaxAdvantagedInSummary, setIncludeTaxAdvantagedInSummary] = useState(false);
+  const [withdrawalMode, setWithdrawalMode] = useState(false);
   const [chartIncludesTaxable, setChartIncludesTaxable] = useState(true);
   const [chartIncludesTaxAdvantaged, setChartIncludesTaxAdvantaged] = useState(false);
   const [targetTicker, setTargetTicker] = useState("SCHD");
   const [targetQty, setTargetQty] = useState(3300);
   const [marketData, setMarketData] = useState<DividendMarketDataState>(EMPTY_MARKET_DATA);
+
+  useEffect(() => {
+    try {
+      setWithdrawalMode(window.localStorage.getItem(WITHDRAWAL_MODE_STORAGE_KEY) === "1");
+    } catch {
+      // localStorage may be unavailable in privacy modes; keep the default OFF state.
+    }
+  }, []);
+
+  function updateWithdrawalMode(enabled: boolean) {
+    setWithdrawalMode(enabled);
+    try {
+      window.localStorage.setItem(WITHDRAWAL_MODE_STORAGE_KEY, enabled ? "1" : "0");
+    } catch {
+      // Non-persistent mode is acceptable for this page-level display preference.
+    }
+  }
 
   const latestSnapshot = useMemo(() => latestOf(snapshots), [snapshots]);
   const holdings: Holding[] = useMemo(() => latestSnapshot?.holdings ?? [], [latestSnapshot]);
@@ -96,21 +117,26 @@ export default function DividendPage() {
       ).sort(),
     [dividendGroups.taxAdvantagedHoldings, dividendGroups.taxableHoldings],
   );
-  const dividendTickerKey = dividendTickers.join("|");
+  const targetTickerNormalized = targetTicker.trim().toUpperCase();
+  const marketTickers = useMemo(
+    () => Array.from(new Set([...dividendTickers, targetTickerNormalized].filter(Boolean))).sort(),
+    [dividendTickers, targetTickerNormalized],
+  );
+  const marketTickerKey = marketTickers.join("|");
 
   useEffect(() => {
-    if (!dividendTickerKey) {
+    if (!marketTickerKey) {
       setMarketData(EMPTY_MARKET_DATA);
       return;
     }
 
     let active = true;
-    const tickers = dividendTickers;
+    const tickers = marketTickers;
     const needsUsdKrw = tickers.some((ticker) => !isKrwTicker(ticker));
     setMarketData((current) => ({
       ...current,
       loading: true,
-      tickerKey: dividendTickerKey,
+      tickerKey: marketTickerKey,
       warnings: [],
     }));
 
@@ -151,7 +177,7 @@ export default function DividendPage() {
       if (!active) return;
       setMarketData({
         loading: false,
-        tickerKey: dividendTickerKey,
+        tickerKey: marketTickerKey,
         quotes: Object.fromEntries(quoteEntries),
         dividends: Object.fromEntries(dividendEntries),
         fx,
@@ -163,7 +189,7 @@ export default function DividendPage() {
     return () => {
       active = false;
     };
-  }, [dividendTickerKey, dividendTickers]);
+  }, [marketTickerKey, marketTickers]);
 
   const enrichRows = useMemo(
     () =>
@@ -246,20 +272,38 @@ export default function DividendPage() {
   const monthlyComposition = useMemo(() => buildMonthlyDividendsFromRows(chartRows), [chartRows]);
 
   const evaluationKRW = summaryRows.reduce((s, r) => s + r.valueKRW, 0);
-  const annualDividendKRW = summaryRows.reduce((s, r) => s + r.annualDividendKRW, 0);
-  const monthlyAvgKRW = annualDividendKRW / 12;
+  const ttmAnnualDividendKRW = summaryRows.reduce((s, r) => s + r.annualDividendKRW, 0);
   // 환산 예상 배당: 현재 선택된 범위(위탁만/절세합산)의 평가금액을 연 3.5%로 인출한다고 가정.
   const convertedAnnualDividendKRW = computeConvertedAnnualDividendKRW(evaluationKRW, { afterTax });
+  const annualDividendKRW = withdrawalMode ? convertedAnnualDividendKRW : ttmAnnualDividendKRW;
+  const monthlyAvgKRW = annualDividendKRW / 12;
 
   const targetRows = [...estimatedTaxableHoldings, ...estimatedTaxAdvantagedHoldings]
     .filter((row) => row.ticker.toUpperCase() === targetTicker.toUpperCase());
-  const currentShares = targetRows.reduce((sum, row) => (
-    Number.isFinite(row.quantity) && row.quantity && row.quantity > 0
-      ? sum + row.quantity
-      : sum
-  ), 0);
-  const hasTargetQuantity = currentShares > 0;
-  const achievementPct = hasTargetQuantity && targetQty > 0 ? (currentShares / targetQty) * 100 : 0;
+  const actualTargetShares = targetRows.reduce((sum, row) => {
+    const actualQuantity = row.quantityEstimated ? undefined : row.quantity;
+    return Number.isFinite(actualQuantity) && actualQuantity && actualQuantity > 0 ? sum + actualQuantity : sum;
+  }, 0);
+  const targetQuote = marketData.quotes[targetTicker.trim().toUpperCase()];
+  const targetCurrency = isKrwTicker(targetQuote?.normalizedTicker ?? targetTicker) ? "KRW" : "USD";
+  const targetPriceKRW = targetQuote?.source !== "sample" && targetQuote?.price && targetQuote.price > 0
+    ? targetCurrency === "KRW"
+      ? targetQuote.price
+      : marketData.fx?.source !== "sample" && marketData.fx?.rate && marketData.fx.rate > 0
+        ? targetQuote.price * marketData.fx.rate
+        : undefined
+    : undefined;
+  const goalProgress = computeSchdEquivalentGoalProgress({
+    targetTicker,
+    targetQty,
+    evaluationKRW,
+    targetPriceKRW,
+    actualShares: actualTargetShares,
+  });
+  const achievementPct = goalProgress.achievementPct ?? 0;
+  const goalProgressLabel = goalProgress.calculable
+    ? `${goalProgress.equivalentShares?.toLocaleString("ko-KR", { maximumFractionDigits: 1 })}주(실보유 ${goalProgress.actualShares.toLocaleString("ko-KR", { maximumFractionDigits: 2 })}주) / ${targetQty.toLocaleString("ko-KR")}주`
+    : (goalProgress.error ?? "계산 불가");
 
   function setChartTaxable(checked: boolean) {
     if (!checked && !chartIncludesTaxAdvantaged) return;
@@ -289,19 +333,25 @@ export default function DividendPage() {
           annualDividendKRW={annualDividendKRW}
           monthlyAvgKRW={monthlyAvgKRW}
           convertedAnnualDividendKRW={convertedAnnualDividendKRW}
-          achievementPct={achievementPct}
+          achievementPct={goalProgress.achievementPct}
+          goalProgressLabel={goalProgressLabel}
+          goalProgressCalculable={goalProgress.calculable}
+          withdrawalMode={withdrawalMode}
           afterTax={afterTax}
           includeTaxAdvantaged={includeTaxAdvantagedInSummary}
           dividendDataAvailable={dividendDataAvailable}
           onToggleTax={setAfterTax}
           onToggleGroup={setIncludeTaxAdvantagedInSummary}
+          onToggleWithdrawalMode={updateWithdrawalMode}
         />
         <div className="mb-6 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-[12.5px] text-slate-600 dark:border-[#2a3336] dark:bg-white/[0.03] dark:text-slate-400">
           <div className="font-semibold text-slate-700 dark:text-slate-300">
             수량은 평가금액과 현재가로 역산한 추정치입니다.
           </div>
           <div className="mt-1 leading-relaxed">
-            배당은 최근 12개월 실제 배당 이력 기준입니다. 배당 이력이 없거나 quote/fx 조회가 실패한 종목은 예상 배당을 계산하지 않습니다.
+            {withdrawalMode
+              ? "일괄 3.5% 인출률 적용 모드는 전체 대상 평가금액에 연 3.5% 인출률을 적용한 가정치입니다. 실제 배당 이력은 반영하지 않습니다."
+              : "배당은 최근 12개월 실제 배당 이력 기준입니다. 배당 이력이 없거나 quote/fx 조회가 실패한 종목은 예상 배당을 계산하지 않습니다."}
             {marketData.loading ? " 현재가·배당 데이터를 불러오는 중입니다." : ""}
           </div>
           {marketData.warnings.length > 0 && (
@@ -362,12 +412,10 @@ export default function DividendPage() {
               <div className="flex flex-col justify-center rounded-lg bg-[#11181a] px-4 py-2">
                 <span className="text-[12.5px] text-slate-400">현재 달성률</span>
                 <span className="num text-[18px] font-extrabold text-blue-400">
-                  {hasTargetQuantity ? formatPercent(achievementPct, 1) : "수량 정보 없음"}
+                  {goalProgress.calculable ? formatPercent(achievementPct, 1) : "계산 불가"}
                 </span>
                 <span className="num text-[11.5px] text-slate-500">
-                  {hasTargetQuantity
-                    ? `추정 ${currentShares.toLocaleString("ko-KR", { maximumFractionDigits: 2 })} / ${targetQty.toLocaleString("ko-KR")}주`
-                    : "평가금액 기준 추정수량이 필요합니다"}
+                  {goalProgressLabel}
                 </span>
               </div>
             </div>
