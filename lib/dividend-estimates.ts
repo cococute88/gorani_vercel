@@ -130,6 +130,56 @@ export function getTtmDividendPerShare(
   return { amount: Number(amount.toFixed(6)), rows };
 }
 
+
+export type SchdGoalProgress = {
+  calculable: boolean;
+  targetTicker: string;
+  targetQty: number;
+  actualShares: number;
+  equivalentShares?: number;
+  achievementPct?: number;
+  targetPriceKRW?: number;
+  evaluationKRW: number;
+  error?: string;
+};
+
+export function computeSchdEquivalentGoalProgress(options: {
+  targetTicker?: string;
+  targetQty: number;
+  evaluationKRW: number;
+  targetPriceKRW?: number;
+  actualShares?: number;
+}): SchdGoalProgress {
+  const targetTicker = (options.targetTicker ?? "SCHD").trim().toUpperCase() || "SCHD";
+  const targetQty = Number.isFinite(options.targetQty) ? options.targetQty : 0;
+  const evaluationKRW = Number.isFinite(options.evaluationKRW) ? options.evaluationKRW : 0;
+  const actualShares = Math.max(0, Number.isFinite(options.actualShares ?? 0) ? options.actualShares ?? 0 : 0);
+  const targetPriceKRW = options.targetPriceKRW;
+
+  if (targetQty <= 0) {
+    return { calculable: false, targetTicker, targetQty, actualShares, evaluationKRW, error: "목표 수량이 필요합니다" };
+  }
+  if (!targetPriceKRW || !Number.isFinite(targetPriceKRW) || targetPriceKRW <= 0) {
+    return { calculable: false, targetTicker, targetQty, actualShares, evaluationKRW, error: "목표 종목 현재가 조회 불가" };
+  }
+  if (!Number.isFinite(evaluationKRW) || evaluationKRW <= 0) {
+    return { calculable: false, targetTicker, targetQty, actualShares, targetPriceKRW, evaluationKRW, error: "환산 대상 평가금액 없음" };
+  }
+
+  const valueEquivalentShares = evaluationKRW / targetPriceKRW;
+  const equivalentShares = Math.max(actualShares, valueEquivalentShares);
+  return {
+    calculable: true,
+    targetTicker,
+    targetQty,
+    actualShares,
+    equivalentShares,
+    achievementPct: (equivalentShares / targetQty) * 100,
+    targetPriceKRW,
+    evaluationKRW,
+  };
+}
+
 export function buildDividendEstimateForHolding(
   input: DividendEstimateInput,
   marketData: DividendEstimateMarketData,
