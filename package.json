@@ -49,7 +49,8 @@
     "check:asset-simulator-persistence": "node scripts/check-asset-simulator-persistence.mjs",
     "check:dividend-schd-goal-withdrawal-mode": "node scripts/check-dividend-schd-goal-withdrawal-mode.mjs",
     "check:dividends-performance-streamlit-port": "node scripts/check-dividends-performance-streamlit-port.mjs",
-    "check:dividend-ledger-performance-ui-port": "node scripts/check-dividend-ledger-performance-ui-port.mjs"
+    "check:dividend-ledger-performance-ui-port": "node scripts/check-dividend-ledger-performance-ui-port.mjs",
+    "check:calculators-table-sort-scroll": "node scripts/check-calculators-table-sort-scroll.mjs"
   },
   "dependencies": {
     "next": "14.2.5",

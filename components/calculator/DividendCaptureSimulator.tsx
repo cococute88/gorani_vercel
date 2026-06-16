@@ -8,9 +8,10 @@ import CalculatorWarningPanel from "./CalculatorWarningPanel";
 import { TextInput, NumberInput, SelectInput } from "./CalculatorInputField";
 import { fetchQuoteDividends, fetchQuoteHistory } from "@/lib/calculator-data-provider";
 import { resolveDividendCaptureDates, simulateDividendCapture } from "@/lib/dividend-capture-calculator";
-import type { DividendCaptureDividendPoint, DividendCaptureInput, DividendCapturePricePoint } from "@/lib/calculator-types";
+import type { DividendCaptureDividendPoint, DividendCaptureInput, DividendCapturePricePoint, DividendCaptureRow } from "@/lib/calculator-types";
 import type { QuoteSource } from "@/lib/quote-types";
-import { CartesianGrid, Cell, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis } from "recharts";
+import { CartesianGrid, Cell, Legend, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis } from "recharts";
+import { nextSortState, sortArrow, sortRows, type SortColumnType, type SortState } from "@/lib/calculator-table-sort";
 
 const panel = "rounded-2xl border border-[#2a3336] bg-[#191f20] p-5";
 
@@ -44,6 +45,40 @@ function judgementClass(row: { result: string; recoveryDate: string }): string {
   return row.recoveryDate === "회복불가" ? "font-semibold text-amber-400" : "font-semibold text-red-400";
 }
 
+
+type DividendSortKey = keyof Pick<DividendCaptureRow, "round" | "exDate" | "buyPrice" | "breakevenPrice" | "maxHigh" | "sellPrice" | "netDividend" | "pricePnL" | "totalPnL" | "profitPct" | "recoveryDate" | "recoveryTradingDays" | "recoveryCalendarDays" | "result">;
+
+const dividendColumns: Array<{ key: DividendSortKey; label: string; type: SortColumnType; className?: string }> = [
+  { key: "round", label: "회차", type: "string", className: "py-2" },
+  { key: "exDate", label: "배당락일", type: "date" },
+  { key: "buyPrice", label: "매수가", type: "number" },
+  { key: "breakevenPrice", label: "손익분기", type: "number" },
+  { key: "maxHigh", label: "최고가", type: "number" },
+  { key: "sellPrice", label: "매도가", type: "number" },
+  { key: "netDividend", label: "세후 배당", type: "number" },
+  { key: "pricePnL", label: "가격손익", type: "number" },
+  { key: "totalPnL", label: "총손익", type: "number" },
+  { key: "profitPct", label: "수익률", type: "number" },
+  { key: "recoveryDate", label: "회복일", type: "date" },
+  { key: "recoveryTradingDays", label: "거래일", type: "number" },
+  { key: "recoveryCalendarDays", label: "달력일", type: "number" },
+  { key: "result", label: "결과", type: "string" },
+];
+
+function DividendTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: DividendCaptureRow }> }) {
+  if (!active || !payload?.length) return null;
+  const row = payload[0].payload;
+  return (
+    <div className="rounded-lg border border-[#2a3336] bg-[#111516] p-3 text-[12px] text-slate-200 shadow-xl">
+      <div className="font-bold text-white">배당락일: {row.exDate}</div>
+      <div>수익률: {row.profitPct}%</div>
+      <div>성공여부: {row.result}</div>
+      <div>원금 회복: {row.recoveryDate}</div>
+      <div>소요 기간: {row.recoveryTradingDays}거래일 / {row.recoveryCalendarDays}달력일</div>
+    </div>
+  );
+}
+
 function toQuoteRequest(input: DividendCaptureInput) {
   const { start, end } = resolveDividendCaptureDates(input);
   if (input.recent5yOnly) return { ticker: input.ticker, range: "5y", end };
@@ -54,6 +89,7 @@ export default function DividendCaptureSimulator({ input, onChange }: { input: D
   const [submitted, setSubmitted] = useState(input);
   const [quoteState, setQuoteState] = useState<DividendCaptureQuoteState>({ warnings: [] });
   const [loading, setLoading] = useState(false);
+  const [detailSort, setDetailSort] = useState<SortState<DividendSortKey>>({ key: "exDate", direction: "asc" });
 
   useEffect(() => {
     let cancelled = false;
@@ -118,6 +154,8 @@ export default function DividendCaptureSimulator({ input, onChange }: { input: D
     [quoteState.dividends, quoteState.prices, quoteState.source, quoteState.updatedAt, quoteState.warnings, submitted],
   );
   const update = <K extends keyof DividendCaptureInput>(key: K, value: DividendCaptureInput[K]) => onChange({ ...input, [key]: value });
+  const dividendSortType = detailSort ? dividendColumns.find((column) => column.key === detailSort.key)?.type ?? "string" : "string";
+  const sortedRows = useMemo(() => sortRows(result.rows, detailSort?.key, detailSort?.direction ?? "asc", dividendSortType, (row, key) => row[key]), [detailSort, dividendSortType, result.rows]);
 
   return (
     <div className="space-y-4">
@@ -178,11 +216,15 @@ export default function DividendCaptureSimulator({ input, onChange }: { input: D
           <ResponsiveContainer width="100%" height="100%">
             <ScatterChart margin={{ top: 12, right: 16, bottom: 8, left: 0 }}>
               <CartesianGrid stroke="#2a3336" strokeDasharray="3 3" />
-              <XAxis dataKey="recoveryDays" name="회복일" unit="일" stroke="#94a3b8" tick={{ fontSize: 11 }} />
+              <XAxis dataKey="exDate" name="배당락일" stroke="#94a3b8" tick={{ fontSize: 11 }} minTickGap={24} angle={-30} textAnchor="end" height={54} />
               <YAxis dataKey="profitPct" name="수익률" unit="%" stroke="#94a3b8" tick={{ fontSize: 11 }} />
-              <Tooltip cursor={{ strokeDasharray: "3 3" }} contentStyle={{ background: "#111516", border: "1px solid #2a3336", fontSize: 12 }} />
-              <Scatter data={result.rows} name="회차">
-                {result.rows.map((entry) => <Cell key={entry.exDate} fill={entry.result === "성공" ? "#22c55e" : "#ef4444"} />)}
+              <Tooltip cursor={{ strokeDasharray: "3 3" }} content={<DividendTooltip />} />
+              <Legend wrapperStyle={{ fontSize: 12 }} />
+              <Scatter data={result.rows.filter((row) => row.result === "성공")} name="성공">
+                {result.rows.filter((row) => row.result === "성공").map((entry) => <Cell key={entry.exDate} fill="#3b82f6" />)}
+              </Scatter>
+              <Scatter data={result.rows.filter((row) => row.result === "실패")} name="실패">
+                {result.rows.filter((row) => row.result === "실패").map((entry) => <Cell key={entry.exDate} fill="#93c5fd" />)}
               </Scatter>
             </ScatterChart>
           </ResponsiveContainer>
@@ -193,29 +235,22 @@ export default function DividendCaptureSimulator({ input, onChange }: { input: D
       {/* Detail table */}
       <div className={panel}>
         <h2 className="mb-4 text-[15px] font-bold text-white">회차별 상세 결과</h2>
-        <div className="overflow-x-auto -mx-5 px-5">
+        <div className="-mx-5 max-h-[520px] min-w-0 overflow-auto px-5">
           <table className="w-full min-w-[820px] text-left text-[12px]">
             <thead className="text-slate-500">
               <tr className="border-b border-[#2a3336]">
-                <th className="py-2">회차</th>
-                <th>배당락일</th>
-                <th>매수가</th>
-                <th>손익분기</th>
-                <th>최고가</th>
-                <th>매도가</th>
-                <th>세후 배당</th>
-                <th>가격손익</th>
-                <th>총손익</th>
-                <th>수익률</th>
-                <th>회복일</th>
-                <th>거래일</th>
-                <th>달력일</th>
-                <th>결과</th>
+                {dividendColumns.map((column) => (
+                  <th key={column.key} className={`${column.className ?? ""} sticky top-0 z-10 bg-[#191f20]`}>
+                    <button type="button" className="whitespace-nowrap text-left hover:text-slate-200" onClick={() => setDetailSort((current) => nextSortState(current, column.key))}>
+                      {column.label}{sortArrow(detailSort, column.key)}
+                    </button>
+                  </th>
+                ))}
                 <th>판정</th>
               </tr>
             </thead>
             <tbody>
-              {result.rows.map((row) => (
+              {sortedRows.map((row) => (
                 <tr key={row.exDate} className="border-b border-[#222a2c] text-slate-300 last:border-0">
                   <td className="py-2 font-semibold text-white">{row.round}</td>
                   <td>{row.exDate}</td>

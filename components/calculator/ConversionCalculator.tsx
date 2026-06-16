@@ -8,11 +8,24 @@ import CalculatorWarningPanel from "./CalculatorWarningPanel";
 import { TextInput, DateInput } from "./CalculatorInputField";
 import { fetchQuoteHistory } from "@/lib/calculator-data-provider";
 import { calculateConversion } from "@/lib/conversion-calculator";
-import type { ConversionInput, ConversionPricePoint } from "@/lib/calculator-types";
+import type { ConversionInput, ConversionPricePoint, ConversionRow } from "@/lib/calculator-types";
 import type { QuoteSource } from "@/lib/quote-types";
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { nextSortState, sortArrow, sortRows, type SortColumnType, type SortState } from "@/lib/calculator-table-sort";
 
 const panel = "rounded-2xl border border-[#2a3336] bg-[#191f20] p-5";
+
+
+type ConversionSortKey = keyof ConversionRow;
+const conversionColumns: Array<{ key: ConversionSortKey; label: string; type: SortColumnType; className?: string }> = [
+  { key: "date", label: "일자", type: "date", className: "py-2" },
+  { key: "sellPrice", label: "매도 가격", type: "number" },
+  { key: "buyPrice", label: "매수 가격", type: "number" },
+  { key: "ratio", label: "전환비", type: "number" },
+  { key: "averageRatio", label: "평균 전환비", type: "number" },
+  { key: "deviationPct", label: "괴리율", type: "number" },
+  { key: "signal", label: "판정", type: "string" },
+];
 
 type ConversionQuoteState = {
   sellPrices?: ConversionPricePoint[];
@@ -37,6 +50,7 @@ export default function ConversionCalculator({ input, onChange }: { input: Conve
   const [submitted, setSubmitted] = useState(input);
   const [quoteState, setQuoteState] = useState<ConversionQuoteState>({ warnings: [] });
   const [loading, setLoading] = useState(false);
+  const [detailSort, setDetailSort] = useState<SortState<ConversionSortKey>>({ key: "date", direction: "asc" });
 
   useEffect(() => {
     let cancelled = false;
@@ -94,6 +108,8 @@ export default function ConversionCalculator({ input, onChange }: { input: Conve
     [quoteState.buyPrices, quoteState.sellPrices, quoteState.source, quoteState.updatedAt, quoteState.warnings, submitted],
   );
   const update = <K extends keyof ConversionInput>(key: K, value: ConversionInput[K]) => onChange({ ...input, [key]: value });
+  const conversionSortType = detailSort ? conversionColumns.find((column) => column.key === detailSort.key)?.type ?? "string" : "string";
+  const sortedRows = useMemo(() => sortRows(result.rows, detailSort?.key, detailSort?.direction ?? "asc", conversionSortType, (row, key) => row[key]), [conversionSortType, detailSort, result.rows]);
 
   return (
     <div className="space-y-4">
@@ -167,21 +183,21 @@ export default function ConversionCalculator({ input, onChange }: { input: Conve
       {/* Table */}
       <div className={panel}>
         <h2 className="mb-4 text-[15px] font-bold text-white">전환비 상세 표</h2>
-        <div className="overflow-x-auto -mx-5 px-5">
+        <div className="-mx-5 max-h-[520px] min-w-0 overflow-auto px-5">
           <table className="w-full min-w-[700px] text-left text-[12.5px]">
             <thead className="text-slate-500">
               <tr className="border-b border-[#2a3336]">
-                <th className="py-2">일자</th>
-                <th>매도 가격</th>
-                <th>매수 가격</th>
-                <th>전환비</th>
-                <th>평균 전환비</th>
-                <th>괴리율</th>
-                <th>판정</th>
+                {conversionColumns.map((column) => (
+                  <th key={column.key} className={`${column.className ?? ""} sticky top-0 z-10 bg-[#191f20]`}>
+                    <button type="button" className="whitespace-nowrap text-left hover:text-slate-200" onClick={() => setDetailSort((current) => nextSortState(current, column.key))}>
+                      {column.label}{sortArrow(detailSort, column.key)}
+                    </button>
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
-              {result.rows.map((row) => (
+              {sortedRows.map((row) => (
                 <tr key={row.date} className="border-b border-[#222a2c] text-slate-300 last:border-0">
                   <td className="py-2 font-semibold text-white">{row.date}</td>
                   <td>${row.sellPrice}</td>
