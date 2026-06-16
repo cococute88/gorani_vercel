@@ -514,3 +514,5 @@ DIVIDENDS-PERFORMANCE-GROUP-BACKCAST-FOLLOWUP-3: /dividends 위탁/절세 성과
 DIVIDEND-CAPTURE-STREAMLIT-PARITY-FIX-2: 배당치기 시뮬레이터 ARCC 전체/최근5년 결과가 원본 Streamlit과 맞지 않던 성공판정·실패손실·손익비·그래프 색상 회귀를 수정하고 parity 검증 추가
 - DIVIDENDS-PERFORMANCE-BENCHMARK-AXIS-FIX-4: /dividends 위탁/절세/전체 성과 그래프의 S&P500/KOSPI benchmark line과 카드 값을 복구하고, 성과 그래프 domain 및 월별 손익 chart 만원 단위/이중축을 보정
 - ROUTE-NAMING-LEGACY-AUDIT-1: 배당캘린더의 legacy /watchlist route/name 잔재를 점검하고 canonical /calendar route, nav href, redirect/alias, metadata/test를 정리
+
+DIVIDEND-CAPTURE-STREAMLIT-ROW-PARITY-3: 배당치기 시뮬레이터가 원본 Streamlit과 수치가 다르던 문제를 BCSF 2020-03-30 등 행 단위로 전수조사하고, OHLC/dividend/date matching/성공판정/KPI/그래프 정렬 parity를 보정
