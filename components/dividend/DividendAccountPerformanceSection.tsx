@@ -16,6 +16,7 @@ import {
   YAxis,
 } from "recharts";
 import type { PortfolioSnapshot } from "@/lib/portfolio-types";
+import type { DividendPerformanceHoldingInput } from "@/lib/dividend-performance-from-snapshots";
 import {
   ACCOUNT_PERF_GROUPS,
   type AccountPerfBase,
@@ -32,6 +33,7 @@ import { formatPercent } from "@/lib/format";
 
 interface Props {
   snapshots: PortfolioSnapshot[];
+  latestBackcastHoldings?: Record<AccountPerfGroup, DividendPerformanceHoldingInput[]>;
 }
 
 // 원본 Streamlit 색상 그대로 유지한다.
@@ -129,6 +131,15 @@ function Kpi({
   );
 }
 
+function performanceDomain(rows: Array<Record<string, number | string | null>>): [number | string, number | string] {
+  const values = rows.flatMap((row) => [row.deposit, row.portfolio, row.sp500, row.kospi]).filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+  if (values.length === 0) return ["auto", "auto"];
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = Math.max(max - min, Math.abs(max) * 0.02, 1);
+  return [Math.max(0, min - range * 0.08), max + range * 0.08];
+}
+
 function GroupBlock({ view }: { view: GroupView }) {
   const { group, base, benchmarks } = view;
   const sourceBadge = base.available ? "최신 보유 기준 역산" : "데이터 부족";
@@ -156,11 +167,15 @@ function GroupBlock({ view }: { view: GroupView }) {
 
   const [selectedYear, setSelectedYear] = useState<number | null>(base.availableYears.at(-1) ?? null);
   useEffect(() => setSelectedYear(base.availableYears.at(-1) ?? null), [base.availableYears]);
-  const monthlyRows = useMemo(
-    () => chartData.filter((row) => selectedYear == null || row.year === selectedYear),
-    [chartData, selectedYear],
-  );
-  const annualProfit = selectedYear == null ? null : base.yearlyProfitKRW[selectedYear] ?? null;
+  const monthlyRows = useMemo(() => {
+    if (selectedYear == null) return chartData;
+    const byMonth = new Map(chartData.filter((row) => row.year === selectedYear).map((row) => [Number(String(row.date).split("/").at(-1)), row]));
+    return Array.from({ length: 12 }, (_, index) => {
+      const month = index + 1;
+      return byMonth.get(month) ?? { date: `${month}월`, deposit: null, portfolio: null, sp500: null, kospi: null, monthlyProfit: null, totalAssets: null, netInvestment: null, year: selectedYear };
+    });
+  }, [chartData, selectedYear]);
+  const annualProfit = selectedYear == null ? null : monthlyRows.reduce((sum, row) => sum + (typeof row.monthlyProfit === "number" ? row.monthlyProfit : 0), 0);
 
   const sp500 = benchmarks.find((benchmark) => benchmark.key === "sp500");
   const extraBenchmark = benchmarks.find((benchmark) => benchmark.key === "kospi");
@@ -215,7 +230,7 @@ function GroupBlock({ view }: { view: GroupView }) {
               <LineChart data={chartData} margin={CHART_MARGIN}>
                 <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} vertical={false} />
                 <XAxis dataKey="date" tick={AXIS_TICK_SM} tickLine={false} axisLine={AXIS_LINE} minTickGap={24} />
-                <YAxis tickFormatter={eokFmt} tick={AXIS_TICK_SM} tickLine={false} axisLine={false} width={48} />
+                <YAxis domain={performanceDomain(chartData)} tickFormatter={eokFmt} tick={AXIS_TICK_SM} tickLine={false} axisLine={false} width={48} />
                 <Tooltip contentStyle={TOOLTIP_STYLE} formatter={tooltipFormatter} />
                 <Legend wrapperStyle={LEGEND_WRAPPER} />
                 <Line
@@ -333,9 +348,9 @@ function GroupBlock({ view }: { view: GroupView }) {
   );
 }
 
-export default function DividendAccountPerformanceSection({ snapshots }: Props) {
+export default function DividendAccountPerformanceSection({ snapshots, latestBackcastHoldings }: Props) {
   const latestSnapshot = useMemo(() => [...snapshots].filter((snapshot) => snapshot.snapshotDate).sort((a, b) => (a.snapshotDate < b.snapshotDate ? 1 : -1))[0], [snapshots]);
-  const accountTickers = useMemo(() => Array.from(new Set((latestSnapshot?.holdings ?? []).map((holding) => (holding.ticker ?? "").trim().toUpperCase()).filter(Boolean))).sort(), [latestSnapshot]);
+  const accountTickers = useMemo(() => Array.from(new Set((latestBackcastHoldings ? [...latestBackcastHoldings["위탁"], ...latestBackcastHoldings["절세"]] : (latestSnapshot?.holdings ?? [])).map((holding) => (holding.ticker ?? "").trim().toUpperCase()).filter(Boolean))).sort(), [latestBackcastHoldings, latestSnapshot]);
 
 
   const earliestDate = latestSnapshot?.snapshotDate ?? null;
@@ -378,8 +393,8 @@ export default function DividendAccountPerformanceSection({ snapshots }: Props) 
 
 
   const bases = useMemo(
-    () => ACCOUNT_PERF_GROUPS.map((group) => buildAccountGroupPerformance(snapshots, group, { priceHistories: histories.holdingPrices, fxHistory: histories.fx, latestDate: latestSnapshot?.snapshotDate, months: 24 })),
-    [histories.fx, histories.holdingPrices, latestSnapshot?.snapshotDate, snapshots],
+    () => ACCOUNT_PERF_GROUPS.map((group) => buildAccountGroupPerformance(snapshots, group, { priceHistories: histories.holdingPrices, fxHistory: histories.fx, latestDate: latestSnapshot?.snapshotDate, months: 24, holdings: latestBackcastHoldings?.[group] })),
+    [histories.fx, histories.holdingPrices, latestBackcastHoldings, latestSnapshot?.snapshotDate, snapshots],
   );
 
   const views: GroupView[] = useMemo(() => {

@@ -37,3 +37,6 @@
 
 ## 남은 한계
 Vercel에는 원본 배당금가계부의 BUY/SELL 거래 원장 store가 아직 연결되어 있지 않다. 따라서 월중 매수/매도 현금흐름이 아니라 “현재 수량을 과거에도 보유했다”는 backcast 참고 성과이다.
+
+## FIX-2 update
+위탁/절세 계좌 성과가 보유 배당 표의 추정 수량(`quantityEstimated`)과 `valueKRW/currentPriceKRW` 기반 수량을 재사용하도록 보정했습니다. 일부 가격 이력 실패는 warning으로만 처리하고, 모든 종목 가격 실패 시에만 데이터 부족으로 표시합니다. 성과 그래프 y축은 data min/max padding 기반이며 월별 손익의 빈 달은 null로 둡니다.

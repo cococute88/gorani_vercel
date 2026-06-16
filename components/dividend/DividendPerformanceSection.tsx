@@ -15,6 +15,16 @@ function eokFmt(v: number): string { return `${(v / 100000000).toFixed(1)}억`; 
 function won(value: number | null | undefined): string { return value == null ? "계산 불가" : `₩ ${Math.round(value).toLocaleString("ko-KR")}`; }
 function tooltipFormatter(value: number, name: string): [string, string] { return [won(value), name]; }
 
+
+function performanceDomain(points: DividendPerformanceResult["points"]): [number | string | ((value: number) => number), number | string | ((value: number) => number)] {
+  const values = points.flatMap((point) => [point.deposit, point.portfolio, point.kospi, point.sp500]).filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+  if (values.length === 0) return ["auto", "auto"];
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = Math.max(max - min, Math.abs(max) * 0.02, 1);
+  return [Math.max(0, min - range * 0.08), max + range * 0.08];
+}
+
 function Kpi({ label, value, rate }: { label: string; value: number | null | undefined; rate?: number | null }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-[#263033] dark:bg-[#11181a]">
@@ -28,7 +38,16 @@ function Kpi({ label, value, rate }: { label: string; value: number | null | und
 export default function DividendPerformanceSection({ result }: Props) {
   const [selectedYear, setSelectedYear] = useState<number | null>(result.availableYears.at(-1) ?? null);
   useEffect(() => setSelectedYear(result.availableYears.at(-1) ?? null), [result.availableYears]);
-  const monthlyRows = useMemo(() => result.points.filter((point) => selectedYear == null || point.year === selectedYear), [result.points, selectedYear]);
+  const monthlyRows = useMemo(() => {
+    if (selectedYear == null) return result.points;
+    const byMonth = new Map(result.points.filter((point) => point.year === selectedYear).map((point) => [Number(point.date.slice(5, 7)), point]));
+    return Array.from({ length: 12 }, (_, index) => {
+      const month = index + 1;
+      const found = byMonth.get(month);
+      return found ?? { date: `${selectedYear}-${String(month).padStart(2, "0")}`, deposit: 0, portfolio: 0, kospi: null, sp500: null, monthlyProfit: null, totalAssets: null, netInvestment: 0, year: selectedYear };
+    });
+  }, [result.points, selectedYear]);
+  const annualProfit = useMemo(() => monthlyRows.reduce((sum, row) => sum + (typeof row.monthlyProfit === "number" ? row.monthlyProfit : 0), 0), [monthlyRows]);
 
   return (
     <section className="mb-6">
@@ -57,7 +76,7 @@ export default function DividendPerformanceSection({ result }: Props) {
                 <LineChart data={result.points} margin={CHART_MARGIN}>
                   <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} vertical={false} />
                   <XAxis dataKey="date" tick={AXIS_TICK_SM} tickLine={false} axisLine={AXIS_LINE} minTickGap={24} />
-                  <YAxis tickFormatter={eokFmt} tick={AXIS_TICK_SM} tickLine={false} axisLine={false} width={48} />
+                  <YAxis domain={performanceDomain(result.points)} tickFormatter={eokFmt} tick={AXIS_TICK_SM} tickLine={false} axisLine={false} width={48} />
                   <Tooltip contentStyle={TOOLTIP_STYLE} formatter={tooltipFormatter} />
                   <Legend wrapperStyle={LEGEND_WRAPPER} />
                   <Line type="monotone" dataKey="deposit" name="누적 입금" stroke="#94a3b8" strokeWidth={1.5} dot={false} strokeDasharray="4 4" />
@@ -73,17 +92,17 @@ export default function DividendPerformanceSection({ result }: Props) {
                 {result.availableYears.map((year) => <option key={year} value={year}>{year}년</option>)}
               </select>
             </div>
-            <div className="mt-2 text-[12px] text-slate-500">연간 손익: {selectedYear == null ? "-" : won(result.yearlyProfitKRW[selectedYear])}</div>
+            <div className="mt-2 text-[12px] text-slate-500">연간 손익: {selectedYear == null ? "-" : won(annualProfit)}</div>
             <div className="mt-3 h-[260px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={monthlyRows} margin={CHART_MARGIN}>
                   <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} vertical={false} />
                   <XAxis dataKey="date" tick={AXIS_TICK_SM} tickLine={false} axisLine={AXIS_LINE} />
-                  <YAxis tickFormatter={eokFmt} tick={AXIS_TICK_SM} tickLine={false} axisLine={false} width={48} />
+                  <YAxis domain={performanceDomain(result.points)} tickFormatter={eokFmt} tick={AXIS_TICK_SM} tickLine={false} axisLine={false} width={48} />
                   <Tooltip contentStyle={TOOLTIP_STYLE} formatter={tooltipFormatter} />
                   <Legend wrapperStyle={LEGEND_WRAPPER} />
                   <Bar dataKey="monthlyProfit" name="월별 손익" fill="#60a5fa" radius={[4, 4, 0, 0]} />
-                  <Line type="monotone" dataKey="totalAssets" name="총자산" stroke="#f59e0b" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="totalAssets" name="총자산" stroke="#2DD4BF" strokeWidth={2} dot={false} connectNulls={false} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

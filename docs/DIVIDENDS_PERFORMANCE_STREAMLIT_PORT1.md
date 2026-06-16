@@ -19,3 +19,6 @@
 
 ## UI 문구
 source badge는 `최신 보유 기준 역산`을 사용한다. empty state는 과거 가격 데이터 또는 보유종목 부족을 안내하며 “최소 2개 이상의 스냅샷”을 더 이상 요구하지 않는다.
+
+## FIX-2 note
+원본 Streamlit은 거래내역 기반 성과분석입니다. Vercel `/dividends`는 거래내역 store가 없어 최신 holdings backcast를 사용하며, 이 차이를 UI badge와 warning에 명시합니다. 월별 손익은 요구사항에 따라 데이터 없는 달을 0이 아닌 null로 유지합니다.

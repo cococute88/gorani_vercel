@@ -357,6 +357,11 @@ export default function DividendPage() {
   const goalProgressLabel = goalProgress.calculable
     ? `SCHD 환산 ${goalProgress.equivalentShares?.toLocaleString("ko-KR", { maximumFractionDigits: 1 })}주 · ${actualSharesLabel} / 목표 ${targetQty.toLocaleString("ko-KR")}주`
     : (goalProgress.error ?? "계산 불가");
+  const accountBackcastHoldings = useMemo(() => ({
+    위탁: estimatedTaxableHoldings,
+    절세: estimatedTaxAdvantagedHoldings,
+  }), [estimatedTaxableHoldings, estimatedTaxAdvantagedHoldings]);
+
   const dividendPerformance = useMemo(() => buildDividendPerformanceBackcast({
     holdings: [...estimatedTaxableHoldings, ...estimatedTaxAdvantagedHoldings],
     priceHistories: performanceHistories.prices,
@@ -488,7 +493,7 @@ export default function DividendPage() {
             </div>
           </div>
         </section>
-        <DividendAccountPerformanceSection snapshots={snapshots} />
+        <DividendAccountPerformanceSection snapshots={snapshots} latestBackcastHoldings={accountBackcastHoldings} />
         <DividendPerformanceSection result={dividendPerformance} />
       </main>
     </div>

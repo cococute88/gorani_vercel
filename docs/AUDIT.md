@@ -506,3 +506,5 @@ DIVIDENDS-PERFORMANCE-LATEST-HOLDINGS-BACKCAST-FIX-1: /dividends 성과분석의
 MDD-BRUSH-PLACEMENT-FIX-1: MDD 계산기 연도별 수익률 그래프 하단 Brush를 제거하고 달러 vs 원화 Drawdown 비교 그래프 하단으로 이동
 
 DIVIDEND-CAPTURE-STREAMLIT-RESTORE-1: 배당치기 시뮬레이터를 원본 Streamlit 3_dividend_sim.py 기준으로 복구하여 full history 분석, KPI 6개, 수익률 분포 그래프, 회차별 상세 결과 표를 정비
+
+DIVIDENDS-PERFORMANCE-BACKCAST-GROUP-FIX-2: /dividends 위탁/절세 계좌 성과 그래프가 최신 보유종목 기준으로 표시되도록 수정하고, 전체 합산 성과 y축 및 월별 손익 null month/총자산/연간손익 표시를 보정
