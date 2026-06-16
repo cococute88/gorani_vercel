@@ -1,6 +1,7 @@
 "use client";
 
 import { formatWon, formatPercent } from "@/lib/format";
+import { splitSmallHoldings } from "@/lib/portfolio-small-holdings";
 import type { Holding } from "@/lib/portfolio-types";
 
 interface Props {
@@ -33,10 +34,21 @@ export default function HoldingsTable({
         ? "border-blue-500/25 bg-blue-500/10 text-blue-300"
         : "border-emerald-500/25 bg-emerald-500/10 text-emerald-300";
 
+  // 소액(#소액 또는 20만원 미만) 항목은 표시 단계에서 숨겨 리스트를 짧게 유지한다.
+  // (parser 원천/저장 데이터는 그대로 두고, 화면에서만 visible 만 렌더한다.)
+  const { visible: visibleHoldings, hiddenCount } = splitSmallHoldings(holdings);
+
   return (
     <div className={card}>
       <div className="mb-4 flex min-w-0 flex-wrap items-center justify-between gap-2">
-        <h2 className="text-[15px] font-bold text-slate-300">보유종목 리스트</h2>
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <h2 className="text-[15px] font-bold text-slate-300">보유종목 리스트</h2>
+          {hiddenCount > 0 ? (
+            <span className="shrink-0 whitespace-nowrap rounded-md border border-slate-600/40 bg-white/5 px-2 py-0.5 text-[11px] text-slate-400">
+              소액 {hiddenCount}개 숨김
+            </span>
+          ) : null}
+        </div>
         {tickerMapNotice ? (
           <span className={`max-w-full break-keep rounded-md border px-2.5 py-1 text-[11.5px] ${noticeToneClass}`}>
             {tickerMapNotice.text}
@@ -46,12 +58,12 @@ export default function HoldingsTable({
 
       {/* 모바일: 카드 리스트 (가로 스크롤 없이 카드 안에 핵심 정보 표시) */}
       <div className="space-y-2.5 lg:hidden">
-        {holdings.length === 0 && (
+        {visibleHoldings.length === 0 && (
           <p className="rounded-xl border border-[#263234] bg-[#121819] p-4 text-center text-[13px] text-slate-500">
             보유종목이 없습니다.
           </p>
         )}
-        {holdings.map((h) => (
+        {visibleHoldings.map((h) => (
           <div key={h.id} className="rounded-2xl border border-[#263234] bg-[#121819] p-3">
             <div className="flex items-start gap-2.5">
               <input
@@ -136,12 +148,12 @@ export default function HoldingsTable({
             </tr>
           </thead>
           <tbody>
-            {holdings.length === 0 && (
+            {visibleHoldings.length === 0 && (
               <tr>
                 <td colSpan={9} className="px-3 py-6 text-center text-slate-500">보유종목이 없습니다.</td>
               </tr>
             )}
-            {holdings.map((h) => (
+            {visibleHoldings.map((h) => (
               <tr key={h.id} className="border-b border-[#1c2426] hover:bg-white/[0.02]">
                 <td className="px-2 py-2.5">
                   <input

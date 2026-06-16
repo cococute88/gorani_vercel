@@ -22,8 +22,10 @@ import {
   normalizeKrxTickerForTickerMap,
   upsertKrxTickerMapping,
 } from "@/lib/krx-ticker-name-map";
+import { parseSummaryFromSnapshot } from "@/lib/portfolio-parse-summary";
 import ExcelUploadCard from "./ExcelUploadCard";
 import PortfolioParsePreview from "./PortfolioParsePreview";
+import ParseSummaryCard from "./ParseSummaryCard";
 import AssetAllocationDonut from "./AssetAllocationDonut";
 import HoldingsTable from "./HoldingsTable";
 import AssetTable from "./AssetTable";
@@ -354,17 +356,21 @@ export default function PortfolioPage() {
             </div>
           )}
           {previewSnapshot && (
-            // ASSET-CLASS-DONUT-POLISH-2: 와이드 화면에서 도넛과 범례가 과하게 벌어지지 않도록
-            // 상단 3-카드 중 "자산군 비중" 카드와 비슷한 밀도(폭)로 max-width 를 제한한다.
-            // 모바일(<sm)에서는 max-width 가 화면보다 커서 기존처럼 자연스럽게 세로로 채워진다.
-            <div className="mb-4 w-full min-w-0 max-w-[520px]">
-              <AssetAllocationDonut
-                holdings={displayedHoldings}
-                financeAssets={previewSnapshot.financeAssets ?? []}
-                theme="dark"
-                title={`자산군 비중 · ${previewSnapshot.snapshotDate} 기준`}
-                emptyMessage="이 스냅샷에는 표시할 자산군 비중이 없습니다."
-              />
+            // 스냅샷 상세: 왼쪽 도넛 + 오른쪽 파싱 결과 요약(3x3).
+            // desktop(lg+) 2열로 나란히, mobile 에서는 세로 stack.
+            <div className="mb-4 grid grid-cols-1 items-stretch gap-4 lg:grid-cols-2">
+              <div className="w-full min-w-0">
+                <AssetAllocationDonut
+                  holdings={displayedHoldings}
+                  financeAssets={previewSnapshot.financeAssets ?? []}
+                  theme="dark"
+                  title={`자산군 비중 · ${previewSnapshot.snapshotDate} 기준`}
+                  emptyMessage="이 스냅샷에는 표시할 자산군 비중이 없습니다."
+                />
+              </div>
+              <div className="w-full min-w-0">
+                <ParseSummaryCard model={parseSummaryFromSnapshot(previewSnapshot)} />
+              </div>
             </div>
           )}
           <PortfolioQuoteStatusPanel holdings={displayedHoldings} />
