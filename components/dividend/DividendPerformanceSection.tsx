@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, CartesianGrid, ComposedChart, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { DividendPerformanceResult } from "@/lib/dividend-performance-from-snapshots";
 import { AXIS_LINE, AXIS_TICK_SM, CHART_GRID, CHART_MARGIN, TOOLTIP_STYLE } from "@/lib/chart-style";
 import { formatPercent } from "@/lib/format";
@@ -15,6 +15,19 @@ function eokFmt(v: number): string { return `${(v / 100000000).toFixed(1)}억`; 
 function won(value: number | null | undefined): string { return value == null ? "계산 불가" : `₩ ${Math.round(value).toLocaleString("ko-KR")}`; }
 function tooltipFormatter(value: number, name: string): [string, string] { return [won(value), name]; }
 
+
+function paddedDomain(values: Array<number | null | undefined>, includeZero: boolean): [number | string, number | string] {
+  const finiteValues = values.filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+  if (finiteValues.length === 0) return ["auto", "auto"];
+  let min = Math.min(...finiteValues);
+  let max = Math.max(...finiteValues);
+  if (includeZero) {
+    min = Math.min(min, 0);
+    max = Math.max(max, 0);
+  }
+  const range = Math.max(max - min, Math.abs(max) * 0.02, Math.abs(min) * 0.02, 1);
+  return [min - range * 0.12, max + range * 0.12];
+}
 
 function performanceDomain(points: DividendPerformanceResult["points"]): [number | string | ((value: number) => number), number | string | ((value: number) => number)] {
   const values = points.flatMap((point) => [point.deposit, point.portfolio, point.kospi, point.sp500]).filter((value): value is number => typeof value === "number" && Number.isFinite(value));
@@ -44,10 +57,12 @@ export default function DividendPerformanceSection({ result }: Props) {
     return Array.from({ length: 12 }, (_, index) => {
       const month = index + 1;
       const found = byMonth.get(month);
-      return found ?? { date: `${selectedYear}-${String(month).padStart(2, "0")}`, deposit: 0, portfolio: 0, kospi: null, sp500: null, monthlyProfit: null, totalAssets: null, netInvestment: 0, year: selectedYear };
+      return found ?? { date: `${selectedYear}-${String(month).padStart(2, "0")}`, deposit: null, portfolio: null, kospi: null, sp500: null, monthlyProfit: null, totalAssets: null, netInvestment: null, year: selectedYear };
     });
   }, [result.points, selectedYear]);
   const annualProfit = useMemo(() => monthlyRows.reduce((sum, row) => sum + (typeof row.monthlyProfit === "number" ? row.monthlyProfit : 0), 0), [monthlyRows]);
+  const profitDomain = useMemo(() => paddedDomain(monthlyRows.map((row) => typeof row.monthlyProfit === "number" ? row.monthlyProfit : null), true), [monthlyRows]);
+  const assetDomain = useMemo(() => paddedDomain(monthlyRows.map((row) => typeof row.totalAssets === "number" ? row.totalAssets : null), false), [monthlyRows]);
 
   return (
     <section className="mb-6">
@@ -95,15 +110,16 @@ export default function DividendPerformanceSection({ result }: Props) {
             <div className="mt-2 text-[12px] text-slate-500">연간 손익: {selectedYear == null ? "-" : won(annualProfit)}</div>
             <div className="mt-3 h-[260px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={monthlyRows} margin={CHART_MARGIN}>
+                <ComposedChart data={monthlyRows} margin={CHART_MARGIN}>
                   <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} vertical={false} />
                   <XAxis dataKey="date" tick={AXIS_TICK_SM} tickLine={false} axisLine={AXIS_LINE} />
-                  <YAxis domain={performanceDomain(result.points)} tickFormatter={eokFmt} tick={AXIS_TICK_SM} tickLine={false} axisLine={false} width={48} />
+                  <YAxis yAxisId="profit" orientation="left" domain={profitDomain} tickFormatter={eokFmt} tick={AXIS_TICK_SM} tickLine={false} axisLine={false} width={48} />
+                  <YAxis yAxisId="asset" orientation="right" domain={assetDomain} tickFormatter={eokFmt} tick={AXIS_TICK_SM} tickLine={false} axisLine={false} width={48} />
                   <Tooltip contentStyle={TOOLTIP_STYLE} formatter={tooltipFormatter} />
                   <Legend wrapperStyle={LEGEND_WRAPPER} />
-                  <Bar dataKey="monthlyProfit" name="월별 손익" fill="#60a5fa" radius={[4, 4, 0, 0]} />
-                  <Line type="monotone" dataKey="totalAssets" name="총자산" stroke="#2DD4BF" strokeWidth={2} dot={false} connectNulls={false} />
-                </BarChart>
+                  <Bar yAxisId="profit" dataKey="monthlyProfit" name="월별 손익" fill="#60a5fa" radius={[4, 4, 0, 0]} />
+                  <Line yAxisId="asset" type="monotone" dataKey="totalAssets" name="총자산" stroke="#2DD4BF" strokeWidth={2} dot={false} connectNulls={false} />
+                </ComposedChart>
               </ResponsiveContainer>
             </div>
           </>

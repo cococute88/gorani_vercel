@@ -27,6 +27,7 @@ import {
   computeBenchmarkSeries,
 } from "@/lib/dividend-ledger-performance";
 import { quoteHistoryPath } from "@/lib/quote-client";
+import { normalizeHoldingTickerInfo } from "@/lib/holding-ticker-normalizer";
 import type { QuoteHistoryResponse } from "@/lib/quote-types";
 import { AXIS_LINE, AXIS_TICK_SM, CHART_GRID, CHART_MARGIN, TOOLTIP_STYLE } from "@/lib/chart-style";
 import { formatPercent } from "@/lib/format";
@@ -131,6 +132,25 @@ function Kpi({
   );
 }
 
+
+function paddedDomain(values: Array<number | null | undefined>, includeZero: boolean): [number | string, number | string] {
+  const finiteValues = values.filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+  if (finiteValues.length === 0) return ["auto", "auto"];
+  let min = Math.min(...finiteValues);
+  let max = Math.max(...finiteValues);
+  if (includeZero) {
+    min = Math.min(min, 0);
+    max = Math.max(max, 0);
+  }
+  const range = Math.max(max - min, Math.abs(max) * 0.02, Math.abs(min) * 0.02, 1);
+  return [min - range * 0.12, max + range * 0.12];
+}
+
+function monthHistoryStart(latestDate: string, months: number): string {
+  const date = new Date(`${latestDate}T00:00:00Z`);
+  date.setUTCMonth(date.getUTCMonth() - months);
+  return date.toISOString().slice(0, 10);
+}
 function performanceDomain(rows: Array<Record<string, number | string | null>>): [number | string, number | string] {
   const values = rows.flatMap((row) => [row.deposit, row.portfolio, row.sp500, row.kospi]).filter((value): value is number => typeof value === "number" && Number.isFinite(value));
   if (values.length === 0) return ["auto", "auto"];
@@ -176,6 +196,8 @@ function GroupBlock({ view }: { view: GroupView }) {
     });
   }, [chartData, selectedYear]);
   const annualProfit = selectedYear == null ? null : monthlyRows.reduce((sum, row) => sum + (typeof row.monthlyProfit === "number" ? row.monthlyProfit : 0), 0);
+  const profitDomain = useMemo(() => paddedDomain(monthlyRows.map((row) => typeof row.monthlyProfit === "number" ? row.monthlyProfit : null), true), [monthlyRows]);
+  const assetDomain = useMemo(() => paddedDomain(monthlyRows.map((row) => typeof row.totalAssets === "number" ? row.totalAssets : null), false), [monthlyRows]);
 
   const sp500 = benchmarks.find((benchmark) => benchmark.key === "sp500");
   const extraBenchmark = benchmarks.find((benchmark) => benchmark.key === "kospi");
@@ -314,10 +336,11 @@ function GroupBlock({ view }: { view: GroupView }) {
               <ComposedChart data={monthlyRows} margin={CHART_MARGIN}>
                 <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} vertical={false} />
                 <XAxis dataKey="date" tick={AXIS_TICK_SM} tickLine={false} axisLine={AXIS_LINE} />
-                <YAxis tickFormatter={eokFmt} tick={AXIS_TICK_SM} tickLine={false} axisLine={false} width={48} />
+                <YAxis yAxisId="profit" orientation="left" domain={profitDomain} tickFormatter={eokFmt} tick={AXIS_TICK_SM} tickLine={false} axisLine={false} width={48} />
+                <YAxis yAxisId="asset" orientation="right" domain={assetDomain} tickFormatter={eokFmt} tick={AXIS_TICK_SM} tickLine={false} axisLine={false} width={48} />
                 <Tooltip contentStyle={TOOLTIP_STYLE} formatter={tooltipFormatter} />
                 <Legend wrapperStyle={LEGEND_WRAPPER} />
-                <Bar dataKey="monthlyProfit" name="월별 손익" radius={[4, 4, 0, 0]}>
+                <Bar yAxisId="profit" dataKey="monthlyProfit" name="월별 손익" radius={[4, 4, 0, 0]}>
                   {monthlyRows.map((row, index) => (
                     <Cell
                       key={index}
@@ -326,6 +349,7 @@ function GroupBlock({ view }: { view: GroupView }) {
                   ))}
                 </Bar>
                 <Line
+                  yAxisId="asset"
                   type="monotone"
                   dataKey="totalAssets"
                   name="총자산"
@@ -350,10 +374,10 @@ function GroupBlock({ view }: { view: GroupView }) {
 
 export default function DividendAccountPerformanceSection({ snapshots, latestBackcastHoldings }: Props) {
   const latestSnapshot = useMemo(() => [...snapshots].filter((snapshot) => snapshot.snapshotDate).sort((a, b) => (a.snapshotDate < b.snapshotDate ? 1 : -1))[0], [snapshots]);
-  const accountTickers = useMemo(() => Array.from(new Set((latestBackcastHoldings ? [...latestBackcastHoldings["위탁"], ...latestBackcastHoldings["절세"]] : (latestSnapshot?.holdings ?? [])).map((holding) => (holding.ticker ?? "").trim().toUpperCase()).filter(Boolean))).sort(), [latestBackcastHoldings, latestSnapshot]);
+  const accountTickers = useMemo(() => Array.from(new Set((latestBackcastHoldings ? [...latestBackcastHoldings["위탁"], ...latestBackcastHoldings["절세"]] : (latestSnapshot?.holdings ?? [])).map((holding) => ((holding as { normalizedTicker?: string }).normalizedTicker ?? holding.ticker ?? normalizeHoldingTickerInfo(holding).quoteTicker ?? "").trim().toUpperCase()).filter(Boolean))).sort(), [latestBackcastHoldings, latestSnapshot]);
 
 
-  const earliestDate = latestSnapshot?.snapshotDate ?? null;
+  const earliestDate = latestSnapshot?.snapshotDate ? monthHistoryStart(latestSnapshot.snapshotDate, 25) : null;
 
   const [histories, setHistories] = useState<{
     sp500: BenchmarkPricePoint[] | null;
