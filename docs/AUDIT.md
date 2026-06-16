@@ -489,3 +489,5 @@ Dependency warnings observed:
 - 2026-06-16 Step CALENDAR-DIVIDEND-LIVE-UPDATE-1-RECREATE: 최신 main 기준 배당일정 라이브 최신화/클라우드 저장 기능 재구현. See `docs/CALENDAR_DIVIDEND_LIVE_UPDATE1.md`.
 
 - DIVIDEND-SCHD-GOAL-AND-WITHDRAWAL-MODE-1: SCHD 환산주수 기반 목표달성률 및 전체 평가금액 3.5% 인출률 모드 추가
+
+DIVIDENDS-PERFORMANCE-STREAMLIT-PORT-1: 기존 Streamlit 배당 성과분석 로직을 Vercel /dividends에 실제 데이터 기반으로 이식하고 SCHD 목표달성률 계산을 환산주수 기준으로 수정

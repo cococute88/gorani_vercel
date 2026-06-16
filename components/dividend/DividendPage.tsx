@@ -6,7 +6,6 @@ import TopNav from "@/components/TopNav";
 import { usePortfolioSnapshots, latestOf } from "@/lib/portfolio-store";
 import {
   buildMonthlyDividendsFromRows,
-  DIVIDEND_PERFORMANCE_SERIES,
   type DividendHoldingRow,
 } from "@/lib/mock-dividend-data";
 import {
@@ -26,6 +25,7 @@ import MonthlyDividendChart from "./MonthlyDividendChart";
 import DividendHoldingsTable from "./DividendHoldingsTable";
 import DividendPerformanceSection from "./DividendPerformanceSection";
 import { useResolvedTheme } from "@/components/theme/ThemeProvider";
+import { buildDividendPerformanceFromSnapshots } from "@/lib/dividend-performance-from-snapshots";
 
 const card =
   "rounded-2xl border border-slate-200 bg-white p-5 dark:border-[#2a3336] dark:bg-[#191f20]";
@@ -66,6 +66,23 @@ function dividendNoteFromWarnings(warnings: DividendEstimateWarning[]): string {
     return "배당 데이터 없음";
   }
   return "데이터 없음";
+}
+
+function computeActualTargetShares(rows: DividendHoldingRow[], targetPriceKRW?: number): { shares: number; estimated: boolean } {
+  let shares = 0;
+  let estimated = false;
+  for (const row of rows) {
+    if (Number.isFinite(row.quantity) && row.quantity && row.quantity > 0) {
+      shares += row.quantity;
+      if (row.quantityEstimated) estimated = true;
+      continue;
+    }
+    if (targetPriceKRW && targetPriceKRW > 0 && row.valueKRW > 0) {
+      shares += row.valueKRW / targetPriceKRW;
+      estimated = true;
+    }
+  }
+  return { shares, estimated };
 }
 
 export default function DividendPage() {
@@ -279,12 +296,8 @@ export default function DividendPage() {
   const monthlyAvgKRW = annualDividendKRW / 12;
 
   const targetRows = [...estimatedTaxableHoldings, ...estimatedTaxAdvantagedHoldings]
-    .filter((row) => row.ticker.toUpperCase() === targetTicker.toUpperCase());
-  const actualTargetShares = targetRows.reduce((sum, row) => {
-    const actualQuantity = row.quantityEstimated ? undefined : row.quantity;
-    return Number.isFinite(actualQuantity) && actualQuantity && actualQuantity > 0 ? sum + actualQuantity : sum;
-  }, 0);
-  const targetQuote = marketData.quotes[targetTicker.trim().toUpperCase()];
+    .filter((row) => row.ticker.trim().toUpperCase() === targetTickerNormalized);
+  const targetQuote = marketData.quotes[targetTickerNormalized];
   const targetCurrency = isKrwTicker(targetQuote?.normalizedTicker ?? targetTicker) ? "KRW" : "USD";
   const targetPriceKRW = targetQuote?.source !== "sample" && targetQuote?.price && targetQuote.price > 0
     ? targetCurrency === "KRW"
@@ -293,17 +306,20 @@ export default function DividendPage() {
         ? targetQuote.price * marketData.fx.rate
         : undefined
     : undefined;
+  const actualTargetSharesResult = computeActualTargetShares(targetRows, targetPriceKRW);
   const goalProgress = computeSchdEquivalentGoalProgress({
     targetTicker,
     targetQty,
     evaluationKRW,
     targetPriceKRW,
-    actualShares: actualTargetShares,
+    actualShares: actualTargetSharesResult.shares,
   });
   const achievementPct = goalProgress.achievementPct ?? 0;
+  const actualSharesLabel = actualTargetSharesResult.estimated ? `실보유 추정 ${goalProgress.actualShares.toLocaleString("ko-KR", { maximumFractionDigits: 2 })}주` : `실보유 ${goalProgress.actualShares.toLocaleString("ko-KR", { maximumFractionDigits: 2 })}주`;
   const goalProgressLabel = goalProgress.calculable
-    ? `${goalProgress.equivalentShares?.toLocaleString("ko-KR", { maximumFractionDigits: 1 })}주(실보유 ${goalProgress.actualShares.toLocaleString("ko-KR", { maximumFractionDigits: 2 })}주) / ${targetQty.toLocaleString("ko-KR")}주`
+    ? `SCHD 환산 ${goalProgress.equivalentShares?.toLocaleString("ko-KR", { maximumFractionDigits: 1 })}주 · ${actualSharesLabel} / 목표 ${targetQty.toLocaleString("ko-KR")}주`
     : (goalProgress.error ?? "계산 불가");
+  const dividendPerformance = useMemo(() => buildDividendPerformanceFromSnapshots(snapshots), [snapshots]);
 
   function setChartTaxable(checked: boolean) {
     if (!checked && !chartIncludesTaxAdvantaged) return;
@@ -427,7 +443,7 @@ export default function DividendPage() {
             </div>
           </div>
         </section>
-        <DividendPerformanceSection series={DIVIDEND_PERFORMANCE_SERIES} />
+        <DividendPerformanceSection result={dividendPerformance} />
       </main>
     </div>
   );
