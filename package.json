@@ -59,7 +59,9 @@
     "check:dividends-performance-benchmark-axis": "node scripts/check-dividends-performance-benchmark-axis.mjs",
     "check:route-naming-legacy-audit": "node scripts/check-route-naming-legacy-audit.mjs",
     "check:dividend-capture-streamlit-row-parity": "node scripts/check-dividend-capture-streamlit-row-parity.mjs",
-    "check:dividend-capture-live-yahoo-parity": "node scripts/check-dividend-capture-live-yahoo-parity.mjs"
+    "check:dividend-capture-live-yahoo-parity": "node scripts/check-dividend-capture-live-yahoo-parity.mjs",
+    "check:auth-mobile-login-persistence": "node scripts/check-auth-mobile-login-persistence.mjs",
+    "check:dividend-capture-chart-axis-order": "node scripts/check-dividend-capture-chart-axis-order.mjs"
   },
   "dependencies": {
     "next": "14.2.5",

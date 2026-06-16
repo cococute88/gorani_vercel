@@ -17,7 +17,7 @@ for (const snippet of [
   'rows.filter((row) => row.result === "성공")',
 ]) assert.ok(calc.includes(snippet), `missing row-parity implementation snippet: ${snippet}`);
 
-assert.ok(comp.includes('const chartRows = useMemo(() => [...result.rows].sort'), 'chart rows must be sorted by exDate');
+assert.ok(comp.includes('[...result.rows]') && comp.includes('.sort((a, b) => a.exDate.localeCompare(b.exDate))'), 'chart rows must be sorted by exDate');
 assert.ok(comp.includes('fill="#3b82f6"'), 'success scatter color must be blue');
 assert.ok(comp.includes('fill="#93c5fd"'), 'failure scatter color must be sky blue');
 assert.ok(comp.includes('font-bold text-slate-900 dark:text-emerald-50'), 'backtest-period text must be readable');
