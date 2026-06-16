@@ -491,3 +491,5 @@ Dependency warnings observed:
 - DIVIDEND-SCHD-GOAL-AND-WITHDRAWAL-MODE-1: SCHD 환산주수 기반 목표달성률 및 전체 평가금액 3.5% 인출률 모드 추가
 
 DIVIDENDS-PERFORMANCE-STREAMLIT-PORT-1: 기존 Streamlit 배당 성과분석 로직을 Vercel /dividends에 실제 데이터 기반으로 이식하고 SCHD 목표달성률 계산을 환산주수 기준으로 수정
+
+CALENDAR-DIVIDEND-LIVE-UPDATE-POLYGON-DECLARED-FIX-1: 배당일정 최신화 시 Polygon declared 우선, 기존 confirmed cache 보호, estimated chip 스타일 회귀 수정

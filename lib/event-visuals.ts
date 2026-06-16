@@ -51,11 +51,11 @@ export function eventStateClasses(event: CalendarEvent, todayIso: string): strin
   // Opacity policy:
   //  - declared/confirmed & upcoming → full opacity
   //  - declared/confirmed & past     → light muted veil (~60%)
-  //  - non-declared (estimated)      → faint (~40%) so 확정 vs 추정 reads at a
+  //  - non-declared (estimated)      → subtle (~80%) so 확정 vs 추정 reads at a
   //    glance, but still legible (we never stack two opacity utilities).
   // Past events keep their full event-type color (no desaturation) so
   // Ex-Div/Buy/Pay/Earn stay distinguishable in light and dark mode. Estimated
   // events stay dashed.
-  const opacity = estimated ? "opacity-40" : isPast ? "opacity-60" : "opacity-100";
+  const opacity = estimated ? "opacity-80" : isPast ? "opacity-60" : "opacity-100";
   return [opacity, estimated ? "border-dashed" : "border-solid"].join(" ");
 }
