@@ -491,3 +491,5 @@ Dependency warnings observed:
 - DIVIDEND-SCHD-GOAL-AND-WITHDRAWAL-MODE-1: SCHD 환산주수 기반 목표달성률 및 전체 평가금액 3.5% 인출률 모드 추가
 
 DIVIDENDS-PERFORMANCE-STREAMLIT-PORT-1: 기존 Streamlit 배당 성과분석 로직을 Vercel /dividends에 실제 데이터 기반으로 이식하고 SCHD 목표달성률 계산을 환산주수 기준으로 수정
+
+- PORTFOLIO-MANAGER-SUMMARY-UX-POLISH-1: 포트폴리오 관리 파싱 결과 요약 3x3 정리, 부채/순자산 제거, 현금자산/투자자산 명칭 정리, 스냅샷 상세 요약 표시, 소액 항목 리스트 숨김. See `docs/PORTFOLIO_MANAGER_SUMMARY_UX_POLISH1.md`.

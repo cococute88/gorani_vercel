@@ -59,6 +59,12 @@ export function formatCompactKrw(value: number): string {
   return `${sign}${abs.toLocaleString("ko-KR")}`;
 }
 
+// 카드 타일용 축약 원화 표기 (예: 678794984 -> '₩ 6.79억').
+// 원화 기호(₩)과 숫자 사이는 줄바꿈 불가 공백(NBSP)을 쓴다.
+export function formatWonCompact(value: number): string {
+  return "₩ " + formatCompactKrw(value);
+}
+
 // 만원 단위 금액 표시 (예: 12345 -> 1억 2,345만원)
 export function formatManwonMoney(value: number): string {
   const sign = value < 0 ? "-" : "";
