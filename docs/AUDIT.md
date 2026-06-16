@@ -1,5 +1,7 @@
 # Gorani Finance Step 0 Audit
 
+DIVIDEND-LEDGER-PERFORMANCE-STREAMLIT-UI-PORT-1: 원본 배당금가계부 성과분석 UI/그래프를 참고해 위탁/절세 계좌별 성과 그래프와 S&P500/QQQ 비교선을 Vercel /dividends에 이식 (`docs/DIVIDEND_LEDGER_PERFORMANCE_STREAMLIT_UI_PORT1.md`)
+
 Audit date: 2026-06-12
 
 Path update date: 2026-06-12
