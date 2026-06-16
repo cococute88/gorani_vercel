@@ -7,7 +7,7 @@ export type DividendPerformancePoint = {
   kospi: number | null;
   sp500: number | null;
   monthlyProfit: number | null;
-  totalAssets: number;
+  totalAssets: number | null;
   netInvestment: number;
   year: number;
 };
@@ -25,6 +25,7 @@ export type DividendPerformanceKpis = {
 export type BackcastPricePoint = { date: string; close: number };
 export type DividendPerformanceHoldingInput = Pick<Holding, "ticker" | "quantity" | "valueKRW" | "currentPrice" | "currency" | "valueOriginalCurrency"> & {
   currentPriceKRW?: number;
+  quantityEstimated?: boolean;
 };
 
 export type DividendPerformanceResult = {
@@ -107,15 +108,16 @@ function benchmarkLine(prices: BackcastPricePoint[] | null | undefined, months: 
 export function buildDividendPerformanceBackcast(input: BuildBackcastInput): DividendPerformanceResult {
   const monthsBack = input.months ?? 24;
   const latestDate = input.latestDate ?? new Date().toISOString().slice(0, 10);
-  const usable = input.holdings
+  const candidates = input.holdings
     .map((holding) => ({ holding, ticker: tickerOf(holding), quantity: estimateQuantity(holding) }))
-    .filter((row) => row.ticker && row.quantity > 0 && input.priceHistories[row.ticker]?.length);
+    .filter((row) => row.ticker && row.quantity > 0);
+  const usable = candidates.filter((row) => input.priceHistories[row.ticker]?.length);
 
   if (input.holdings.length === 0) {
     return unavailable("성과분석 데이터 부족: 이 계좌 그룹에 보유종목이 없습니다.");
   }
   if (usable.length === 0) {
-    return unavailable("성과분석 데이터 부족: 과거 가격을 확인할 수 있는 종목이 없습니다.");
+    return unavailable("과거 가격을 확인할 수 있는 보유종목이 없습니다.");
   }
 
   const months = monthEndsFromHistories(usable.map((row) => input.priceHistories[row.ticker]), latestDate, monthsBack);
@@ -143,6 +145,9 @@ export function buildDividendPerformanceBackcast(input: BuildBackcastInput): Div
   const yearlyProfitKRW: Record<number, number> = {};
   for (const point of points) yearlyProfitKRW[point.year] = (yearlyProfitKRW[point.year] ?? 0) + (point.monthlyProfit ?? 0);
   const warnings = ["최신 보유종목을 현재 수량으로 고정하고, 과거 가격을 대입해 역산한 참고 성과입니다."];
+  const excluded = candidates.filter((row) => !input.priceHistories[row.ticker]?.length).map((row) => row.ticker);
+  if (excluded.length > 0) warnings.push(`일부 종목의 과거 가격을 불러오지 못해 제외했습니다: ${Array.from(new Set(excluded)).join(", ")}`);
+  if (usable.some((row) => !finite(row.holding.quantity) && row.quantity > 0)) warnings.push("수량 원본값이 없는 종목은 수량(추정) 또는 평가금액/현재가 기준 추정 수량으로 계산했습니다.");
   if (!kospiValues.some((value) => value != null)) warnings.push("KOSPI 가격 데이터를 불러오지 못해 KOSPI 비교선을 표시하지 않습니다.");
   if (!sp500Values.some((value) => value != null)) warnings.push("S&P 500 가격/환율 데이터를 불러오지 못해 S&P 500 비교선을 표시하지 않습니다.");
   return { available: true, dataSource: "latest-holdings-backcast", sampleFallbackUsed: false, points, kpis: { cumulativeDepositKRW: base, portfolioValueKRW: latest.portfolio, portfolioReturnPct: pct(latest.portfolio, base), kospiValueKRW: latest.kospi, kospiReturnPct: pct(latest.kospi, base), sp500ValueKRW: latest.sp500, sp500ReturnPct: pct(latest.sp500, base) }, availableYears: Object.keys(yearlyProfitKRW).map(Number).sort((a, b) => a - b), yearlyProfitKRW, warnings };
