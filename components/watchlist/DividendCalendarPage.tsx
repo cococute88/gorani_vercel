@@ -44,7 +44,6 @@ import TaxSavingTable from "./TaxSavingTable";
 interface Props {
   tickers: string[];
   tickerManager: ReactNode;
-  headerAccessory?: ReactNode;
   onManagePortfolio?: () => void;
   // Legacy/imported 종목 메모 (ticker → memo). Already resolved by the parent;
   // selected-date cards and the event detail dialog share this ticker-level source.
@@ -70,7 +69,7 @@ function resolveCalendarEventMeta(event: CalendarEvent, metas: Record<string, Ca
   return undefined;
 }
 
-export default function DividendCalendarPage({ tickers, tickerManager, headerAccessory, onManagePortfolio, tickerMemos, onSaveTickerMemo }: Props) {
+export default function DividendCalendarPage({ tickers, tickerManager, onManagePortfolio, tickerMemos, onSaveTickerMemo }: Props) {
   const { user } = useFirebaseAuth();
   const today = new Date();
   const todayIso = formatIsoDate(today);
@@ -90,7 +89,6 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
     source: "mock",
     warnings: ["Initial mock events are shown until the dividend provider finishes."],
   }));
-  const [isProviderLoading, setIsProviderLoading] = useState(false);
   const [taxQuoteByTicker, setTaxQuoteByTicker] = useState<Record<string, TaxSavingQuoteState>>({});
   const [taxQuoteLoadingTickers, setTaxQuoteLoadingTickers] = useState<Set<string>>(() => new Set());
   const [liveRefreshState, setLiveRefreshState] = useState<{ running: boolean; done: number; total: number; success: string[]; failed: string[]; message: string; lastUpdatedAt?: string }>({ running: false, done: 0, total: 0, success: [], failed: [], message: "" });
@@ -142,7 +140,6 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
 
   useEffect(() => {
     let cancelled = false;
-    setIsProviderLoading(true);
     getCalendarEventsForTickersWithProvider({
       tickers,
       year: month.getFullYear(),
@@ -162,9 +159,6 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
           source: "mock",
           warnings: [`Calendar provider failed; mock fallback is shown: ${error instanceof Error ? error.message : String(error)}`],
         });
-      })
-      .finally(() => {
-        if (!cancelled) setIsProviderLoading(false);
       });
 
     return () => {
@@ -434,17 +428,6 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
     }
   };
 
-  const sourceLabel = usedImportedEvents ? "IMPORTED" : isProviderLoading ? "LOADING" : providerResult.source.toUpperCase();
-  const sourceColor = usedImportedEvents
-    ? "bg-emerald-500/15 border-emerald-400/40 text-emerald-300"
-    : isProviderLoading
-      ? "bg-yellow-500/15 border-yellow-400/40 text-yellow-300"
-      : providerResult.source === "mock" || providerResult.source === "sample"
-        ? "bg-slate-500/15 border-slate-400/40 text-slate-300"
-        : providerResult.source === "cache"
-          ? "bg-cyan-500/15 border-cyan-400/40 text-cyan-300"
-          : "bg-emerald-500/15 border-emerald-400/40 text-emerald-300";
-
   return (
     <>
       {/* Page header */}
@@ -452,9 +435,6 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-[22px] font-extrabold text-white sm:text-[26px]">배당캘린더</h1>
           <div className="flex items-center gap-2">
-            <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold sm:text-[11px] ${sourceColor}`}>
-              {sourceLabel}
-            </span>
             <button
               type="button"
               onClick={handleRefreshDividendEvents}
@@ -472,7 +452,6 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
             >
               💾 클라우드 저장
             </button>
-            {headerAccessory}
           </div>
         </div>
         <p className="mt-1 text-[12px] text-slate-500 sm:text-[13px]">배당락·매수마감·지급·실적을 한 화면에서 확인합니다.</p>
@@ -495,8 +474,13 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
       {/* Main content — wide calendar + narrow 절세액 rail. The top filter card
           and portfolio card are gone; filters now live on the calendar's bottom
           toolbar and portfolio management moved into the 티커 관리 section. */}
-      <section className="mb-4 grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_280px]">
-        <div className="space-y-4">
+      <section className="mb-4">
+        {/* Calendar card + 절세액 rail share one stretched row so the rail's
+            height tracks the calendar CARD (not the selected-date list, which now
+            sits full-width below). The rail is absolutely filled on desktop so it
+            never dictates the row height — it always matches the calendar and
+            scrolls internally. */}
+        <div className="grid grid-cols-1 items-stretch gap-4 xl:grid-cols-[minmax(0,1fr)_280px]">
           <CalendarGrid
             month={month}
             events={filteredEvents}
@@ -513,6 +497,13 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
             onToggleFilter={(type) => setFilters((current) => ({ ...current, [type]: !current[type] }))}
             onAddEvent={openCreateCustomEvent}
           />
+          <aside className="relative min-w-0">
+            <div className="xl:absolute xl:inset-0">
+              <TaxSavingTable rows={taxRows} />
+            </div>
+          </aside>
+        </div>
+        <div className="mt-4">
           <SelectedDateList
             selectedDate={selectedDate}
             events={selectedEvents}
@@ -522,9 +513,6 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
             tickerMemos={tickerMemos}
           />
         </div>
-        <aside className="xl:sticky xl:top-4">
-          <TaxSavingTable rows={taxRows} />
-        </aside>
       </section>
 
       {/* U.S. economic calendar (this week / next week) */}

@@ -89,10 +89,11 @@ export default function CalendarGrid({
         {cells.map((cell) => {
           const dayEvents = sortCalendarEventsByPriority(eventsByDate.get(cell.isoDate) ?? []);
           const dayCustom = customByDate.get(cell.isoDate) ?? [];
-          // Show up to four event chips per cell (date + custom/economic text
-          // line stays on top); anything beyond four collapses into a "+N" pill.
-          // Taller cells (see min-h below) keep four chips legible.
-          const shown = dayEvents.slice(0, 4);
+          // Show up to five event chips per cell (date + custom/economic text
+          // line stays on top); anything beyond five collapses into a "+N" pill.
+          // The cell min-height (below) is sized for date line + five chips +
+          // minimal padding, so a full cell has almost no trailing whitespace.
+          const shown = dayEvents.slice(0, 5);
           const extra = dayEvents.length - shown.length;
           const selected = selectedDate === cell.isoDate;
           const isToday = todayIso === cell.isoDate;
@@ -103,7 +104,7 @@ export default function CalendarGrid({
               type="button"
               onClick={() => onSelectDate(cell.isoDate)}
               className={[
-                "relative flex min-h-[88px] flex-col justify-start overflow-hidden border-t border-[#232d30] text-left transition sm:min-h-[140px] lg:min-h-[152px]",
+                "relative flex min-h-[100px] flex-col justify-start overflow-hidden border-t border-[#232d30] text-left transition sm:min-h-[148px] lg:min-h-[160px]",
                 // Light-mode hover stays a faint sky tint (not the dark surface color,
                 // which the global light remap does not touch on `hover:` classes).
                 isCurrentMonth
@@ -121,7 +122,7 @@ export default function CalendarGrid({
                   chips to the middle of the cell. */}
               <div className="flex h-5 shrink-0 items-start gap-1 px-1 pt-1 leading-none sm:h-6 sm:px-1.5 sm:pt-1.5">
                 <span className={[
-                  "flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold leading-none sm:h-6 sm:w-6 sm:text-[11px]",
+                  "flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold leading-none sm:h-6 sm:w-6 sm:text-[12px]",
                   isToday ? "bg-blue-500 text-white shadow-md shadow-blue-500/30" : "",
                   !isToday && isCurrentMonth ? "text-slate-700 dark:text-slate-200" : "",
                   !isToday && !isCurrentMonth ? "text-slate-400 dark:text-slate-600" : "",
@@ -135,13 +136,13 @@ export default function CalendarGrid({
                     title={dayCustom.map((event) => event.title ?? event.ticker).join(", ")}
                     onClick={(clickEvent) => { clickEvent.stopPropagation(); onSelectDate(cell.isoDate); onOpenEvent(dayCustom[0]); }}
                     onKeyDown={(keyEvent) => { if (keyEvent.key === "Enter") onOpenEvent(dayCustom[0]); }}
-                    className={`min-w-0 flex-1 truncate pt-0.5 text-[9px] font-medium leading-none text-amber-700 dark:text-amber-200/90 sm:text-[10px] ${cell.isoDate < todayIso ? "opacity-60" : ""}`}
+                    className={`min-w-0 flex-1 truncate pt-0.5 text-[10px] font-medium leading-none text-amber-700 dark:text-amber-200/90 sm:text-[11px] ${cell.isoDate < todayIso ? "opacity-60" : ""}`}
                   >
                     {dayCustom[0].title ?? dayCustom[0].ticker}{dayCustom.length > 1 ? ` +${dayCustom.length - 1}` : ""}
                   </span>
                 )}
                 {extra > 0 && (
-                  <span className="ml-auto shrink-0 rounded bg-black/10 px-1 py-0.5 text-[9px] font-semibold leading-none text-slate-500 dark:bg-white/10 dark:text-slate-400 sm:text-[10px]">
+                  <span className="ml-auto shrink-0 rounded bg-black/10 px-1 py-0.5 text-[10px] font-semibold leading-none text-slate-500 dark:bg-white/10 dark:text-slate-400 sm:text-[11px]">
                     +{extra}
                   </span>
                 )}
@@ -163,7 +164,7 @@ export default function CalendarGrid({
                       onClick={(clickEvent) => { clickEvent.stopPropagation(); onSelectDate(cell.isoDate); onOpenEvent(event); }}
                       onKeyDown={(keyEvent) => { if (keyEvent.key === "Enter") onOpenEvent(event); }}
                       className={[
-                        "block min-w-0 truncate rounded border px-1 py-0.5 text-[9px] font-semibold leading-tight sm:px-1.5 sm:py-0.5 sm:text-[10px]",
+                        "block min-w-0 truncate rounded border px-1 py-0.5 text-[10px] font-semibold leading-tight sm:px-1.5 sm:py-0.5 sm:text-[11px]",
                         visual.bg, visual.border, visual.text,
                         eventStateClasses(event, todayIso),
                       ].join(" ")}

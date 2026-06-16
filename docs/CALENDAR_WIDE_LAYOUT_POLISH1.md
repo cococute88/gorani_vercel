@@ -95,3 +95,9 @@ npm run check:dividends-data
   없으면 chip 금액도 표시되지 않는다(기존 동작과 동일).
 - `PortfolioSelectorMock` 컴포넌트는 사용처가 없지만 회귀 위험을 줄이기 위해 삭제하지
   않고 남겨 두었다.
+
+## 후속 polish
+
+- `CALENDAR-DESIGN-FINAL-POLISH-1` (chip 가독성, 날짜칸 5줄 기준 높이, 절세액 패널
+  높이 정렬, 불필요한 IMPORTED/클라우드 동기화 액션 제거)은
+  `docs/CALENDAR_WIDE_LAYOUT_POLISH1_FINAL.md` 참고.

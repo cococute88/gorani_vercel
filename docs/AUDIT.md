@@ -484,6 +484,8 @@ Dependency warnings observed:
 
 - 2026-06-15 Step CALENDAR-LAYOUT-WIDE-STREAMLIT-POLISH-1: 배당캘린더 와이드 레이아웃, 하단 필터 toggle, 일정 chip 절세액 표시, 포트폴리오 관리/티커 관리 병합. See `docs/CALENDAR_WIDE_LAYOUT_POLISH1.md`.
 
+- 2026-06-16 Step CALENDAR-DESIGN-FINAL-POLISH-1: 배당캘린더 chip 가독성, 날짜칸 5줄 기준 높이, 절세액 패널 높이, 불필요한 IMPORTED/클라우드 동기화 액션 제거 등 최종 UI polish. See `docs/CALENDAR_WIDE_LAYOUT_POLISH1_FINAL.md`.
+
 - ASSET-SIMULATOR-PERSISTENCE-FIX-1: /asset-simulator Save 버튼의 local/cloud persistence 및 재접속 복원 오류 수정. See `docs/ASSET_SIMULATOR_PERSISTENCE_FIX1.md`.
 - ASSET-SIMULATOR-FIRESTORE-SAVE-FIX-1: /asset-simulator Firestore 저장 payload의 undefined/NaN 값을 sanitize하여 cloud save 실패 수정
 - 2026-06-16 Step CALENDAR-DIVIDEND-LIVE-UPDATE-1-RECREATE: 최신 main 기준 배당일정 라이브 최신화/클라우드 저장 기능 재구현. See `docs/CALENDAR_DIVIDEND_LIVE_UPDATE1.md`.
