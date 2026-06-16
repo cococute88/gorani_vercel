@@ -6,7 +6,6 @@ import MetricCard from "@/components/MetricCard";
 import CalculatorDataStatus from "./CalculatorDataStatus";
 import CalculatorWarningPanel from "./CalculatorWarningPanel";
 import { TextInput, NumberInput, SelectInput } from "./CalculatorInputField";
-import { fetchQuoteDividends, fetchQuoteHistory } from "@/lib/calculator-data-provider";
 import { resolveDividendCaptureDates, simulateDividendCapture } from "@/lib/dividend-capture-calculator";
 import type { DividendCaptureDividendPoint, DividendCaptureInput, DividendCapturePricePoint, DividendCaptureRow } from "@/lib/calculator-types";
 import type { QuoteSource } from "@/lib/quote-types";
@@ -15,6 +14,17 @@ import { nextSortState, sortArrow, sortRows, type SortColumnType, type SortState
 
 const panel = "rounded-2xl border border-[#2a3336] bg-[#191f20] p-5";
 
+type DividendCaptureDiagnostics = {
+  dividendEventsLength: number;
+  priceRowsLength: number;
+  matchedEvents: number;
+  skippedEvents: number;
+  skippedExDatesFirst10: string[];
+  priceDateSampleFirst10: string[];
+  priceDateSampleLast10: string[];
+  mixedSources: boolean;
+};
+
 type DividendCaptureQuoteState = {
   prices?: DividendCapturePricePoint[];
   dividends?: DividendCaptureDividendPoint[];
@@ -22,17 +32,11 @@ type DividendCaptureQuoteState = {
   warnings: string[];
   updatedAt?: string;
   error?: string | null;
+  diagnostics?: DividendCaptureDiagnostics;
+  exchangeTimezoneName?: string;
+  dividendDateNormalization?: string;
+  priceDateNormalization?: string;
 };
-
-function combineSource(historySource: QuoteSource, dividendSource: QuoteSource): QuoteSource {
-  if (historySource === "sample" || dividendSource === "sample") return "sample";
-  if (historySource === "stooq") return "stooq";
-  return "yahoo";
-}
-
-function latestUpdatedAt(values: Array<string | undefined>) {
-  return values.filter(Boolean).sort().at(-1);
-}
 
 type DividendSortKey = keyof Pick<DividendCaptureRow, "exDate" | "buyPrice" | "afterTaxDividend" | "breakevenPrice" | "profitPct" | "recoveryDate" | "recoveryTradingDays" | "recoveryCalendarDays" | "result">;
 
@@ -85,30 +89,21 @@ export default function DividendCaptureSimulator({ input, onChange }: { input: D
 
       try {
         const request = toQuoteRequest(submitted);
-        const [historyResponse, dividendsResponse] = await Promise.all([
-          fetchQuoteHistory(request),
-          fetchQuoteDividends(request),
-        ]);
+        const response = await fetch(`/api/calculator/dividend-capture-data?ticker=${encodeURIComponent(request.ticker)}&recent5yOnly=${submitted.recent5yOnly ? "true" : "false"}`, { cache: "no-store" });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data?.error || `HTTP ${response.status}`);
         if (cancelled) return;
 
         setQuoteState({
-          prices: historyResponse.prices.map((point) => ({
-            date: point.date,
-            open: point.open,
-            high: point.high,
-            low: point.low,
-            close: point.close,
-          })),
-          dividends: dividendsResponse.dividends.map((point) => ({ date: point.date, amount: point.amount })),
-          source: combineSource(historyResponse.source, dividendsResponse.source),
-          warnings: [
-            ...historyResponse.warnings.map((w) => `${historyResponse.normalizedTicker} history: ${w}`),
-            ...dividendsResponse.warnings.map((w) => `${dividendsResponse.normalizedTicker} dividends: ${w}`),
-            ...(historyResponse.source !== dividendsResponse.source
-              ? [`Mixed quote sources: history=${historyResponse.source}, dividends=${dividendsResponse.source}.`]
-              : []),
-          ],
-          updatedAt: latestUpdatedAt([historyResponse.updatedAt, dividendsResponse.updatedAt]),
+          prices: data.prices,
+          dividends: data.dividends,
+          source: data.source,
+          warnings: data.warnings ?? [],
+          updatedAt: data.updatedAt,
+          diagnostics: data.diagnostics,
+          exchangeTimezoneName: data.exchangeTimezoneName,
+          dividendDateNormalization: data.dividendDateNormalization,
+          priceDateNormalization: data.priceDateNormalization,
           error: null,
         });
       } catch (error) {
@@ -154,7 +149,7 @@ export default function DividendCaptureSimulator({ input, onChange }: { input: D
               source={result.source}
               loading={loading}
               updatedAt={result.updatedAt}
-              loadingText="loading history/dividends"
+              loadingText="loading Yahoo chart OHLC/dividends"
               extra={`${result.usedStartDate} ~ ${result.usedEndDate}`}
             />
           </div>
@@ -183,9 +178,9 @@ export default function DividendCaptureSimulator({ input, onChange }: { input: D
       </form>
 
       {result.rows.length > 0 && (
-        <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/10 p-4 text-[13px] text-slate-900 dark:text-emerald-50">
+        <div className="rounded-2xl border border-emerald-500/25 bg-emerald-100 p-4 text-[13px] text-slate-900 dark:bg-emerald-500/10 dark:text-emerald-50">
           <p className="font-bold">총 {result.rows.length}회의 과거 배당 이벤트 분석 완료! (적용 세율: {submitted.taxRate}%)</p>
-          <p className="mt-1 font-semibold text-slate-800 dark:text-emerald-50">📅 백테스트 기간: {result.rows[0]?.exDate} ~ {result.rows.at(-1)?.exDate}</p>
+          <p className="mt-1 font-bold text-slate-900 dark:text-emerald-50">📅 백테스트 기간: {result.rows[0]?.exDate} ~ {result.rows.at(-1)?.exDate}</p>
         </div>
       )}
 
@@ -223,6 +218,7 @@ export default function DividendCaptureSimulator({ input, onChange }: { input: D
           </ResponsiveContainer>
         </div>
         {result.warning && <p className="mt-3 text-[12px] text-slate-500">{result.warning}</p>}
+        {quoteState.diagnostics && <p className="mt-1 text-[11px] text-slate-500">Yahoo chart 단일소스: 배당 {quoteState.diagnostics.dividendEventsLength}건 / 가격 {quoteState.diagnostics.priceRowsLength}행 / 매칭 {quoteState.diagnostics.matchedEvents}건 / 제외 {quoteState.diagnostics.skippedEvents}건</p>}
       </div>
 
       {/* Detail table */}

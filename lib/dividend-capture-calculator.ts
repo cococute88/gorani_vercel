@@ -254,8 +254,8 @@ export function buildDividendCaptureRowsFromStreamlitLogic(
     }];
   }).sort((a, b) => a.exDate.localeCompare(b.exDate));
 
-  if (skippedForMissingExDate > 0) warnings.push(`${skippedForMissingExDate} dividend event(s) were skipped because the ex-dividend date was not present in the price dataframe, matching Streamlit df.index.get_loc behavior.`);
-  if (skippedForInsufficientRows > 0) warnings.push(`${skippedForInsufficientRows} dividend event(s) were skipped because matching D-1/D-2 price rows or sell-window rows were unavailable.`);
+  if (skippedForMissingExDate > 0) warnings.push(`배당락일이 가격 데이터에 없어 제외된 이벤트 ${skippedForMissingExDate}건`);
+  if (skippedForInsufficientRows > 0) warnings.push(`D-1/D-2 매수 행 또는 매도 허용기간 행이 없어 제외된 이벤트 ${skippedForInsufficientRows}건`);
 
   return { rows, warnings, usedStartDate, usedEndDate };
 }
