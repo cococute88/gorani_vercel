@@ -140,6 +140,7 @@ export default function DividendCaptureSimulator({ input, onChange }: { input: D
   );
   const update = <K extends keyof DividendCaptureInput>(key: K, value: DividendCaptureInput[K]) => onChange({ ...input, [key]: value });
   const dividendSortType = detailSort ? dividendColumns.find((column) => column.key === detailSort.key)?.type ?? "string" : "string";
+  const chartRows = useMemo(() => [...result.rows].sort((a, b) => a.exDate.localeCompare(b.exDate)), [result.rows]);
   const sortedRows = useMemo(() => sortRows(result.rows, detailSort?.key, detailSort?.direction ?? "asc", dividendSortType, (row, key) => row[key]), [detailSort, dividendSortType, result.rows]);
 
   return (
@@ -182,9 +183,9 @@ export default function DividendCaptureSimulator({ input, onChange }: { input: D
       </form>
 
       {result.rows.length > 0 && (
-        <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/10 p-4 text-[13px] text-emerald-100">
+        <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/10 p-4 text-[13px] text-slate-900 dark:text-emerald-50">
           <p className="font-bold">총 {result.rows.length}회의 과거 배당 이벤트 분석 완료! (적용 세율: {submitted.taxRate}%)</p>
-          <p className="mt-1 text-emerald-200/90">📅 백테스트 기간: {result.rows[0]?.exDate} ~ {result.rows.at(-1)?.exDate}</p>
+          <p className="mt-1 font-semibold text-slate-800 dark:text-emerald-50">📅 백테스트 기간: {result.rows[0]?.exDate} ~ {result.rows.at(-1)?.exDate}</p>
         </div>
       )}
 
@@ -212,11 +213,11 @@ export default function DividendCaptureSimulator({ input, onChange }: { input: D
               <YAxis dataKey="profitPct" name="수익률" unit="%" stroke="#94a3b8" tick={{ fontSize: 11 }} />
               <Tooltip cursor={{ strokeDasharray: "3 3" }} content={<DividendTooltip />} />
               <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Scatter data={result.rows.filter((row) => row.result === "성공")} name="성공" fill="#3b82f6">
-                {result.rows.filter((row) => row.result === "성공").map((entry) => <Cell key={entry.exDate} fill="#3b82f6" />)}
+              <Scatter data={chartRows.filter((row) => row.result === "성공")} name="성공" fill="#3b82f6">
+                {chartRows.filter((row) => row.result === "성공").map((entry) => <Cell key={entry.exDate} fill="#3b82f6" />)}
               </Scatter>
-              <Scatter data={result.rows.filter((row) => row.result === "실패")} name="실패" fill="#93c5fd">
-                {result.rows.filter((row) => row.result === "실패").map((entry) => <Cell key={entry.exDate} fill="#93c5fd" />)}
+              <Scatter data={chartRows.filter((row) => row.result === "실패")} name="실패" fill="#93c5fd">
+                {chartRows.filter((row) => row.result === "실패").map((entry) => <Cell key={entry.exDate} fill="#93c5fd" />)}
               </Scatter>
             </ScatterChart>
           </ResponsiveContainer>

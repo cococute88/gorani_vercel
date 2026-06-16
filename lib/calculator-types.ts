@@ -47,10 +47,14 @@ export type DividendCaptureInput = {
 export type DividendCaptureRow = {
   round: string;
   exDate: string;
+  buyDate: string;
   buyPrice: number;
+  dividendAmount: number;
   afterTaxDividend: number;
   breakevenPrice: number;
   maxHigh: number;
+  windowHigh: number;
+  sellDate: string;
   sellPrice: number;
   shares: number;
   grossDividend: number;
@@ -58,7 +62,9 @@ export type DividendCaptureRow = {
   pricePnL: number;
   totalPnL: number;
   profitPct: number;
+  returnPct: number;
   result: "성공" | "실패";
+  success: boolean;
   recoveryDate: string;
   recoveryDays: number;
   recoveryTradingDays: string;
