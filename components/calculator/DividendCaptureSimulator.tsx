@@ -38,6 +38,8 @@ type DividendCaptureQuoteState = {
   priceDateNormalization?: string;
 };
 
+type DividendCaptureChartRow = DividendCaptureRow & { exDateMs: number };
+
 type DividendSortKey = keyof Pick<DividendCaptureRow, "exDate" | "buyPrice" | "afterTaxDividend" | "breakevenPrice" | "profitPct" | "recoveryDate" | "recoveryTradingDays" | "recoveryCalendarDays" | "result">;
 
 const dividendColumns: Array<{ key: DividendSortKey; label: string; type: SortColumnType; className?: string }> = [
@@ -52,7 +54,7 @@ const dividendColumns: Array<{ key: DividendSortKey; label: string; type: SortCo
   { key: "recoveryCalendarDays", label: "소요 기간(달력)", type: "number" },
 ];
 
-function DividendTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: DividendCaptureRow }> }) {
+function DividendTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: DividendCaptureChartRow }> }) {
   if (!active || !payload?.length) return null;
   const row = payload[0].payload;
   return (
@@ -135,7 +137,20 @@ export default function DividendCaptureSimulator({ input, onChange }: { input: D
   );
   const update = <K extends keyof DividendCaptureInput>(key: K, value: DividendCaptureInput[K]) => onChange({ ...input, [key]: value });
   const dividendSortType = detailSort ? dividendColumns.find((column) => column.key === detailSort.key)?.type ?? "string" : "string";
-  const chartRows = useMemo(() => [...result.rows].sort((a, b) => a.exDate.localeCompare(b.exDate)), [result.rows]);
+  const chartRows = useMemo(
+    () =>
+      [...result.rows]
+        .sort((a, b) => a.exDate.localeCompare(b.exDate))
+        .map((row) => ({ ...row, exDateMs: Date.parse(`${row.exDate}T00:00:00Z`) })),
+    [result.rows],
+  );
+  const successChartRows = useMemo(() => chartRows.filter((row) => row.result === "성공"), [chartRows]);
+  const failureChartRows = useMemo(() => chartRows.filter((row) => row.result === "실패"), [chartRows]);
+  const formatChartDate = (value: number) => {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    return `${String(date.getUTCFullYear()).slice(2)}.${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+  };
   const sortedRows = useMemo(() => sortRows(result.rows, detailSort?.key, detailSort?.direction ?? "asc", dividendSortType, (row, key) => row[key]), [detailSort, dividendSortType, result.rows]);
 
   return (
@@ -204,15 +219,15 @@ export default function DividendCaptureSimulator({ input, onChange }: { input: D
           <ResponsiveContainer width="100%" height="100%">
             <ScatterChart margin={{ top: 12, right: 16, bottom: 8, left: 0 }}>
               <CartesianGrid stroke="#2a3336" strokeDasharray="3 3" />
-              <XAxis dataKey="exDate" name="배당락일" stroke="#94a3b8" tick={{ fontSize: 11 }} minTickGap={24} angle={-30} textAnchor="end" height={54} />
+              <XAxis type="number" dataKey="exDateMs" name="배당락일" domain={["dataMin", "dataMax"]} scale="time" tickFormatter={formatChartDate} stroke="#94a3b8" tick={{ fontSize: 11 }} minTickGap={24} angle={-30} textAnchor="end" height={54} />
               <YAxis dataKey="profitPct" name="수익률" unit="%" stroke="#94a3b8" tick={{ fontSize: 11 }} />
               <Tooltip cursor={{ strokeDasharray: "3 3" }} content={<DividendTooltip />} />
               <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Scatter data={chartRows.filter((row) => row.result === "성공")} name="성공" fill="#3b82f6">
-                {chartRows.filter((row) => row.result === "성공").map((entry) => <Cell key={entry.exDate} fill="#3b82f6" />)}
+              <Scatter data={successChartRows} name="성공" fill="#3b82f6">
+                {successChartRows.map((entry) => <Cell key={entry.exDate} fill="#3b82f6" />)}
               </Scatter>
-              <Scatter data={chartRows.filter((row) => row.result === "실패")} name="실패" fill="#93c5fd">
-                {chartRows.filter((row) => row.result === "실패").map((entry) => <Cell key={entry.exDate} fill="#93c5fd" />)}
+              <Scatter data={failureChartRows} name="실패" fill="#93c5fd">
+                {failureChartRows.map((entry) => <Cell key={entry.exDate} fill="#93c5fd" />)}
               </Scatter>
             </ScatterChart>
           </ResponsiveContainer>

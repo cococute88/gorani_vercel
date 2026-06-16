@@ -81,16 +81,27 @@ export function useFirebaseAuth(): AuthState {
     }
 
     let active = true;
+    let authStateResolved = false;
+    let redirectResolved = false;
+    const finishHydration = () => {
+      if (active && authStateResolved && redirectResolved) setLoading(false);
+    };
+
     ensureFirebaseLocalPersistence()
       .then(() => handleGoogleRedirectResult())
       .catch((err) => {
         console.warn("Failed to prepare Firebase Auth persistence", err);
         if (active) setError("로그인 유지 설정을 준비하지 못했습니다. 브라우저 저장소 설정을 확인해 주세요.");
+      })
+      .finally(() => {
+        redirectResolved = true;
+        finishHydration();
       });
 
     const unsubscribe = onAuthStateChanged(firebaseAuth, async (nextUser) => {
       setUser(nextUser);
-      setLoading(false);
+      authStateResolved = true;
+      finishHydration();
       if (nextUser) {
         await ensureUserProfile(nextUser).catch((err) => {
           console.warn("Failed to ensure Firebase user profile", err);
@@ -119,7 +130,8 @@ export function useFirebaseAuth(): AuthState {
         await signInWithRedirect(firebaseAuth, provider);
         return;
       }
-      await signInWithPopup(firebaseAuth, provider);
+      const credential = await signInWithPopup(firebaseAuth, provider);
+      if (credential.user) await ensureUserProfile(credential.user);
     } catch (err) {
       if (isPopupBlockedError(err)) {
         try {
