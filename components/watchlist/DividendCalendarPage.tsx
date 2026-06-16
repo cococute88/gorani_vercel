@@ -26,10 +26,13 @@ import {
   loadLegacyImportedCalendarEvents,
   saveCalendarCustomEvent as saveFirestoreCalendarCustomEvent,
   saveCalendarEventMeta,
+  saveCalendarTickerCacheEntry,
   warnFirestoreFallback,
   type CalendarEventMeta,
 } from "@/lib/firebase/firestore-repositories";
 import { STORAGE_KEYS } from "@/lib/storage-keys";
+import { buildLiveCalendarCacheEntry, type DividendLiveResponse } from "@/lib/calendar-dividend-live";
+import { loadCalendarCacheMap, saveCalendarCacheMap } from "@/lib/calendar-cache";
 import CalendarGrid from "./CalendarGrid";
 import CalendarEventDialog from "./CalendarEventDialog";
 import CustomEventDialog, { type CustomEventSubmitInput } from "./CustomEventDialog";
@@ -90,6 +93,9 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
   const [isProviderLoading, setIsProviderLoading] = useState(false);
   const [taxQuoteByTicker, setTaxQuoteByTicker] = useState<Record<string, TaxSavingQuoteState>>({});
   const [taxQuoteLoadingTickers, setTaxQuoteLoadingTickers] = useState<Set<string>>(() => new Set());
+  const [liveRefreshState, setLiveRefreshState] = useState<{ running: boolean; done: number; total: number; success: string[]; failed: string[]; message: string; lastUpdatedAt?: string }>({ running: false, done: 0, total: 0, success: [], failed: [], message: "" });
+  const [cloudSaveState, setCloudSaveState] = useState<{ running: boolean; message: string }>({ running: false, message: "" });
+  const [liveRefreshedTickerSet, setLiveRefreshedTickerSet] = useState<Set<string>>(() => new Set());
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -257,10 +263,13 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
   // source of truth — the mock/real provider events are NOT mixed in (prevents
   // stray SPY/QQQ/MSFT preview rows from polluting an imported calendar).
   const usedImportedEvents = legacyImportedEvents.length > 0;
-  const dividendEvents = useMemo(
-    () => selectCalendarDividendEvents({ providerEvents: providerResult.events, importedEvents: legacyImportedEvents }).events,
-    [legacyImportedEvents, providerResult.events],
-  );
+  const dividendEvents = useMemo(() => {
+    const selected = selectCalendarDividendEvents({ providerEvents: providerResult.events, importedEvents: legacyImportedEvents });
+    if (!selected.usedImported || liveRefreshedTickerSet.size === 0) return selected.events;
+    const refreshedProviderEvents = providerResult.events.filter((event) => liveRefreshedTickerSet.has(event.ticker));
+    const preservedImportedEvents = legacyImportedEvents.filter((event) => !liveRefreshedTickerSet.has(event.ticker));
+    return [...preservedImportedEvents, ...refreshedProviderEvents].sort((a, b) => a.date.localeCompare(b.date) || a.ticker.localeCompare(b.ticker) || a.type.localeCompare(b.type));
+  }, [legacyImportedEvents, liveRefreshedTickerSet, providerResult.events]);
 
   const events = useMemo(() => mergeGeneratedAndCustomCalendarEvents(dividendEvents, customEvents).map((event) => {
     const meta = resolveCalendarEventMeta(event, eventMetas);
@@ -362,6 +371,69 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
     setSelectedDate(todayIso);
   };
 
+  const handleRefreshDividendEvents = async () => {
+    const uniqueTickers = Array.from(new Set(tickers.map((ticker) => ticker.trim().toUpperCase()).filter(Boolean)));
+    setLiveRefreshState({ running: true, done: 0, total: uniqueTickers.length, success: [], failed: [], message: `최신 데이터 수집 중... 0/${uniqueTickers.length}` });
+    const cacheMap = loadCalendarCacheMap<CalendarEvent>();
+    const successfulEvents: CalendarEvent[] = [];
+    const success: string[] = [];
+    const failed: string[] = [];
+
+    for (let index = 0; index < uniqueTickers.length; index += 1) {
+      const ticker = uniqueTickers[index];
+      try {
+        const response = await fetch(`/api/calendar/dividend-events?ticker=${encodeURIComponent(ticker)}`, { cache: "no-store" });
+        const payload = (await response.json()) as DividendLiveResponse;
+        if (!response.ok || payload.source === "unavailable" || payload.events.length === 0) {
+          failed.push(ticker);
+        } else {
+          const source = payload.source === "live" ? "polygon" : "partial";
+          const cacheEntry = buildLiveCalendarCacheEntry(ticker, payload.events, source, payload.warnings);
+          cacheMap[ticker] = cacheEntry;
+          successfulEvents.push(...cacheEntry.events);
+          success.push(ticker);
+          if (user) {
+            void saveCalendarTickerCacheEntry(user.uid, cacheEntry as never).catch((err) => warnFirestoreFallback("calendarCache.liveRefresh.save", err));
+          }
+        }
+      } catch {
+        failed.push(ticker);
+      }
+      const done = index + 1;
+      setLiveRefreshState({ running: true, done, total: uniqueTickers.length, success: [...success], failed: [...failed], message: `최신 데이터 수집 중... ${done}/${uniqueTickers.length}` });
+    }
+
+    if (success.length > 0) {
+      saveCalendarCacheMap(cacheMap);
+      const nextProviderEvents = [
+        ...providerResult.events.filter((event) => !success.includes(event.ticker)),
+        ...successfulEvents,
+      ].sort((a, b) => a.date.localeCompare(b.date) || a.ticker.localeCompare(b.ticker) || a.type.localeCompare(b.type));
+      setProviderResult((current) => ({ ...current, events: nextProviderEvents, cacheMap: { ...current.cacheMap, ...cacheMap }, source: failed.length > 0 ? "partial" : "polygon", warnings: failed.length > 0 ? [`Live refresh partially failed: ${failed.join(", ")}`] : [] }));
+      setLiveRefreshedTickerSet((current) => new Set([...Array.from(current), ...success]));
+    }
+
+    const lastUpdatedAt = new Date().toISOString();
+    setLiveRefreshState({ running: false, done: uniqueTickers.length, total: uniqueTickers.length, success, failed, lastUpdatedAt, message: `배당 일정 최신화 완료: 성공 ${success.length}개, 실패 ${failed.length}개${failed.length ? ` · 실패: ${failed.join(", ")}` : ""}` });
+  };
+
+  const handleCloudSave = async () => {
+    if (!user) { setCloudSaveState({ running: false, message: "로그인이 필요합니다" }); return; }
+    setCloudSaveState({ running: true, message: "클라우드 저장 중..." });
+    try {
+      const cacheMap = loadCalendarCacheMap<CalendarEvent>();
+      const cacheEntries = Object.values(cacheMap);
+      await Promise.all([
+        ...cacheEntries.map((entry) => saveCalendarTickerCacheEntry(user.uid, entry as never)),
+        ...customEvents.map((event) => saveFirestoreCalendarCustomEvent(user.uid, event)),
+        ...Object.entries(eventMetas).map(([eventId, meta]) => saveCalendarEventMeta(user.uid, eventId, meta)),
+      ]);
+      setCloudSaveState({ running: false, message: `클라우드 저장 완료: cache ${cacheEntries.length}개, custom ${customEvents.length}개, meta ${Object.keys(eventMetas).length}개` });
+    } catch {
+      setCloudSaveState({ running: false, message: "클라우드 저장에 실패했습니다. Firebase 설정과 로그인 상태를 확인하세요." });
+    }
+  };
+
   const sourceLabel = usedImportedEvents ? "IMPORTED" : isProviderLoading ? "LOADING" : providerResult.source.toUpperCase();
   const sourceColor = usedImportedEvents
     ? "bg-emerald-500/15 border-emerald-400/40 text-emerald-300"
@@ -383,10 +455,36 @@ export default function DividendCalendarPage({ tickers, tickerManager, headerAcc
             <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold sm:text-[11px] ${sourceColor}`}>
               {sourceLabel}
             </span>
+            <button
+              type="button"
+              onClick={handleRefreshDividendEvents}
+              disabled={liveRefreshState.running || tickers.length === 0}
+              className="rounded-lg border border-emerald-400/40 bg-emerald-500/10 px-2.5 py-1.5 text-[11px] font-bold text-emerald-700 transition hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-50 dark:text-emerald-200"
+            >
+              🔄 일정 최신화
+            </button>
+            <button
+              type="button"
+              onClick={handleCloudSave}
+              disabled={!user || cloudSaveState.running}
+              title={user ? "현재 캘린더 cache/custom events/event metas를 클라우드에 저장합니다." : "로그인이 필요합니다"}
+              className="rounded-lg border border-cyan-400/40 bg-cyan-500/10 px-2.5 py-1.5 text-[11px] font-bold text-cyan-700 transition hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-50 dark:text-cyan-200"
+            >
+              💾 클라우드 저장
+            </button>
             {headerAccessory}
           </div>
         </div>
         <p className="mt-1 text-[12px] text-slate-500 sm:text-[13px]">배당락·매수마감·지급·실적을 한 화면에서 확인합니다.</p>
+        {liveRefreshState.message && (
+          <p className="mt-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
+            {liveRefreshState.message}
+            {liveRefreshState.lastUpdatedAt ? ` · 마지막 최신화: ${new Date(liveRefreshState.lastUpdatedAt).toLocaleString("ko-KR", { hour12: false })}` : ""}
+          </p>
+        )}
+        {cloudSaveState.message && (
+          <p className="mt-1 text-[11px] font-semibold text-cyan-700 dark:text-cyan-300">{cloudSaveState.message}</p>
+        )}
         {!usedImportedEvents && providerResult.warnings.length > 0 && (
           <p className="mt-1 truncate text-[11px] text-slate-500" title={providerResult.warnings.join(" | ")}>
             ⚠ {providerResult.warnings[0]}

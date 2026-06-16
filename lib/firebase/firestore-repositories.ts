@@ -492,7 +492,7 @@ function fromCalendarCacheEntry(entry: CalendarCacheEntry): CalendarTickerCache<
   const ticker = normalizeCalendarTicker(entry.ticker ?? entry.id ?? entry.tickers?.[0] ?? "");
   if (!ticker) return null;
   const source: CalendarTickerCacheSource =
-    entry.source === "mock" || entry.source === "yahoo" || entry.source === "sample" || entry.source === "cache"
+    entry.source === "mock" || entry.source === "yahoo" || entry.source === "finnhub" || entry.source === "polygon" || entry.source === "partial" || entry.source === "sample" || entry.source === "cache"
       ? entry.source
       : "cache";
 
