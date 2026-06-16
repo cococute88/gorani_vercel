@@ -1,4 +1,5 @@
 import type { Holding, PortfolioSnapshot } from "./portfolio-types";
+import { normalizeHoldingTickerInfo } from "./holding-ticker-normalizer";
 
 export type DividendPerformancePoint = {
   date: string;
@@ -26,6 +27,18 @@ export type BackcastPricePoint = { date: string; close: number };
 export type DividendPerformanceHoldingInput = Pick<Holding, "ticker" | "quantity" | "valueKRW" | "currentPrice" | "currency" | "valueOriginalCurrency"> & {
   currentPriceKRW?: number;
   quantityEstimated?: boolean;
+  estimatedQuantity?: number;
+  shares?: number;
+  estimatedShares?: number;
+  normalizedTicker?: string;
+  productName?: string;
+  cleanName?: string;
+  assetType?: string;
+  tag?: string;
+  symbolGroup?: string;
+  accountGroup?: string;
+  purposeGroup?: string;
+  statusGroup?: string;
 };
 
 export type DividendPerformanceResult = {
@@ -55,7 +68,11 @@ function finite(value: unknown): number {
 
 function monthKey(date: string): string { return date.slice(0, 7); }
 function pct(value: number | null, base: number): number | null { return value == null || base <= 0 || value <= 0 ? null : (value / base - 1) * 100; }
-function tickerOf(holding: DividendPerformanceHoldingInput): string { return (holding.ticker ?? "").trim().toUpperCase(); }
+function tickerOf(holding: DividendPerformanceHoldingInput): string {
+  const direct = (holding.normalizedTicker ?? holding.ticker ?? "").trim().toUpperCase();
+  if (direct) return direct;
+  return (normalizeHoldingTickerInfo(holding).quoteTicker ?? "").trim().toUpperCase();
+}
 function isKrwTicker(ticker: string, holding?: DividendPerformanceHoldingInput): boolean { return holding?.currency === "KRW" || /^\d{6}(\.KS|\.KQ)?$/.test(ticker); }
 
 function asof(series: BackcastPricePoint[] | null | undefined, date: string): number | null {
@@ -84,8 +101,10 @@ function monthEndsFromHistories(histories: Array<BackcastPricePoint[] | null | u
 }
 
 function estimateQuantity(holding: DividendPerformanceHoldingInput): number {
-  const quantity = finite(holding.quantity);
-  if (quantity > 0) return quantity;
+  const explicit = [holding.quantity, holding.estimatedQuantity, holding.shares, holding.estimatedShares]
+    .map(finite)
+    .find((value) => value > 0);
+  if (explicit) return explicit;
   const currentPriceKRW = finite(holding.currentPriceKRW);
   if (currentPriceKRW > 0 && finite(holding.valueKRW) > 0) return finite(holding.valueKRW) / currentPriceKRW;
   const currentPrice = finite(holding.currentPrice);

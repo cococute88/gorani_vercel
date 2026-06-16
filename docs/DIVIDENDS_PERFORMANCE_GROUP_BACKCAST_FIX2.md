@@ -29,3 +29,7 @@ KOSPI/S&P 500 이력이 없거나 환율이 없으면 해당 benchmark line만 n
 
 ## 남은 한계
 거래내역 기반 원금 흐름이 없는 Vercel `/dividends`에서는 원본 Streamlit과 달리 최신 보유 기준 역산이며, 시작월 backcast 평가액을 누적 입금 기준값으로 사용합니다.
+
+## Follow-up 3 note
+
+FIX-2 이후 실제 Preview에서 위탁/절세 계좌 성과가 계속 데이터 부족으로 보인 원인은 enriched holdings 전달 자체가 아니라 계좌별 quote history 조회 시작일이 최신 스냅샷 날짜로 고정되어 과거 월말 가격이 잘린 것이었습니다. Follow-up 3에서 계좌별 history start를 최신 스냅샷 기준 25개월 전으로 보정하고, 수량/티커 fallback 및 월별 손익/총자산 y축 분리를 보강했습니다. 자세한 내용은 `DIVIDENDS_PERFORMANCE_GROUP_BACKCAST_FIX3.md`를 참조하세요.
