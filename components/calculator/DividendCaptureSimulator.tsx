@@ -34,35 +34,18 @@ function latestUpdatedAt(values: Array<string | undefined>) {
   return values.filter(Boolean).sort().at(-1);
 }
 
-// 판정 컬럼은 긴 설명 대신 짧은 상태만 표시한다 (전체 설명은 title 툴팁으로 제공).
-function judgementLabel(row: { result: string; recoveryDate: string }): string {
-  if (row.result === "성공") return "성공";
-  return row.recoveryDate === "회복불가" ? "회복불가" : "실패";
-}
-
-function judgementClass(row: { result: string; recoveryDate: string }): string {
-  if (row.result === "성공") return "font-semibold text-green-400";
-  return row.recoveryDate === "회복불가" ? "font-semibold text-amber-400" : "font-semibold text-red-400";
-}
-
-
-type DividendSortKey = keyof Pick<DividendCaptureRow, "round" | "exDate" | "buyPrice" | "breakevenPrice" | "maxHigh" | "sellPrice" | "netDividend" | "pricePnL" | "totalPnL" | "profitPct" | "recoveryDate" | "recoveryTradingDays" | "recoveryCalendarDays" | "result">;
+type DividendSortKey = keyof Pick<DividendCaptureRow, "exDate" | "buyPrice" | "afterTaxDividend" | "breakevenPrice" | "profitPct" | "recoveryDate" | "recoveryTradingDays" | "recoveryCalendarDays" | "result">;
 
 const dividendColumns: Array<{ key: DividendSortKey; label: string; type: SortColumnType; className?: string }> = [
-  { key: "round", label: "회차", type: "string", className: "py-2" },
-  { key: "exDate", label: "배당락일", type: "date" },
+  { key: "exDate", label: "배당락일", type: "date", className: "py-2" },
   { key: "buyPrice", label: "매수가", type: "number" },
-  { key: "breakevenPrice", label: "손익분기", type: "number" },
-  { key: "maxHigh", label: "최고가", type: "number" },
-  { key: "sellPrice", label: "매도가", type: "number" },
-  { key: "netDividend", label: "세후 배당", type: "number" },
-  { key: "pricePnL", label: "가격손익", type: "number" },
-  { key: "totalPnL", label: "총손익", type: "number" },
-  { key: "profitPct", label: "수익률", type: "number" },
-  { key: "recoveryDate", label: "회복일", type: "date" },
-  { key: "recoveryTradingDays", label: "거래일", type: "number" },
-  { key: "recoveryCalendarDays", label: "달력일", type: "number" },
-  { key: "result", label: "결과", type: "string" },
+  { key: "afterTaxDividend", label: "세후배당금", type: "number" },
+  { key: "breakevenPrice", label: "손익분기점", type: "number" },
+  { key: "result", label: "성공여부", type: "string" },
+  { key: "profitPct", label: "수익률(%)", type: "number" },
+  { key: "recoveryDate", label: "원금 회복 날짜", type: "date" },
+  { key: "recoveryTradingDays", label: "소요 기간(거래일)", type: "number" },
+  { key: "recoveryCalendarDays", label: "소요 기간(달력)", type: "number" },
 ];
 
 function DividendTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: DividendCaptureRow }> }) {
@@ -74,7 +57,7 @@ function DividendTooltip({ active, payload }: { active?: boolean; payload?: Arra
       <div>수익률: {row.profitPct}%</div>
       <div>성공여부: {row.result}</div>
       <div>원금 회복: {row.recoveryDate}</div>
-      <div>소요 기간: {row.recoveryTradingDays}거래일 / {row.recoveryCalendarDays}달력일</div>
+      <div>소요 기간: {row.recoveryTradingDays} / {row.recoveryCalendarDays}</div>
     </div>
   );
 }
@@ -82,7 +65,7 @@ function DividendTooltip({ active, payload }: { active?: boolean; payload?: Arra
 function toQuoteRequest(input: DividendCaptureInput) {
   const { start, end } = resolveDividendCaptureDates(input);
   if (input.recent5yOnly) return { ticker: input.ticker, range: "5y", end };
-  return { ticker: input.ticker, start, end };
+  return { ticker: input.ticker, range: "max", start, end };
 }
 
 export default function DividendCaptureSimulator({ input, onChange }: { input: DividendCaptureInput; onChange: (input: DividendCaptureInput) => void }) {
@@ -196,22 +179,29 @@ export default function DividendCaptureSimulator({ input, onChange }: { input: D
         </div>
       </form>
 
+      {result.rows.length > 0 && (
+        <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/10 p-4 text-[13px] text-emerald-100">
+          <p className="font-bold">총 {result.rows.length}회의 과거 배당 이벤트 분석 완료! (적용 세율: {submitted.taxRate}%)</p>
+          <p className="mt-1 text-emerald-200/90">📅 백테스트 기간: {result.rows[0]?.exDate} ~ {result.rows.at(-1)?.exDate}</p>
+        </div>
+      )}
+
       {/* Warnings */}
       <CalculatorWarningPanel warnings={result.warnings} error={quoteState.error} />
 
       {/* Metric cards */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <MetricCard label="매수 가능 수량" value={`${result.shares.toLocaleString()}주`} sub={`${submitted.ticker} 기준`} tone="blue" />
-        <MetricCard label="세후 배당금" value={`$${result.netDividend.toLocaleString()}`} sub={`세율 ${submitted.taxRate}% 반영`} tone="green" />
-        <MetricCard label="예상 가격 하락" value={`-$${result.expectedDrop.toLocaleString()}`} sub="매수가 - 배당락 저가" tone="orange" />
-        <MetricCard label="손익분기 가격" value={`$${result.breakevenPrice.toLocaleString()}`} sub="세후 배당·비용 반영" tone="blue" />
-        <MetricCard label="성공률" value={`${result.successRate}%`} sub={`${result.rows.length}회 분석`} tone="green" />
-        <MetricCard label="평균 회복일" value={`${result.averageRecoveryDays}일`} sub={`평균 수익률 ${result.averageProfitPct}%`} tone="gray" />
+        <MetricCard label="전략 승률" value={`${result.successRate}%`} sub={`${result.rows.length}회 분석`} tone="green" />
+        <MetricCard label="성공 평균수익률" value={`${result.successAverageReturnPct.toFixed(2)}%`} sub="성공 case 평균" tone="blue" />
+        <MetricCard label="실패 평균손실률" value={`${result.failureAverageLossPct.toFixed(2)}%`} sub="실패 case 평균" tone="orange" />
+        <MetricCard label="손익비" value={result.rewardRiskRatio === null ? "∞" : result.rewardRiskRatio.toFixed(2)} sub="성공/실패 절대비" tone="gray" />
+        <MetricCard label="1회 기대수익률" value={`${result.expectedReturnPct.toFixed(2)}%`} sub="전체 평균 수익률" tone="green" />
+        <MetricCard label="1회 절세예상액" value={`$${result.taxSavingPerTrade.toFixed(2)}`} sub="원본 Streamlit 산식" tone="blue" />
       </div>
 
       {/* Chart */}
       <div className={panel}>
-        <h2 className="mb-4 text-[15px] font-bold text-white">성공/실패 분포</h2>
+        <h2 className="mb-4 text-[15px] font-bold text-white">수익률 분포 그래프</h2>
         <div className="h-[280px] min-w-0 sm:h-[320px]">
           <ResponsiveContainer width="100%" height="100%">
             <ScatterChart margin={{ top: 12, right: 16, bottom: 8, left: 0 }}>
@@ -236,7 +226,7 @@ export default function DividendCaptureSimulator({ input, onChange }: { input: D
       <div className={panel}>
         <h2 className="mb-4 text-[15px] font-bold text-white">회차별 상세 결과</h2>
         <div className="-mx-5 max-h-[520px] min-w-0 overflow-auto px-5">
-          <table className="w-full min-w-[820px] text-left text-[12px]">
+          <table className="w-full min-w-[920px] text-left text-[12px]">
             <thead className="text-slate-500">
               <tr className="border-b border-[#2a3336]">
                 {dividendColumns.map((column) => (
@@ -246,29 +236,20 @@ export default function DividendCaptureSimulator({ input, onChange }: { input: D
                     </button>
                   </th>
                 ))}
-                <th>판정</th>
               </tr>
             </thead>
             <tbody>
               {sortedRows.map((row) => (
                 <tr key={row.exDate} className="border-b border-[#222a2c] text-slate-300 last:border-0">
-                  <td className="py-2 font-semibold text-white">{row.round}</td>
-                  <td>{row.exDate}</td>
+                  <td className="py-2 font-semibold text-white">{row.exDate}</td>
                   <td>${row.buyPrice}</td>
+                  <td>${row.afterTaxDividend}</td>
                   <td>${row.breakevenPrice}</td>
-                  <td>${row.maxHigh}</td>
-                  <td>${row.sellPrice}</td>
-                  <td>${row.netDividend}</td>
-                  <td>${row.pricePnL}</td>
-                  <td>${row.totalPnL}</td>
+                  <td className={row.result === "성공" ? "text-green-400" : "text-red-400"}>{row.result}</td>
                   <td>{row.profitPct}%</td>
                   <td>{row.recoveryDate}</td>
                   <td>{row.recoveryTradingDays}</td>
                   <td>{row.recoveryCalendarDays}</td>
-                  <td className={row.result === "성공" ? "text-green-400" : "text-red-400"}>{row.result}</td>
-                  <td title={row.note}>
-                    <span className={judgementClass(row)}>{judgementLabel(row)}</span>
-                  </td>
                 </tr>
               ))}
             </tbody>

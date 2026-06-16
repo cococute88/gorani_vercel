@@ -95,7 +95,7 @@ const rangeToDays: Record<string, number> = {
   "1y": 366,
   "3y": 1_098,
   "5y": 1_830,
-  max: 1_830,
+  max: 46_000,
 };
 
 function resolveProviderDates(input: { range?: QuoteRange; start?: string; end?: string }) {

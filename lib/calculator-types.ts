@@ -77,6 +77,11 @@ export type DividendCaptureResult = {
   totalNetProfit: number;
   averageProfitPct: number;
   averageRecoveryDays: number;
+  successAverageReturnPct: number;
+  failureAverageLossPct: number;
+  rewardRiskRatio: number | null;
+  expectedReturnPct: number;
+  taxSavingPerTrade: number;
   breakevenPrice: number;
   shares: number;
   netDividend: number;
