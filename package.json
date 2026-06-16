@@ -24,6 +24,7 @@
     "check:calendar-ticker-source": "node scripts/check-calendar-ticker-source.mjs",
     "check:legacy-calendar-import": "node scripts/check-legacy-calendar-import.mjs",
     "check:tax-saving": "node scripts/check-tax-saving-calculator.mjs",
+    "check:mdd-calculator-streamlit-port": "node scripts/check-mdd-calculator-streamlit-port.mjs",
     "check:asset-map": "node scripts/check-asset-map-exposure.mjs",
     "check:korean-etf": "node scripts/check-korean-etf-registry.mjs",
     "check:dividend-estimates": "node scripts/check-dividend-estimates.mjs",

@@ -169,7 +169,58 @@ export type MddResult = {
   maxDrawdown: number;
   highDate: string;
   lowDate: string;
+  peakPrice2: number;
+  troughPrice: number;
   recoveryDate: string | null;
   recoveryDays: number | null;
+  recovered: boolean;
   warning: string;
+};
+
+// 역대 최대 낙폭/회복기간 한 구간 (고점→저점→회복).
+export type MddEpisode = {
+  rank: number;
+  peakDate: string;
+  troughDate: string;
+  recoveryDate: string | null;
+  mdd: number; // 음수 % (예: -35.62)
+  declineDays: number; // 고점→저점 소요일
+  recoveryDays: number | null; // 저점→회복 소요일
+  totalDays: number | null; // 고점→회복 소요일
+  recovered: boolean;
+};
+
+// 연도별 수익률 한 행.
+export type YearlyReturn = {
+  year: number;
+  returnPct: number; // % (예: 33.34)
+  partial: boolean; // 현재 진행 중인 연도면 true
+};
+
+// 비교 기준년도 표 한 행.
+export type ComparisonReturnRow = {
+  label: string; // 예: "10년전 대비"
+  years: number;
+  available: boolean;
+  totalReturnPct: number | null; // 총수익률 %
+  cagrPct: number | null; // 연평균(CAGR) %
+  baseDate: string | null;
+};
+
+// 주요 변동성 지표 표.
+export type VolatilityStats = {
+  high52w: number | null;
+  low52w: number | null;
+  return1yPct: number | null; // 1년전 대비 상승률 %
+  currentDrawdownPct: number | null; // 고점대비 하락률 %
+  maxDrawdownPct: number | null; // 최대 낙폭(MDD) %
+  yearBestPct: number | null; // 연 최고 수익률 %
+  yearWorstPct: number | null; // 연 최저 수익률 %
+};
+
+// 달러 vs 원화 drawdown 비교 한 포인트.
+export type DrawdownComparePoint = {
+  date: string;
+  usd: number; // 달러 기준 drawdown %
+  krw: number | null; // 원화 기준 drawdown % (환율 없으면 null)
 };
