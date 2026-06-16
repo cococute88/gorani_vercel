@@ -57,3 +57,17 @@ npm run build
 - Earnings live 이식은 이번 범위에서 제외했다.
 - 미국 공휴일 정교한 거래일 보정은 주말 보정보다 정밀하지 않다.
 - 외부 provider key/rate limit 상태에 따라 live declared rows가 없을 수 있다.
+
+## CALENDAR-DIVIDEND-LIVE-UPDATE-POLYGON-DECLARED-FIX-1
+
+- Live update now keeps Polygon as the canonical declared dividend provider when `POLYGON_API_KEY` is configured. Polygon rows built from `cash_amount`, `ex_dividend_date`, and `pay_date` are normalized as `sourceKind: "declared"` and `status: "confirmed"`.
+- Fallback order is constrained to: Polygon declared rows → existing/imported confirmed cache during client merge → Finnhub declared rows when Polygon did not provide rows and is not failed/rate-limited → Yahoo history only when Polygon is missing-key fallback → estimated projections only as supplemental future events.
+- If Polygon is rate-limited or fails, the API returns an unavailable ticker result with `rateLimitDelayMs` instead of replacing near-term confirmed rows with projection-only data. The client records the ticker as failed and keeps the existing cache/imported events.
+- The live refresh client merges fetched events with existing cache/provider/imported confirmed events using ticker/type/ex-date identity. Confirmed/declared events outrank estimated/projection events, so an estimated fetch cannot downgrade a previously confirmed event. Custom events remain outside the provider cache path and user event meta (heart/star/memo) remains keyed and reapplied after refresh.
+- The API emits `rateLimitDelayMs: 12500` whenever Polygon was active, and the client waits before requesting the next ticker while showing the Polygon free-limit sequential lookup message.
+- Calendar chip styling is separated by event status: confirmed events keep solid borders and strong event-type colors, while estimated events alone receive dashed borders and a lighter but readable opacity.
+
+### Remaining limitations
+
+- Without a server-side Polygon key, live update can only return partial fallback data; the UI explicitly treats this as partial rather than Polygon-confirmed.
+- Local API verification in development depends on external provider keys and network responses; static regression scripts cover the fallback/merge/style invariants without committing secrets.

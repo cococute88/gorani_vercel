@@ -31,7 +31,7 @@ import {
   type CalendarEventMeta,
 } from "@/lib/firebase/firestore-repositories";
 import { STORAGE_KEYS } from "@/lib/storage-keys";
-import { buildLiveCalendarCacheEntry, type DividendLiveResponse } from "@/lib/calendar-dividend-live";
+import { buildLiveCalendarCacheEntry, mergeFetchedEventsWithExistingCache, type DividendLiveResponse } from "@/lib/calendar-dividend-live";
 import { loadCalendarCacheMap, saveCalendarCacheMap } from "@/lib/calendar-cache";
 import CalendarGrid from "./CalendarGrid";
 import CalendarEventDialog from "./CalendarEventDialog";
@@ -365,9 +365,13 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
     setSelectedDate(todayIso);
   };
 
+  const waitForLiveRefreshRateLimit = (delayMs?: number) => new Promise<void>((resolve) => {
+    window.setTimeout(resolve, Math.max(0, delayMs ?? 0));
+  });
+
   const handleRefreshDividendEvents = async () => {
     const uniqueTickers = Array.from(new Set(tickers.map((ticker) => ticker.trim().toUpperCase()).filter(Boolean)));
-    setLiveRefreshState({ running: true, done: 0, total: uniqueTickers.length, success: [], failed: [], message: `최신 데이터 수집 중... 0/${uniqueTickers.length}` });
+    setLiveRefreshState({ running: true, done: 0, total: uniqueTickers.length, success: [], failed: [], message: `Polygon 무료 한도 보호를 위해 순차 조회 중... 0/${uniqueTickers.length}` });
     const cacheMap = loadCalendarCacheMap<CalendarEvent>();
     const successfulEvents: CalendarEvent[] = [];
     const success: string[] = [];
@@ -375,14 +379,22 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
 
     for (let index = 0; index < uniqueTickers.length; index += 1) {
       const ticker = uniqueTickers[index];
+      let rateLimitDelayMs: number | undefined;
       try {
         const response = await fetch(`/api/calendar/dividend-events?ticker=${encodeURIComponent(ticker)}`, { cache: "no-store" });
         const payload = (await response.json()) as DividendLiveResponse;
+        rateLimitDelayMs = payload.rateLimitDelayMs;
         if (!response.ok || payload.source === "unavailable" || payload.events.length === 0) {
           failed.push(ticker);
         } else {
           const source = payload.source === "live" ? "polygon" : "partial";
-          const cacheEntry = buildLiveCalendarCacheEntry(ticker, payload.events, source, payload.warnings);
+          const existingEvents = [
+            ...(cacheMap[ticker]?.events ?? []),
+            ...providerResult.events.filter((event) => event.ticker === ticker),
+            ...legacyImportedEvents.filter((event) => event.ticker === ticker),
+          ];
+          const mergedEvents = mergeFetchedEventsWithExistingCache(existingEvents, payload.events);
+          const cacheEntry = buildLiveCalendarCacheEntry(ticker, mergedEvents, source, payload.warnings);
           cacheMap[ticker] = cacheEntry;
           successfulEvents.push(...cacheEntry.events);
           success.push(ticker);
@@ -394,7 +406,10 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
         failed.push(ticker);
       }
       const done = index + 1;
-      setLiveRefreshState({ running: true, done, total: uniqueTickers.length, success: [...success], failed: [...failed], message: `최신 데이터 수집 중... ${done}/${uniqueTickers.length}` });
+      setLiveRefreshState({ running: true, done, total: uniqueTickers.length, success: [...success], failed: [...failed], message: `Polygon 무료 한도 보호를 위해 순차 조회 중... ${done}/${uniqueTickers.length}` });
+      if (index < uniqueTickers.length - 1 && rateLimitDelayMs && rateLimitDelayMs > 0) {
+        await waitForLiveRefreshRateLimit(rateLimitDelayMs);
+      }
     }
 
     if (success.length > 0) {

@@ -8,6 +8,7 @@ const grid = read("components/watchlist/CalendarGrid.tsx");
 const page = read("components/watchlist/DividendCalendarPage.tsx");
 const tax = read("components/watchlist/TaxSavingTable.tsx");
 const schedule = read("components/watchlist/DividendSchedulePreview.tsx");
+const visuals = read("lib/event-visuals.ts");
 
 assert.match(sortHelper, /getCalendarEventPriority/, "calendar priority helper exists");
 assert.match(sortHelper, /favorite === "💗"[\s\S]*return 0/, "heart events have first priority");
@@ -28,5 +29,7 @@ assert.match(tax, /절세액[\s\S]*taxSortDirection === "desc" \? "↓" : "↑"/
 assert.match(schedule, /const isEstimated = row\.status === "estimated";/, "estimated schedule rows are detected from status");
 assert.match(schedule, /bg-slate-50 dark:bg-slate-800\/40/, "estimated schedule rows use subtle gray light/dark backgrounds");
 assert.match(schedule, /isEstimated \? "bg-slate-50 dark:bg-slate-800\/40" : ""/, "confirmed schedule rows keep default row background");
+assert.match(visuals, /estimated \? "opacity-80" : isPast \? "opacity-60" : "opacity-100"/, "estimated chips are readable and confirmed chips stay full opacity when upcoming");
+assert.match(visuals, /estimated \? "border-dashed" : "border-solid"/, "dashed border applies only to estimated events");
 
 console.log("calendar priority/tax/style checks passed");
