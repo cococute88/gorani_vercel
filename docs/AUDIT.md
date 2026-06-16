@@ -481,3 +481,5 @@ Dependency warnings observed:
 - PORTFOLIO-MARKET-INDICATORS-LIVE-VERIFY-1: /portfolio 시장지표 sample/static source 점검 및 /api/market live data 재사용 정리. See `docs/PORTFOLIO_MARKET_INDICATORS_LIVE1.md`.
 
 - 2026-06-15 Step CALENDAR-PRIORITY-SORT-TAX-SORT-ESTIMATE-STYLE-1: 캘린더 하트/별 우선정렬, 절세액 정렬, 추정 일정 회색 row 스타일 추가. See `docs/CALENDAR_PRIORITY_TAX_STYLE1.md`.
+
+- CALENDAR-DIVIDEND-LIVE-UPDATE-1: Streamlit 원본 배당일정 최신화/강제 클라우드 저장 기능을 Next.js/Vercel 방식으로 이식
