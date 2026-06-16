@@ -9,10 +9,32 @@ import CalculatorWarningPanel from "./CalculatorWarningPanel";
 import { TextInput, DateInput } from "./CalculatorInputField";
 import { fetchQuoteHistory } from "@/lib/calculator-data-provider";
 import { calculateMdd } from "@/lib/mdd-calculator";
-import type { MddInput, PricePoint } from "@/lib/calculator-types";
+import type { MddInput, MddSegment, MddSeriesPoint, PricePoint } from "@/lib/calculator-types";
 import type { QuoteSource } from "@/lib/quote-types";
+import { nextSortState, sortArrow, sortRows, type SortColumnType, type SortState } from "@/lib/calculator-table-sort";
 
 const panel = "rounded-2xl border border-[#2a3336] bg-[#191f20] p-5";
+
+
+type MddSegmentSortKey = keyof MddSegment;
+type MddSeriesSortKey = keyof MddSeriesPoint;
+
+const mddSegmentColumns: Array<{ key: MddSegmentSortKey; label: string; type: SortColumnType; className?: string }> = [
+  { key: "period", label: "Period", type: "string", className: "py-2" },
+  { key: "highDate", label: "Peak date", type: "date" },
+  { key: "lowDate", label: "Trough date", type: "date" },
+  { key: "mdd", label: "MDD", type: "number" },
+  { key: "recoveryDate", label: "Recovery date", type: "date" },
+  { key: "recoveryDays", label: "Recovery days", type: "number" },
+];
+
+const mddSeriesColumns: Array<{ key: MddSeriesSortKey; label: string; type: SortColumnType; className?: string }> = [
+  { key: "date", label: "Date", type: "date", className: "py-2" },
+  { key: "close", label: "Close", type: "number" },
+  { key: "peak", label: "Running high", type: "number" },
+  { key: "drawdown", label: "Drawdown", type: "number" },
+  { key: "value", label: "Indexed value", type: "number" },
+];
 
 type MddQuoteState = {
   prices?: PricePoint[];
@@ -38,6 +60,8 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
   const [submitted, setSubmitted] = useState(input);
   const [quoteState, setQuoteState] = useState<MddQuoteState>({ warnings: [] });
   const [loading, setLoading] = useState(false);
+  const [segmentSort, setSegmentSort] = useState<SortState<MddSegmentSortKey>>({ key: "lowDate", direction: "asc" });
+  const [priceSort, setPriceSort] = useState<SortState<MddSeriesSortKey>>({ key: "date", direction: "asc" });
 
   useEffect(() => {
     let cancelled = false;
@@ -85,6 +109,10 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
   );
 
   const update = <K extends keyof MddInput>(key: K, value: MddInput[K]) => onChange({ ...input, [key]: value });
+  const segmentSortType = segmentSort ? mddSegmentColumns.find((column) => column.key === segmentSort.key)?.type ?? "string" : "string";
+  const priceSortType = priceSort ? mddSeriesColumns.find((column) => column.key === priceSort.key)?.type ?? "string" : "string";
+  const sortedSegments = useMemo(() => sortRows(result.segments, segmentSort?.key, segmentSort?.direction ?? "asc", segmentSortType, (row, key) => row[key]), [result.segments, segmentSort, segmentSortType]);
+  const sortedRecentPrices = useMemo(() => sortRows(result.series, priceSort?.key, priceSort?.direction ?? "asc", priceSortType, (row, key) => row[key]), [priceSort, priceSortType, result.series]);
   const displayWarnings = [
     ...result.warnings,
     ...(submitted.currency === "KRW" ? ["KRW option is preserved, but Step 4A calculates MDD from USD close prices only."] : []),
@@ -155,20 +183,21 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
       {/* MDD segments table */}
       <div className={panel}>
         <h2 className="mb-4 text-[15px] font-bold text-white">MDD segments</h2>
-        <div className="overflow-x-auto -mx-5 px-5">
+        <div className="-mx-5 max-h-[520px] min-w-0 overflow-auto px-5">
           <table className="w-full min-w-[700px] text-left text-[12.5px]">
             <thead className="text-slate-500">
               <tr className="border-b border-[#2a3336]">
-                <th className="py-2">Period</th>
-                <th>Peak date</th>
-                <th>Trough date</th>
-                <th>MDD</th>
-                <th>Recovery date</th>
-                <th>Recovery days</th>
+                {mddSegmentColumns.map((column) => (
+                  <th key={column.key} className={`${column.className ?? ""} sticky top-0 z-10 bg-[#191f20]`}>
+                    <button type="button" className="whitespace-nowrap text-left hover:text-slate-200" onClick={() => setSegmentSort((current) => nextSortState(current, column.key))}>
+                      {column.label}{sortArrow(segmentSort, column.key)}
+                    </button>
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
-              {result.segments.map((row) => (
+              {sortedSegments.map((row) => (
                 <tr key={`${row.highDate}-${row.lowDate}`} className="border-b border-[#222a2c] text-slate-300 last:border-0">
                   <td className="py-2 font-semibold text-white">{row.period}</td>
                   <td>{row.highDate}</td>
@@ -186,19 +215,21 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
       {/* Recent price table */}
       <div className={panel}>
         <h2 className="mb-4 text-[15px] font-bold text-white">Recent price and drawdown</h2>
-        <div className="overflow-x-auto -mx-5 px-5">
+        <div className="-mx-5 max-h-[520px] min-w-0 overflow-auto px-5">
           <table className="w-full min-w-[600px] text-left text-[12.5px]">
             <thead className="text-slate-500">
               <tr className="border-b border-[#2a3336]">
-                <th className="py-2">Date</th>
-                <th>Close</th>
-                <th>Running high</th>
-                <th>Drawdown</th>
-                <th>Indexed value</th>
+                {mddSeriesColumns.map((column) => (
+                  <th key={column.key} className={`${column.className ?? ""} sticky top-0 z-10 bg-[#191f20]`}>
+                    <button type="button" className="whitespace-nowrap text-left hover:text-slate-200" onClick={() => setPriceSort((current) => nextSortState(current, column.key))}>
+                      {column.label}{sortArrow(priceSort, column.key)}
+                    </button>
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
-              {result.series.slice(-16).map((row) => (
+              {sortedRecentPrices.map((row) => (
                 <tr key={row.date} className="border-b border-[#222a2c] text-slate-300 last:border-0">
                   <td className="py-2 font-semibold text-white">{row.date}</td>
                   <td>{row.close}</td>

@@ -498,3 +498,4 @@ DIVIDENDS-PERFORMANCE-STREAMLIT-PORT-1: 기존 Streamlit 배당 성과분석 로
 
 - CALENDAR-DIVIDEND-LIVE-UPDATE-POLYGON-DECLARED-FIX-1: 배당일정 최신화 시 Polygon declared 우선, 기존 confirmed cache 보호, estimated chip 스타일 회귀 수정. See `docs/CALENDAR_DIVIDEND_POLYGON_DECLARED_FIX1.md`.
 - PORTFOLIO-MANAGER-SUMMARY-UX-POLISH-1: 포트폴리오 관리 파싱 결과 요약 3x3 정리, 부채/순자산 제거, 현금자산/투자자산 명칭 정리, 스냅샷 상세 요약 표시, 소액 항목 리스트 숨김. See `docs/PORTFOLIO_MANAGER_SUMMARY_UX_POLISH1.md`.
+- CALCULATORS-TABLE-SORT-SCROLL-AND-DIVCAP-DISTRIBUTION-FIX-1: 배당치기 분포 그래프 x축 표시 회귀 수정, 배당치기/매도전환/MDD 상세 표 정렬 및 12행 스크롤 적용
