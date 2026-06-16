@@ -35,14 +35,14 @@ export default function DividendPerformanceSection({ result }: Props) {
       <div className={card}>
         <div className="mb-1 flex flex-wrap items-center gap-2">
           <h2 className="text-[15px] font-bold text-slate-700 dark:text-slate-300">전체 합산 성과 (참고)</h2>
-          <span className="rounded-md bg-blue-500/10 px-2 py-0.5 text-[11px] text-blue-400">실제 스냅샷 기준</span>
+          <span className="rounded-md bg-blue-500/10 px-2 py-0.5 text-[11px] text-blue-400">최신 보유 기준 역산</span>
         </div>
-        <p className="mb-4 text-[12px] text-slate-500">누적 입금 대비 포트폴리오 가치 (KOSPI / S&P 500은 거래내역·가격이 있을 때만 표시)</p>
+        <p className="mb-4 text-[12px] text-slate-500">최신 보유종목을 현재 수량으로 고정하고, 과거 가격을 대입해 역산한 참고 성과입니다.</p>
 
         {!result.available || !result.kpis ? (
           <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-[13px] text-slate-500 dark:border-[#334044] dark:bg-[#11181a]">
             <div className="font-semibold text-slate-700 dark:text-slate-300">{result.unavailableReason ?? "성과분석 데이터 부족"}</div>
-            <div className="mt-1">거래/스냅샷 기록이 부족합니다. 샘플 그래프는 표시하지 않습니다.</div>
+            <div className="mt-1">과거 가격 데이터를 불러오지 못했습니다. 샘플/가짜 그래프는 표시하지 않습니다.</div>
           </div>
         ) : (
           <>

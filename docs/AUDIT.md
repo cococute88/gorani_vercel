@@ -500,3 +500,5 @@ DIVIDENDS-PERFORMANCE-STREAMLIT-PORT-1: 기존 Streamlit 배당 성과분석 로
 - PORTFOLIO-MANAGER-SUMMARY-UX-POLISH-1: 포트폴리오 관리 파싱 결과 요약 3x3 정리, 부채/순자산 제거, 현금자산/투자자산 명칭 정리, 스냅샷 상세 요약 표시, 소액 항목 리스트 숨김. See `docs/PORTFOLIO_MANAGER_SUMMARY_UX_POLISH1.md`.
 - CALCULATORS-TABLE-SORT-SCROLL-AND-DIVCAP-DISTRIBUTION-FIX-1: 배당치기 분포 그래프 x축 표시 회귀 수정, 배당치기/매도전환/MDD 상세 표 정렬 및 12행 스크롤 적용
 - MDD-CALCULATOR-STREAMLIT-FULL-PORT-1: 원본 Streamlit MDD 계산기 한글화, 가격/Drawdown/원화비교/연도별수익률 그래프, 역대 낙폭·회복기간, 기준년도·변동성 표를 Vercel에 이식. See `docs/MDD_CALCULATOR_STREAMLIT_PORT1.md`.
+
+DIVIDENDS-PERFORMANCE-LATEST-HOLDINGS-BACKCAST-FIX-1: /dividends 성과분석의 스냅샷 2개 필수 조건을 제거하고, 원본 Streamlit처럼 최신 보유종목 기준 과거 가격 역산 성과 그래프로 수정

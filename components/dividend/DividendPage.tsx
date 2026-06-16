@@ -18,15 +18,15 @@ import {
 import { formatPercent } from "@/lib/format";
 import type { Holding } from "@/lib/portfolio-types";
 import { buildDividendHoldingGroupsFromSnapshot } from "@/lib/dividend-holdings-from-portfolio";
-import { quoteDividendsPath, quoteFxPath, quoteLastPath } from "@/lib/quote-client";
-import type { QuoteDividendsResponse, QuoteFxResponse, QuoteLastResponse } from "@/lib/quote-types";
+import { quoteDividendsPath, quoteFxPath, quoteHistoryPath, quoteLastPath } from "@/lib/quote-client";
+import type { QuoteDividendsResponse, QuoteFxResponse, QuoteHistoryResponse, QuoteLastResponse } from "@/lib/quote-types";
 import DividendSummaryCards from "./DividendSummaryCards";
 import MonthlyDividendChart from "./MonthlyDividendChart";
 import DividendHoldingsTable from "./DividendHoldingsTable";
 import DividendPerformanceSection from "./DividendPerformanceSection";
 import DividendAccountPerformanceSection from "./DividendAccountPerformanceSection";
 import { useResolvedTheme } from "@/components/theme/ThemeProvider";
-import { buildDividendPerformanceFromSnapshots } from "@/lib/dividend-performance-from-snapshots";
+import { buildDividendPerformanceBackcast, type BackcastPricePoint } from "@/lib/dividend-performance-from-snapshots";
 
 const card =
   "rounded-2xl border border-slate-200 bg-white p-5 dark:border-[#2a3336] dark:bg-[#191f20]";
@@ -97,6 +97,7 @@ export default function DividendPage() {
   const [targetTicker, setTargetTicker] = useState("SCHD");
   const [targetQty, setTargetQty] = useState(3300);
   const [marketData, setMarketData] = useState<DividendMarketDataState>(EMPTY_MARKET_DATA);
+  const [performanceHistories, setPerformanceHistories] = useState<{ prices: Record<string, BackcastPricePoint[]>; kospi: BackcastPricePoint[] | null; sp500: BackcastPricePoint[] | null; fx: BackcastPricePoint[] | null }>({ prices: {}, kospi: null, sp500: null, fx: null });
 
   useEffect(() => {
     try {
@@ -141,6 +142,12 @@ export default function DividendPage() {
     [dividendTickers, targetTickerNormalized],
   );
   const marketTickerKey = marketTickers.join("|");
+
+  function toBackcastSeries(response: QuoteHistoryResponse | undefined): BackcastPricePoint[] | null {
+    if (!response || response.source === "sample") return null;
+    const points = response.prices.filter((price) => Number.isFinite(price.close) && price.close > 0).map((price) => ({ date: price.date, close: price.close }));
+    return points.length > 0 ? points : null;
+  }
 
   useEffect(() => {
     if (!marketTickerKey) {
@@ -264,6 +271,36 @@ export default function DividendPage() {
     () => enrichRows(dividendGroups.taxAdvantagedHoldings),
     [dividendGroups.taxAdvantagedHoldings, enrichRows],
   );
+
+  useEffect(() => {
+    const tickers = dividendTickers;
+    if (tickers.length === 0) {
+      setPerformanceHistories({ prices: {}, kospi: null, sp500: null, fx: null });
+      return;
+    }
+    let active = true;
+    async function loadPerformanceHistories() {
+      async function fetchHistory(ticker: string): Promise<QuoteHistoryResponse | undefined> {
+        try {
+          return await fetchQuoteJson<QuoteHistoryResponse>(quoteHistoryPath({ ticker, range: "3y" }));
+        } catch {
+          return undefined;
+        }
+      }
+      const entries = await Promise.all(tickers.map(async (ticker) => [ticker, toBackcastSeries(await fetchHistory(ticker)) ?? []] as const));
+      const [kospi, sp500, fx] = await Promise.all([fetchHistory("^KS11"), fetchHistory("SPY"), fetchHistory("KRW=X")]);
+      if (!active) return;
+      setPerformanceHistories({
+        prices: Object.fromEntries(entries),
+        kospi: toBackcastSeries(kospi),
+        sp500: toBackcastSeries(sp500),
+        fx: toBackcastSeries(fx),
+      });
+    }
+    void loadPerformanceHistories();
+    return () => { active = false; };
+  }, [dividendTickers]);
+
   const dividendDataAvailable = useMemo(
     () => [...estimatedTaxableHoldings, ...estimatedTaxAdvantagedHoldings].some((row) => row.dividendDataStatus === "available"),
     [estimatedTaxAdvantagedHoldings, estimatedTaxableHoldings],
@@ -320,7 +357,14 @@ export default function DividendPage() {
   const goalProgressLabel = goalProgress.calculable
     ? `SCHD 환산 ${goalProgress.equivalentShares?.toLocaleString("ko-KR", { maximumFractionDigits: 1 })}주 · ${actualSharesLabel} / 목표 ${targetQty.toLocaleString("ko-KR")}주`
     : (goalProgress.error ?? "계산 불가");
-  const dividendPerformance = useMemo(() => buildDividendPerformanceFromSnapshots(snapshots), [snapshots]);
+  const dividendPerformance = useMemo(() => buildDividendPerformanceBackcast({
+    holdings: [...estimatedTaxableHoldings, ...estimatedTaxAdvantagedHoldings],
+    priceHistories: performanceHistories.prices,
+    benchmarkHistories: { kospi: performanceHistories.kospi, sp500: performanceHistories.sp500 },
+    fxHistory: performanceHistories.fx,
+    latestDate: latestSnapshot?.snapshotDate,
+    months: 24,
+  }), [estimatedTaxAdvantagedHoldings, estimatedTaxableHoldings, latestSnapshot?.snapshotDate, performanceHistories]);
 
   function setChartTaxable(checked: boolean) {
     if (!checked && !chartIncludesTaxAdvantaged) return;

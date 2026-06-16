@@ -20,6 +20,7 @@
 // =============================================================
 
 import type { Holding, PortfolioSnapshot } from "./portfolio-types";
+import { buildDividendPerformanceBackcast, type BackcastPricePoint } from "./dividend-performance-from-snapshots";
 import { classifyPerformanceAccountType } from "./performance-qld-from-snapshots";
 
 export type AccountPerfGroup = "위탁" | "절세";
@@ -45,7 +46,7 @@ export type AccountPerfLatest = {
 export type AccountPerfBase = {
   group: AccountPerfGroup;
   available: boolean;
-  dataSource: "snapshot-history" | "unavailable";
+  dataSource: "latest-holdings-backcast" | "snapshot-history" | "unavailable";
   sampleFallbackUsed: false;
   points: AccountPerfPoint[];
   availableYears: number[];
@@ -85,6 +86,7 @@ export function accountGroupOfHolding(holding: Holding): AccountPerfGroup {
 export function buildAccountGroupPerformance(
   snapshots: PortfolioSnapshot[] | null | undefined,
   group: AccountPerfGroup,
+  backcast?: { priceHistories: Record<string, BackcastPricePoint[] | null | undefined>; fxHistory?: BackcastPricePoint[] | null; latestDate?: string; months?: number },
 ): AccountPerfBase {
   const safe = Array.isArray(snapshots) ? snapshots : [];
   const dated = safe
@@ -110,8 +112,43 @@ export function buildAccountGroupPerformance(
     warnings: [reason],
   });
 
+  if (backcast) {
+    const latest = monthly.at(-1)?.snapshot;
+    const holdings = (latest?.holdings ?? []).filter((holding) => accountGroupOfHolding(holding) === group);
+    const result = buildDividendPerformanceBackcast({
+      holdings,
+      priceHistories: backcast.priceHistories,
+      fxHistory: backcast.fxHistory,
+      latestDate: backcast.latestDate ?? monthly.at(-1)?.date,
+      months: backcast.months ?? 24,
+    });
+    if (!result.available) return unavailable(result.unavailableReason ?? `성과분석 데이터 부족: ${group} 계좌 과거 가격 데이터를 불러오지 못했습니다.`);
+    const points = result.points.map((point): AccountPerfPoint => ({
+      date: `${point.date}-01`,
+      label: `${point.date.slice(2, 4)}/${Number(point.date.slice(5, 7))}`,
+      year: point.year,
+      depositKRW: point.deposit,
+      portfolioKRW: point.portfolio,
+      netInvestmentKRW: point.netInvestment,
+      monthlyProfitKRW: point.monthlyProfit ?? 0,
+      totalAssetsKRW: point.totalAssets,
+    }));
+    const latestPoint = points.at(-1)!;
+    return {
+      group,
+      available: true,
+      dataSource: "latest-holdings-backcast",
+      sampleFallbackUsed: false,
+      points,
+      availableYears: result.availableYears,
+      yearlyProfitKRW: result.yearlyProfitKRW,
+      latest: { depositKRW: latestPoint.depositKRW, portfolioKRW: latestPoint.portfolioKRW, portfolioReturnPct: latestPoint.depositKRW > 0 ? (latestPoint.portfolioKRW / latestPoint.depositKRW - 1) * 100 : null },
+      warnings: result.warnings,
+    };
+  }
+
   if (monthly.length < 2) {
-    return unavailable("성과분석 데이터 부족: 최소 2개 이상의 스냅샷이 필요합니다.");
+    return unavailable("성과분석 데이터 부족: 과거 가격 데이터를 불러오지 못했습니다.");
   }
 
   let prevPrincipal = 0;
