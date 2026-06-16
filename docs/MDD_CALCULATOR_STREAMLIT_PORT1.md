@@ -95,3 +95,5 @@ npm run build
 - 역대 낙폭 구간에 닷컴버블/서브프라임 같은 사람이 붙인 이벤트명은 표기하지 않는다(실데이터 기준 날짜·낙폭만).
 - 원화 기준 비교는 `KRW=X` 일별 종가에 ffill 정렬한 근사치이며 공식 환율과 미세 차이가 있을 수 있다.
 - 연도별/기준년도/변동성 표는 전체 보유 데이터 기준, KPI/가격·Drawdown 차트는 선택 기간 기준으로 분리 산출한다.
+
+- MDD-BRUSH-PLACEMENT-FIX-1: Brush placement changed so the yearly returns chart has no Brush and the USD vs KRW Drawdown comparison chart owns the range selector.
