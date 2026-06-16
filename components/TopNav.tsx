@@ -94,9 +94,16 @@ export default function TopNav({ theme = "dark" }: Props) {
   const visibleItems = NAV_ITEMS.slice(0, visibleCount);
   const hiddenItems = NAV_ITEMS.slice(visibleCount);
 
+  const normalizeActivePath = (path: string | null) =>
+    path === "/watchlist" || path?.startsWith("/watchlist/") ? "/calendar" : path;
+
+  const activePathname = normalizeActivePath(pathname);
+
   const isActive = (href: string) =>
     href !== "#" &&
-    (href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`));
+    (href === "/"
+      ? activePathname === "/"
+      : activePathname === href || Boolean(activePathname?.startsWith(`${href}/`)));
 
   const linkClass = (active: boolean, panel = false) =>
     `flex shrink-0 items-center gap-1 rounded-md text-[13px] font-medium transition-colors ${
