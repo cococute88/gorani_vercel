@@ -13,6 +13,7 @@ import {
 } from "firebase/firestore";
 import type { PortfolioSnapshot } from "@/lib/portfolio-types";
 import type { StoredSimulatorPreview } from "@/lib/asset-simulator-types";
+import { buildFirestoreSimulatorConfigPayload, findFirestoreUnsafePaths } from "@/lib/asset-simulator-persistence";
 import { normalizeCalendarCustomEvent, type CalendarCustomEvent } from "@/lib/calendar-custom-events";
 import {
   LEGACY_DIVIDEND_IMPORT_SOURCE,
@@ -344,10 +345,16 @@ export async function deleteCalendarCustomEvent(uid: string, eventId: string): P
 }
 
 export async function saveAssetSimulatorConfig(uid: string, config: StoredSimulatorPreview): Promise<void> {
+  const payload = buildFirestoreSimulatorConfigPayload(config);
+  const unsafePaths = findFirestoreUnsafePaths(payload);
+  if (unsafePaths.length > 0) {
+    console.warn("assetSimulator.save blocked Firestore-unsafe payload paths", unsafePaths);
+    throw new Error(`Asset simulator Firestore payload is not serializable: ${unsafePaths.join(", ")}`);
+  }
   await setDoc(doc(requireDb(), "users", uid, "assetSimulatorConfigs", "default"), {
-    ...config,
+    ...payload,
     updatedAt: serverTimestamp(),
-  });
+  }, { merge: true });
 }
 
 export async function loadAssetSimulatorConfig(uid: string): Promise<StoredSimulatorPreview | null> {

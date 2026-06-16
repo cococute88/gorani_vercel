@@ -137,7 +137,14 @@ export default function AssetSimulatorPage() {
       }
     } catch (err) {
       warnFirestoreFallback("assetSimulator.save", err);
-      setSaveError(user ? "저장 실패: 클라우드 저장을 완료하지 못했습니다." : "저장 실패: 브라우저 로컬 저장소를 사용할 수 없습니다.");
+      const message = err instanceof Error ? err.message : "";
+      setSaveError(
+        user && message.includes("Firestore payload is not serializable")
+          ? "저장 실패: 저장 데이터 형식을 정리하지 못했습니다."
+          : user
+            ? "저장 실패: 클라우드 저장 중 오류가 발생했습니다."
+            : "저장 실패: 브라우저 로컬 저장소를 사용할 수 없습니다.",
+      );
     } finally {
       setSaving(false);
     }
