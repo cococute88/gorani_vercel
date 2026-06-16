@@ -67,6 +67,68 @@ export function buildStoredSimulatorConfig(inputs: SimulatorInputs, yearPlans: Y
   };
 }
 
+export function sanitizeForFirestore(value: unknown): unknown {
+  if (value === undefined) return undefined;
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value === "function" || typeof value === "symbol") return undefined;
+  if (Array.isArray(value)) {
+    return value.map((item) => {
+      const cleaned = sanitizeForFirestore(item);
+      return cleaned === undefined ? null : cleaned;
+    });
+  }
+  if (value && typeof value === "object") {
+    const result: Record<string, unknown> = {};
+    for (const [key, child] of Object.entries(value)) {
+      const cleaned = sanitizeForFirestore(child);
+      if (cleaned !== undefined) result[key] = cleaned;
+    }
+    return result;
+  }
+  return value;
+}
+
+export function findFirestoreUnsafePaths(value: unknown, path = "payload"): string[] {
+  const unsafe: string[] = [];
+  const visit = (item: unknown, currentPath: string) => {
+    if (
+      item === undefined ||
+      typeof item === "function" ||
+      typeof item === "symbol" ||
+      (typeof item === "number" && !Number.isFinite(item))
+    ) {
+      unsafe.push(currentPath);
+      return;
+    }
+    if (Array.isArray(item)) {
+      item.forEach((child, index) => visit(child, `${currentPath}[${index}]`));
+      return;
+    }
+    if (item && typeof item === "object") {
+      for (const [key, child] of Object.entries(item)) {
+        visit(child, `${currentPath}.${key}`);
+      }
+    }
+  };
+  visit(value, path);
+  return unsafe;
+}
+
+export function buildFirestoreSimulatorConfigPayload(config: StoredSimulatorPreview): StoredSimulatorPreview {
+  const normalizedInputs = normalizeInputs(config.inputs);
+  const normalizedConfig: StoredSimulatorPreview = {
+    inputs: normalizedInputs,
+    yearPlans: normalizeYearPlans(normalizedInputs, config.yearPlans ?? []),
+  };
+  const cleaned = sanitizeForFirestore(normalizedConfig) as StoredSimulatorPreview;
+  const unsafePaths = findFirestoreUnsafePaths(cleaned);
+  if (unsafePaths.length > 0) {
+    console.warn("assetSimulator.save sanitized payload still contains Firestore-unsafe values", unsafePaths);
+    throw new Error(`Asset simulator Firestore payload is not serializable: ${unsafePaths.join(", ")}`);
+  }
+  return cleaned;
+}
+
 export function formatSimulatorSavedAt(updatedAtMs: number): string | null {
   if (!Number.isFinite(updatedAtMs) || updatedAtMs <= 0) return null;
   return new Date(updatedAtMs).toLocaleString("ko-KR", { dateStyle: "short", timeStyle: "short" });

@@ -485,3 +485,4 @@ Dependency warnings observed:
 - 2026-06-15 Step CALENDAR-LAYOUT-WIDE-STREAMLIT-POLISH-1: 배당캘린더 와이드 레이아웃, 하단 필터 toggle, 일정 chip 절세액 표시, 포트폴리오 관리/티커 관리 병합. See `docs/CALENDAR_WIDE_LAYOUT_POLISH1.md`.
 
 - ASSET-SIMULATOR-PERSISTENCE-FIX-1: /asset-simulator Save 버튼의 local/cloud persistence 및 재접속 복원 오류 수정. See `docs/ASSET_SIMULATOR_PERSISTENCE_FIX1.md`.
+- ASSET-SIMULATOR-FIRESTORE-SAVE-FIX-1: /asset-simulator Firestore 저장 payload의 undefined/NaN 값을 sanitize하여 cloud save 실패 수정
