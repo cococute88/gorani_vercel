@@ -57,6 +57,10 @@ function eokFmt(value: number): string {
   return `${(value / 100000000).toFixed(1)}억`;
 }
 
+function manFmt(value: number): string {
+  return `${Math.round(value / 10000).toLocaleString("ko-KR")}만`;
+}
+
 function won(value: number | null | undefined): string {
   return value == null ? "계산 불가" : `₩ ${Math.round(value).toLocaleString("ko-KR")}`;
 }
@@ -133,7 +137,7 @@ function Kpi({
 }
 
 
-function paddedDomain(values: Array<number | null | undefined>, includeZero: boolean): [number | string, number | string] {
+function paddedDomain(values: Array<number | null | undefined>, includeZero = false): [number | string, number | string] {
   const finiteValues = values.filter((value): value is number => typeof value === "number" && Number.isFinite(value));
   if (finiteValues.length === 0) return ["auto", "auto"];
   let min = Math.min(...finiteValues);
@@ -157,7 +161,7 @@ function performanceDomain(rows: Array<Record<string, number | string | null>>):
   const min = Math.min(...values);
   const max = Math.max(...values);
   const range = Math.max(max - min, Math.abs(max) * 0.02, 1);
-  return [Math.max(0, min - range * 0.08), max + range * 0.08];
+  return [min - range * 0.08, max + range * 0.08];
 }
 
 function GroupBlock({ view }: { view: GroupView }) {
@@ -336,7 +340,7 @@ function GroupBlock({ view }: { view: GroupView }) {
               <ComposedChart data={monthlyRows} margin={CHART_MARGIN}>
                 <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} vertical={false} />
                 <XAxis dataKey="date" tick={AXIS_TICK_SM} tickLine={false} axisLine={AXIS_LINE} />
-                <YAxis yAxisId="profit" orientation="left" domain={profitDomain} tickFormatter={eokFmt} tick={AXIS_TICK_SM} tickLine={false} axisLine={false} width={48} />
+                <YAxis yAxisId="profit" orientation="left" domain={profitDomain} tickFormatter={manFmt} label={{ value: "월별 손익(만원)", angle: -90, position: "insideLeft" }} tick={AXIS_TICK_SM} tickLine={false} axisLine={false} width={56} />
                 <YAxis yAxisId="asset" orientation="right" domain={assetDomain} tickFormatter={eokFmt} tick={AXIS_TICK_SM} tickLine={false} axisLine={false} width={48} />
                 <Tooltip contentStyle={TOOLTIP_STYLE} formatter={tooltipFormatter} />
                 <Legend wrapperStyle={LEGEND_WRAPPER} />
@@ -437,6 +441,7 @@ export default function DividendAccountPerformanceSection({ snapshots, latestBac
           prices: prices ?? [],
           fx: isUsd ? histories.fx : null,
           isUsd,
+          startPrincipalKRW: base.points[0]?.depositKRW ?? base.latest?.depositKRW,
         });
         return {
           key,

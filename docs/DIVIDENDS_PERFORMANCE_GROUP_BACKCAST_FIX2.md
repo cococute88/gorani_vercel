@@ -33,3 +33,7 @@ KOSPI/S&P 500 이력이 없거나 환율이 없으면 해당 benchmark line만 n
 ## Follow-up 3 note
 
 FIX-2 이후 실제 Preview에서 위탁/절세 계좌 성과가 계속 데이터 부족으로 보인 원인은 enriched holdings 전달 자체가 아니라 계좌별 quote history 조회 시작일이 최신 스냅샷 날짜로 고정되어 과거 월말 가격이 잘린 것이었습니다. Follow-up 3에서 계좌별 history start를 최신 스냅샷 기준 25개월 전으로 보정하고, 수량/티커 fallback 및 월별 손익/총자산 y축 분리를 보강했습니다. 자세한 내용은 `DIVIDENDS_PERFORMANCE_GROUP_BACKCAST_FIX3.md`를 참조하세요.
+
+## FIX-4 follow-up: benchmark/axis/unit
+
+위탁/절세 backcast 벤치마크는 첫 월 원금을 시작 원금으로 사용해 `SPY`, `^KS11` 가격 history와 `KRW=X` 환율로 계산한다. 계산 실패는 `0`이 아니라 unavailable(`비교 불가`)로 표시한다. 성과 그래프 y축은 visible series min/max padding을 사용하며 0을 강제로 포함하지 않는다. 월별 손익 chart는 좌측 `profit` 축을 `만원` 단위로, 총자산 line은 우측 `asset` 축으로 분리한다.

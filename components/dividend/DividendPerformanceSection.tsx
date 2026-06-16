@@ -12,11 +12,12 @@ const card = "rounded-2xl border border-slate-200 bg-white p-5 dark:border-[#2a3
 const LEGEND_WRAPPER = { fontSize: 12, paddingTop: 8 };
 
 function eokFmt(v: number): string { return `${(v / 100000000).toFixed(1)}억`; }
+function manFmt(v: number): string { return `${Math.round(v / 10000).toLocaleString("ko-KR")}만`; }
 function won(value: number | null | undefined): string { return value == null ? "계산 불가" : `₩ ${Math.round(value).toLocaleString("ko-KR")}`; }
 function tooltipFormatter(value: number, name: string): [string, string] { return [won(value), name]; }
 
 
-function paddedDomain(values: Array<number | null | undefined>, includeZero: boolean): [number | string, number | string] {
+function paddedDomain(values: Array<number | null | undefined>, includeZero = false): [number | string, number | string] {
   const finiteValues = values.filter((value): value is number => typeof value === "number" && Number.isFinite(value));
   if (finiteValues.length === 0) return ["auto", "auto"];
   let min = Math.min(...finiteValues);
@@ -35,7 +36,7 @@ function performanceDomain(points: DividendPerformanceResult["points"]): [number
   const min = Math.min(...values);
   const max = Math.max(...values);
   const range = Math.max(max - min, Math.abs(max) * 0.02, 1);
-  return [Math.max(0, min - range * 0.08), max + range * 0.08];
+  return [min - range * 0.08, max + range * 0.08];
 }
 
 function Kpi({ label, value, rate }: { label: string; value: number | null | undefined; rate?: number | null }) {
@@ -113,7 +114,7 @@ export default function DividendPerformanceSection({ result }: Props) {
                 <ComposedChart data={monthlyRows} margin={CHART_MARGIN}>
                   <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} vertical={false} />
                   <XAxis dataKey="date" tick={AXIS_TICK_SM} tickLine={false} axisLine={AXIS_LINE} />
-                  <YAxis yAxisId="profit" orientation="left" domain={profitDomain} tickFormatter={eokFmt} tick={AXIS_TICK_SM} tickLine={false} axisLine={false} width={48} />
+                  <YAxis yAxisId="profit" orientation="left" domain={profitDomain} tickFormatter={manFmt} label={{ value: "월별 손익(만원)", angle: -90, position: "insideLeft" }} tick={AXIS_TICK_SM} tickLine={false} axisLine={false} width={56} />
                   <YAxis yAxisId="asset" orientation="right" domain={assetDomain} tickFormatter={eokFmt} tick={AXIS_TICK_SM} tickLine={false} axisLine={false} width={48} />
                   <Tooltip contentStyle={TOOLTIP_STYLE} formatter={tooltipFormatter} />
                   <Legend wrapperStyle={LEGEND_WRAPPER} />

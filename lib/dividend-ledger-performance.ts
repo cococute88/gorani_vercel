@@ -222,6 +222,7 @@ export type BenchmarkPricePoint = { date: string; close: number };
 
 export type BenchmarkComputeInput = {
   points: Array<{ date: string; netInvestmentKRW: number }>;
+  startPrincipalKRW?: number;
   prices: BenchmarkPricePoint[]; // 날짜 오름차순
   fx?: BenchmarkPricePoint[] | null; // USD/KRW 히스토리 (isUsd면 필수)
   isUsd: boolean;
@@ -248,7 +249,7 @@ function asof(series: BenchmarkPricePoint[], target: string): number | null {
 }
 
 export function computeBenchmarkSeries(input: BenchmarkComputeInput): BenchmarkSeriesResult {
-  const { points, prices, fx, isUsd } = input;
+  const { points, prices, fx, isUsd, startPrincipalKRW } = input;
   if (!prices || prices.length === 0) {
     return { available: false, values: points.map(() => null), latestValue: null, unavailableReason: "benchmark_price_unavailable" };
   }
@@ -258,22 +259,36 @@ export function computeBenchmarkSeries(input: BenchmarkComputeInput): BenchmarkS
   const sortedPrices = [...prices].sort((a, b) => (a.date < b.date ? -1 : 1));
   const sortedFx = fx ? [...fx].sort((a, b) => (a.date < b.date ? -1 : 1)) : null;
 
+  const startPrincipal = typeof startPrincipalKRW === "number" && Number.isFinite(startPrincipalKRW) && startPrincipalKRW > 0 ? startPrincipalKRW : null;
+  const startPoint = points.find((point) => {
+    const close = asof(sortedPrices, point.date);
+    const rate = isUsd ? asof(sortedFx as BenchmarkPricePoint[], point.date) : 1;
+    return close != null && close > 0 && rate != null && rate > 0;
+  });
+  const startClose = startPoint ? asof(sortedPrices, startPoint.date) : null;
+  const startRate = startPoint && isUsd ? asof(sortedFx as BenchmarkPricePoint[], startPoint.date) : 1;
+
   let units = 0;
   let lastValue: number | null = null;
+  if (startPrincipal && startClose && startRate) {
+    units = (isUsd ? startPrincipal / startRate : startPrincipal) / startClose;
+  }
   const values = points.map((point) => {
     const close = asof(sortedPrices, point.date);
     const rate = isUsd ? asof(sortedFx as BenchmarkPricePoint[], point.date) : 1;
     if (close && close > 0 && rate && rate > 0) {
-      const investInIndexCurrency = isUsd ? point.netInvestmentKRW / rate : point.netInvestmentKRW;
-      units += investInIndexCurrency / close;
+      if (!startPrincipal) {
+        const investInIndexCurrency = isUsd ? point.netInvestmentKRW / rate : point.netInvestmentKRW;
+        units += investInIndexCurrency / close;
+      }
       lastValue = units * close * rate;
-      return lastValue;
+      return lastValue > 0 ? lastValue : null;
     }
-    // 가격/환율이 없는 구간은 직전 계산값으로 표시(없으면 null).
-    return lastValue;
+    // 가격/환율이 없는 구간은 0으로 채우지 않고 null로 끊는다.
+    return null;
   });
 
-  const available = values.some((value) => value != null);
+  const available = values.some((value) => typeof value === "number" && Number.isFinite(value) && value > 0);
   return {
     available,
     values,
