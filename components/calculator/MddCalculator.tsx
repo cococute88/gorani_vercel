@@ -495,6 +495,7 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
                   ))}
                   <Line type="monotone" dataKey="usd" name="달러 기준" stroke={C_PRICE} strokeWidth={1.6} dot={false} />
                   {krwAvailable ? <Line type="monotone" dataKey="krw" name="원화 기준" stroke={C_KRW} strokeWidth={1.6} dot={false} connectNulls /> : null}
+                  <Brush dataKey="date" height={24} stroke={C_PRICE} fill={colors.brushFill} travellerWidth={8} tickFormatter={formatAxisDate} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -575,7 +576,6 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
                         <Cell key={row.year} fill={row.returnPct >= 0 ? C_PRICE : C_TROUGH} fillOpacity={row.partial ? 0.55 : 0.9} />
                       ))}
                     </Bar>
-                    <Brush dataKey="year" height={22} stroke={C_PRICE} fill={colors.brushFill} travellerWidth={8} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>

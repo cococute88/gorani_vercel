@@ -502,3 +502,5 @@ DIVIDENDS-PERFORMANCE-STREAMLIT-PORT-1: 기존 Streamlit 배당 성과분석 로
 - MDD-CALCULATOR-STREAMLIT-FULL-PORT-1: 원본 Streamlit MDD 계산기 한글화, 가격/Drawdown/원화비교/연도별수익률 그래프, 역대 낙폭·회복기간, 기준년도·변동성 표를 Vercel에 이식. See `docs/MDD_CALCULATOR_STREAMLIT_PORT1.md`.
 
 DIVIDENDS-PERFORMANCE-LATEST-HOLDINGS-BACKCAST-FIX-1: /dividends 성과분석의 스냅샷 2개 필수 조건을 제거하고, 원본 Streamlit처럼 최신 보유종목 기준 과거 가격 역산 성과 그래프로 수정
+
+MDD-BRUSH-PLACEMENT-FIX-1: MDD 계산기 연도별 수익률 그래프 하단 Brush를 제거하고 달러 vs 원화 Drawdown 비교 그래프 하단으로 이동
