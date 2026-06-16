@@ -61,7 +61,8 @@ export async function GET(request: Request) {
   const providerStatus: ProviderStatus = {}; const warnings: string[] = [];
   if (!ticker) return NextResponse.json({ ticker: "", source: "unavailable", events: [], failedReason: "ticker is required", updatedAt, providerStatus, warnings } satisfies DividendLiveResponse, { status: 400 });
   const polygonRows = await fetchPolygon(ticker, providerStatus, warnings);
-  const finnhubRows = polygonRows.length > 0 ? [] : await fetchFinnhub(ticker, providerStatus, warnings);
+  const polygonBlockedFallback = providerStatus.polygon === "rate_limited" || providerStatus.polygon === "failed";
+  const finnhubRows = polygonRows.length > 0 || polygonBlockedFallback ? [] : await fetchFinnhub(ticker, providerStatus, warnings);
   let yahooRows: ReturnType<typeof yahooRowsFromQuoteResponse> = [];
   try {
     const yahoo = await getQuoteDividends({ ticker, range: "5y" });
@@ -69,9 +70,9 @@ export async function GET(request: Request) {
     warnings.push(...yahoo.warnings.filter((warning) => !warning.includes("deterministic demo")));
     if (yahoo.source === "yahoo") yahooRows = yahooRowsFromQuoteResponse(yahoo);
   } catch { providerStatus.yahoo = "failed"; warnings.push(`Yahoo dividend lookup failed for ${ticker}.`); }
-  const declared = polygonRows.length > 0 ? polygonRows : finnhubRows.length > 0 ? finnhubRows : yahooRows.map((row) => ({ exDate: row.date, amount: row.amount }));
-  const events = declared.length > 0 || yahooRows.length > 0 ? mergeDeclaredAndProjectedEvents(ticker, declared, yahooRows.length > 0 ? yahooRows : declared.map((row) => ({ date: row.exDate, amount: row.amount }))) : [];
-  const liveProviderCount = [providerStatus.polygon, providerStatus.finnhub, providerStatus.yahoo].filter((status) => status === "ok").length;
-  const source = events.length === 0 ? "unavailable" : liveProviderCount > 1 || declared.length > 0 ? "live" : "partial";
-  return NextResponse.json({ ticker, source, events, failedReason: events.length === 0 ? "No live dividend events were available." : undefined, updatedAt, providerStatus, warnings, rateLimitDelayMs: providerStatus.polygon === "rate_limited" ? 12500 : undefined } satisfies DividendLiveResponse);
+  const declared = polygonRows.length > 0 ? polygonRows : finnhubRows.length > 0 ? finnhubRows : providerStatus.polygon === "missing_key" ? yahooRows.map((row) => ({ exDate: row.date, amount: row.amount })) : [];
+  const historyForProjection = yahooRows.length > 0 ? yahooRows : declared.map((row) => ({ date: row.exDate, amount: row.amount }));
+  const events = polygonBlockedFallback ? [] : declared.length > 0 || historyForProjection.length > 0 ? mergeDeclaredAndProjectedEvents(ticker, declared, historyForProjection) : [];
+  const source = events.length === 0 ? "unavailable" : providerStatus.polygon === "ok" && polygonRows.length > 0 ? "live" : "partial";
+  return NextResponse.json({ ticker, source, events, failedReason: events.length === 0 ? (polygonBlockedFallback ? "Polygon dividend lookup failed; existing confirmed cache should be kept." : "No live dividend events were available.") : undefined, updatedAt, providerStatus, warnings, rateLimitDelayMs: providerStatus.polygon && providerStatus.polygon !== "missing_key" ? 12500 : undefined } satisfies DividendLiveResponse);
 }

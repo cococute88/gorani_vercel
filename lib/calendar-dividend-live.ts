@@ -76,6 +76,44 @@ export function mergeDeclaredAndProjectedEvents(ticker: string, declaredRows: De
   return events.sort((a, b) => a.date.localeCompare(b.date) || a.type.localeCompare(b.type));
 }
 
+function eventMergeKey(event: CalendarEvent): string {
+  return [normalizeCalendarTicker(event.ticker), event.type, (event.exDivDate || event.date).slice(0, 10)].join("|");
+}
+
+function isConfirmedDividendEvent(event: CalendarEvent): boolean {
+  return event.sourceKind !== "custom" && event.status === "confirmed" && event.sourceKind !== "estimated";
+}
+
+function eventPriority(event: CalendarEvent, existingConfirmed: boolean): number {
+  if (event.sourceKind === "custom") return 100;
+  if (event.status === "confirmed" && event.sourceKind === "declared") return existingConfirmed ? 85 : 95;
+  if (event.status === "confirmed") return existingConfirmed ? 80 : 90;
+  if (event.sourceKind === "estimated" || event.status === "estimated") return 10;
+  return 50;
+}
+
+export function mergeFetchedEventsWithExistingCache(existingEvents: CalendarEvent[], fetchedEvents: CalendarEvent[]): CalendarEvent[] {
+  const byKey = new Map<string, { event: CalendarEvent; priority: number }>();
+
+  for (const event of existingEvents) {
+    if (event.sourceKind === "custom") continue;
+    if (!isConfirmedDividendEvent(event)) continue;
+    byKey.set(eventMergeKey(event), { event, priority: eventPriority(event, true) });
+  }
+
+  for (const event of fetchedEvents) {
+    if (event.sourceKind === "custom") continue;
+    const key = eventMergeKey(event);
+    const candidatePriority = eventPriority(event, false);
+    const current = byKey.get(key);
+    if (!current || candidatePriority > current.priority) {
+      byKey.set(key, { event, priority: candidatePriority });
+    }
+  }
+
+  return Array.from(byKey.values()).map((entry) => entry.event).sort((a, b) => a.date.localeCompare(b.date) || a.ticker.localeCompare(b.ticker) || a.type.localeCompare(b.type));
+}
+
 export function buildLiveCalendarCacheEntry(ticker: string, events: CalendarEvent[], source: CalendarTickerCache<CalendarEvent>["source"], warnings: string[] = []) {
   return buildCalendarTickerCacheFromEvents(ticker, events, source, warnings);
 }
