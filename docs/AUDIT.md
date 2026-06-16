@@ -504,3 +504,5 @@ DIVIDENDS-PERFORMANCE-STREAMLIT-PORT-1: 기존 Streamlit 배당 성과분석 로
 DIVIDENDS-PERFORMANCE-LATEST-HOLDINGS-BACKCAST-FIX-1: /dividends 성과분석의 스냅샷 2개 필수 조건을 제거하고, 원본 Streamlit처럼 최신 보유종목 기준 과거 가격 역산 성과 그래프로 수정
 
 MDD-BRUSH-PLACEMENT-FIX-1: MDD 계산기 연도별 수익률 그래프 하단 Brush를 제거하고 달러 vs 원화 Drawdown 비교 그래프 하단으로 이동
+
+DIVIDEND-CAPTURE-STREAMLIT-RESTORE-1: 배당치기 시뮬레이터를 원본 Streamlit 3_dividend_sim.py 기준으로 복구하여 full history 분석, KPI 6개, 수익률 분포 그래프, 회차별 상세 결과 표를 정비

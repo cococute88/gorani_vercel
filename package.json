@@ -52,7 +52,8 @@
     "check:dividends-performance-streamlit-port": "node scripts/check-dividends-performance-streamlit-port.mjs",
     "check:dividend-ledger-performance-ui-port": "node scripts/check-dividend-ledger-performance-ui-port.mjs",
     "check:calculators-table-sort-scroll": "node scripts/check-calculators-table-sort-scroll.mjs",
-    "check:dividends-performance-backcast": "node scripts/check-dividends-performance-backcast.mjs"
+    "check:dividends-performance-backcast": "node scripts/check-dividends-performance-backcast.mjs",
+    "check:dividend-capture-streamlit-restore": "node scripts/check-dividend-capture-streamlit-restore.mjs"
   },
   "dependencies": {
     "next": "14.2.5",
