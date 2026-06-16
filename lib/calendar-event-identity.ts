@@ -7,7 +7,7 @@ export type CalendarEventMetaTarget = {
   canonicalEventId?: string;
 };
 
-export type CalendarTickerCacheSource = "mock" | "yahoo" | "sample" | "cache";
+export type CalendarTickerCacheSource = "mock" | "yahoo" | "finnhub" | "polygon" | "partial" | "sample" | "cache";
 
 export type CalendarTickerCache<TEvent = Record<string, unknown>> = {
   ticker: string;

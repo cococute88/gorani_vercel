@@ -486,3 +486,4 @@ Dependency warnings observed:
 
 - ASSET-SIMULATOR-PERSISTENCE-FIX-1: /asset-simulator Save 버튼의 local/cloud persistence 및 재접속 복원 오류 수정. See `docs/ASSET_SIMULATOR_PERSISTENCE_FIX1.md`.
 - ASSET-SIMULATOR-FIRESTORE-SAVE-FIX-1: /asset-simulator Firestore 저장 payload의 undefined/NaN 값을 sanitize하여 cloud save 실패 수정
+- 2026-06-16 Step CALENDAR-DIVIDEND-LIVE-UPDATE-1-RECREATE: 최신 main 기준 배당일정 라이브 최신화/클라우드 저장 기능 재구현. See `docs/CALENDAR_DIVIDEND_LIVE_UPDATE1.md`.

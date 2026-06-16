@@ -1,0 +1,38 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+
+const read = (path) => fs.readFileSync(path, "utf8");
+const page = read("components/watchlist/DividendCalendarPage.tsx");
+const route = read("app/api/calendar/dividend-events/route.ts");
+const live = read("lib/calendar-dividend-live.ts");
+const pkg = JSON.parse(read("package.json"));
+const audit = read("docs/AUDIT.md");
+
+assert.match(page, /🔄 일정 최신화/, "refresh button exists");
+assert.match(page, /💾 클라우드 저장/, "cloud save button exists");
+assert.match(page, /onClick=\{handleRefreshDividendEvents\}/, "refresh button has handler");
+assert.match(page, /onClick=\{handleCloudSave\}/, "cloud save button has handler");
+assert.ok(fs.existsSync("app/api/calendar/dividend-events/route.ts"), "ticker API route exists");
+assert.match(route, /searchParams\.get\("ticker"\)/, "route reads one ticker query param");
+assert.doesNotMatch(route, /tickers|Promise\.all\(.*ticker/s, "route is not batch-all ticker processing");
+assert.doesNotMatch(page, /POLYGON_API_KEY|FINNHUB_API_KEY/, "API keys are not referenced in client page");
+assert.match(route, /process\.env\.POLYGON_API_KEY/, "Polygon key server-side only");
+assert.match(route, /process\.env\.FINNHUB_API_KEY/, "Finnhub key server-side only");
+assert.match(route, /missing_key/, "missing key status supported");
+assert.match(route, /sample_fallback/, "Yahoo sample fallback marked");
+assert.match(route, /yahoo\.source === "yahoo"/, "sample fallback does not create live rows");
+assert.match(page, /cacheMap\[ticker\] = cacheEntry/, "success ticker cache saved");
+assert.match(page, /failed\.push\(ticker\)/, "failed ticker recorded");
+assert.ok(page.indexOf("failed.push(ticker)") < page.indexOf("cacheMap[ticker] = cacheEntry"), "failed ticker branches before cache write");
+assert.match(page, /customEvents\.map/, "custom events preserved in cloud save");
+assert.match(page, /Object\.entries\(eventMetas\)/, "eventMetas preserved in cloud save");
+assert.match(page, /meta\.star|meta\.heart|meta\.memo/, "heart/star/memo applied from event meta");
+assert.match(live, /projectEstimatedDividendEvents/, "projection helper is used");
+assert.match(read("lib/calendar-event-provider.ts"), /sourceKind: "estimated"[\s\S]*status: "estimated"|status: "estimated"[\s\S]*sourceKind: "estimated"/, "estimated projection events remain estimated");
+assert.match(live, /sourceKind: CalendarEvent\["sourceKind"\] = "declared"/, "declared events default to declared");
+assert.match(live, /getPreviousDividendBuyDate|buildDividendEventsFromHistory/, "buy deadline comes from ex-div previous trading day helper");
+assert.match(live, /nextWeekday/, "payment date weekend correction exists");
+assert.doesNotMatch(route, /apiKey:|token:|POLYGON_API_KEY.*json|FINNHUB_API_KEY.*json/, "secret values are not returned in response");
+assert.equal(pkg.scripts["check:calendar-dividend-live-update"], "node scripts/check-calendar-dividend-live-update.mjs", "package script registered");
+assert.doesNotMatch(audit, /^(<<<<<<<|=======|>>>>>>>)$/m, "AUDIT has no conflict markers");
+console.log("calendar dividend live update checks passed");
