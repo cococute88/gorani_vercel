@@ -1,4 +1,3 @@
-import { useEffect, useRef, useState } from "react";
 import type { SimulatorInputs } from "@/lib/asset-simulator-types";
 
 const INPUTS: Array<{ key: keyof SimulatorInputs; label: string; suffix: string; step?: number; min?: number; max?: number }> = [
@@ -21,26 +20,13 @@ type Props = {
   inputs: SimulatorInputs;
   onChange: (nextInputs: SimulatorInputs) => void;
   onReset: () => void;
-  onSave?: () => void;
+  onSave?: () => Promise<void> | void;
+  saving?: boolean;
+  saveMessage?: string | null;
+  saveError?: string | null;
 };
 
-export default function SimulatorInputPanel({ inputs, onChange, onReset, onSave }: Props) {
-  const [justSaved, setJustSaved] = useState(false);
-  const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (savedTimer.current) clearTimeout(savedTimer.current);
-    };
-  }, []);
-
-  const handleSave = () => {
-    onSave?.();
-    setJustSaved(true);
-    if (savedTimer.current) clearTimeout(savedTimer.current);
-    savedTimer.current = setTimeout(() => setJustSaved(false), 2000);
-  };
-
+export default function SimulatorInputPanel({ inputs, onChange, onReset, onSave, saving = false, saveMessage, saveError }: Props) {
   const updateInput = (key: keyof SimulatorInputs, rawValue: string) => {
     const item = INPUTS.find((input) => input.key === key);
     const parsed = Number(rawValue);
@@ -59,17 +45,23 @@ export default function SimulatorInputPanel({ inputs, onChange, onReset, onSave 
           <p className="mt-1 text-[13px] text-slate-400">Streamlit 원본 자산 시뮬레이터의 입력 순서와 항목을 기준으로 구성했습니다.</p>
         </div>
         <div className="flex w-full items-center gap-2 sm:w-auto">
-          {justSaved ? (
+          {saveMessage ? (
             <span className="text-[12px] font-semibold text-emerald-400" role="status">
-              저장됨
+              {saveMessage}
+            </span>
+          ) : null}
+          {saveError ? (
+            <span className="text-[12px] font-semibold text-red-400" role="alert">
+              {saveError}
             </span>
           ) : null}
           <button
             type="button"
-            onClick={handleSave}
-            className="flex-1 rounded-xl bg-blue-600 px-3 py-2 text-[13px] font-bold text-white transition-colors hover:bg-blue-700 sm:flex-none"
+            onClick={() => void onSave?.()}
+            disabled={saving}
+            className="flex-1 rounded-xl bg-blue-600 px-3 py-2 text-[13px] font-bold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-600 sm:flex-none"
           >
-            Save
+            {saving ? "저장 중..." : "Save"}
           </button>
           <button
             type="button"

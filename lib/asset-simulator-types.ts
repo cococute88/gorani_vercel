@@ -164,4 +164,5 @@ export type SimulatorProjection = {
 export type StoredSimulatorPreview = {
   inputs: Partial<SimulatorInputs>;
   yearPlans: YearPlanRow[];
+  updatedAt?: unknown;
 };
