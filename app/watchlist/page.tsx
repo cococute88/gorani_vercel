@@ -1,5 +1,5 @@
-import WatchlistPage from "@/components/watchlist/WatchlistPage";
+import { redirect } from "next/navigation";
 
-export default function Page() {
-  return <WatchlistPage />;
+export default function LegacyWatchlistPage() {
+  redirect("/calendar");
 }
