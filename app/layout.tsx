@@ -5,6 +5,11 @@ import { ThemeProvider } from "@/components/theme/ThemeProvider";
 export const metadata: Metadata = {
   title: "고라파이 Gorani-Finance",
   description: "Next.js + TS + Tailwind + Recharts",
+  icons: {
+    icon: "/gorani-logo.png",
+    shortcut: "/gorani-logo.png",
+    apple: "/gorani-logo.png",
+  },
 };
 
 // Runs before first paint to set the <html> theme class from storage,

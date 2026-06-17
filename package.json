@@ -67,7 +67,8 @@
     "check:table-csv-download-menu": "node scripts/check-table-csv-download-menu.mjs",
     "check:calendar-portfolio-namespace": "node scripts/check-calendar-portfolio-namespace.mjs",
     "check:small-ui-label-market-portfolio-fix": "node scripts/check-small-ui-label-market-portfolio-fix.mjs",
-    "check:schd-attractiveness-port": "node scripts/check-schd-attractiveness-port.mjs"
+    "check:schd-attractiveness-port": "node scripts/check-schd-attractiveness-port.mjs",
+    "check:small-ui-favicon-modal-chart-fix": "node scripts/check-small-ui-favicon-modal-chart-fix.mjs"
   },
   "dependencies": {
     "next": "14.2.5",
