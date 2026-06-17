@@ -536,3 +536,5 @@ MARKET-SHEET-EMBED-LINK-UPDATE-1: /market 시장온도 참고 시트 iframe/embe
 NAV-FAVORITES-CALCULATOR-MENU-UX-1: 상단 계산기 메뉴에 배당치기/매도전환/MDD submenu를 추가하고, 클라우드 동기화 왼쪽에 Firestore 동기화 즐겨찾기 메뉴/편집 모달을 추가했으며, 계산기·자산시뮬레이터의 개발자용 상단 안내문구를 정리.
 
 - SCHD-ATTRACTIVENESS-PORT-1: /dividends에 배당현황/SCHD 매력도 탭을 추가하고, original/pages_app/8_attractiveness_score.py의 SCHD TTM 배당률·5년 평균·목표가 표·Seeking Alpha 링크 로직을 Vercel에 이식했으며, 상단 배당 nav submenu를 추가.
+
+SCHD-ATTRACTIVENESS-DENSE-DATA-FIX-1: SCHD 매력도 그래프가 월 1회 수준으로만 표시되던 데이터 샘플링 문제를 수정하고, 1M/6M/1Y는 daily price 기반 TTM 배당률 시계열로 표시되도록 보정. See `docs/SCHD_ATTRACTIVENESS_DENSE_DATA_FIX1.md`.
