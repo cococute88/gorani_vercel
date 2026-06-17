@@ -13,7 +13,7 @@ import { fetchMarketPayload, type BriefingItem, type MarketPayload } from "@/lib
 type Props = { theme?: "dark" | "light" };
 
 // 상단을 과하게 차지하지 않도록 compact 하게 핵심 지표만 노출한다.
-const SHOWN_KEYS = ["sp500", "nasdaq", "usdkrw", "vix", "wti"] as const;
+const SHOWN_KEYS = ["sp500", "nasdaq", "dow", "schd", "usdkrw", "vix", "wti", "gld"] as const;
 
 // 국내 관습: 상승 빨강 / 하락 파랑
 const UP = "#e5484d";

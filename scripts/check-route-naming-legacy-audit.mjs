@@ -12,8 +12,8 @@ const provider = read("scripts/check-calendar-provider.mjs");
 assert.ok(existsSync("app/calendar/page.tsx"), "canonical /calendar page exists");
 assert.ok(existsSync("app/watchlist/page.tsx"), "legacy /watchlist page exists so bookmarks do not 404");
 
-assert.match(nav, /label:\s*"배당캘린더",\s*href:\s*"\/calendar"/, "navbar 배당캘린더 href is /calendar");
-assert.doesNotMatch(nav, /label:\s*"배당캘린더",\s*href:\s*"\/watchlist"/, "navbar has no direct /watchlist calendar link");
+assert.match(nav, /label:\s*"캘린더",\s*href:\s*"\/calendar"/, "navbar 배당캘린더 href is /calendar");
+assert.doesNotMatch(nav, /label:\s*"캘린더",\s*href:\s*"\/watchlist"/, "navbar has no direct /watchlist calendar link");
 
 assert.match(legacyPage, /redirect\(\s*["']\/calendar["']\s*\)/, "/watchlist redirects to /calendar");
 assert.doesNotMatch(legacyPage, /<WatchlistPage\s*\/>/, "legacy page does not render canonical UI in-place");

@@ -1,6 +1,8 @@
 // recharts 공통 스타일 (다크 테마). 차트 컴포넌트에서 재사용.
 // JSX 인라인 객체 대신 이 상수를 단일 중괄호로 참조한다.
 
+import { fearGreedTooltipRating } from "@/lib/market-data";
+
 export const CHART_GRID = "#2a3336";
 export const AXIS_TICK = { fill: "#94a3b8", fontSize: 12 };
 export const AXIS_TICK_SM = { fill: "#94a3b8", fontSize: 11 };
@@ -81,7 +83,11 @@ export function formatFearGreedAxisTick(value: unknown): string {
   return formatDateParts(value, ".", false, "");
 }
 
-// 공포탐욕 차트 tooltip label: 사용자에게 날짜만 "YYYY.MM.DD" 로 보여주고 index/raw key 노출을 막는다.
-export function formatFearGreedTooltipLabel(value: unknown): string {
-  return formatDateParts(value, ".", true, "날짜 없음");
+// 공포탐욕 차트 tooltip label: 날짜 옆에 score 구간명을 붙이고 index/raw key 노출을 막는다.
+export function formatFearGreedTooltipLabel(value: unknown, payload?: Array<{ payload?: { value?: unknown } }>): string {
+  const dateLabel = formatDateParts(value, ".", true, "날짜 없음");
+  const rawScore = payload?.[0]?.payload?.value;
+  const score = typeof rawScore === "number" ? rawScore : typeof rawScore === "string" ? Number(rawScore) : NaN;
+  if (!Number.isFinite(score)) return dateLabel;
+  return `${dateLabel}(${fearGreedTooltipRating(score)})`;
 }
