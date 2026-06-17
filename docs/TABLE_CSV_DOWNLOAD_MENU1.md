@@ -26,16 +26,20 @@
 - 배당캘린더 종목별 예상 절세액 표
 - 포트폴리오 관리 보유종목 리스트
 - 포트폴리오 관리 원본 데이터 미리보기 표
+- 포트폴리오 관리 자산 리스트 표
+- 포트폴리오 관리 스냅샷 히스토리 표
 - 투자 성과 종목 랭킹 표
+- 자산 시뮬레이터 연도별 투자 계획표
+- 자산 시뮬레이터 적립 현황/절세계좌인출/위탁계좌 잔고 표
+- 배당캘린더 월별 일정 미리보기 표
 
 ## 제외한 항목과 이유
 - 월간 캘린더 grid: 날짜 배치 UI이며 데이터 table 다운로드 대상이 아니다.
 - 도넛/차트 legend, KPI 카드, ticker chip grid: 표가 아니며 CSV에 적합한 행/열 구조가 아니다.
 - 경제 캘린더의 단순 key/value 목록: 주요 데이터 표 범위에서 제외했다.
-- 자산 시뮬레이터/스냅샷 부가 테이블: 이번 작업의 우선 후보 범위 밖이며 별도 기능으로 확장 가능하다.
 
 ## filename 정책
-route/table/ticker/date 또는 month를 포함한다. 예: `dividend-capture-results-ARCC-2026-06-17.csv`, `calendar-tax-savings-2026-06.csv`.
+route/table/ticker/date 또는 month를 포함한다. 예: `dividend-capture-results-ARCC-2026-06-17.csv`, `calendar-tax-savings-2026-06.csv`, `asset-simulator-accumulation-2026-06-17.csv`.
 
 ## 정렬/필터 정책
 정렬 가능한 표는 렌더링에 사용하는 `sortedRows`, `sortedRecent`, `sortedEpisodes`, 필터링 후 `rows`를 그대로 CSV에 넘긴다. 스크롤 표는 현재 정렬/필터된 전체 rows를 다운로드한다.

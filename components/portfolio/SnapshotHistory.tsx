@@ -1,6 +1,8 @@
 "use client";
 
+import { useMemo } from "react";
 import { Trash2 } from "lucide-react";
+import TableCsvMenu from "@/components/ui/TableCsvMenu";
 import { formatWon, formatPercent } from "@/lib/format";
 import type { PortfolioSnapshot } from "@/lib/portfolio-types";
 
@@ -16,10 +18,20 @@ const card = "rounded-2xl border border-[#2a3336] bg-[#191f20] p-5";
 
 // 등록된 스냅샷 히스토리 (날짜/총자산/평가금액/원금/수익률/삭제)
 export default function SnapshotHistory({ snapshots, onDelete, onSelect, selectedSnapshotId, loading = false }: Props) {
+  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const sorted = [...snapshots].sort((a, b) => (a.snapshotDate < b.snapshotDate ? 1 : -1));
   return (
     <div className={card}>
-      <h2 className="mb-4 text-[15px] font-bold text-slate-300">등록된 스냅샷 히스토리</h2>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h2 className="text-[15px] font-bold text-slate-300">등록된 스냅샷 히스토리</h2>
+        <TableCsvMenu filename={`portfolio-snapshot-history-${today}.csv`} rows={sorted} columns={[
+          { header: "날짜", value: (row) => row.snapshotDate },
+          { header: "총자산", value: (row) => formatWon(row.totalAssetKRW) },
+          { header: "투자 평가금액", value: (row) => formatWon(row.investmentValueKRW) },
+          { header: "투자원금", value: (row) => formatWon(row.investmentPrincipalKRW) },
+          { header: "수익률", value: (row) => formatPercent(row.returnPct, 1) },
+        ]} />
+      </div>
       <div className="scroll-dark overflow-x-auto">
         <table className="w-full min-w-[640px] text-[13px]">
           <thead>

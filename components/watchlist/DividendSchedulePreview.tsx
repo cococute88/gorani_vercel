@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import TableCsvMenu from "@/components/ui/TableCsvMenu";
 import { eventStatusLabel, getEventVisual } from "@/lib/event-visuals";
 import type { CalendarEvent, CalendarEventStatus } from "@/lib/mock-calendar-data";
 
@@ -116,6 +117,7 @@ function formatDividend(value: number | null): string {
 }
 
 export default function DividendSchedulePreview({ events, monthStartIso, monthEndIso, onOpenEvent }: Props) {
+  const month = monthStartIso.slice(0, 7);
   const [open, setOpen] = useState(true);
   const [typeFilter, setTypeFilter] = useState<Record<TableEventType, boolean>>({
     ex_div: true,
@@ -222,6 +224,15 @@ export default function DividendSchedulePreview({ events, monthStartIso, monthEn
               );
             })}
             <span className="ml-auto text-[11px] text-slate-500 dark:text-slate-400 sm:text-[12px]">총 {visibleRows.length.toLocaleString()}건</span>
+            <TableCsvMenu filename={`dividend-schedule-preview-${month}.csv`} rows={visibleRows} columns={[
+              { header: "종목", value: (row) => row.ticker },
+              { header: "타입", value: (row) => getEventVisual(row.type).label },
+              { header: "상태", value: (row) => eventStatusLabel(row.status) },
+              { header: "배당금", value: (row) => formatDividend(row.dividend) },
+              { header: "매수마감일", value: (row) => row.buyBy || DASH },
+              { header: "배당락일", value: (row) => row.exDiv || DASH },
+              { header: "지급일", value: (row) => row.payment || DASH },
+            ]} />
           </div>
 
           {/* 12-row scroll body with sticky header */}

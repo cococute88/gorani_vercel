@@ -1,3 +1,7 @@
+"use client";
+
+import { useMemo } from "react";
+import TableCsvMenu from "@/components/ui/TableCsvMenu";
 import type { YearPlanRow } from "@/lib/asset-simulator-types";
 
 type Props = {
@@ -13,6 +17,7 @@ const CHECKBOX_FIELDS: Array<{ key: keyof Pick<YearPlanRow, "isaContribution" | 
 ];
 
 export default function YearPlanTable({ plans, onChange }: Props) {
+  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const updatePlan = (index: number, patch: Partial<YearPlanRow>) => {
     onChange(plans.map((plan, planIndex) => (planIndex === index ? { ...plan, ...patch } : plan)));
   };
@@ -22,9 +27,18 @@ export default function YearPlanTable({ plans, onChange }: Props) {
 
   return (
     <section className="rounded-2xl border border-[#273032] bg-[#171d1e] p-4">
-      <div className="mb-4">
-        <h2 className="text-base font-extrabold text-white">연도별 투자 계획표</h2>
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-base font-extrabold text-white">연도별 투자 계획표</h2>
         <p className="mt-1 break-keep text-[13px] text-slate-400">기본 계획은 원본처럼 초기 8년 월 300만원 적립입니다. 체크 여부와 월적립액을 바꾸면 즉시 재계산됩니다.</p>
+        </div>
+        <TableCsvMenu filename={`asset-simulator-year-plan-${today}.csv`} rows={plans} columns={[
+          { header: "년도", value: (row) => row.year },
+          { header: "월적립액(만원)", value: (row) => row.monthlyContribution },
+          { header: "ISA적립", value: (row) => row.isaContribution ? "예" : "아니오" },
+          { header: "연금저축적립", value: (row) => row.pensionContribution ? "예" : "아니오" },
+          { header: "ISA연금이전", value: (row) => row.isaToPensionTransfer ? "예" : "아니오" },
+        ]} />
       </div>
 
       {/* 모바일: 연도별 카드 (가로 스크롤 없이 카드 안에 모두 표시).

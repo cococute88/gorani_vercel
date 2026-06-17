@@ -523,3 +523,5 @@ DIVIDEND-CAPTURE-YFINANCE-PARITY-RESET-4: 배당치기 시뮬레이터가 배당
 - DIVIDEND-CAPTURE-PERIOD-AXIS-UX-FIX-1: 배당치기 시뮬레이터 수익률 분포 그래프 x축이 최신 날짜까지 표시되도록 수정하고, 최근 5년 데이터만 보기 UI를 조회 기간(전체기간/최근5년) 선택으로 정리
 
 TABLE-CSV-DOWNLOAD-MENU-1: 앱 주요 데이터 표에 공통 CSV 다운로드 메뉴를 추가하고, UTF-8 BOM/CSV escaping/정렬·필터 결과 다운로드 정책을 문서화
+
+TABLE-CSV-DOWNLOAD-MENU-1-FOLLOWUP: 자산 시뮬레이터/포트폴리오 부가 데이터 표와 월별 일정 미리보기 표까지 CSV 메뉴 적용 범위를 확장
