@@ -449,6 +449,42 @@ export async function deleteFavoriteLink(uid: string, linkId: string): Promise<v
   await deleteDoc(doc(requireDb(), "users", uid, "favoriteLinks", linkId));
 }
 
+// NAV-FAVORITES-CALCULATOR-MENU-UX-1: 상단 nav 즐겨찾기 메뉴.
+// 단일 문서 users/{uid}/uiSettings/favorites 에 items 배열로 저장한다.
+export type NavFavoriteItem = { id: string; name: string; href: string; order: number };
+
+export async function loadNavFavorites(uid: string): Promise<NavFavoriteItem[] | null> {
+  const snap = await getDoc(doc(requireDb(), "users", uid, "uiSettings", "favorites"));
+  if (!snap.exists()) return null;
+  const items = (snap.data() as { items?: unknown } | undefined)?.items;
+  if (!Array.isArray(items)) return null;
+  return items
+    .map((item, index) => {
+      const record = (item ?? {}) as Record<string, unknown>;
+      return {
+        id: typeof record.id === "string" ? record.id : "",
+        name: typeof record.name === "string" ? record.name : "",
+        href: typeof record.href === "string" ? record.href : "",
+        order: typeof record.order === "number" ? record.order : index,
+      };
+    })
+    .filter((item) => item.name.trim().length > 0 && item.href.trim().length > 0);
+}
+
+export async function saveNavFavorites(uid: string, items: NavFavoriteItem[]): Promise<void> {
+  // sanitizeFirestorePayload 로 undefined 값을 제거해 Firestore 저장 오류를 막는다.
+  const payload = sanitizeFirestorePayload({
+    items: items.map((item, index) => ({
+      id: item.id,
+      name: item.name,
+      href: item.href,
+      order: index,
+    })),
+    updatedAt: serverTimestamp(),
+  });
+  await setDoc(doc(requireDb(), "users", uid, "uiSettings", "favorites"), payload, { merge: true });
+}
+
 export async function saveCalendarCacheEntry(uid: string, entry: CalendarCacheEntry): Promise<void> {
   const { ticker: rawTicker, ...rest } = entry;
   const ticker = rawTicker?.trim().toUpperCase();

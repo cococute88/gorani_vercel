@@ -48,6 +48,7 @@
     "check:calendar-priority-tax-style": "node scripts/check-calendar-priority-tax-style.mjs",
     "check:calendar-wide-layout-polish": "node scripts/check-calendar-wide-layout-polish.mjs",
     "check:asset-simulator-persistence": "node scripts/check-asset-simulator-persistence.mjs",
+    "check:nav-favorites-calculator-menu": "node scripts/check-nav-favorites-calculator-menu.mjs",
     "check:dividend-schd-goal-withdrawal-mode": "node scripts/check-dividend-schd-goal-withdrawal-mode.mjs",
     "check:dividends-performance-streamlit-port": "node scripts/check-dividends-performance-streamlit-port.mjs",
     "check:dividend-ledger-performance-ui-port": "node scripts/check-dividend-ledger-performance-ui-port.mjs",
