@@ -26,6 +26,7 @@ const BRIEFING_SYMBOLS = [
   { key: "usdkrw", label: "USD/KRW", ticker: "KRW=X", digits: 2 },
   { key: "wti", label: "WTI", ticker: "CL=F", digits: 2, prefix: "$" },
   { key: "gld", label: "GLD", ticker: "GLD", digits: 2, prefix: "$" },
+  { key: "btcusdt", label: "BTC/USDT", ticker: "BTC-USD", digits: 2, prefix: "$" },
   { key: "vix", label: "VIX", ticker: "^VIX", digits: 2 },
 ] as const;
 

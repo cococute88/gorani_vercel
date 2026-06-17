@@ -1,9 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { quoteDividendsPath, quoteHistoryPath, quoteLastPath } from "@/lib/quote-client";
+import { fetchIndexQuote, type IndexQuote } from "@/lib/market-index";
 import type { QuoteDividendsResponse, QuoteHistoryResponse, QuoteLastResponse } from "@/lib/quote-types";
+const IndexSparkline = dynamic(() => import("@/components/market/IndexSparkline"), { ssr: false });
+
 import {
   SCHD_RANGE_OPTIONS,
   SCHD_SEEKING_ALPHA_URL,
@@ -44,6 +48,38 @@ function getSchdDailyHistoryWindow() {
   const start = new Date(end);
   start.setUTCDate(start.getUTCDate() - (365 * 11 + 10));
   return { start: toIsoDate(start), end: toIsoDate(end) };
+}
+
+function SchdMiniCandleChart() {
+  const [quote, setQuote] = useState<IndexQuote | null>(null);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    setError(false);
+    fetchIndexQuote("SCHD", "1m")
+      .then((data) => { if (active) setQuote(data); })
+      .catch(() => { if (active) setError(true); });
+    return () => { active = false; };
+  }, []);
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-[#2a3336] dark:bg-[#191f20]">
+      <div className="mb-2 flex items-baseline justify-between gap-2">
+        <h2 className="text-[15px] font-black text-slate-900 dark:text-white">SCHD 미니 캔들차트</h2>
+        <span className="text-[11px] font-bold text-slate-400">1M</span>
+      </div>
+      <div className="h-[150px] w-full sm:h-[170px]">
+        {quote?.candles.length ? (
+          <IndexSparkline candles={quote.candles} height={160} />
+        ) : (
+          <div className="flex h-full items-center justify-center rounded-xl bg-slate-50 text-xs font-bold text-slate-500 dark:bg-white/5">
+            {error ? "SCHD 차트 조회 불가" : "SCHD 차트 로딩 중…"}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function MetricCard({ label, value, subtext, tone = "default" }: { label: string; value: string; subtext: React.ReactNode; tone?: "default" | "expensive" | "watch" | "ok" | "good" | "strong" }) {
@@ -153,7 +189,8 @@ export default function SchdAttractivenessSection() {
           ) : <div className="flex h-[420px] items-center justify-center rounded-xl bg-slate-50 text-sm font-bold text-slate-500 dark:bg-white/5">표시할 SCHD 배당률 데이터가 없습니다.</div>}
         </div>
 
-        <aside className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-[#2a3336] dark:bg-[#191f20]">
+        <aside className="space-y-4">
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-[#2a3336] dark:bg-[#191f20]">
           <h2 className="mb-3 text-[18px] font-black text-slate-900 dark:text-white">목표가 표</h2>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[320px] text-left text-[12px]">
@@ -164,7 +201,9 @@ export default function SchdAttractivenessSection() {
             </table>
           </div>
           <a href={SCHD_SEEKING_ALPHA_URL} target="_blank" rel="noreferrer" className="mt-4 block text-[12px] font-bold text-slate-500 underline-offset-4 hover:text-blue-600 hover:underline dark:text-slate-400">링크: Seeking Alpha SCHD Dividend Yield 페이지 바로가기</a>
-          <p className="mt-3 text-[11px] text-slate-400">원본 Streamlit 기준: 최신 4회 배당 합계 / 현재가로 TTM 배당률을 계산합니다.</p>
+            <p className="mt-3 text-[11px] text-slate-400">원본 Streamlit 기준: 최신 4회 배당 합계 / 현재가로 TTM 배당률을 계산합니다.</p>
+          </div>
+          <SchdMiniCandleChart />
         </aside>
       </div>
     </section>
