@@ -5,7 +5,7 @@ import TopNav from "@/components/TopNav";
 import { fetchMarketPayload, MARKET_RANGES } from "@/lib/market-data";
 import type { BriefingItem, EtfTemperature, FearGreedData, MarketRange, MarketWarning, SeriesPoint } from "@/lib/market-data";
 import MarketTopBriefing from "./MarketTopBriefing";
-import MarketRsiSection from "./MarketRsiSection";
+import MarketIndexSection from "./MarketIndexSection";
 import MarketMddSection from "./MarketMddSection";
 import VixChart from "./VixChart";
 import MarketTemperatureSheet from "./MarketTemperatureSheet";
@@ -18,7 +18,6 @@ export default function MarketPage() {
   const [briefing, setBriefing] = useState<BriefingItem[]>([]);
   const [fearGreed, setFearGreed] = useState<FearGreedData | null>(null);
   const [temps, setTemps] = useState<EtfTemperature[]>([]);
-  const [rsi, setRsi] = useState<SeriesPoint[]>([]);
   const [drawdown, setDrawdown] = useState<SeriesPoint[]>([]);
   const [vix, setVix] = useState<SeriesPoint[]>([]);
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
@@ -33,7 +32,6 @@ export default function MarketPage() {
       setBriefing(payload.briefing);
       setFearGreed(payload.fearGreed);
       setTemps(payload.temperatures);
-      setRsi(payload.rsi);
       setDrawdown(payload.drawdown);
       setVix(payload.vix);
       setUpdatedAt(payload.updatedAt);
@@ -64,7 +62,7 @@ export default function MarketPage() {
         </div>
         {warnings.length > 0 && <div className="mb-4 rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-2 text-[12.5px] text-amber-700 dark:text-amber-200">일부 시장 데이터를 불러오지 못했습니다. 조회 불가로 표시된 항목은 외부 데이터 제공처 응답이 복구되면 다시 표시됩니다.</div>}
         <MarketTopBriefing fearGreed={fearGreed} briefing={briefing} />
-        <MarketRsiSection temps={temps} rsi={rsi} />
+        <MarketIndexSection />
         <MarketMddSection temps={temps} drawdown={drawdown} />
         <VixChart data={vix} />
         <MarketTemperatureSheet />
