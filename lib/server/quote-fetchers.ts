@@ -271,7 +271,9 @@ export function buildSampleHistory(input: {
   const start = parseDateOnly(window.start) ?? addDays(parseDateOnly(window.end) ?? new Date(), -366);
   const end = parseDateOnly(window.end) ?? new Date();
   const totalDays = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / DAY_MS));
-  const step = totalDays > 420 ? 7 : totalDays > 160 ? 3 : 1;
+  // Keep sample fallback daily as well; visual downsampling must be handled by
+  // chart-specific code, not by removing source history points.
+  const step = 1;
   const seed = stableSeed(ticker);
   const anchor = 60 + (seed % 160);
   const rows: QuoteHistoryPrice[] = [];
