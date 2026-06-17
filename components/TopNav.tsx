@@ -8,6 +8,8 @@ import { NAV_ITEMS } from "@/lib/mockData";
 import LoginButton from "@/components/auth/LoginButton";
 import ThemeToggle from "@/components/theme/ThemeToggle";
 import StorageModeBadge from "@/components/common/StorageModeBadge";
+import CalculatorMenu from "@/components/nav/CalculatorMenu";
+import FavoritesMenu from "@/components/nav/FavoritesMenu";
 import { usePortfolioCloudSync } from "@/lib/portfolio-cloud-sync";
 
 // Safe initial count: always small enough to never overflow on first paint,
@@ -151,6 +153,8 @@ export default function TopNav({ theme = "dark" }: Props) {
 
         {/* 우측 컨트롤 (좁은 폭: 1행 우측 / lg: 행 끝) */}
         <div className="order-2 ml-auto flex shrink-0 items-center gap-1.5 lg:order-3 lg:ml-2 lg:gap-2">
+          {/* 즐겨찾기: 클라우드 동기화 배지 왼쪽 */}
+          <FavoritesMenu isLight={isLight} />
           {/* 저장 모드 상태: 넓은 화면에서만 노출해 헤더가 과해지지 않도록 함 */}
           <StorageModeBadge className="hidden xl:inline-flex" />
           <ThemeToggle />
@@ -179,6 +183,9 @@ export default function TopNav({ theme = "dark" }: Props) {
                 >
                   <span className="text-[13px] leading-none">{item.icon}</span>
                   <span className="whitespace-nowrap">{item.label}</span>
+                  {item.href === "/calculator" && (
+                    <span aria-hidden className="text-[10px] leading-none opacity-70">▾</span>
+                  )}
                 </span>
               );
             })}
@@ -189,6 +196,17 @@ export default function TopNav({ theme = "dark" }: Props) {
 
           {visibleItems.map((item) => {
             const active = isActive(item.href);
+            if (item.href === "/calculator") {
+              return (
+                <CalculatorMenu
+                  key={item.label}
+                  isLight={isLight}
+                  icon={item.icon}
+                  label={item.label}
+                  triggerClass={linkClass(active)}
+                />
+              );
+            }
             return (
               <Link key={item.label} href={item.href} className={linkClass(active)}>
                 <span className="text-[13px] leading-none">{item.icon}</span>

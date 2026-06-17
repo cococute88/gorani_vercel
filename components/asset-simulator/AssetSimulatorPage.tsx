@@ -23,7 +23,6 @@ import {
 } from "@/lib/asset-simulator-persistence";
 import SimulatorInputPanel from "./SimulatorInputPanel";
 import SimulatorMetricCards from "./SimulatorMetricCards";
-import SimulatorPreviewNotice from "./SimulatorPreviewNotice";
 import YearPlanTable from "./YearPlanTable";
 import SimulatorResultTabs from "./SimulatorResultTabs";
 import { useResolvedTheme } from "@/components/theme/ThemeProvider";
@@ -177,12 +176,11 @@ export default function AssetSimulatorPage() {
             <StorageModeBadge />
           </div>
           <p className="mt-2 max-w-3xl text-[13.5px] leading-6 text-slate-500 dark:text-slate-400">
-            기존 Streamlit 자산 시뮬레이터의 계산 흐름과 결과 구성을 현재 Vercel 다크 UI에 맞춰 재구현했습니다.
+            장기 투자·인출 계획을 계산합니다.
           </p>
         </div>
 
         <div className="space-y-5">
-          <SimulatorPreviewNotice />
           <SimulatorInputPanel inputs={inputs} onChange={handleInputsChange} onReset={handleReset} onSave={handleSave} saving={saving} saveMessage={saveMessage} saveError={saveError} />
           <YearPlanTable plans={projection.yearPlans} onChange={setYearPlans} />
           <SimulatorMetricCards summary={projection.summary} />
