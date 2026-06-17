@@ -93,7 +93,7 @@ export default function LoginButton() {
               <h2 className="text-lg font-extrabold text-white">표시 이름 변경</h2>
               <button type="button" onClick={() => setProfileOpen(false)} className="rounded px-2 py-1 text-sm font-bold text-slate-300 hover:bg-white/10">닫기</button>
             </div>
-            <input value={draftName} onChange={(event) => setDraftName(event.target.value)} placeholder="표시 이름 입력" className="w-full rounded-xl border border-slate-600 bg-slate-950 px-3 py-2 text-white placeholder:text-slate-500" />
+            <input value={draftName} onChange={(event) => setDraftName(event.target.value)} placeholder="표시 이름 입력" className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500" />
             {profileMessage && <p className="mt-2 text-[12px] font-semibold text-blue-200">{profileMessage}</p>}
             <div className="mt-4 flex justify-end gap-2">
               <button type="button" onClick={() => setProfileOpen(false)} className="rounded-xl border border-slate-600 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-white/10">닫기</button>

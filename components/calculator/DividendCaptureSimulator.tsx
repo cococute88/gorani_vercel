@@ -56,6 +56,55 @@ const dividendColumns: Array<{ key: DividendSortKey; label: string; type: SortCo
   { key: "recoveryCalendarDays", label: "소요 기간(달력)", type: "number" },
 ];
 
+
+const SIX_MONTHS = 6;
+
+function monthStartUtc(ms: number): Date {
+  const date = new Date(ms);
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
+}
+
+function addUtcMonths(date: Date, months: number): Date {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + months, 1));
+}
+
+function nearestDividendCaptureTick(candidateMs: number, rows: DividendCaptureChartRow[]): number {
+  return rows.reduce((nearest, row) => {
+    const currentDistance = Math.abs(row.exDateMs - candidateMs);
+    const nearestDistance = Math.abs(nearest - candidateMs);
+    return currentDistance < nearestDistance ? row.exDateMs : nearest;
+  }, rows[0]?.exDateMs ?? candidateMs);
+}
+
+function buildDividendCaptureAxisTicks(rows: DividendCaptureChartRow[]): number[] | undefined {
+  if (rows.length === 0) return undefined;
+
+  const start = rows[0].exDateMs;
+  const end = rows.at(-1)?.exDateMs ?? start;
+  if (start === end) return [start];
+
+  const ticks = new Set<number>([start, end]);
+  const firstMonth = monthStartUtc(start);
+  const startMonth = firstMonth.getUTCMonth();
+  const nextHalfYearMonth = startMonth <= 5 ? 5 : 11;
+  let cursor = new Date(Date.UTC(firstMonth.getUTCFullYear(), nextHalfYearMonth, 1));
+  if (cursor.getTime() < start) cursor = addUtcMonths(cursor, SIX_MONTHS);
+
+  while (cursor.getTime() <= end) {
+    ticks.add(nearestDividendCaptureTick(cursor.getTime(), rows));
+    cursor = addUtcMonths(cursor, SIX_MONTHS);
+  }
+
+  return Array.from(ticks).sort((a, b) => a - b);
+}
+
+function formatDividendCaptureAxisTick(value: number | string): string {
+  const numericValue = typeof value === "number" ? value : Number(value);
+  const date = new Date(numericValue);
+  if (Number.isNaN(date.getTime())) return "";
+  return `${String(date.getUTCFullYear()).slice(2)}.${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
 function DividendTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: DividendCaptureChartRow }> }) {
   if (!active || !payload?.length) return null;
   const row = payload[0].payload;
@@ -158,23 +207,7 @@ export default function DividendCaptureSimulator({ input, onChange }: { input: D
   );
   const successChartRows = useMemo(() => chartRows.filter((row) => row.result === "성공"), [chartRows]);
   const failureChartRows = useMemo(() => chartRows.filter((row) => row.result === "실패"), [chartRows]);
-  const chartTicks = useMemo(() => {
-    if (chartRows.length === 0) return undefined;
-    const start = chartRows[0].exDateMs;
-    const end = chartRows.at(-1)?.exDateMs ?? start;
-    if (start === end) return [start];
-    const targetTicks = 6;
-    const ticks = Array.from({ length: targetTicks }, (_, index) => Math.round(start + ((end - start) * index) / (targetTicks - 1)));
-    ticks[0] = start;
-    ticks[ticks.length - 1] = end;
-    return Array.from(new Set(ticks)).sort((a, b) => a - b);
-  }, [chartRows]);
-  const formatChartDate = (value: number | string) => {
-    const numericValue = typeof value === "number" ? value : Number(value);
-    const date = new Date(numericValue);
-    if (Number.isNaN(date.getTime())) return "";
-    return `${String(date.getUTCFullYear()).slice(2)}.${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
-  };
+  const chartTicks = useMemo(() => buildDividendCaptureAxisTicks(chartRows), [chartRows]);
   const sortedRows = useMemo(() => sortRows(result.rows, detailSort?.key, detailSort?.direction ?? "asc", dividendSortType, (row, key) => row[key]), [detailSort, dividendSortType, result.rows]);
   const today = new Date().toISOString().slice(0, 10);
 
@@ -244,7 +277,7 @@ export default function DividendCaptureSimulator({ input, onChange }: { input: D
           <ResponsiveContainer width="100%" height="100%">
             <ScatterChart margin={{ top: 12, right: 16, bottom: 8, left: 0 }}>
               <CartesianGrid stroke="#2a3336" strokeDasharray="3 3" />
-              <XAxis type="number" dataKey="exDateMs" name="배당락일" domain={["dataMin", "dataMax"]} ticks={chartTicks} scale="time" tickFormatter={formatChartDate} stroke="#94a3b8" tick={{ fontSize: 11 }} minTickGap={16} interval={0} angle={-30} textAnchor="end" height={54} />
+              <XAxis type="number" dataKey="exDateMs" name="배당락일" domain={["dataMin", "dataMax"]} ticks={chartTicks} scale="time" tickFormatter={formatDividendCaptureAxisTick} stroke="#94a3b8" tick={{ fontSize: 11 }} minTickGap={16} interval={0} angle={-30} textAnchor="end" height={54} />
               <YAxis dataKey="profitPct" name="수익률" unit="%" stroke="#94a3b8" tick={{ fontSize: 11 }} />
               <Tooltip cursor={{ strokeDasharray: "3 3" }} content={<DividendTooltip />} />
               <Legend wrapperStyle={{ fontSize: 12 }} />

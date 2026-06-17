@@ -536,3 +536,5 @@ MARKET-SHEET-EMBED-LINK-UPDATE-1: /market 시장온도 참고 시트 iframe/embe
 NAV-FAVORITES-CALCULATOR-MENU-UX-1: 상단 계산기 메뉴에 배당치기/매도전환/MDD submenu를 추가하고, 클라우드 동기화 왼쪽에 Firestore 동기화 즐겨찾기 메뉴/편집 모달을 추가했으며, 계산기·자산시뮬레이터의 개발자용 상단 안내문구를 정리.
 
 - SCHD-ATTRACTIVENESS-PORT-1: /dividends에 배당현황/SCHD 매력도 탭을 추가하고, original/pages_app/8_attractiveness_score.py의 SCHD TTM 배당률·5년 평균·목표가 표·Seeking Alpha 링크 로직을 Vercel에 이식했으며, 상단 배당 nav submenu를 추가.
+
+SMALL-UI-FAVICON-MODAL-CHART-FIX-1: 표시명 변경 모달의 light mode input 가독성을 보정하고, 배당치기 수익률 분포 그래프 x축 tick을 반기 수준으로 촘촘하게 표시하며, public/gorani-logo.png를 Gorafi favicon/metadata icon으로 연결.
