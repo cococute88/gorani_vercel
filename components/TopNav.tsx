@@ -9,6 +9,7 @@ import LoginButton from "@/components/auth/LoginButton";
 import ThemeToggle from "@/components/theme/ThemeToggle";
 import StorageModeBadge from "@/components/common/StorageModeBadge";
 import CalculatorMenu from "@/components/nav/CalculatorMenu";
+import DividendMenu from "@/components/nav/DividendMenu";
 import FavoritesMenu from "@/components/nav/FavoritesMenu";
 import { usePortfolioCloudSync } from "@/lib/portfolio-cloud-sync";
 
@@ -183,7 +184,7 @@ export default function TopNav({ theme = "dark" }: Props) {
                 >
                   <span className="text-[13px] leading-none">{item.icon}</span>
                   <span className="whitespace-nowrap">{item.label}</span>
-                  {item.href === "/calculator" && (
+                  {(item.href === "/calculator" || item.href === "/dividends") && (
                     <span aria-hidden className="text-[10px] leading-none opacity-70">▾</span>
                   )}
                 </span>
@@ -199,6 +200,17 @@ export default function TopNav({ theme = "dark" }: Props) {
             if (item.href === "/calculator") {
               return (
                 <CalculatorMenu
+                  key={item.label}
+                  isLight={isLight}
+                  icon={item.icon}
+                  label={item.label}
+                  triggerClass={linkClass(active)}
+                />
+              );
+            }
+            if (item.href === "/dividends") {
+              return (
+                <DividendMenu
                   key={item.label}
                   isLight={isLight}
                   icon={item.icon}
