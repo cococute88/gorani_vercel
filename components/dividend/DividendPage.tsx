@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Target } from "lucide-react";
 import TopNav from "@/components/TopNav";
 import { usePortfolioSnapshots, latestOf } from "@/lib/portfolio-store";
@@ -25,6 +26,7 @@ import MonthlyDividendChart from "./MonthlyDividendChart";
 import DividendHoldingsTable from "./DividendHoldingsTable";
 import DividendPerformanceSection from "./DividendPerformanceSection";
 import DividendAccountPerformanceSection from "./DividendAccountPerformanceSection";
+import SchdAttractivenessSection from "./SchdAttractivenessSection";
 import { useResolvedTheme } from "@/components/theme/ThemeProvider";
 import { buildDividendPerformanceBackcast, type BackcastPricePoint } from "@/lib/dividend-performance-from-snapshots";
 
@@ -86,8 +88,19 @@ function computeActualTargetShares(rows: DividendHoldingRow[], targetPriceKRW?: 
   return { shares, estimated };
 }
 
+const dividendTabs = [
+  { key: "overview", label: "배당현황" },
+  { key: "schd-attractiveness", label: "SCHD 매력도" },
+] as const;
+
+type DividendTabKey = (typeof dividendTabs)[number]["key"];
+
 export default function DividendPage() {
   const theme = useResolvedTheme();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const activeTab: DividendTabKey = tabParam === "schd-attractiveness" ? "schd-attractiveness" : "overview";
   const snapshots = usePortfolioSnapshots();
   const [afterTax, setAfterTax] = useState(true);
   const [includeTaxAdvantagedInSummary, setIncludeTaxAdvantagedInSummary] = useState(false);
@@ -387,13 +400,34 @@ export default function DividendPage() {
       <main className="mx-auto w-full min-w-0 max-w-[1640px] overflow-x-hidden px-4 py-6 sm:px-6 lg:px-8">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-[20px] font-extrabold text-slate-900 dark:text-white">배당</h1>
-          {!hasSnapshotHoldings && (
+          {activeTab === "overview" && !hasSnapshotHoldings && (
             <span className="rounded-md bg-amber-500/10 px-2.5 py-1 text-[12px] text-amber-400">
               등록된 스냅샷이 없어 보유 배당 그룹이 비어 있습니다
             </span>
           )}
         </div>
 
+        <div className="no-scrollbar my-5 flex max-w-full gap-1.5 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-1.5 dark:border-[#273032] dark:bg-[#171d1e] sm:gap-2 sm:p-2">
+          {dividendTabs.map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => router.push(`/dividends?tab=${tab.key}`)}
+              className={`shrink-0 rounded-xl px-3 py-2 text-[12.5px] font-bold transition-colors sm:px-4 sm:text-[13px] ${
+                activeTab === tab.key
+                  ? "bg-blue-600 text-white shadow-lg shadow-blue-950/20"
+                  : "text-slate-500 hover:bg-slate-100 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-slate-200"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {activeTab === "schd-attractiveness" ? (
+          <SchdAttractivenessSection />
+        ) : (
+          <>
         <DividendSummaryCards
           evaluationKRW={evaluationKRW}
           annualDividendKRW={annualDividendKRW}
@@ -495,6 +529,8 @@ export default function DividendPage() {
         </section>
         <DividendAccountPerformanceSection snapshots={snapshots} latestBackcastHoldings={accountBackcastHoldings} />
         <DividendPerformanceSection result={dividendPerformance} />
+          </>
+        )}
       </main>
     </div>
   );
