@@ -77,15 +77,6 @@ function buildRatioPoints(sellPrices: ConversionPricePoint[], buyPrices: Convers
   return rows;
 }
 
-function sampleRows(rows: ConversionRatioPoint[]) {
-  const sampleEvery = Math.max(1, Math.floor(rows.length / 18));
-  const sampled = rows.filter((_, index) => index % sampleEvery === 0).slice(-18);
-  const latest = rows.at(-1);
-
-  if (latest && sampled.at(-1)?.date !== latest.date) return [...sampled.slice(1), latest];
-  return sampled;
-}
-
 function toSignal(deviationPct: number, thresholdPct: number) {
   return deviationPct >= thresholdPct ? "전환 우위" : deviationPct <= -thresholdPct ? "대기" : "중립";
 }
@@ -162,7 +153,7 @@ export function calculateConversionFromPrices(
   const effectiveBuyPrice = latest.buyClose * (1 + Math.max(0, input.buyFeeRate) / 100);
   const buyableShares = Math.floor(netSellAmount / Math.max(effectiveBuyPrice, 0.01));
 
-  const rows: ConversionRow[] = sampleRows(ratioPoints).map((row) => {
+  const rows: ConversionRow[] = ratioPoints.map((row) => {
     const rowDeviationPct = ((row.ratio - averageRatio) / Math.max(averageRatio, 0.01)) * 100;
     return {
       date: row.date,
