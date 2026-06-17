@@ -525,5 +525,10 @@ DIVIDEND-CAPTURE-YFINANCE-PARITY-RESET-4: 배당치기 시뮬레이터가 배당
 TABLE-CSV-DOWNLOAD-MENU-1: 앱 주요 데이터 표에 공통 CSV 다운로드 메뉴를 추가하고, UTF-8 BOM/CSV escaping/정렬·필터 결과 다운로드 정책을 문서화
 
 TABLE-CSV-DOWNLOAD-MENU-1-FOLLOWUP: 자산 시뮬레이터/포트폴리오 부가 데이터 표와 월별 일정 미리보기 표까지 CSV 메뉴 적용 범위를 확장
+TABLE-CSV-DOWNLOAD-MENU-1-FOLLOWUP: 자산 시뮬레이터/포트폴리오 부가 데이터 표와 월별 일정 미리보기 표까지 CSV 메뉴 적용 범위를 확장
 
-- CALENDAR-PORTFOLIO-PROFILE-NAMESPACE-1: 사용자 커스텀 표시명을 Firestore에 저장해 Google 실명 노출을 피하고, 배당캘린더 티커/cache/custom/meta를 캘린더 포트폴리오별 namespace로 분리하며, 포트폴리오 관리/종목 관리 UI를 분리.
+CALENDAR-PORTFOLIO-PROFILE-NAMESPACE-1: 사용자 커스텀 표시명을 Firestore에 저장해 Google 실명 노출을 피하고, 배당캘린더 티커/cache/custom/meta를 캘린더 포트폴리오별 namespace로 분리하며, 포트폴리오 관리/종목 관리 UI를 분리.
+
+SMALL-UI-LABEL-MARKET-PORTFOLIO-FIX-1: 상단 메뉴명을 짧게 정리하고, 포트폴리오 시장지표에 Dow Jones/SCHD/GLD를 추가했으며, 포트폴리오 섹션 라벨/위탁계좌 카드 배치/공포탐욕 tooltip 구간명을 보정
+
+MARKET-SHEET-EMBED-LINK-UPDATE-1: /market 시장온도 참고 시트 iframe/embed 링크를 새 Google Sheets pubhtml 링크로 교체하고, 새 탭 열기 링크를 원본 Google Sheet 링크로 갱신.

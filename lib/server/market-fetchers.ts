@@ -22,9 +22,10 @@ const BRIEFING_SYMBOLS = [
   { key: "sp500", label: "S&P 500", ticker: "^GSPC", digits: 2 },
   { key: "dow", label: "Dow Jones", ticker: "^DJI", digits: 2 },
   { key: "nasdaq", label: "Nasdaq", ticker: "^IXIC", digits: 2 },
+  { key: "schd", label: "SCHD", ticker: "SCHD", digits: 2, prefix: "$" },
   { key: "usdkrw", label: "USD/KRW", ticker: "KRW=X", digits: 2 },
   { key: "wti", label: "WTI", ticker: "CL=F", digits: 2, prefix: "$" },
-  { key: "gold", label: "Gold", ticker: "GC=F", digits: 2, prefix: "$" },
+  { key: "gld", label: "GLD", ticker: "GLD", digits: 2, prefix: "$" },
   { key: "vix", label: "VIX", ticker: "^VIX", digits: 2 },
 ] as const;
 

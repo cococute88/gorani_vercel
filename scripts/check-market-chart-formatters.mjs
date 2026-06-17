@@ -39,6 +39,7 @@ require.extensions[".ts"] = function transpileTypeScript(module, filename) {
 };
 
 const { formatChartMonthTick, formatFearGreedAxisTick, formatFearGreedTooltipLabel } = require("../lib/chart-style.ts");
+const { fearGreedTooltipRating } = require("../lib/market-data.ts");
 const {
   VIX_THRESHOLDS,
   buildRsiSeries,
@@ -70,7 +71,12 @@ function assertMonthTickFormatter() {
 function assertFearGreedChartFormatters() {
   assert.equal(formatFearGreedAxisTick("2026-03-12"), "26.03");
   assert.equal(formatFearGreedAxisTick("2025-07-01"), "25.07");
-  assert.equal(formatFearGreedTooltipLabel("2026-03-12"), "2026.03.12");
+  assert.equal(formatFearGreedTooltipLabel("2026-03-12", [{ payload: { value: 68 } }]), "2026.03.12(탐욕)");
+  assert.equal(fearGreedTooltipRating(34), "공포");
+  assert.equal(fearGreedTooltipRating(50), "중립");
+  assert.equal(fearGreedTooltipRating(68), "탐욕");
+  assert.equal(fearGreedTooltipRating(85), "극단탐욕");
+  assert.match(formatFearGreedTooltipLabel("2026-05-15", [{ payload: { value: 85 } }]), /^\d{4}\.\d{2}\.\d{2}\(극단탐욕\)$/);
   assert.notEqual(formatFearGreedTooltipLabel("142"), "142", "index number must not leak as tooltip label");
   assert.equal(formatFearGreedTooltipLabel("142"), "날짜 없음");
   assert.equal(formatFearGreedAxisTick(null), "");
@@ -87,7 +93,7 @@ function assertFearGreedChartFormatters() {
   return {
     case: "fear greed axis + tooltip formatters",
     axis: formatFearGreedAxisTick("2026-03-12"),
-    tooltip: formatFearGreedTooltipLabel("2026-03-12"),
+    tooltip: formatFearGreedTooltipLabel("2026-03-12", [{ payload: { value: 68 } }]),
   };
 }
 
