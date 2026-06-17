@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { ArrowDown, ArrowUp } from "lucide-react";
+import TableCsvMenu from "@/components/ui/TableCsvMenu";
 import {
   filterQldRankings,
   PERFORMANCE_ACCOUNT_TYPES,
@@ -64,6 +65,8 @@ export default function QldHoldingsRankTable({ data }: { data: PerformanceQldRes
 
   const enabledTypes = PERFORMANCE_ACCOUNT_TYPES.filter((type) => enabled[type]);
   // 적용 순서: 1) 계좌 필터 → 2) 정렬 → 3) 렌더링.
+  const today = new Date().toISOString().slice(0, 10);
+
   const rows = useMemo(() => {
     const filtered = filterQldRankings(data.rankings, enabledTypes);
     return sortRows(filtered, sort.key, sort.dir);
@@ -106,6 +109,15 @@ export default function QldHoldingsRankTable({ data }: { data: PerformanceQldRes
           <span className="rounded-md border border-[#2a3142] bg-[#0e111a] px-2 py-1 text-[11px] font-semibold text-slate-400">
             전체 {rows.length}개
           </span>
+          <TableCsvMenu filename={`performance-ranking-${today}.csv`} rows={rows} columns={[
+            { header: "종목", value: (row) => row.ticker },
+            { header: "종목명", value: (row) => row.name },
+            { header: "비중", value: (row) => row.weightPct === null ? "—" : `${row.weightPct.toFixed(2)}%` },
+            { header: "평가금액", value: (row) => won(row.valueKRW) },
+            { header: "투자원금", value: (row) => won(row.principalKRW) },
+            { header: "누적 손익", value: (row) => won(row.profitKRW) },
+            { header: "누적 수익률", value: (row) => pct(row.returnPct) },
+          ]} />
           <span className="rounded-md border border-[#2a3142] bg-[#0e111a] px-2 py-1 text-[11px] font-semibold text-slate-400">
             {activeColumnLabel} {sort.dir === "asc" ? "오름차순" : "내림차순"}
           </span>

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import MetricCard from "@/components/MetricCard";
+import TableCsvMenu from "@/components/ui/TableCsvMenu";
 import CalculatorDataStatus from "./CalculatorDataStatus";
 import CalculatorWarningPanel from "./CalculatorWarningPanel";
 import { TextInput, NumberInput, SelectInput } from "./CalculatorInputField";
@@ -175,6 +176,7 @@ export default function DividendCaptureSimulator({ input, onChange }: { input: D
     return `${String(date.getUTCFullYear()).slice(2)}.${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
   };
   const sortedRows = useMemo(() => sortRows(result.rows, detailSort?.key, detailSort?.direction ?? "asc", dividendSortType, (row, key) => row[key]), [detailSort, dividendSortType, result.rows]);
+  const today = new Date().toISOString().slice(0, 10);
 
   return (
     <div className="space-y-4">
@@ -261,7 +263,10 @@ export default function DividendCaptureSimulator({ input, onChange }: { input: D
 
       {/* Detail table */}
       <div className={panel}>
-        <h2 className="mb-4 text-[15px] font-bold text-white">회차별 상세 결과</h2>
+        <div className="mb-4 flex items-center justify-between gap-2">
+          <h2 className="text-[15px] font-bold text-white">회차별 상세 결과</h2>
+          <TableCsvMenu filename={`dividend-capture-results-${submitted.ticker}-${today}.csv`} rows={sortedRows} columns={dividendColumns.map((column) => ({ header: column.label, value: (row: DividendCaptureRow) => row[column.key] }))} />
+        </div>
         <div className="-mx-5 max-h-[520px] min-w-0 overflow-auto px-5">
           <table className="w-full min-w-[920px] text-left text-[12px]">
             <thead className="text-slate-500">

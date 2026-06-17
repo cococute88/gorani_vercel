@@ -1,5 +1,6 @@
 "use client";
 
+import TableCsvMenu from "@/components/ui/TableCsvMenu";
 import { formatWon, formatPercent } from "@/lib/format";
 import { splitSmallHoldings } from "@/lib/portfolio-small-holdings";
 import type { Holding } from "@/lib/portfolio-types";
@@ -37,6 +38,7 @@ export default function HoldingsTable({
   // 소액(#소액 또는 20만원 미만) 항목은 표시 단계에서 숨겨 리스트를 짧게 유지한다.
   // (parser 원천/저장 데이터는 그대로 두고, 화면에서만 visible 만 렌더한다.)
   const { visible: visibleHoldings, hiddenCount } = splitSmallHoldings(holdings);
+  const today = new Date().toISOString().slice(0, 10);
 
   return (
     <div className={card}>
@@ -49,6 +51,16 @@ export default function HoldingsTable({
             </span>
           ) : null}
         </div>
+        <TableCsvMenu filename={`portfolio-holdings-${today}.csv`} rows={visibleHoldings} columns={[
+          { header: "금융사", value: (row) => row.broker },
+          { header: "종류", value: (row) => row.assetType },
+          { header: "상품명", value: (row) => row.cleanName ?? row.productName },
+          { header: "티커", value: (row) => row.ticker },
+          { header: "원금", value: (row) => formatWon(row.principalKRW) },
+          { header: "평가금액", value: (row) => formatWon(row.valueKRW) },
+          { header: "수익률", value: (row) => row.returnPct != null ? formatPercent(row.returnPct, 1) : "—" },
+          { header: "확인상태", value: (row) => row.needsReview ? "확인 필요" : "인식됨" },
+        ]} />
         {tickerMapNotice ? (
           <span className={`max-w-full break-keep rounded-md border px-2.5 py-1 text-[11.5px] ${noticeToneClass}`}>
             {tickerMapNotice.text}

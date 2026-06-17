@@ -21,6 +21,7 @@ import {
   YAxis,
 } from "recharts";
 import MetricCard from "@/components/MetricCard";
+import TableCsvMenu from "@/components/ui/TableCsvMenu";
 import CalculatorDataStatus from "./CalculatorDataStatus";
 import CalculatorWarningPanel from "./CalculatorWarningPanel";
 import { TextInput } from "./CalculatorInputField";
@@ -297,6 +298,7 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
     () => sortRows(result.series, priceSort?.key, priceSort?.direction ?? "asc", priceSortType, (row, key) => row[key]),
     [result.series, priceSort, priceSortType],
   );
+  const today = new Date().toISOString().slice(0, 10);
 
   const periodButtons = (
     <div className="flex flex-wrap gap-1.5">
@@ -512,7 +514,10 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
 
           {/* 역대 최대 낙폭/회복기간 */}
           <div className={panel}>
-            <h2 className={`${cardTitle} mb-1`}>역대 최대 낙폭과 회복기간</h2>
+            <div className="mb-1 flex items-center justify-between gap-2">
+              <h2 className={cardTitle}>역대 최대 낙폭과 회복기간</h2>
+              <TableCsvMenu filename={`mdd-drawdown-segments-${ticker}-${today}.csv`} rows={sortedEpisodes} columns={episodeColumns.map((column) => ({ header: column.label, value: (row: MddEpisode) => { const value = row[column.key]; return typeof value === "boolean" ? (value ? "예" : "아니오") : value; } }))} />
+            </div>
             <p className="mb-3 text-[12px] text-slate-500 dark:text-slate-400">전체 보유 데이터 기준, 심한 낙폭 순으로 정렬했습니다.</p>
             {sortedEpisodes.length === 0 ? (
               <p className="text-[13px] text-slate-500 dark:text-slate-400">표시할 낙폭 구간이 충분하지 않습니다.</p>
@@ -640,7 +645,10 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
 
           {/* 최근 가격 및 Drawdown 상세 (최하단) */}
           <div className={panel}>
-            <h2 className={`${cardTitle} mb-3`}>최근 가격 및 Drawdown 상세</h2>
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h2 className={cardTitle}>최근 가격 및 Drawdown 상세</h2>
+              <TableCsvMenu filename={`mdd-recent-drawdown-${ticker}-${today}.csv`} rows={sortedRecent} columns={mddSeriesColumns.map((column) => ({ header: column.label, value: (row: MddSeriesPoint) => row[column.key] }))} />
+            </div>
             <div className="-mx-5 max-h-[520px] min-w-0 overflow-auto px-5">
               <table className="w-full min-w-[600px] text-left text-[12.5px]">
                 <thead className="text-slate-500 dark:text-slate-400">

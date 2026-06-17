@@ -1,5 +1,6 @@
 "use client";
 
+import TableCsvMenu from "@/components/ui/TableCsvMenu";
 import { AlertTriangle, XCircle } from "lucide-react";
 import { parseSummaryFromResult } from "@/lib/portfolio-parse-summary";
 import ParseSummaryCard from "./ParseSummaryCard";
@@ -9,10 +10,13 @@ interface Props {
   result: ParseResult | null;
 }
 
-function RawTable({ header, rows }: { header: string[]; rows: string[][] }) {
+function RawTable({ header, rows, filename }: { header: string[]; rows: string[][]; filename: string }) {
   if (header.length === 0 && rows.length === 0) return null;
+  const columns = header.map((h, i) => ({ header: h || "—", value: (row: string[]) => row[i] ?? "" }));
   return (
-    <div className="scroll-dark mt-2 max-h-[240px] overflow-auto rounded-lg border border-[#1c2426]">
+    <div className="relative mt-2">
+      <div className="absolute right-1 top-1 z-20"><TableCsvMenu filename={filename} rows={rows} columns={columns} /></div>
+      <div className="scroll-dark max-h-[240px] overflow-auto rounded-lg border border-[#1c2426]">
       <table className="w-full text-[12px]">
         <thead className="sticky top-0 bg-[#11181a]">
           <tr className="text-left text-slate-400">
@@ -31,6 +35,7 @@ function RawTable({ header, rows }: { header: string[]; rows: string[][] }) {
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }
@@ -62,9 +67,9 @@ export default function PortfolioParsePreview({ result }: Props) {
       <details className="mt-4">
         <summary className="cursor-pointer text-[13px] font-medium text-slate-300">원본 데이터 미리보기 (3.재무현황 / 5.투자현황)</summary>
         <div className="mt-1 text-[12px] text-slate-400">3. 재무현황</div>
-        <RawTable header={result.preview.financeHeader} rows={result.preview.financeRows} />
+        <RawTable header={result.preview.financeHeader} rows={result.preview.financeRows} filename="portfolio-parse-finance-preview.csv" />
         <div className="mt-3 text-[12px] text-slate-400">5. 투자현황</div>
-        <RawTable header={result.preview.investmentHeader} rows={result.preview.investmentRows} />
+        <RawTable header={result.preview.investmentHeader} rows={result.preview.investmentRows} filename="portfolio-parse-investment-preview.csv" />
       </details>
     </ParseSummaryCard>
   );
