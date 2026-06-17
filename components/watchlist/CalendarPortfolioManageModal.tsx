@@ -46,14 +46,14 @@ export default function CalendarPortfolioManageModal({ open, portfolios, activeP
           </div>
           <label className="block text-[13px] font-bold text-slate-200">
             포트폴리오 선택
-            <select value={draftSelectedId} onChange={(event) => setDraftSelectedId(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-600 bg-slate-950 px-3 py-2 text-white">
+            <select value={draftSelectedId} onChange={(event) => setDraftSelectedId(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/40 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50">
               {draftPortfolios.map((portfolio) => <option key={portfolio.id} value={portfolio.id}>{portfolio.name}</option>)}
             </select>
           </label>
           <div>
             <div className="mb-2 text-[13px] font-bold text-slate-200">새 포트폴리오 추가</div>
             <div className="flex gap-2">
-              <input value={draftName} onChange={(event) => setDraftName(event.target.value)} placeholder="포트폴리오 이름 입력" className="min-w-0 flex-1 rounded-xl border border-slate-600 bg-slate-950 px-3 py-2 text-white placeholder:text-slate-500" />
+              <input value={draftName} onChange={(event) => setDraftName(event.target.value)} placeholder="포트폴리오 이름 입력" className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 dark:placeholder:text-slate-500" />
               <button type="button" onClick={addPortfolio} className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-extrabold text-white hover:bg-blue-500">+ 추가</button>
             </div>
           </div>
