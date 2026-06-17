@@ -63,6 +63,7 @@ export const defaultDividendCaptureInput: DividendCaptureInput = {
   sellWindow: 0,
   taxRate: 15,
   recent5yOnly: false,
+  lookbackPeriod: "all",
   dividendPerShare: 0.48,
   commissionRate: 0,
   slippageRate: 0,
@@ -73,7 +74,8 @@ export const defaultDividendCaptureInput: DividendCaptureInput = {
 
 export function resolveDividendCaptureDates(input: DividendCaptureInput) {
   const end = new Date().toISOString().slice(0, 10);
-  const start = input.recent5yOnly ? addDays(end, -365 * 5) : "1900-01-01";
+  const recent5yOnly = input.lookbackPeriod ? input.lookbackPeriod === "recent5y" : input.recent5yOnly;
+  const start = recent5yOnly ? addDays(end, -365 * 5) : "1900-01-01";
   return { start, end };
 }
 
