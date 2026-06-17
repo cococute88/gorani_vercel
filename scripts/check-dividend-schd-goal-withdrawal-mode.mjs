@@ -93,11 +93,13 @@ function assertWithdrawalModeMath() {
 function assertUiContracts() {
   const page = fs.readFileSync(path.join(rootDir, "components", "dividend", "DividendPage.tsx"), "utf8");
   const cards = fs.readFileSync(path.join(rootDir, "components", "dividend", "DividendSummaryCards.tsx"), "utf8");
-  assert.ok(cards.includes("일괄 3.5% 인출률 적용"));
+  assert.ok(cards.includes("일괄3.5%인출률"));
   assert.ok(cards.includes("실제 배당 이력은 반영하지 않습니다"));
   assert.ok(page.includes("withdrawalMode ? convertedAnnualDividendKRW : ttmAnnualDividendKRW"));
-  assert.ok(page.includes("row.quantityEstimated ? undefined : row.quantity"));
-  assert.ok(page.includes("주(실보유"));
+  assert.ok(page.includes("quantity: estimate.estimatedQuantity ?? row.quantity"));
+  assert.ok(page.includes("quantityEstimated: estimate.estimatedQuantity !== undefined"));
+  assert.ok(page.includes("SCHD 환산"));
+  assert.ok(page.includes("실보유"));
   return { case: "UI/모드 분리 계약" };
 }
 
