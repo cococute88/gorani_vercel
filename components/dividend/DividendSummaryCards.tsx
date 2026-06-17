@@ -94,7 +94,7 @@ export default function DividendSummaryCards({
               }`}
               aria-pressed={withdrawalMode}
             >
-              일괄 3.5% 인출률 적용
+              일괄3.5%인출률
             </button>
           </div>
           <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1 dark:border-transparent dark:bg-[#1b2021]">
@@ -112,7 +112,7 @@ export default function DividendSummaryCards({
                 includeTaxAdvantaged ? "bg-blue-600 text-white" : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
               }`}
             >
-              절세합산
+              절세합
             </button>
           </div>
         </div>
