@@ -35,6 +35,17 @@ function fmtTooltipDate(date: string) {
   return date.replaceAll("-", ".");
 }
 
+function toIsoDate(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function getSchdDailyHistoryWindow() {
+  const end = new Date();
+  const start = new Date(end);
+  start.setUTCDate(start.getUTCDate() - (365 * 11 + 10));
+  return { start: toIsoDate(start), end: toIsoDate(end) };
+}
+
 function MetricCard({ label, value, subtext, tone = "default" }: { label: string; value: string; subtext: React.ReactNode; tone?: "default" | "expensive" | "watch" | "ok" | "good" | "strong" }) {
   const toneClass = {
     default: "border-slate-200 bg-white dark:border-[#2a3336] dark:bg-[#191f20]",
@@ -65,9 +76,10 @@ export default function SchdAttractivenessSection() {
     setError(null);
     async function load() {
       try {
+        const historyWindow = getSchdDailyHistoryWindow();
         const [history, dividends, last] = await Promise.all([
-          fetchJson<QuoteHistoryResponse>(quoteHistoryPath({ ticker: "SCHD", range: "max" })),
-          fetchJson<QuoteDividendsResponse>(quoteDividendsPath({ ticker: "SCHD", range: "max" })),
+          fetchJson<QuoteHistoryResponse>(quoteHistoryPath({ ticker: "SCHD", start: historyWindow.start, end: historyWindow.end })),
+          fetchJson<QuoteDividendsResponse>(quoteDividendsPath({ ticker: "SCHD", start: historyWindow.start, end: historyWindow.end })),
           fetchJson<QuoteLastResponse>(quoteLastPath({ ticker: "SCHD" })),
         ]);
         const next = calculateSchdAttractiveness(history, dividends, last);
