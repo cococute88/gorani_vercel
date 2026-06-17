@@ -525,3 +525,4 @@ DIVIDEND-CAPTURE-YFINANCE-PARITY-RESET-4: 배당치기 시뮬레이터가 배당
 TABLE-CSV-DOWNLOAD-MENU-1: 앱 주요 데이터 표에 공통 CSV 다운로드 메뉴를 추가하고, UTF-8 BOM/CSV escaping/정렬·필터 결과 다운로드 정책을 문서화
 
 TABLE-CSV-DOWNLOAD-MENU-1-FOLLOWUP: 자산 시뮬레이터/포트폴리오 부가 데이터 표와 월별 일정 미리보기 표까지 CSV 메뉴 적용 범위를 확장
+MARKET-SHEET-EMBED-LINK-UPDATE-1: /market 시장온도 참고 시트 iframe/embed 링크를 새 Google Sheets pubhtml 링크로 교체하고, 새 탭 열기 링크를 원본 Google Sheet 링크로 갱신.
