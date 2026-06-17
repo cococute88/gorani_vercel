@@ -24,6 +24,11 @@ const expected = [
   "components/portfolio/HoldingsTable.tsx",
   "components/portfolio/PortfolioParsePreview.tsx",
   "components/qld/QldHoldingsRankTable.tsx",
+  "components/watchlist/DividendSchedulePreview.tsx",
+  "components/asset-simulator/YearPlanTable.tsx",
+  "components/asset-simulator/SimulatorResultTabs.tsx",
+  "components/portfolio/AssetTable.tsx",
+  "components/portfolio/SnapshotHistory.tsx",
 ];
 for (const file of expected) {
   const source = read(file);
@@ -36,6 +41,9 @@ assert.match(read("components/calculator/MddCalculator.tsx"), /rows=\{sortedEpis
 assert.match(read("components/calculator/MddCalculator.tsx"), /rows=\{sortedRecent\}/, "MDD recent CSV uses sorted rows");
 assert.match(read("components/watchlist/TaxSavingTable.tsx"), /rows=\{sortedRows\}/, "tax saving CSV uses sorted rows");
 assert.match(read("components/qld/QldHoldingsRankTable.tsx"), /rows=\{rows\}/, "performance CSV uses filtered/sorted rows");
+assert.match(read("components/watchlist/DividendSchedulePreview.tsx"), /rows=\{visibleRows\}/, "calendar schedule preview CSV uses visible filtered/sorted rows");
+assert.match(read("components/portfolio/SnapshotHistory.tsx"), /rows=\{sorted\}/, "snapshot history CSV uses sorted rows");
+assert.match(read("components/asset-simulator/SimulatorResultTabs.tsx"), /asset-simulator-accumulation/, "asset simulator result tables have CSV filenames");
 
 const pkg = JSON.parse(read("package.json"));
 assert.equal(pkg.scripts["check:table-csv-download-menu"], "node scripts/check-table-csv-download-menu.mjs");

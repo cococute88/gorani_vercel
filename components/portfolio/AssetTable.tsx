@@ -1,5 +1,7 @@
 "use client";
 
+import { useMemo } from "react";
+import TableCsvMenu from "@/components/ui/TableCsvMenu";
 import { formatWon } from "@/lib/format";
 import type { FinanceAsset } from "@/lib/portfolio-types";
 
@@ -24,9 +26,23 @@ function categoryTone(cat?: string): string {
 
 // 자산 리스트 (항목/상품명/금액/태그/분류)
 export default function AssetTable({ assets }: Props) {
+  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
   return (
     <div className={card}>
-      <h2 className="mb-4 text-[15px] font-bold text-slate-300">자산 리스트</h2>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h2 className="text-[15px] font-bold text-slate-300">자산 리스트</h2>
+        <TableCsvMenu filename={`portfolio-assets-${today}.csv`} rows={assets} columns={[
+          { header: "항목(그룹)", value: (row) => row.groupName || "—" },
+          { header: "상품명", value: (row) => row.cleanName ?? row.productName },
+          { header: "금액", value: (row) => formatWon(row.amountKRW) },
+          { header: "태그", value: (row) => row.inferredTag ? `#${row.inferredTag}` : "" },
+          { header: "분류", value: (row) => row.category ?? "기타" },
+          { header: "심볼그룹", value: (row) => row.symbolGroup ?? "" },
+          { header: "계좌그룹", value: (row) => row.accountGroup ?? "" },
+          { header: "목적그룹", value: (row) => row.purposeGroup ?? "" },
+          { header: "상태그룹", value: (row) => row.statusGroup ?? "" },
+        ]} />
+      </div>
       <div className="scroll-dark overflow-x-auto">
         <table className="w-full min-w-[560px] text-[13px]">
           <thead>
