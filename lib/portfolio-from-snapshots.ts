@@ -8,6 +8,7 @@ import { classifyAccountStatusGroup } from "./account-status-group";
 import { holdingDisplayLabel } from "./holding-display-label";
 import { reconcilePortfolioTotals } from "./portfolio-totals-reconcile";
 import { buildPortfolioAccountReturnRows } from "./portfolio-account-returns";
+import { isAllocationChartAmountVisible } from "./allocation-chart-filter";
 
 // ASSET-PORTFOLIO-UX-POLISH-1 #3: 트리맵에는 전체 평가금액 대비 2% 이상인 종목만 표시한다.
 // (합계/랭킹/요약 수치는 원본 그대로 유지하고 트리맵 "표시"에서만 작은 종목을 제외한다.)
@@ -172,7 +173,7 @@ function groupSlices<T>(
   const totals = new Map<string, number>();
   for (const row of rows) {
     const value = valueOf(row);
-    if (value === null || !Number.isFinite(value) || value <= 0) continue;
+    if (value === null || !isAllocationChartAmountVisible(value)) continue;
     const name = nameOf(row)?.trim() || "미분류";
     totals.set(name, (totals.get(name) ?? 0) + value);
   }
@@ -496,10 +497,10 @@ function computeAssetPurposeTotals(
   };
 
   for (const holding of holdings) {
-    add(classifyHoldingPurposeGroup(holding), positiveNumber(holding.valueKRW));
+    add(classifyHoldingPurposeGroup(holding), isAllocationChartAmountVisible(holding.valueKRW) ? holding.valueKRW : null);
   }
   for (const asset of financeRows) {
-    add(classifyFinanceAssetPurposeGroup(asset), positiveNumber(asset.amountKRW));
+    add(classifyFinanceAssetPurposeGroup(asset), isAllocationChartAmountVisible(asset.amountKRW) ? asset.amountKRW : null);
   }
   return totals;
 }
