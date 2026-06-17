@@ -10,6 +10,7 @@ export const STORAGE_KEYS = {
   dividendLedger: "gorani.dividend-ledger.v1",
   favoriteLinks: "gorani.favorite-links.v1",
   calendarCache: "gorani.dividend-calendar.cache.v1",
+  calendarActivePortfolio: "calendar:activePortfolio",
   quoteCache: "gorani.quote.cache.v1",
   marketCache: "gorani.market.cache.v1",
   uiPreferences: "gorani.ui-preferences.v1",

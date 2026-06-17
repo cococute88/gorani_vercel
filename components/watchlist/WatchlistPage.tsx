@@ -9,11 +9,18 @@ import {
   loadLegacyDividendCalendarPortfolios,
   loadLegacyImportedCalendarEvents,
   loadManualCalendarTickers,
+  loadCalendarActivePortfolioId,
+  loadCalendarPortfolios,
+  loadPortfolioManualCalendarTickers,
+  saveCalendarActivePortfolioId,
+  saveCalendarPortfolio,
   saveLegacyDividendCalendarMemo,
   saveManualCalendarTickers,
+  savePortfolioManualCalendarTickers,
   warnFirestoreFallback,
 } from "@/lib/firebase/firestore-repositories";
 import { STORAGE_KEYS } from "@/lib/storage-keys";
+import { DEFAULT_CALENDAR_PORTFOLIO_ID, ensureDefaultCalendarPortfolio, getCalendarLocalStorageKey, getLegacyCalendarLocalStorageKey, type CalendarPortfolio } from "@/lib/calendar-portfolio";
 import { canonicalMemoTickerKey, lookupTickerMemo, mergeMemoMaps } from "@/lib/calendar-memo-matching";
 import {
   createManualCalendarTickerList,
@@ -27,6 +34,7 @@ import {
 import DividendCalendarPage from "./DividendCalendarPage";
 import TickerManager from "./TickerManager";
 import PortfolioManageModal from "./PortfolioManageModal";
+import CalendarPortfolioManageModal from "./CalendarPortfolioManageModal";
 import TickerMemoDialog from "./TickerMemoDialog";
 import { useResolvedTheme } from "@/components/theme/ThemeProvider";
 
@@ -63,6 +71,9 @@ export default function WatchlistPage() {
   const [legacyEventTickers, setLegacyEventTickers] = useState<string[]>([]);
   const [memos, setMemos] = useState<Record<string, string>>({});
   const [manageOpen, setManageOpen] = useState(false);
+  const [portfolioManageOpen, setPortfolioManageOpen] = useState(false);
+  const [activePortfolioId, setActivePortfolioId] = useState(DEFAULT_CALENDAR_PORTFOLIO_ID);
+  const [portfolios, setPortfolios] = useState<CalendarPortfolio[]>(() => ensureDefaultCalendarPortfolio([]));
   const [memoTicker, setMemoTicker] = useState<string | null>(null);
 
   // The calendar ticker universe. NOT `/portfolio` holdings — a valid manual
@@ -72,18 +83,19 @@ export default function WatchlistPage() {
     () =>
       resolveCalendarTickers({
         manualOverride,
-        legacyPortfolioTickers,
-        legacyEventTickers,
-        legacyMemoKeys: Object.keys(memos),
-        fallbackTickers: DEFAULT_WATCHLIST_TICKERS,
+        legacyPortfolioTickers: activePortfolioId === DEFAULT_CALENDAR_PORTFOLIO_ID ? legacyPortfolioTickers : [],
+        legacyEventTickers: activePortfolioId === DEFAULT_CALENDAR_PORTFOLIO_ID ? legacyEventTickers : [],
+        legacyMemoKeys: activePortfolioId === DEFAULT_CALENDAR_PORTFOLIO_ID ? Object.keys(memos) : [],
+        fallbackTickers: activePortfolioId === DEFAULT_CALENDAR_PORTFOLIO_ID ? DEFAULT_WATCHLIST_TICKERS : [],
       }),
-    [manualOverride, legacyPortfolioTickers, legacyEventTickers, memos],
+    [activePortfolioId, manualOverride, legacyPortfolioTickers, legacyEventTickers, memos],
   );
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
-      const stored = window.localStorage.getItem(WATCHLIST_STORAGE_KEY);
+      const storageKey = getCalendarLocalStorageKey("tickerList", activePortfolioId);
+      const stored = window.localStorage.getItem(storageKey) ?? (activePortfolioId === DEFAULT_CALENDAR_PORTFOLIO_ID ? window.localStorage.getItem(getLegacyCalendarLocalStorageKey("tickerList")) : null);
       if (stored) {
         const parsed = JSON.parse(stored) as unknown;
         // Only accept the new metadata-tagged shape; a bare array is stale and
@@ -91,25 +103,22 @@ export default function WatchlistPage() {
         if (readValidManualOverrideTickers(parsed).length > 0) {
           setManualOverride(parsed as ManualCalendarTickerList);
         } else {
-          window.localStorage.removeItem(WATCHLIST_STORAGE_KEY);
+          window.localStorage.removeItem(getCalendarLocalStorageKey("tickerList", activePortfolioId));
         }
       }
     } catch {
-      window.localStorage.removeItem(WATCHLIST_STORAGE_KEY);
+      window.localStorage.removeItem(getCalendarLocalStorageKey("tickerList", activePortfolioId));
     }
     setMemos(readStoredMemos());
-  }, []);
+  }, [activePortfolioId]);
 
   useEffect(() => {
     if (!user) return;
 
-    // Valid manual override (metadata-tagged) — the only thing allowed to win
-    // over the imported legacy ticker universe.
-    loadManualCalendarTickers(user.uid)
-      .then((list) => {
-        if (list) setManualOverride(list);
-      })
-      .catch((err) => warnFirestoreFallback("manualCalendarTickers.load", err));
+    loadCalendarActivePortfolioId(user.uid).then((id) => setActivePortfolioId(id)).catch((err) => warnFirestoreFallback("calendarActivePortfolio.load", err));
+    loadCalendarPortfolios(user.uid).then((items) => setPortfolios(ensureDefaultCalendarPortfolio(items))).catch((err) => warnFirestoreFallback("calendarPortfolios.load", err));
+    const loadManual = activePortfolioId === DEFAULT_CALENDAR_PORTFOLIO_ID ? loadManualCalendarTickers(user.uid) : loadPortfolioManualCalendarTickers(user.uid, activePortfolioId);
+    loadManual.then((list) => setManualOverride(list)).catch((err) => warnFirestoreFallback("manualCalendarTickers.load", err));
 
     // Legacy calendar ticker universe (preferred default source).
     loadLegacyDividendCalendarPortfolios(user.uid)
@@ -124,7 +133,7 @@ export default function WatchlistPage() {
     loadLegacyDividendCalendarMemos(user.uid)
       .then((legacyMemos) => setMemos((current) => mergeMemoMaps(legacyMemos, current)))
       .catch((err) => warnFirestoreFallback("legacyDividendCalendarMemos.load", err));
-  }, [user]);
+  }, [user, activePortfolioId]);
 
   // Persist a metadata-tagged manual override (localStorage + Firestore).
   const persistManualTickers = async (nextTickers: string[]) => {
@@ -132,15 +141,14 @@ export default function WatchlistPage() {
     setManualOverride(list);
     if (typeof window !== "undefined") {
       try {
-        window.localStorage.setItem(WATCHLIST_STORAGE_KEY, JSON.stringify(list));
+        window.localStorage.setItem(getCalendarLocalStorageKey("tickerList", activePortfolioId), JSON.stringify(list));
       } catch {
         // localStorage 사용 불가 환경에서는 화면 상태만 유지한다.
       }
     }
     if (user) {
-      await saveManualCalendarTickers(user.uid, list.tickers).catch((err) =>
-        warnFirestoreFallback("manualCalendarTickers.save", err),
-      );
+      const save = activePortfolioId === DEFAULT_CALENDAR_PORTFOLIO_ID ? saveManualCalendarTickers(user.uid, list.tickers) : savePortfolioManualCalendarTickers(user.uid, activePortfolioId, list.tickers);
+      await save.catch((err) => warnFirestoreFallback("manualCalendarTickers.save", err));
     }
   };
 
@@ -177,8 +185,22 @@ export default function WatchlistPage() {
     setMemoTicker(null);
   };
 
+  const activePortfolioName = portfolios.find((item) => item.id === activePortfolioId)?.name ?? activePortfolioId;
+
+  const handleSavePortfolioSelection = (portfolioId: string, nextPortfolios: CalendarPortfolio[]) => {
+    const normalized = ensureDefaultCalendarPortfolio(nextPortfolios);
+    setPortfolios(normalized);
+    setActivePortfolioId(portfolioId);
+    setManualOverride(null);
+    if (typeof window !== "undefined") window.localStorage.setItem(STORAGE_KEYS.calendarActivePortfolio, portfolioId);
+    if (user) {
+      void Promise.all([saveCalendarActivePortfolioId(user.uid, portfolioId), ...normalized.map((portfolio) => saveCalendarPortfolio(user.uid, portfolio))]).catch((err) => warnFirestoreFallback("calendarPortfolios.save", err));
+    }
+    setPortfolioManageOpen(false);
+  };
+
   const tickerManager = (
-    <TickerManager tickers={tickers} memos={memos} onTickerClick={setMemoTicker} />
+    <TickerManager tickers={tickers} memos={memos} onTickerClick={setMemoTicker} activePortfolioName={activePortfolioName} />
   );
 
   return (
@@ -189,11 +211,21 @@ export default function WatchlistPage() {
           tickers={tickers}
           tickerManager={tickerManager}
           onManagePortfolio={() => setManageOpen(true)}
+          onManageCalendarPortfolio={() => setPortfolioManageOpen(true)}
+          activePortfolioId={activePortfolioId}
+          activePortfolioName={activePortfolioName}
           tickerMemos={memos}
           onSaveTickerMemo={handleSaveMemo}
         />
       </main>
 
+      <CalendarPortfolioManageModal
+        open={portfolioManageOpen}
+        portfolios={portfolios}
+        activePortfolioId={activePortfolioId}
+        onSave={handleSavePortfolioSelection}
+        onClose={() => setPortfolioManageOpen(false)}
+      />
       <PortfolioManageModal
         open={manageOpen}
         tickers={tickers}

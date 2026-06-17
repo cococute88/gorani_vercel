@@ -1,6 +1,7 @@
 import { buildCustomCalendarEventId, normalizeCalendarTicker } from "@/lib/calendar-event-identity";
 import type { CalendarEvent } from "@/lib/mock-calendar-data";
 import { STORAGE_KEYS } from "@/lib/storage-keys";
+import { DEFAULT_CALENDAR_PORTFOLIO_ID, getCalendarLocalStorageKey, getLegacyCalendarLocalStorageKey } from "@/lib/calendar-portfolio";
 
 export type CalendarCustomEvent = {
   id: string;
@@ -26,6 +27,7 @@ export type CalendarCustomEventInput = {
 };
 
 const CALENDAR_CUSTOM_EVENTS_STORAGE_KEY = STORAGE_KEYS.calendarCustomEvents;
+function calendarCustomEventsStorageKey(portfolioId = DEFAULT_CALENDAR_PORTFOLIO_ID): string { return getCalendarLocalStorageKey("customEvents", portfolioId); }
 
 function hasWindowLocalStorage(): boolean {
   return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
@@ -124,18 +126,19 @@ export function dedupeCalendarCustomEvents(events: CalendarCustomEvent[]): Calen
   return sortCalendarCustomEvents(Array.from(byId.values()));
 }
 
-export function loadCalendarCustomEvents(): CalendarCustomEvent[] {
+export function loadCalendarCustomEvents(portfolioId = DEFAULT_CALENDAR_PORTFOLIO_ID): CalendarCustomEvent[] {
   if (!hasWindowLocalStorage()) return [];
 
   try {
-    const stored = window.localStorage.getItem(CALENDAR_CUSTOM_EVENTS_STORAGE_KEY);
+    const storageKey = calendarCustomEventsStorageKey(portfolioId);
+    const stored = window.localStorage.getItem(storageKey) ?? (portfolioId === DEFAULT_CALENDAR_PORTFOLIO_ID ? window.localStorage.getItem(getLegacyCalendarLocalStorageKey("customEvents")) : null);
     if (!stored) return [];
     const parsed = JSON.parse(stored) as unknown;
     if (!Array.isArray(parsed)) return [];
     return dedupeCalendarCustomEvents(parsed.map(normalizeCalendarCustomEvent).filter((event): event is CalendarCustomEvent => Boolean(event)));
   } catch {
     try {
-      window.localStorage.removeItem(CALENDAR_CUSTOM_EVENTS_STORAGE_KEY);
+      window.localStorage.removeItem(calendarCustomEventsStorageKey(portfolioId));
     } catch {
       // Ignore secondary storage errors and fall back to an empty custom event list.
     }
@@ -143,11 +146,11 @@ export function loadCalendarCustomEvents(): CalendarCustomEvent[] {
   }
 }
 
-export function saveCalendarCustomEvents(events: CalendarCustomEvent[]): void {
+export function saveCalendarCustomEvents(events: CalendarCustomEvent[], portfolioId = DEFAULT_CALENDAR_PORTFOLIO_ID): void {
   if (!hasWindowLocalStorage()) return;
 
   try {
-    window.localStorage.setItem(CALENDAR_CUSTOM_EVENTS_STORAGE_KEY, JSON.stringify(dedupeCalendarCustomEvents(events)));
+    window.localStorage.setItem(calendarCustomEventsStorageKey(portfolioId), JSON.stringify(dedupeCalendarCustomEvents(events)));
   } catch {
     // User-owned custom events remain in memory if localStorage is unavailable.
   }
