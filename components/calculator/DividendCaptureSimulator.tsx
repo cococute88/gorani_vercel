@@ -39,6 +39,7 @@ type DividendCaptureQuoteState = {
 };
 
 type DividendCaptureChartRow = DividendCaptureRow & { exDateMs: number };
+type DividendCaptureLookbackPeriod = "all" | "recent5y";
 
 type DividendSortKey = keyof Pick<DividendCaptureRow, "exDate" | "buyPrice" | "afterTaxDividend" | "breakevenPrice" | "profitPct" | "recoveryDate" | "recoveryTradingDays" | "recoveryCalendarDays" | "result">;
 
@@ -68,9 +69,18 @@ function DividendTooltip({ active, payload }: { active?: boolean; payload?: Arra
   );
 }
 
+function getDividendCaptureLookbackPeriod(input: Pick<DividendCaptureInput, "recent5yOnly" | "lookbackPeriod">): DividendCaptureLookbackPeriod {
+  if (input.lookbackPeriod === "recent5y" || input.lookbackPeriod === "all") return input.lookbackPeriod;
+  return input.recent5yOnly ? "recent5y" : "all";
+}
+
+function withDividendCaptureLookback(input: DividendCaptureInput, lookbackPeriod: DividendCaptureLookbackPeriod): DividendCaptureInput {
+  return { ...input, lookbackPeriod, recent5yOnly: lookbackPeriod === "recent5y" };
+}
+
 function toQuoteRequest(input: DividendCaptureInput) {
   const { end } = resolveDividendCaptureDates(input);
-  if (input.recent5yOnly) return { ticker: input.ticker, range: "5y", end };
+  if (getDividendCaptureLookbackPeriod(input) === "recent5y") return { ticker: input.ticker, range: "5y", end };
   // Streamlit 원본의 yfinance history(period="max")와 맞추기 위해 full-history는
   // start를 강제로 보내지 않고 서버가 Yahoo range=max를 그대로 사용하게 한다.
   return { ticker: input.ticker, range: "max", end };
@@ -91,7 +101,7 @@ export default function DividendCaptureSimulator({ input, onChange }: { input: D
 
       try {
         const request = toQuoteRequest(submitted);
-        const response = await fetch(`/api/calculator/dividend-capture-data?ticker=${encodeURIComponent(request.ticker)}&recent5yOnly=${submitted.recent5yOnly ? "true" : "false"}`, { cache: "no-store" });
+        const response = await fetch(`/api/calculator/dividend-capture-data?ticker=${encodeURIComponent(request.ticker)}&recent5yOnly=${getDividendCaptureLookbackPeriod(submitted) === "recent5y" ? "true" : "false"}`, { cache: "no-store" });
         const data = await response.json();
         if (!response.ok) throw new Error(data?.error || `HTTP ${response.status}`);
         if (cancelled) return;
@@ -136,18 +146,31 @@ export default function DividendCaptureSimulator({ input, onChange }: { input: D
     [quoteState.dividends, quoteState.prices, quoteState.source, quoteState.updatedAt, quoteState.warnings, submitted],
   );
   const update = <K extends keyof DividendCaptureInput>(key: K, value: DividendCaptureInput[K]) => onChange({ ...input, [key]: value });
+  const lookbackPeriod = getDividendCaptureLookbackPeriod(input);
   const dividendSortType = detailSort ? dividendColumns.find((column) => column.key === detailSort.key)?.type ?? "string" : "string";
   const chartRows = useMemo(
     () =>
       [...result.rows]
         .sort((a, b) => a.exDate.localeCompare(b.exDate))
-        .map((row) => ({ ...row, exDateMs: Date.parse(`${row.exDate}T00:00:00Z`) })),
+        .map((row) => ({ ...row, exDateMs: new Date(`${row.exDate}T00:00:00Z`).getTime() })),
     [result.rows],
   );
   const successChartRows = useMemo(() => chartRows.filter((row) => row.result === "성공"), [chartRows]);
   const failureChartRows = useMemo(() => chartRows.filter((row) => row.result === "실패"), [chartRows]);
-  const formatChartDate = (value: number) => {
-    const date = new Date(value);
+  const chartTicks = useMemo(() => {
+    if (chartRows.length === 0) return undefined;
+    const start = chartRows[0].exDateMs;
+    const end = chartRows.at(-1)?.exDateMs ?? start;
+    if (start === end) return [start];
+    const targetTicks = 6;
+    const ticks = Array.from({ length: targetTicks }, (_, index) => Math.round(start + ((end - start) * index) / (targetTicks - 1)));
+    ticks[0] = start;
+    ticks[ticks.length - 1] = end;
+    return Array.from(new Set(ticks)).sort((a, b) => a - b);
+  }, [chartRows]);
+  const formatChartDate = (value: number | string) => {
+    const numericValue = typeof value === "number" ? value : Number(value);
+    const date = new Date(numericValue);
     if (Number.isNaN(date.getTime())) return "";
     return `${String(date.getUTCFullYear()).slice(2)}.${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
   };
@@ -156,7 +179,7 @@ export default function DividendCaptureSimulator({ input, onChange }: { input: D
   return (
     <div className="space-y-4">
       {/* Input form */}
-      <form className={panel} onSubmit={(event) => { event.preventDefault(); setSubmitted(input); }}>
+      <form className={panel} onSubmit={(event) => { event.preventDefault(); setSubmitted(withDividendCaptureLookback(input, lookbackPeriod)); }}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-[15px] font-bold text-white">입력값</h2>
@@ -185,9 +208,9 @@ export default function DividendCaptureSimulator({ input, onChange }: { input: D
           </SelectInput>
           <NumberInput label="매도허용기간 (N거래일)" value={input.sellWindow} onChange={(v) => update("sellWindow", v)} />
           <NumberInput label="배당소득세율 (%)" value={input.taxRate} onChange={(v) => update("taxRate", v)} />
-          <SelectInput label="최근 5년 데이터만 보기" value={input.recent5yOnly ? "true" : "false"} onChange={(v) => update("recent5yOnly", v === "true")}>
-            <option value="false">아니오</option>
-            <option value="true">예</option>
+          <SelectInput label="조회 기간" value={lookbackPeriod} onChange={(v) => onChange(withDividendCaptureLookback(input, v === "recent5y" ? "recent5y" : "all"))}>
+            <option value="all">전체기간</option>
+            <option value="recent5y">최근5년</option>
           </SelectInput>
         </div>
       </form>
@@ -219,7 +242,7 @@ export default function DividendCaptureSimulator({ input, onChange }: { input: D
           <ResponsiveContainer width="100%" height="100%">
             <ScatterChart margin={{ top: 12, right: 16, bottom: 8, left: 0 }}>
               <CartesianGrid stroke="#2a3336" strokeDasharray="3 3" />
-              <XAxis type="number" dataKey="exDateMs" name="배당락일" domain={["dataMin", "dataMax"]} scale="time" tickFormatter={formatChartDate} stroke="#94a3b8" tick={{ fontSize: 11 }} minTickGap={24} angle={-30} textAnchor="end" height={54} />
+              <XAxis type="number" dataKey="exDateMs" name="배당락일" domain={["dataMin", "dataMax"]} ticks={chartTicks} scale="time" tickFormatter={formatChartDate} stroke="#94a3b8" tick={{ fontSize: 11 }} minTickGap={16} interval={0} angle={-30} textAnchor="end" height={54} />
               <YAxis dataKey="profitPct" name="수익률" unit="%" stroke="#94a3b8" tick={{ fontSize: 11 }} />
               <Tooltip cursor={{ strokeDasharray: "3 3" }} content={<DividendTooltip />} />
               <Legend wrapperStyle={{ fontSize: 12 }} />

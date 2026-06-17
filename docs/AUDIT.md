@@ -519,3 +519,5 @@ DIVIDEND-CAPTURE-STREAMLIT-ROW-PARITY-3: 배당치기 시뮬레이터가 원본 
 
 DIVIDEND-CAPTURE-YFINANCE-PARITY-RESET-4: 배당치기 시뮬레이터가 배당 이벤트와 가격 source mismatch로 ARCC 대부분을 skip하고 승률 100%를 만들던 문제를 Yahoo chart 단일소스 OHLC+dividend adapter와 원본 Streamlit row 계산식으로 재구현
 - AUTH-MOBILE-LOGIN-AND-DIVCAP-AXIS-FIX-1: 모바일 Google 로그인 후 auth state가 반영되지 않던 회귀와 배당치기 시뮬레이터 수익률 그래프 x축 날짜 순서가 깨지던 문제를 수정
+
+- DIVIDEND-CAPTURE-PERIOD-AXIS-UX-FIX-1: 배당치기 시뮬레이터 수익률 분포 그래프 x축이 최신 날짜까지 표시되도록 수정하고, 최근 5년 데이터만 보기 UI를 조회 기간(전체기간/최근5년) 선택으로 정리

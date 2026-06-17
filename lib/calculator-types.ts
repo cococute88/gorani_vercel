@@ -36,6 +36,7 @@ export type DividendCaptureInput = {
   sellWindow: number;
   taxRate: number;
   recent5yOnly: boolean;
+  lookbackPeriod?: "all" | "recent5y";
   dividendPerShare: number;
   commissionRate: number;
   slippageRate: number;
