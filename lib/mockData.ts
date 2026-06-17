@@ -6,13 +6,13 @@ export type NavItem = { icon: string; label: string; href: string };
 
 // --- 네비게이션 메뉴 ---
 export const NAV_ITEMS: NavItem[] = [
-  { icon: "📋", label: "전체 종목", href: "/portfolio" },
+  { icon: "📋", label: "투자현황", href: "/portfolio" },
   { icon: "💰", label: "배당", href: "/dividends" },
-  { icon: "📈", label: "투자 성과", href: "/performance" },
-  { icon: "🗓️", label: "배당캘린더", href: "/calendar" },
+  { icon: "📈", label: "투자성과", href: "/performance" },
+  { icon: "🗓️", label: "캘린더", href: "/calendar" },
   { icon: "🧙", label: "시장 현황", href: "/market" },
   { icon: "🧮", label: "계산기", href: "/calculator" },
-  { icon: "🧭", label: "자산 시뮬레이터", href: "/asset-simulator" },
+  { icon: "🧭", label: "자산시뮬", href: "/asset-simulator" },
   { icon: "⚙️", label: "포트폴리오 관리", href: "/portfolio-manager" },
 ];
 

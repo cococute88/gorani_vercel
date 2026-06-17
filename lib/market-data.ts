@@ -56,6 +56,7 @@ export interface MarketPayload {
 }
 
 export type FearGreedRating = "극단적 공포" | "공포" | "중립" | "탐욕" | "극단적 탐욕";
+export type FearGreedTooltipRating = "극단공포" | "공포" | "중립" | "탐욕" | "극단탐욕";
 
 export function fearGreedRating(score: number): FearGreedRating {
   if (score < 25) return "극단적 공포";
@@ -63,6 +64,14 @@ export function fearGreedRating(score: number): FearGreedRating {
   if (score < 55) return "중립";
   if (score < 75) return "탐욕";
   return "극단적 탐욕";
+}
+
+export function fearGreedTooltipRating(score: number): FearGreedTooltipRating {
+  if (score <= 24) return "극단공포";
+  if (score <= 44) return "공포";
+  if (score <= 55) return "중립";
+  if (score <= 75) return "탐욕";
+  return "극단탐욕";
 }
 
 export function fearGreedColor(score: number): string {

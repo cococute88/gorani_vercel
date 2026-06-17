@@ -63,7 +63,8 @@
     "check:auth-mobile-login-persistence": "node scripts/check-auth-mobile-login-persistence.mjs",
     "check:dividend-capture-chart-axis-order": "node scripts/check-dividend-capture-chart-axis-order.mjs",
     "check:dividend-capture-period-axis-ux": "node scripts/check-dividend-capture-period-axis-ux.mjs",
-    "check:table-csv-download-menu": "node scripts/check-table-csv-download-menu.mjs"
+    "check:table-csv-download-menu": "node scripts/check-table-csv-download-menu.mjs",
+    "check:small-ui-label-market-portfolio-fix": "node scripts/check-small-ui-label-market-portfolio-fix.mjs"
   },
   "dependencies": {
     "next": "14.2.5",

@@ -121,8 +121,8 @@ export default function AssetAccountCards({ theme = "light", compact = false }: 
         <div
           className={
             compact
-              ? "grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-4 min-[1300px]:grid-cols-2 min-[1300px]:gap-2"
-              : "grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-4"
+              ? "grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3 min-[1300px]:grid-cols-3 min-[1300px]:gap-2"
+              : "grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
           }
         >
           {list.map(renderCard)}
