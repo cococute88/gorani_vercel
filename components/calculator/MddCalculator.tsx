@@ -163,6 +163,31 @@ const mddSeriesColumns: Array<{ key: MddSeriesSortKey; label: string; type: Sort
   { key: "value", label: "환산 지수", type: "number" },
 ];
 
+
+type ChartDebugInfo = {
+  name: string;
+  length: number;
+  firstDates: string[];
+  lastDates: string[];
+  sampleDateDiffs: string[];
+};
+
+function buildChartDebugInfo(name: string, data: Array<{ date?: string }>): ChartDebugInfo {
+  const dates = data.map((point) => point.date).filter((date): date is string => typeof date === "string" && date.length > 0);
+  const sampleDateDiffs = dates.slice(1, 11).map((date, index) => {
+    const previous = dates[index];
+    const days = daysBetween(previous, date);
+    return `${previous} → ${date}: ${days ?? "?"}일`;
+  });
+  return {
+    name,
+    length: data.length,
+    firstDates: dates.slice(0, 10),
+    lastDates: dates.slice(-10),
+    sampleDateDiffs,
+  };
+}
+
 function daysBetween(start: string, end: string): number | null {
   const s = Date.parse(`${start}T00:00:00Z`);
   const e = Date.parse(`${end}T00:00:00Z`);
@@ -286,6 +311,29 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
     [result.series, result.lowDate],
   );
 
+  const chartDebugInfo = useMemo(
+    () => [
+      buildChartDebugInfo(`${ticker} 달러 기준 가격`, priceChartData),
+      buildChartDebugInfo("고점 대비 하락률 (Drawdown / MDD)", ddChartData),
+      buildChartDebugInfo("달러 vs 원화 Drawdown 비교", compareData),
+    ],
+    [ticker, priceChartData, ddChartData, compareData],
+  );
+
+  useEffect(() => {
+    if (!dataAvailable) return;
+    console.group(`[MDD chart data density] ${ticker} ${period}`);
+    chartDebugInfo.forEach((info) => {
+      console.log(info.name, {
+        length: info.length,
+        first10Dates: info.firstDates,
+        last10Dates: info.lastDates,
+        consecutiveDateDiffs: info.sampleDateDiffs,
+      });
+    });
+    console.groupEnd();
+  }, [chartDebugInfo, dataAvailable, period, ticker]);
+
   const peakToRecoveryDays = result.recovered && result.recoveryDate ? daysBetween(result.highDate, result.recoveryDate) : null;
 
   const segmentSortType = segmentSort ? episodeColumns.find((c) => c.key === segmentSort.key)?.type ?? "string" : "string";
@@ -369,6 +417,24 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
             {analysisWindow.clampedToMax && period === "10y" ? " (데이터가 10년 미만이라 전체 기간을 표시합니다)" : ""}
           </div>
 
+          <details className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-[12px] text-blue-900 dark:border-[#1e3a5f] dark:bg-[#101b2a] dark:text-blue-100">
+            <summary className="cursor-pointer text-[13px] font-bold">최종 Recharts data 배열 검증</summary>
+            <div className="mt-3 grid gap-3 lg:grid-cols-3">
+              {chartDebugInfo.map((info) => (
+                <div key={info.name} className="rounded-xl border border-blue-100 bg-white/70 p-3 dark:border-[#284763] dark:bg-[#111827]">
+                  <div className="font-bold">{info.name}</div>
+                  <div className="mt-1">chart data length: <span className="font-bold">{info.length.toLocaleString("ko-KR")}</span></div>
+                  <div className="mt-2 font-semibold">첫 10개 date</div>
+                  <pre className="mt-1 whitespace-pre-wrap break-all font-mono text-[11px]">{info.firstDates.join("\n") || "—"}</pre>
+                  <div className="mt-2 font-semibold">마지막 10개 date</div>
+                  <pre className="mt-1 whitespace-pre-wrap break-all font-mono text-[11px]">{info.lastDates.join("\n") || "—"}</pre>
+                  <div className="mt-2 font-semibold">연속 데이터 간 날짜 차이</div>
+                  <pre className="mt-1 whitespace-pre-wrap break-all font-mono text-[11px]">{info.sampleDateDiffs.join("\n") || "—"}</pre>
+                </div>
+              ))}
+            </div>
+          </details>
+
           {/* 상단 KPI */}
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <MetricCard label="현재가" value={fmtUsd(result.currentPrice)} sub={`${ticker} · ${result.source === "yahoo" ? "Yahoo" : result.source === "stooq" ? "Stooq" : result.source}`} tone="blue" />
@@ -414,7 +480,7 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
                     }
                   />
                   <Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Line type="monotone" dataKey="close" name={`${ticker} 종가`} stroke={C_PRICE} strokeWidth={1.8} dot={false} />
+                  <Line type="linear" dataKey="close" name={`${ticker} 종가`} stroke={C_PRICE} strokeWidth={1.8} dot={false} />
                   <Scatter dataKey="peakMarker" name="MDD 고점" shape={<TriangleUp />} legendType="triangle" fill={C_PEAK} isAnimationActive={false} />
                   <Scatter dataKey="troughMarker" name="MDD 저점" shape={<TriangleDown />} legendType="triangle" fill={C_TROUGH} isAnimationActive={false} />
                   <Scatter dataKey="recoveryMarker" name="회복일" shape={<CircleMarker />} legendType="circle" fill={C_RECOVERY} isAnimationActive={false} />
@@ -453,7 +519,7 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
                       label={{ value: `${level}%`, position: "right", fill: colors.axis, fontSize: 10 }}
                     />
                   ))}
-                  <Area type="monotone" dataKey="drawdown" name="Drawdown" stroke={C_PRICE} strokeWidth={1.6} fill={C_PRICE} fillOpacity={0.1} />
+                  <Area type="linear" dataKey="drawdown" name="Drawdown" stroke={C_PRICE} strokeWidth={1.6} fill={C_PRICE} fillOpacity={0.1} />
                   <Scatter
                     dataKey="mddMarker"
                     name={`최대 MDD (${fmtPct(result.maxDrawdown)})`}
@@ -495,8 +561,8 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
                   {[-10, -20, -30, -40].map((level) => (
                     <ReferenceLine key={level} y={level} stroke={C_REF} strokeDasharray="4 4" label={{ value: `${level}%`, position: "right", fill: colors.axis, fontSize: 10 }} />
                   ))}
-                  <Line type="monotone" dataKey="usd" name="달러 기준" stroke={C_PRICE} strokeWidth={1.6} dot={false} />
-                  {krwAvailable ? <Line type="monotone" dataKey="krw" name="원화 기준" stroke={C_KRW} strokeWidth={1.6} dot={false} connectNulls /> : null}
+                  <Line type="linear" dataKey="usd" name="달러 기준" stroke={C_PRICE} strokeWidth={1.6} dot={false} />
+                  {krwAvailable ? <Line type="linear" dataKey="krw" name="원화 기준" stroke={C_KRW} strokeWidth={1.6} dot={false} connectNulls /> : null}
                   <Brush dataKey="date" height={24} stroke={C_PRICE} fill={colors.brushFill} travellerWidth={8} tickFormatter={formatAxisDate} />
                 </LineChart>
               </ResponsiveContainer>
