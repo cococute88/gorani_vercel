@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import TopNav from "@/components/TopNav";
 import { fetchMarketPayload, MARKET_RANGES } from "@/lib/market-data";
 import type { BriefingItem, EtfTemperature, FearGreedData, MarketRange, MarketWarning, SeriesPoint } from "@/lib/market-data";
-import MarketTopBriefing from "./MarketTopBriefing";
+import MarketBriefingSummary from "./MarketBriefingSummary";
+import MarketSnapshotSection from "./MarketSnapshotSection";
 import MarketIndexSection from "./MarketIndexSection";
 import MarketRsiTrendChart from "./MarketRsiTrendChart";
 import MarketMddSection from "./MarketMddSection";
@@ -64,8 +65,9 @@ export default function MarketPage() {
           </div>
         </div>
         {warnings.length > 0 && <div className="mb-4 rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-2 text-[12.5px] text-amber-700 dark:text-amber-200">일부 시장 데이터를 불러오지 못했습니다. 조회 불가로 표시된 항목은 외부 데이터 제공처 응답이 복구되면 다시 표시됩니다.</div>}
-        <MarketTopBriefing fearGreed={fearGreed} briefing={briefing} />
+        <MarketBriefingSummary briefing={briefing} />
         <MarketIndexSection />
+        <MarketSnapshotSection fearGreed={fearGreed} briefing={briefing} />
         <MarketRsiTrendChart rsi={rsi} />
         <MarketMddSection temps={temps} drawdown={drawdown} />
         <VixChart data={vix} />

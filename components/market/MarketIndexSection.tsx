@@ -15,10 +15,6 @@ export default function MarketIndexSection() {
 
   return (
     <section className="mb-6 space-y-3">
-      <div className="flex items-baseline justify-between gap-2">
-        <h2 className="text-[15px] font-bold text-slate-700 dark:text-slate-300">시장 지수</h2>
-        <span className="text-[11.5px] text-slate-400">카드 클릭 시 상세 차트</span>
-      </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {INDEX_DEFS.map((def) => (
           <MarketIndexCard key={def.symbol} def={def} onOpen={(d, range) => setActive({ def: d, range })} />
