@@ -27,20 +27,68 @@ export type AuthState = {
 let persistenceReady: Promise<void> | null = null;
 let redirectResultReady: Promise<void> | null = null;
 
+function authLog(step: string, details: Record<string, unknown> = {}) {
+  if (typeof console === "undefined") return;
+  console.info(`[auth] ${step}`, {
+    ...details,
+    location: typeof window !== "undefined" ? window.location.href : "server",
+    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || null,
+    appHost: typeof window !== "undefined" ? window.location.host : null,
+    userAgent: typeof navigator !== "undefined" ? navigator.userAgent : null,
+  });
+}
+
+function storageDiagnostics() {
+  if (typeof window === "undefined") return {};
+  const cookies = document.cookie ? document.cookie.split(";").map((cookie) => cookie.trim().split("=")[0]) : [];
+  const storage: Record<string, unknown> = { cookieNames: cookies };
+  try {
+    const key = "gorani-auth-storage-probe";
+    window.localStorage.setItem(key, "1");
+    storage.localStorageWritable = window.localStorage.getItem(key) === "1";
+    window.localStorage.removeItem(key);
+  } catch (err) {
+    storage.localStorageWritable = false;
+    storage.localStorageError = err instanceof Error ? err.message : String(err);
+  }
+  try {
+    const key = "gorani-auth-session-probe";
+    window.sessionStorage.setItem(key, "1");
+    storage.sessionStorageWritable = window.sessionStorage.getItem(key) === "1";
+    window.sessionStorage.removeItem(key);
+  } catch (err) {
+    storage.sessionStorageWritable = false;
+    storage.sessionStorageError = err instanceof Error ? err.message : String(err);
+  }
+  return storage;
+}
+
+function userSummary(user: User | null) {
+  return user
+    ? {
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName,
+        providerIds: user.providerData.map((provider) => provider.providerId),
+      }
+    : null;
+}
+
 export function ensureFirebaseLocalPersistence(): Promise<void> {
   if (!firebaseAuth) return Promise.resolve();
   if (!persistenceReady) {
-    persistenceReady = setPersistence(firebaseAuth, browserLocalPersistence).catch((err) => {
-      persistenceReady = null;
-      throw err;
-    });
+    authLog("persistence:start", storageDiagnostics());
+    persistenceReady = setPersistence(firebaseAuth, browserLocalPersistence)
+      .then(() => {
+        authLog("persistence:ready", storageDiagnostics());
+      })
+      .catch((err) => {
+        persistenceReady = null;
+        authLog("persistence:error", { error: err instanceof Error ? err.message : String(err), ...storageDiagnostics() });
+        throw err;
+      });
   }
   return persistenceReady;
-}
-
-function isMobileBrowser(): boolean {
-  if (typeof navigator === "undefined") return false;
-  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
 }
 
 function isPopupBlockedError(err: unknown): boolean {
@@ -53,16 +101,34 @@ function isPopupBlockedError(err: unknown): boolean {
   ].includes(code);
 }
 
+function googleProvider() {
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: "select_account" });
+  return provider;
+}
+
 export function handleGoogleRedirectResult(): Promise<void> {
   if (!firebaseAuth) return Promise.resolve();
   const auth = firebaseAuth;
   if (!redirectResultReady) {
+    authLog("redirect-result:start", storageDiagnostics());
     redirectResultReady = ensureFirebaseLocalPersistence()
       .then(() => getRedirectResult(auth))
       .then(async (credential) => {
-        if (credential?.user) await ensureUserProfile(credential.user);
+        authLog("redirect-result:complete", {
+          hasCredential: Boolean(credential),
+          user: userSummary(credential?.user || null),
+          operationType: credential?.operationType || null,
+          ...storageDiagnostics(),
+        });
+        if (credential?.user) {
+          authLog("session:create:start", { user: userSummary(credential.user) });
+          await ensureUserProfile(credential.user);
+          authLog("session:create:profile-ready", { user: userSummary(credential.user) });
+        }
       })
       .catch((err) => {
+        authLog("redirect-result:error", { error: err instanceof Error ? err.message : String(err), ...storageDiagnostics() });
         console.warn("Google redirect result handling failed", err);
       });
   }
@@ -75,16 +141,21 @@ export function useFirebaseAuth(): AuthState {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    authLog("client-state:init", { configured: isFirebaseConfigured, ...storageDiagnostics() });
     if (!firebaseAuth) {
       setLoading(false);
       return undefined;
     }
+    const auth = firebaseAuth;
 
     let active = true;
     let authStateResolved = false;
     let redirectResolved = false;
     const finishHydration = () => {
-      if (active && authStateResolved && redirectResolved) setLoading(false);
+      if (active && authStateResolved && redirectResolved) {
+        authLog("client-state:hydrated", { user: userSummary(auth.currentUser), ...storageDiagnostics() });
+        setLoading(false);
+      }
     };
 
     ensureFirebaseLocalPersistence()
@@ -98,14 +169,18 @@ export function useFirebaseAuth(): AuthState {
         finishHydration();
       });
 
-    const unsubscribe = onAuthStateChanged(firebaseAuth, async (nextUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (nextUser) => {
+      authLog("client-state:onAuthStateChanged", { user: userSummary(nextUser), ...storageDiagnostics() });
       setUser(nextUser);
       authStateResolved = true;
       finishHydration();
       if (nextUser) {
+        authLog("session:create:start", { user: userSummary(nextUser) });
         await ensureUserProfile(nextUser).catch((err) => {
+          authLog("session:create:profile-error", { error: err instanceof Error ? err.message : String(err), user: userSummary(nextUser) });
           console.warn("Failed to ensure Firebase user profile", err);
         });
+        authLog("session:create:profile-ready", { user: userSummary(nextUser) });
       }
     });
 
@@ -122,25 +197,22 @@ export function useFirebaseAuth(): AuthState {
     }
 
     setError(null);
+    authLog("login:start", storageDiagnostics());
     try {
       await ensureFirebaseLocalPersistence();
-      const provider = new GoogleAuthProvider();
-      provider.setCustomParameters({ prompt: "select_account" });
-      if (isMobileBrowser()) {
-        await signInWithRedirect(firebaseAuth, provider);
-        return;
-      }
-      const credential = await signInWithPopup(firebaseAuth, provider);
+      const credential = await signInWithPopup(firebaseAuth, googleProvider());
+      authLog("login:popup:complete", { user: userSummary(credential.user), ...storageDiagnostics() });
       if (credential.user) await ensureUserProfile(credential.user);
     } catch (err) {
+      authLog("login:popup:error", { code: typeof err === "object" && err && "code" in err ? String((err as { code?: unknown }).code) : null, error: err instanceof Error ? err.message : String(err), ...storageDiagnostics() });
       if (isPopupBlockedError(err)) {
         try {
-          const provider = new GoogleAuthProvider();
-          provider.setCustomParameters({ prompt: "select_account" });
+          authLog("login:redirect:start", storageDiagnostics());
           await ensureFirebaseLocalPersistence();
-          await signInWithRedirect(firebaseAuth, provider);
+          await signInWithRedirect(firebaseAuth, googleProvider());
           return;
         } catch (redirectErr) {
+          authLog("login:redirect:error", { error: redirectErr instanceof Error ? redirectErr.message : String(redirectErr), ...storageDiagnostics() });
           console.warn("Google redirect fallback failed", redirectErr);
         }
       }
@@ -154,6 +226,7 @@ export function useFirebaseAuth(): AuthState {
     setError(null);
     try {
       await signOut(firebaseAuth);
+      authLog("logout:complete", storageDiagnostics());
     } catch (err) {
       console.warn("Sign-out failed", err);
       setError("로그아웃에 실패했습니다. 잠시 후 다시 시도해 주세요.");
