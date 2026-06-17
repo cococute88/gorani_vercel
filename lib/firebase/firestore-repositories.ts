@@ -557,3 +557,90 @@ export async function loadTrackerConfig(uid: string, configId = "default"): Prom
 export function warnFirestoreFallback(scope: string, err: unknown): void {
   console.warn(`${scope} Firestore operation failed; keeping localStorage fallback`, err as DocumentData);
 }
+
+export type UserDisplayProfile = { displayName: string; updatedAt?: unknown };
+
+export function sanitizeFirestorePayload<T>(value: T): T {
+  if (Array.isArray(value)) return value.map((item) => sanitizeFirestorePayload(item)).filter((item) => item !== undefined) as T;
+  if (value && typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+      if (child === undefined) continue;
+      out[key] = sanitizeFirestorePayload(child);
+    }
+    return out as T;
+  }
+  return value;
+}
+
+export async function loadUserDisplayProfile(uid: string): Promise<UserDisplayProfile | null> {
+  const snap = await getDoc(doc(requireDb(), "users", uid, "profile", "display"));
+  if (!snap.exists()) return null;
+  const displayName = typeof snap.data().displayName === "string" ? snap.data().displayName.trim() : "";
+  return displayName ? { displayName, updatedAt: snap.data().updatedAt } : null;
+}
+
+export async function saveUserDisplayProfile(uid: string, displayName: string): Promise<void> {
+  await setDoc(doc(requireDb(), "users", uid, "profile", "display"), sanitizeFirestorePayload({ displayName: displayName.trim(), updatedAt: serverTimestamp() }), { merge: true });
+}
+
+export type CalendarPortfolioRecord = { id: string; name: string; createdAt?: unknown; updatedAt?: unknown };
+
+export async function loadCalendarActivePortfolioId(uid: string): Promise<string> {
+  const settings = await loadCalendarSettings(uid);
+  return typeof settings?.activePortfolioId === "string" && settings.activePortfolioId.trim() ? settings.activePortfolioId : "default";
+}
+
+export async function saveCalendarActivePortfolioId(uid: string, activePortfolioId: string): Promise<void> {
+  await saveCalendarSettings(uid, sanitizeFirestorePayload({ activePortfolioId: activePortfolioId || "default" }));
+}
+
+export async function loadCalendarPortfolios(uid: string): Promise<CalendarPortfolioRecord[]> {
+  const snap = await getDocs(collection(requireDb(), "users", uid, "calendarPortfolios"));
+  return snap.docs.map((item) => item.data() as CalendarPortfolioRecord).filter((item) => Boolean(item.id && item.name));
+}
+
+export async function saveCalendarPortfolio(uid: string, portfolio: CalendarPortfolioRecord): Promise<void> {
+  const id = portfolio.id || "default";
+  await setDoc(doc(requireDb(), "users", uid, "calendarPortfolios", id), sanitizeFirestorePayload({ ...portfolio, id, updatedAt: serverTimestamp(), createdAt: portfolio.createdAt ?? serverTimestamp() }), { merge: true });
+}
+
+export async function loadPortfolioManualCalendarTickers(uid: string, portfolioId: string): Promise<ManualCalendarTickerList | null> {
+  const snap = await getDoc(doc(requireDb(), "users", uid, "calendarPortfolios", portfolioId, "settings", "tickers"));
+  if (!snap.exists()) return null;
+  const data = snap.data();
+  const candidate = { source: MANUAL_CALENDAR_TICKERS_SOURCE, version: MANUAL_CALENDAR_TICKERS_VERSION, tickers: Array.isArray(data.tickers) ? data.tickers : [] };
+  return isValidManualCalendarTickerList(candidate) ? candidate as ManualCalendarTickerList : { source: MANUAL_CALENDAR_TICKERS_SOURCE, version: MANUAL_CALENDAR_TICKERS_VERSION, tickers: [] };
+}
+
+export async function savePortfolioManualCalendarTickers(uid: string, portfolioId: string, tickers: string[]): Promise<void> {
+  await setDoc(doc(requireDb(), "users", uid, "calendarPortfolios", portfolioId, "settings", "tickers"), sanitizeFirestorePayload({ source: MANUAL_CALENDAR_TICKERS_SOURCE, version: MANUAL_CALENDAR_TICKERS_VERSION, tickers: uniqueCalendarTickers(tickers), updatedAt: serverTimestamp() }), { merge: true });
+}
+
+export async function savePortfolioCalendarEventMeta(uid: string, portfolioId: string, eventId: string, meta: CalendarEventMeta): Promise<void> {
+  await setDoc(doc(requireDb(), "users", uid, "calendarPortfolios", portfolioId, "calendarEventMetas", eventId), sanitizeFirestorePayload({ ...meta, eventId, updatedAt: serverTimestamp() }), { merge: true });
+}
+
+export async function loadPortfolioCalendarEventMetas(uid: string, portfolioId: string): Promise<CalendarEventMeta[]> {
+  const snap = await getDocs(collection(requireDb(), "users", uid, "calendarPortfolios", portfolioId, "calendarEventMetas"));
+  return snap.docs.map((item) => item.data() as CalendarEventMeta);
+}
+
+export async function savePortfolioCalendarCustomEvent(uid: string, portfolioId: string, event: CalendarCustomEvent): Promise<void> {
+  const normalized = normalizeCalendarCustomEvent(event);
+  if (!normalized) throw new Error("Invalid custom calendar event");
+  await setDoc(doc(requireDb(), "users", uid, "calendarPortfolios", portfolioId, "calendarCustomEvents", normalized.id), sanitizeFirestorePayload({ ...normalized, syncedAt: serverTimestamp() }), { merge: true });
+}
+
+export async function loadPortfolioCalendarCustomEvents(uid: string, portfolioId: string): Promise<CalendarCustomEvent[]> {
+  const snap = await getDocs(collection(requireDb(), "users", uid, "calendarPortfolios", portfolioId, "calendarCustomEvents"));
+  return snap.docs.map((item) => normalizeCalendarCustomEvent({ id: item.id, ...item.data() })).filter((event): event is CalendarCustomEvent => Boolean(event));
+}
+
+export async function deletePortfolioCalendarCustomEvent(uid: string, portfolioId: string, eventId: string): Promise<void> {
+  await deleteDoc(doc(requireDb(), "users", uid, "calendarPortfolios", portfolioId, "calendarCustomEvents", eventId));
+}
+
+export async function savePortfolioCalendarTickerCacheEntry(uid: string, portfolioId: string, entry: CalendarTickerCache<Record<string, unknown>>): Promise<void> {
+  await setDoc(doc(requireDb(), "users", uid, "calendarPortfolios", portfolioId, "calendarCache", normalizeCalendarTicker(entry.ticker)), sanitizeFirestorePayload(toCalendarTickerCacheEntry(entry)), { merge: true });
+}

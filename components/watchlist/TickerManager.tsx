@@ -6,6 +6,7 @@ interface Props {
   tickers: string[];
   memos: Record<string, string>;
   onTickerClick: (ticker: string) => void;
+  activePortfolioName: string;
 }
 
 // Lower "티커 관리" area. Ticker add/remove now lives in the "기본 포트폴리오 관리"
@@ -13,7 +14,7 @@ interface Props {
 // original Streamlit desktop ticker-button grid that opens `show_memo_dialog`).
 // The ticker list is the legacy dividend-calendar universe (NOT /portfolio
 // holdings) — same source as the manage modal.
-export default function TickerManager({ tickers, memos, onTickerClick }: Props) {
+export default function TickerManager({ tickers, memos, onTickerClick, activePortfolioName }: Props) {
   return (
     <div>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -21,12 +22,12 @@ export default function TickerManager({ tickers, memos, onTickerClick }: Props) 
           👆 <span className="font-bold text-slate-800 dark:text-slate-200">티커 버튼</span>을 클릭하면 종목 메모를 조회하고 수정할 수 있습니다.
         </p>
         <span className="rounded-md bg-slate-500/10 px-2 py-0.5 text-[11.5px] text-slate-500 dark:text-slate-400">
-          배당캘린더 티커 · legacy 메모 연동
+          현재 포트폴리오: {activePortfolioName}
         </span>
       </div>
 
       {tickers.length === 0 ? (
-        <p className="text-[13px] text-slate-500">등록된 티커가 없습니다. 상단 “관리”에서 추가하세요.</p>
+        <p className="text-[13px] text-slate-500">등록된 티커가 없습니다. “종목 관리”에서 추가하세요.</p>
       ) : (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-10">
           {tickers.map((ticker) => {
