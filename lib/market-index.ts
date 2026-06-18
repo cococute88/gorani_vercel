@@ -57,6 +57,8 @@ export const CARD_RANGES: Array<{ label: string; key: string }> = [
   { label: "MAX", key: "max" },
 ];
 
+export const DEFAULT_DETAIL_RANGE = "6m";
+
 // Detail (candlestick) ranges, TradingView-style.
 export const DETAIL_RANGES: Array<{ label: string; key: string }> = [
   { label: "1D", key: "1d" },
