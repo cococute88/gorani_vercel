@@ -15,8 +15,8 @@ import "server-only";
 
 const FETCH_TIMEOUT_MS = 12_000;
 
-// Supported ranges -> Yahoo (range, interval). Intraday ranges keep
-// candle counts low; long ranges step up to weekly to stay performant.
+// Supported ranges -> Yahoo (range, interval). Intraday ranges use
+// sub-day candles; all daily ranges use interval=1d.
 type RangeConfig = { range: string; interval: string; intraday: boolean; revalidate: number };
 
 const RANGE_CONFIG: Record<string, RangeConfig> = {
@@ -187,7 +187,11 @@ function parseCandles(payload: YahooChartPayload, intraday: boolean): IndexCandl
 // Deterministic demo candles when Yahoo is unreachable, so the UI still renders.
 function buildSampleCandles(symbol: string, cfg: RangeConfig): IndexCandle[] {
   const seed = symbol.split("").reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
-  const points = cfg.intraday ? 78 : cfg.range === "1mo" ? 22 : cfg.range === "max" ? 1200 : 180;
+  const SAMPLE_POINTS: Record<string, number> = {
+    "1mo": 22, "3mo": 65, "6mo": 130, "ytd": 130,
+    "1y": 252, "3y": 756, "5y": 1260, "max": 2500,
+  };
+  const points = cfg.intraday ? 78 : (SAMPLE_POINTS[cfg.range] ?? 180);
   const stepMs = cfg.intraday ? 5 * 60_000 : 86_400_000;
   const anchor = 80 + (seed % 200);
   const now = Date.now();
