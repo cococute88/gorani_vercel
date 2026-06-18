@@ -1,7 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { fetchMarketPayload, type BriefingItem, type MarketPayload } from "@/lib/market-data";
+import { DEFAULT_DETAIL_RANGE, INDEX_DETAIL_DEFS, type IndexDef } from "@/lib/market-index";
+
+// 시장현황 페이지와 동일한 세부 캔들 차트 모달을 재사용한다 (lightweight-charts).
+const IndexDetailModal = dynamic(() => import("@/components/market/IndexDetailModal"), { ssr: false });
 
 // PORTFOLIO-OVERVIEW-CLEANUP-1-FOLLOWUP (+ FOLLOWUP-2)
 // /portfolio 상단 compact 시장지표 strip.
@@ -71,6 +76,7 @@ export default function PortfolioMarketIndicatorStrip({ theme = "light" }: Props
   const isLight = theme === "light";
   const [payload, setPayload] = useState<MarketPayload | null>(null);
   const [loading, setLoading] = useState(true);
+  const [active, setActive] = useState<IndexDef | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -115,10 +121,14 @@ export default function PortfolioMarketIndicatorStrip({ theme = "light" }: Props
             const sparkValues = (item.sparkline ?? [])
               .map((p) => p.value)
               .filter((v) => Number.isFinite(v));
+            const def = INDEX_DETAIL_DEFS[item.key];
             return (
-              <div
+              <button
                 key={item.key}
-                className={`flex w-[168px] shrink-0 items-end justify-between gap-2 rounded-xl border px-3 py-2 ${cardCls}`}
+                type="button"
+                onClick={() => def && setActive(def)}
+                disabled={!def}
+                className={`flex w-[168px] shrink-0 items-end justify-between gap-2 rounded-xl border px-3 py-2 text-left transition-colors ${cardCls} ${def ? "cursor-pointer hover:border-blue-400 dark:hover:border-blue-500/60" : "cursor-default"}`}
               >
                 <div className="min-w-0">
                   <span className={`block truncate text-[11px] font-medium ${labelCls}`}>{item.label}</span>
@@ -130,11 +140,14 @@ export default function PortfolioMarketIndicatorStrip({ theme = "light" }: Props
                 {color && sparkValues.length >= 2 ? (
                   <Sparkline data={sparkValues} color={color} />
                 ) : null}
-              </div>
+              </button>
             );
           })}
         </div>
       ) : null}
+      {active && (
+        <IndexDetailModal def={active} initialRange={DEFAULT_DETAIL_RANGE} onClose={() => setActive(null)} />
+      )}
     </div>
   );
 }

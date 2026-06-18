@@ -47,6 +47,21 @@ export const INDEX_DEFS: IndexDef[] = [
   { symbol: "SCHD", name: "SCHD", ticker: "SCHD", description: "Schwab US Dividend Equity" },
 ];
 
+// Shared detail-chart definitions keyed by briefing/indicator key.
+// Reused by the /market snapshot cards and the /portfolio market indicator
+// strip so both open the identical IndexDetailModal candlestick chart.
+export const INDEX_DETAIL_DEFS: Record<string, IndexDef> = {
+  sp500: { symbol: "SPY", name: "S&P 500", ticker: "SPY", description: "S&P 500 ETF" },
+  dow: { symbol: "DIA", name: "Dow Jones", ticker: "DIA", description: "Dow Jones Industrial Average ETF" },
+  nasdaq: { symbol: "QQQ", name: "NASDAQ 100", ticker: "QQQ", description: "Nasdaq-100 ETF" },
+  schd: { symbol: "SCHD", name: "SCHD", ticker: "SCHD", description: "Schwab US Dividend Equity" },
+  usdkrw: { symbol: "KRW=X", name: "USD/KRW", ticker: "USD/KRW", description: "US Dollar / Korean Won" },
+  wti: { symbol: "CL=F", name: "WTI", ticker: "WTI", description: "WTI Crude Oil Futures" },
+  gld: { symbol: "GLD", name: "GLD", ticker: "GLD", description: "Gold ETF" },
+  btcusdt: { symbol: "BTC-USD", name: "BTC/USDT", ticker: "BTC/USDT", description: "Bitcoin USD proxy from Yahoo Finance" },
+  vix: { symbol: "^VIX", name: "VIX", ticker: "VIX", description: "CBOE Volatility Index" },
+};
+
 // Card sparkline ranges (label -> api range key).
 export const CARD_RANGES: Array<{ label: string; key: string }> = [
   { label: "1M", key: "1m" },

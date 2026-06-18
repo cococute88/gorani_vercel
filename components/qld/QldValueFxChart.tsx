@@ -3,6 +3,9 @@
 import {
   ComposedChart,
   Area,
+  Bar,
+  Line,
+  Legend,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -14,6 +17,7 @@ import {
   TooltipProps,
 } from "recharts";
 import type { PerformanceQldResult } from "@/lib/performance-qld-from-snapshots";
+import type { PerformanceDividendBarPoint } from "@/lib/performance-dividend-bars";
 
 const won = (v: number) => `${Math.round(v).toLocaleString("ko-KR")}원`;
 const moneyOrDash = (v: number | null) => (v === null ? "—" : won(v));
@@ -25,40 +29,107 @@ const chartMargin = { top: 24, right: 8, left: 4, bottom: 0 };
 const axisTick = { fontSize: 10.5, fill: "#5b6479" };
 const tooltipCursor = { stroke: "#3a4256", strokeWidth: 1 };
 const valueColor = "#5b7cff";
+const principalColor = "#f59e0b";
+// 배당 막대 색상: 위탁 연간예상배당(초록) / 위탁 환산예상배당(파랑) / 절세 환산예상배당(겨자)
+const annualColor = "#22c55e";
+const taxableConvertedColor = "#3b82f6";
+const taxAdvantagedConvertedColor = "#eab308";
 const areaActiveDot = { r: 3, fill: valueColor, stroke: "#0b0d13", strokeWidth: 1.5 };
 const valueDomain: [string, string] = ["dataMin - 4000000", "dataMax + 4000000"];
+const legendStyle = { fontSize: 11, paddingTop: 6 };
 
-function ChartTooltip({ active, payload, label }: TooltipProps<number, string>) {
-  if (!active || !payload || payload.length === 0) return null;
-  const value = payload.find((p) => p.dataKey === "valueKRW")?.value as number | undefined;
+type MergedPoint = {
+  date: string;
+  label: string;
+  valueKRW: number;
+  principalKRW: number | null;
+  taxableAnnualKRW: number;
+  taxableConvertedKRW: number;
+  taxAdvantagedConvertedKRW: number;
+  combinedConvertedKRW: number;
+};
+
+function DividendTooltipRow({ label, value, color }: { label: string; value: number; color?: string }) {
   return (
-    <div className="rounded-lg border border-[#2a3142] bg-[#161a25] px-3 py-2 text-[12px] shadow-xl">
-      <div className="mb-1 text-[11px] text-slate-400">{label}</div>
-      {value !== undefined && (
-        <div className="num flex items-center justify-between gap-4 text-slate-100">
-          <span className="text-slate-400">평가금액</span>
-          <span className="font-semibold">{won(value)}</span>
-        </div>
-      )}
+    <div className="num flex items-center justify-between gap-4">
+      <span className="flex items-center gap-1.5 text-slate-400">
+        {color ? <span className="inline-block h-2 w-2 rounded-sm" style={{ background: color }} /> : null}
+        {label}
+      </span>
+      <span className="font-semibold text-slate-100">{won(value)}</span>
     </div>
   );
 }
 
-// 스크린샷 1 오른쪽 카드: 평가금액 area/line + 환율 line 복합 차트 + 기간 버튼 + annotation + 요약
+function ChartTooltip({ active, payload, label }: TooltipProps<number, string>) {
+  if (!active || !payload || payload.length === 0) return null;
+  const datum = payload[0]?.payload as MergedPoint | undefined;
+  if (!datum) return null;
+  return (
+    <div className="min-w-[200px] rounded-lg border border-[#2a3142] bg-[#161a25] px-3 py-2 text-[12px] shadow-xl">
+      <div className="mb-1 text-[11px] text-slate-400">{label}</div>
+      <div className="num mb-1.5 flex items-center justify-between gap-4 text-slate-100">
+        <span className="text-slate-400">평가금액</span>
+        <span className="font-semibold">{won(datum.valueKRW)}</span>
+      </div>
+      {datum.principalKRW != null && (
+        <div className="num mb-1.5 flex items-center justify-between gap-4 text-slate-100">
+          <span className="flex items-center gap-1.5 text-slate-400">
+            <span className="inline-block h-2 w-2 rounded-sm" style={{ background: principalColor }} />
+            누적투자원금
+          </span>
+          <span className="font-semibold">{won(datum.principalKRW)}</span>
+        </div>
+      )}
+      <div className="my-1.5 border-t border-[#2a3142]" />
+      <div className="flex flex-col gap-1">
+        <DividendTooltipRow label="절세 환산예상배당" value={datum.taxAdvantagedConvertedKRW} color={taxAdvantagedConvertedColor} />
+        <DividendTooltipRow label="위탁 환산예상배당" value={datum.taxableConvertedKRW} color={taxableConvertedColor} />
+        <DividendTooltipRow label="합산 환산예상배당" value={datum.combinedConvertedKRW} />
+        <DividendTooltipRow label="위탁 연간예상배당" value={datum.taxableAnnualKRW} color={annualColor} />
+      </div>
+    </div>
+  );
+}
+
+// 평가금 추이: 평가액(area) + 누적투자원금(line) + 배당 막대(위탁 연간예상배당 / 위탁·절세 환산예상배당)
+// 세전/세후 토글은 배당 막대에만 영향을 준다 (평가액/원금 라인은 변경하지 않는다).
 export default function QldValueFxChart({
   compact = false,
   data,
+  principalByDate,
+  dividendBars,
+  afterTax = true,
+  onToggleTax,
 }: {
   compact?: boolean;
   data: PerformanceQldResult;
+  principalByDate?: Record<string, number | null>;
+  dividendBars?: PerformanceDividendBarPoint[];
+  afterTax?: boolean;
+  onToggleTax?: (afterTax: boolean) => void;
 }) {
-  const chartData = data.valueSeries;
   const { summary } = data;
+  const barByDate = new Map((dividendBars ?? []).map((bar) => [bar.date, bar]));
+  const chartData: MergedPoint[] = data.valueSeries.map((point) => {
+    const bar = barByDate.get(point.date);
+    return {
+      date: point.date,
+      label: point.label,
+      valueKRW: point.valueKRW,
+      principalKRW: principalByDate?.[point.date] ?? null,
+      taxableAnnualKRW: bar?.taxableAnnualKRW ?? 0,
+      taxableConvertedKRW: bar?.taxableConvertedKRW ?? 0,
+      taxAdvantagedConvertedKRW: bar?.taxAdvantagedConvertedKRW ?? 0,
+      combinedConvertedKRW: bar?.combinedConvertedKRW ?? 0,
+    };
+  });
   const mddStart = chartData.find((point) => point.date === summary.mddStartDate);
   const low = chartData.find((point) => point.date === summary.lowDate);
   const high = chartData.find((point) => point.date === summary.highDate);
 
   const fmtValueAxis = (v: number) => `${(v / 100_000_000).toFixed(2)}억`;
+  const fmtDividendAxis = (v: number) => `${Math.round(v / 10_000).toLocaleString("ko-KR")}만`;
 
   const summaryCards: Array<{ label: string; value: string; sub?: string; tone: "up" | "down" | "neutral" }> = [
     { label: "최고점", value: moneyOrDash(summary.highKRW), sub: dateOrDash(summary.highDate), tone: "neutral" },
@@ -78,19 +149,41 @@ export default function QldValueFxChart({
   return (
     <div className={`flex h-full flex-col rounded-[18px] border border-[#242938] bg-[#12151e] ${compact ? "p-3" : "p-5"}`}>
       <div className={`${compact ? "mb-2" : "mb-3"} flex flex-wrap items-center justify-between gap-2`}>
-        <span className="text-[15px] font-bold text-slate-100">투자 평가금액 및 환율 추이</span>
-        <span className="rounded-md border border-amber-500/25 bg-amber-500/10 px-2 py-1 text-[11px] font-semibold text-amber-300">
-          환율 추이 미제공
-        </span>
+        <span className="text-[15px] font-bold text-slate-100">평가금 추이</span>
+        {onToggleTax ? (
+          <div className="flex items-center gap-1 rounded-lg border border-[#2a3142] bg-[#161a25] p-1">
+            <button
+              type="button"
+              onClick={() => onToggleTax(true)}
+              aria-pressed={afterTax}
+              className={`rounded-md px-2.5 py-1 text-[12px] font-medium transition-colors ${
+                afterTax ? "bg-blue-600 text-white" : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              세후
+            </button>
+            <button
+              type="button"
+              onClick={() => onToggleTax(false)}
+              aria-pressed={!afterTax}
+              className={`rounded-md px-2.5 py-1 text-[12px] font-medium transition-colors ${
+                !afterTax ? "bg-blue-600 text-white" : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              세전
+            </button>
+          </div>
+        ) : null}
       </div>
       <p className="mb-2 text-[11.5px] text-slate-500">
-        스냅샷 평가금액만 표시합니다. 스냅샷에 환율 히스토리 필드가 없어 환율 추이는 표시하지 않습니다.
+        평가액·누적투자원금 추이와 배당 막대(위탁 연간예상배당, 위탁·절세 환산예상배당)를 함께 표시합니다.
+        세전/세후 토글은 배당 막대에만 적용됩니다.
       </p>
 
       <div className={`${compact ? "h-[210px]" : "h-[300px]"} w-full`}>
         {chartData.length === 0 ? (
           <div className="flex h-full items-center justify-center rounded-xl border border-[#1f2433] bg-[#0e111a] px-4 text-center text-[13px] text-slate-500">
-            저장된 스냅샷 평가금액이 없어 하단 평가금액 추이를 표시할 수 없습니다.
+            저장된 스냅샷 평가금액이 없어 평가금 추이를 표시할 수 없습니다.
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
@@ -119,17 +212,65 @@ export default function QldValueFxChart({
                 tickFormatter={fmtValueAxis}
                 width={52}
               />
+              <YAxis
+                yAxisId="dividend"
+                orientation="right"
+                tick={axisTick}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={fmtDividendAxis}
+                width={46}
+              />
               <Tooltip content={<ChartTooltip />} cursor={tooltipCursor} />
+              <Legend wrapperStyle={legendStyle} />
+
+              <Bar
+                yAxisId="dividend"
+                dataKey="taxableAnnualKRW"
+                name="위탁 연간예상배당"
+                fill={annualColor}
+                stackId="annual"
+                radius={[2, 2, 0, 0]}
+                maxBarSize={14}
+              />
+              <Bar
+                yAxisId="dividend"
+                dataKey="taxableConvertedKRW"
+                name="위탁 환산예상배당"
+                fill={taxableConvertedColor}
+                stackId="converted"
+                maxBarSize={14}
+              />
+              <Bar
+                yAxisId="dividend"
+                dataKey="taxAdvantagedConvertedKRW"
+                name="절세 환산예상배당"
+                fill={taxAdvantagedConvertedColor}
+                stackId="converted"
+                radius={[2, 2, 0, 0]}
+                maxBarSize={14}
+              />
 
               <Area
                 yAxisId="value"
                 type="monotone"
                 dataKey="valueKRW"
+                name="평가액"
                 stroke={valueColor}
                 strokeWidth={2}
                 fill="url(#qldValueFill)"
                 dot={false}
                 activeDot={areaActiveDot}
+              />
+              <Line
+                yAxisId="value"
+                type="monotone"
+                dataKey="principalKRW"
+                name="누적투자원금"
+                stroke={principalColor}
+                strokeWidth={2}
+                dot={false}
+                connectNulls
               />
 
               {mddStart && (
