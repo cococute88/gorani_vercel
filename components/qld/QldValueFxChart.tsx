@@ -162,7 +162,7 @@ export default function QldValueFxChart({
         세전/세후 토글은 배당 막대에만 적용됩니다.
       </p>
 
-      <div className={`${compact ? "h-[210px]" : "h-[440px]"} w-full flex-1`}>
+      <div className={`${compact ? "min-h-[210px]" : "min-h-[440px]"} w-full flex-1`}>
         {chartData.length === 0 ? (
           <div className="flex h-full items-center justify-center rounded-xl border border-[#1f2433] bg-[#0e111a] px-4 text-center text-[13px] text-slate-500">
             저장된 스냅샷 평가금액이 없어 평가금 추이를 표시할 수 없습니다.
