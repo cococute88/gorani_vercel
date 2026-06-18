@@ -20,9 +20,6 @@ import type { PerformanceQldResult } from "@/lib/performance-qld-from-snapshots"
 import type { PerformanceDividendBarPoint } from "@/lib/performance-dividend-bars";
 
 const won = (v: number) => `${Math.round(v).toLocaleString("ko-KR")}원`;
-const moneyOrDash = (v: number | null) => (v === null ? "—" : won(v));
-const pctOrDash = (v: number | null) => (v === null ? "—" : `${v > 0 ? "+" : ""}${v.toFixed(2)}%`);
-const dateOrDash = (v: string | null) => v ?? "—";
 
 // 차트 prop으로 쓰는 객체는 상수로 분리 (JSX 인라인 객체 리터랄 회피)
 const chartMargin = { top: 24, right: 8, left: 4, bottom: 0 };
@@ -131,21 +128,6 @@ export default function QldValueFxChart({
   const fmtValueAxis = (v: number) => `${(v / 100_000_000).toFixed(2)}억`;
   const fmtDividendAxis = (v: number) => `${Math.round(v / 10_000).toLocaleString("ko-KR")}만`;
 
-  const summaryCards: Array<{ label: string; value: string; sub?: string; tone: "up" | "down" | "neutral" }> = [
-    { label: "최고점", value: moneyOrDash(summary.highKRW), sub: dateOrDash(summary.highDate), tone: "neutral" },
-    { label: "최저점", value: moneyOrDash(summary.lowKRW), sub: dateOrDash(summary.lowDate), tone: "neutral" },
-    {
-      label: "MDD",
-      value: pctOrDash(summary.mddPct),
-      sub: summary.mddStartDate && summary.mddEndDate
-        ? `${summary.mddStartDate} → ${summary.mddEndDate} · ${moneyOrDash(summary.mddAmountKRW)}`
-        : "스냅샷 하락 구간 없음",
-      tone: "down",
-    },
-    { label: "현재/최고", value: pctOrDash(summary.currentOverHighPct), sub: "최고 대비", tone: "down" },
-    { label: "현재/최저", value: pctOrDash(summary.currentOverLowPct), sub: "최저 대비", tone: "up" },
-  ];
-
   return (
     <div className={`flex h-full flex-col rounded-[18px] border border-[#242938] bg-[#12151e] ${compact ? "p-3" : "p-5"}`}>
       <div className={`${compact ? "mb-2" : "mb-3"} flex flex-wrap items-center justify-between gap-2`}>
@@ -180,14 +162,14 @@ export default function QldValueFxChart({
         세전/세후 토글은 배당 막대에만 적용됩니다.
       </p>
 
-      <div className={`${compact ? "h-[210px]" : "h-[300px]"} w-full`}>
+      <div className={`${compact ? "h-[210px]" : "h-[440px]"} w-full flex-1`}>
         {chartData.length === 0 ? (
           <div className="flex h-full items-center justify-center rounded-xl border border-[#1f2433] bg-[#0e111a] px-4 text-center text-[13px] text-slate-500">
             저장된 스냅샷 평가금액이 없어 평가금 추이를 표시할 수 없습니다.
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={chartData} margin={chartMargin}>
+            <ComposedChart data={chartData} margin={chartMargin} barGap={0} barCategoryGap="28%">
               <defs>
                 <linearGradient id="qldValueFill" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor={valueColor} stopOpacity={0.35} />
@@ -296,20 +278,6 @@ export default function QldValueFxChart({
             </ComposedChart>
           </ResponsiveContainer>
         )}
-      </div>
-
-      <div className={`${compact ? "mt-2" : "mt-4"} grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5`}>
-        {summaryCards.map((c) => {
-          const toneCls =
-            c.tone === "up" ? "text-emerald-400" : c.tone === "down" ? "text-rose-400" : "text-slate-100";
-          return (
-            <div key={c.label} className={`min-w-0 rounded-xl border border-[#1f2433] bg-[#0e111a] ${compact ? "px-2 py-1.5" : "px-2 py-2 sm:px-3 sm:py-2.5"}`}>
-              <div className="break-keep text-[11px] text-slate-500">{c.label}</div>
-              <div className={`num mt-0.5 break-keep font-bold leading-tight ${compact ? "text-[11px] sm:text-[12px]" : "text-[12px] sm:text-[14px]"} ${toneCls}`}>{c.value}</div>
-              {c.sub && <div className="num mt-0.5 truncate text-[10px] text-slate-600">{c.sub}</div>}
-            </div>
-          );
-        })}
       </div>
     </div>
   );
