@@ -4,9 +4,19 @@ import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { quoteDividendsPath, quoteHistoryPath, quoteLastPath } from "@/lib/quote-client";
-import { fetchIndexQuote, type IndexQuote } from "@/lib/market-index";
+import { DEFAULT_DETAIL_RANGE, INDEX_DEFS, fetchIndexQuote, type IndexDef, type IndexQuote } from "@/lib/market-index";
 import type { QuoteDividendsResponse, QuoteHistoryResponse, QuoteLastResponse } from "@/lib/quote-types";
 const IndexSparkline = dynamic(() => import("@/components/market/IndexSparkline"), { ssr: false });
+// Reuse the exact market detail chart (lightweight-charts); load client-only when opened.
+const IndexDetailModal = dynamic(() => import("@/components/market/IndexDetailModal"), { ssr: false });
+
+// Same SCHD definition the 시장현황 page feeds into the detail chart.
+const SCHD_INDEX_DEF: IndexDef = INDEX_DEFS.find((def) => def.symbol === "SCHD") ?? {
+  symbol: "SCHD",
+  name: "SCHD",
+  ticker: "SCHD",
+  description: "Schwab US Dividend Equity",
+};
 
 import {
   SCHD_RANGE_OPTIONS,
@@ -50,7 +60,7 @@ function getSchdDailyHistoryWindow() {
   return { start: toIsoDate(start), end: toIsoDate(end) };
 }
 
-function SchdMiniCandleChart() {
+function SchdMiniCandleChart({ onOpen }: { onOpen: () => void }) {
   const [quote, setQuote] = useState<IndexQuote | null>(null);
   const [error, setError] = useState(false);
 
@@ -64,20 +74,34 @@ function SchdMiniCandleChart() {
   }, []);
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-[#2a3336] dark:bg-[#191f20]">
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onOpen();
+        }
+      }}
+      className="group flex cursor-pointer flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 dark:border-[#2a3336] dark:bg-[#191f20] dark:hover:border-blue-500/60"
+    >
       <div className="mb-2 flex items-baseline justify-between gap-2">
         <h2 className="text-[15px] font-black text-slate-900 dark:text-white">SCHD 미니 캔들차트</h2>
         <span className="text-[11px] font-bold text-slate-400">1M</span>
       </div>
-      <div className="h-[150px] w-full sm:h-[170px]">
+      <div className="h-[210px] w-full sm:h-[230px]">
         {quote?.candles.length ? (
-          <IndexSparkline candles={quote.candles} height={160} />
+          <IndexSparkline candles={quote.candles} height={220} />
         ) : (
           <div className="flex h-full items-center justify-center rounded-xl bg-slate-50 text-xs font-bold text-slate-500 dark:bg-white/5">
             {error ? "SCHD 차트 조회 불가" : "SCHD 차트 로딩 중…"}
           </div>
         )}
       </div>
+      <p className="mt-2 text-center text-[11px] font-bold text-slate-400 group-hover:text-blue-500">
+        탭하여 상세 캔들차트 보기
+      </p>
     </div>
   );
 }
@@ -105,6 +129,7 @@ export default function SchdAttractivenessSection() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [metrics, setMetrics] = useState<SchdAttractivenessMetrics | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -201,11 +226,14 @@ export default function SchdAttractivenessSection() {
             </table>
           </div>
           <a href={SCHD_SEEKING_ALPHA_URL} target="_blank" rel="noreferrer" className="mt-4 block text-[12px] font-bold text-slate-500 underline-offset-4 hover:text-blue-600 hover:underline dark:text-slate-400">링크: Seeking Alpha SCHD Dividend Yield 페이지 바로가기</a>
-            <p className="mt-3 text-[11px] text-slate-400">원본 Streamlit 기준: 최신 4회 배당 합계 / 현재가로 TTM 배당률을 계산합니다.</p>
           </div>
-          <SchdMiniCandleChart />
+          <SchdMiniCandleChart onOpen={() => setDetailOpen(true)} />
         </aside>
       </div>
+
+      {detailOpen && (
+        <IndexDetailModal def={SCHD_INDEX_DEF} initialRange={DEFAULT_DETAIL_RANGE} onClose={() => setDetailOpen(false)} />
+      )}
     </section>
   );
 }
