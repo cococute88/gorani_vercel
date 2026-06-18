@@ -43,8 +43,8 @@ export type IndexDef = {
 // Data sources: Yahoo Finance chart symbols. BTC/USDT uses Yahoo's BTC-USD proxy.
 export const INDEX_DEFS: IndexDef[] = [
   { symbol: "SPY", name: "S&P 500", ticker: "SPY", description: "S&P 500 ETF" },
-  { symbol: "DIA", name: "Dow Jones", ticker: "DIA", description: "Dow Jones Industrial Average ETF" },
   { symbol: "QQQ", name: "NASDAQ 100", ticker: "QQQ", description: "Nasdaq-100 ETF" },
+  { symbol: "SCHD", name: "SCHD", ticker: "SCHD", description: "Schwab US Dividend Equity" },
 ];
 
 // Card sparkline ranges (label -> api range key).

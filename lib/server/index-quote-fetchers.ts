@@ -29,7 +29,7 @@ const RANGE_CONFIG: Record<string, RangeConfig> = {
   "1y": { range: "1y", interval: "1d", intraday: false, revalidate: 1_800 },
   "3y": { range: "3y", interval: "1d", intraday: false, revalidate: 3_600 },
   "5y": { range: "5y", interval: "1d", intraday: false, revalidate: 21_600 },
-  max: { range: "max", interval: "1wk", intraday: false, revalidate: 21_600 },
+  max: { range: "max", interval: "1d", intraday: false, revalidate: 21_600 },
 };
 
 const DEFAULT_RANGE = "1y";
@@ -187,7 +187,7 @@ function parseCandles(payload: YahooChartPayload, intraday: boolean): IndexCandl
 // Deterministic demo candles when Yahoo is unreachable, so the UI still renders.
 function buildSampleCandles(symbol: string, cfg: RangeConfig): IndexCandle[] {
   const seed = symbol.split("").reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
-  const points = cfg.intraday ? 78 : cfg.range === "1mo" ? 22 : cfg.range === "max" ? 260 : 180;
+  const points = cfg.intraday ? 78 : cfg.range === "1mo" ? 22 : cfg.range === "max" ? 1200 : 180;
   const stepMs = cfg.intraday ? 5 * 60_000 : 86_400_000;
   const anchor = 80 + (seed % 200);
   const now = Date.now();

@@ -42,6 +42,70 @@ type Palette = {
   background: string;
 };
 
+
+function dateToBusinessDayString(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+function addMonths(date: Date, months: number): Date {
+  const next = new Date(date);
+  next.setMonth(next.getMonth() + months);
+  return next;
+}
+
+function applyVisibleRange(chart: IChartApi, quote: IndexQuote, range: string) {
+  const candles = quote.candles;
+  if (candles.length === 0) {
+    chart.timeScale().fitContent();
+    return;
+  }
+
+  const last = candles[candles.length - 1]?.time;
+  if (typeof last === "number" || range === "max") {
+    chart.timeScale().fitContent();
+    return;
+  }
+
+  const lastDate = new Date(`${last}T00:00:00Z`);
+  if (Number.isNaN(lastDate.getTime())) {
+    chart.timeScale().fitContent();
+    return;
+  }
+
+  const fromDate = (() => {
+    switch (range) {
+      case "1d":
+        return addMonths(lastDate, -0.05);
+      case "5d": {
+        const d = new Date(lastDate);
+        d.setUTCDate(d.getUTCDate() - 7);
+        return d;
+      }
+      case "1m":
+        return addMonths(lastDate, -1);
+      case "3m":
+        return addMonths(lastDate, -3);
+      case "6m":
+        return addMonths(lastDate, -6);
+      case "ytd":
+        return new Date(Date.UTC(lastDate.getUTCFullYear(), 0, 1));
+      case "1y":
+        return addMonths(lastDate, -12);
+      case "3y":
+        return addMonths(lastDate, -36);
+      case "5y":
+        return addMonths(lastDate, -60);
+      default:
+        return addMonths(lastDate, -1);
+    }
+  })();
+
+  chart.timeScale().setVisibleRange({
+    from: dateToBusinessDayString(fromDate) as never,
+    to: last as never,
+  });
+}
+
 function palette(dark: boolean): Palette {
   return dark
     ? { text: "#94a3b8", grid: "rgba(148,163,184,0.12)", border: "#2a3336", background: "transparent" }
@@ -52,7 +116,7 @@ function palette(dark: boolean): Palette {
 // with selectable ranges. Rendered client-only (lightweight-charts).
 export default function IndexDetailModal({ def, initialRange, onClose }: Props) {
   const dark = useResolvedTheme() === "dark";
-  const [range, setRange] = useState(initialRange);
+  const [range, setRange] = useState(initialRange || "1m");
   const [quote, setQuote] = useState<IndexQuote | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -73,12 +137,14 @@ export default function IndexDetailModal({ def, initialRange, onClose }: Props) 
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  // Fetch data when the range changes.
+  // Fetch the complete available daily history once per symbol. The period buttons
+  // only change the visible viewport, so zooming/panning can reveal older candles.
   useEffect(() => {
     let active = true;
+    setRange(initialRange || "1m");
     setLoading(true);
     setError(false);
-    fetchIndexQuote(def.symbol, range)
+    fetchIndexQuote(def.symbol, "max")
       .then((data) => {
         if (!active) return;
         setQuote(data);
@@ -92,7 +158,7 @@ export default function IndexDetailModal({ def, initialRange, onClose }: Props) 
     return () => {
       active = false;
     };
-  }, [def.symbol, range]);
+  }, [def.symbol, initialRange]);
 
   // Build the chart (re-created when the theme changes).
   useEffect(() => {
@@ -190,8 +256,8 @@ export default function IndexDetailModal({ def, initialRange, onClose }: Props) 
         movingAverage(quote.candles, period).map((p) => ({ time: p.time as UTCTimestamp, value: p.value })),
       );
     });
-    chart.timeScale().fitContent();
-  }, [quote]);
+    applyVisibleRange(chart, quote, range);
+  }, [quote, range]);
 
   // Toggle MA visibility without rebuilding the chart.
   useEffect(() => {
