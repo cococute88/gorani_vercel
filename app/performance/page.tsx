@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import TopNav from "@/components/TopNav";
-import MetricCard from "@/components/MetricCard";
 import QldAssetSummaryCard from "@/components/qld/QldAssetSummaryCard";
 import QldValueFxChart from "@/components/qld/QldValueFxChart";
 import QldHoldingsRankTable from "@/components/qld/QldHoldingsRankTable";
@@ -19,23 +18,6 @@ import {
 import { isKrwTicker, type DividendEstimateMarketData } from "@/lib/dividend-estimates";
 import { quoteDividendsPath, quoteFxPath, quoteLastPath } from "@/lib/quote-client";
 import type { QuoteDividendsResponse, QuoteFxResponse, QuoteLastResponse } from "@/lib/quote-types";
-import { formatKoreanMoney, formatPercent } from "@/lib/format";
-
-type MetricTone = "gray" | "green" | "orange" | "blue";
-
-function moneyOrDash(value: number | null): string {
-  return value === null ? "—" : formatKoreanMoney(value);
-}
-
-function signedMoneyOrDash(value: number | null): string {
-  if (value === null) return "—";
-  const sign = value > 0 ? "+" : "";
-  return `${sign}${formatKoreanMoney(value)}`;
-}
-
-function percentOrDash(value: number | null): string {
-  return value === null ? "—" : formatPercent(value, 2);
-}
 
 type DividendMarketData = {
   quotes: Record<string, QuoteLastResponse | undefined>;
@@ -138,64 +120,6 @@ export default function PerformancePage() {
   }, [snapshots, dividendTickers, dividendMarketData, afterTax]);
   const hasSnapshots = metrics.snapshotCount > 0;
 
-  const metricCards: Array<{
-    label: string;
-    value: string;
-    sub?: string;
-    tone: MetricTone;
-    valueColor?: string;
-  }> = [
-    {
-      label: "투자 평가금액",
-      value: moneyOrDash(metrics.currentValueKRW),
-      sub: metrics.latestSnapshotDate ? `${metrics.latestSnapshotDate} 스냅샷` : "스냅샷 데이터 없음",
-      tone: "gray",
-    },
-    {
-      label: "누적투자원금",
-      value: moneyOrDash(metrics.investedPrincipalKRW),
-      sub: hasSnapshots ? "투자원금 합계" : "스냅샷 데이터 없음",
-      tone: "green",
-      valueColor: "#4ade80",
-    },
-    {
-      label: "누적 손익",
-      value: signedMoneyOrDash(metrics.cumulativeGainKRW),
-      sub: metrics.cumulativeGainKRW === null ? "평가액/원금 필요" : "평가액 - 투자원금",
-      tone: "orange",
-      valueColor: "#fb923c",
-    },
-    {
-      label: "누적 수익률",
-      value: percentOrDash(metrics.cumulativeReturnPct),
-      sub: metrics.cumulativeReturnPct === null ? "투자원금 필요" : "누적 손익 / 투자원금",
-      tone: "green",
-      valueColor: "#4ade80",
-    },
-    {
-      label: "최고점",
-      value: moneyOrDash(qldPerformance.summary.highKRW),
-      sub: qldPerformance.summary.highDate ? `${qldPerformance.summary.highDate} 기준` : "스냅샷 데이터 없음",
-      tone: "gray",
-    },
-    {
-      label: "최저점",
-      value: moneyOrDash(qldPerformance.summary.lowKRW),
-      sub: qldPerformance.summary.lowDate ? `${qldPerformance.summary.lowDate} 기준` : "스냅샷 데이터 없음",
-      tone: "gray",
-    },
-    {
-      label: "MDD",
-      value: percentOrDash(qldPerformance.summary.mddPct),
-      sub:
-        qldPerformance.summary.mddStartDate && qldPerformance.summary.mddEndDate
-          ? `${qldPerformance.summary.mddStartDate} → ${qldPerformance.summary.mddEndDate}`
-          : "하락 구간 없음",
-      tone: "orange",
-      valueColor: "#fb923c",
-    },
-  ];
-
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#f8fafc] text-slate-800 dark:bg-[#181c1d] dark:text-slate-200">
       <TopNav theme={theme} />
@@ -220,38 +144,8 @@ export default function PerformancePage() {
           {!hasSnapshots && " 저장된 스냅샷이 없어 계산 가능한 성과 데이터가 없습니다."}
         </p>
 
-        {/* KPI 7개 */}
-        <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-7">
-          {metricCards.map((k) => (
-            <MetricCard
-              key={k.label}
-              label={k.label}
-              value={k.value}
-              sub={k.sub}
-              tone={k.tone}
-              valueColor={
-                k.tone === "green"
-                  ? "#4ade80"
-                  : k.tone === "orange"
-                    ? "#fb923c"
-                    : undefined
-              }
-            />
-          ))}
-        </div>
-
         {/* 좌: 투자 평가금액 도넛 / 우: 평가금 추이 (2열) */}
         <section>
-          <div className="mb-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-[18px] font-extrabold text-slate-900 dark:text-white">투자 평가금액 분석</h2>
-              {!qldPerformance.flags.hasValidEvaluation && (
-                <span className="rounded-md border border-amber-500/25 bg-amber-500/10 px-2 py-1 text-[11px] font-semibold text-amber-700 dark:text-amber-300">
-                  평가금액 없음
-                </span>
-              )}
-            </div>
-          </div>
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,4fr)_minmax(0,8fr)]">
             <QldAssetSummaryCard data={qldPerformance} />
             <QldValueFxChart

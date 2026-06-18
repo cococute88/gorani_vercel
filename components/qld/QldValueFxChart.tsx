@@ -18,6 +18,7 @@ import {
 } from "recharts";
 import type { PerformanceQldResult } from "@/lib/performance-qld-from-snapshots";
 import type { PerformanceDividendBarPoint } from "@/lib/performance-dividend-bars";
+import { formatKoreanMoney, formatPercent } from "@/lib/format";
 
 const won = (v: number) => `${Math.round(v).toLocaleString("ko-KR")}원`;
 
@@ -157,10 +158,6 @@ export default function QldValueFxChart({
           </div>
         ) : null}
       </div>
-      <p className="mb-2 text-[11.5px] text-slate-500">
-        평가액·누적투자원금 추이와 배당 막대(위탁 연간예상배당, 위탁·절세 환산예상배당)를 함께 표시합니다.
-        세전/세후 토글은 배당 막대에만 적용됩니다.
-      </p>
 
       <div className={`${compact ? "min-h-[210px]" : "min-h-[440px]"} w-full flex-1`}>
         {chartData.length === 0 ? (
@@ -169,7 +166,7 @@ export default function QldValueFxChart({
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={chartData} margin={chartMargin} barGap={0} barCategoryGap="28%">
+            <ComposedChart data={chartData} margin={chartMargin} barGap={2} barCategoryGap="28%">
               <defs>
                 <linearGradient id="qldValueFill" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor={valueColor} stopOpacity={0.35} />
@@ -213,7 +210,7 @@ export default function QldValueFxChart({
                 fill={annualColor}
                 stackId="annual"
                 radius={[2, 2, 0, 0]}
-                maxBarSize={14}
+                barSize={14}
               />
               <Bar
                 yAxisId="dividend"
@@ -221,7 +218,7 @@ export default function QldValueFxChart({
                 name="위탁 환산예상배당"
                 fill={taxableConvertedColor}
                 stackId="converted"
-                maxBarSize={14}
+                barSize={14}
               />
               <Bar
                 yAxisId="dividend"
@@ -230,7 +227,7 @@ export default function QldValueFxChart({
                 fill={taxAdvantagedConvertedColor}
                 stackId="converted"
                 radius={[2, 2, 0, 0]}
-                maxBarSize={14}
+                barSize={14}
               />
 
               <Area
@@ -278,6 +275,28 @@ export default function QldValueFxChart({
             </ComposedChart>
           </ResponsiveContainer>
         )}
+      </div>
+
+      {/* 평가금 추이 하단 요약: 최고점/최저점/MDD (카드 없이 작은 텍스트 한 줄) */}
+      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11.5px] text-slate-500">
+        <span>
+          최고점{" "}
+          <span className="font-semibold text-slate-300">
+            {summary.highKRW == null ? "—" : formatKoreanMoney(summary.highKRW)}
+          </span>
+        </span>
+        <span>
+          최저점{" "}
+          <span className="font-semibold text-slate-300">
+            {summary.lowKRW == null ? "—" : formatKoreanMoney(summary.lowKRW)}
+          </span>
+        </span>
+        <span>
+          MDD{" "}
+          <span className="font-semibold text-slate-300">
+            {summary.mddPct == null ? "없음" : formatPercent(summary.mddPct, 2)}
+          </span>
+        </span>
       </div>
     </div>
   );
