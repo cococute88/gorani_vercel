@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { fearGreedColor, fearGreedRating } from "@/lib/market-data";
 import type { BriefingItem, FearGreedData } from "@/lib/market-data";
-import { DEFAULT_DETAIL_RANGE, type IndexDef } from "@/lib/market-index";
+import { DEFAULT_DETAIL_RANGE, INDEX_DETAIL_DEFS, type IndexDef } from "@/lib/market-index";
 import { AXIS_LINE, AXIS_TICK_SM, formatFearGreedAxisTick, formatFearGreedTooltipLabel, TOOLTIP_LABEL_STYLE, TOOLTIP_STYLE } from "@/lib/chart-style";
 
 const IndexDetailModal = dynamic(() => import("./IndexDetailModal"), { ssr: false });
@@ -20,16 +20,7 @@ const FNG_BANDS = ["극단적 공포", "공포", "중립", "탐욕", "극단적 
 const FNG_GRADIENT =
   "linear-gradient(90deg, #ef4444 0%, #f97316 25%, #eab308 50%, #84cc16 70%, #22c55e 100%)";
 
-const DETAIL_DEFS: Record<string, IndexDef> = {
-  sp500: { symbol: "SPY", name: "S&P 500", ticker: "SPY", description: "S&P 500 ETF" },
-  dow: { symbol: "DIA", name: "Dow Jones", ticker: "DIA", description: "Dow Jones Industrial Average ETF" },
-  nasdaq: { symbol: "QQQ", name: "NASDAQ 100", ticker: "QQQ", description: "Nasdaq-100 ETF" },
-  schd: { symbol: "SCHD", name: "SCHD", ticker: "SCHD", description: "Schwab US Dividend Equity" },
-  usdkrw: { symbol: "KRW=X", name: "USD/KRW", ticker: "USD/KRW", description: "US Dollar / Korean Won" },
-  wti: { symbol: "CL=F", name: "WTI", ticker: "WTI", description: "WTI Crude Oil Futures" },
-  gld: { symbol: "GLD", name: "GLD", ticker: "GLD", description: "Gold ETF" },
-  btcusdt: { symbol: "BTC-USD", name: "BTC/USDT", ticker: "BTC/USDT", description: "Bitcoin USD proxy from Yahoo Finance" },
-};
+const DETAIL_DEFS = INDEX_DETAIL_DEFS;
 
 export default function MarketSnapshotSection({ fearGreed, briefing }: Props) {
   const cards = briefing.filter((item) => item.key !== "fng" && item.key !== "vix");

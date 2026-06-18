@@ -42,8 +42,6 @@ type DividendMarketDataState = {
   warnings: string[];
 };
 
-const WITHDRAWAL_MODE_STORAGE_KEY = "gorani.dividends.withdrawal-mode.v1";
-
 const EMPTY_MARKET_DATA: DividendMarketDataState = {
   loading: false,
   tickerKey: "",
@@ -104,30 +102,12 @@ export default function DividendPage() {
   const snapshots = usePortfolioSnapshots();
   const [afterTax, setAfterTax] = useState(true);
   const [includeTaxAdvantagedInSummary, setIncludeTaxAdvantagedInSummary] = useState(false);
-  const [withdrawalMode, setWithdrawalMode] = useState(false);
   const [chartIncludesTaxable, setChartIncludesTaxable] = useState(true);
   const [chartIncludesTaxAdvantaged, setChartIncludesTaxAdvantaged] = useState(false);
   const [targetTicker, setTargetTicker] = useState("SCHD");
   const [targetQty, setTargetQty] = useState(3300);
   const [marketData, setMarketData] = useState<DividendMarketDataState>(EMPTY_MARKET_DATA);
   const [performanceHistories, setPerformanceHistories] = useState<{ prices: Record<string, BackcastPricePoint[]>; kospi: BackcastPricePoint[] | null; sp500: BackcastPricePoint[] | null; fx: BackcastPricePoint[] | null }>({ prices: {}, kospi: null, sp500: null, fx: null });
-
-  useEffect(() => {
-    try {
-      setWithdrawalMode(window.localStorage.getItem(WITHDRAWAL_MODE_STORAGE_KEY) === "1");
-    } catch {
-      // localStorage may be unavailable in privacy modes; keep the default OFF state.
-    }
-  }, []);
-
-  function updateWithdrawalMode(enabled: boolean) {
-    setWithdrawalMode(enabled);
-    try {
-      window.localStorage.setItem(WITHDRAWAL_MODE_STORAGE_KEY, enabled ? "1" : "0");
-    } catch {
-      // Non-persistent mode is acceptable for this page-level display preference.
-    }
-  }
 
   const latestSnapshot = useMemo(() => latestOf(snapshots), [snapshots]);
   const holdings: Holding[] = useMemo(() => latestSnapshot?.holdings ?? [], [latestSnapshot]);
@@ -343,7 +323,7 @@ export default function DividendPage() {
   const ttmAnnualDividendKRW = summaryRows.reduce((s, r) => s + r.annualDividendKRW, 0);
   // 환산 예상 배당: 현재 선택된 범위(위탁만/절세합)의 평가금액을 연 3.5%로 인출한다고 가정.
   const convertedAnnualDividendKRW = computeConvertedAnnualDividendKRW(evaluationKRW, { afterTax });
-  const annualDividendKRW = withdrawalMode ? convertedAnnualDividendKRW : ttmAnnualDividendKRW;
+  const annualDividendKRW = ttmAnnualDividendKRW;
   const monthlyAvgKRW = annualDividendKRW / 12;
 
   const targetRows = [...estimatedTaxableHoldings, ...estimatedTaxAdvantagedHoldings]
@@ -436,22 +416,18 @@ export default function DividendPage() {
           achievementPct={goalProgress.achievementPct}
           goalProgressLabel={goalProgressLabel}
           goalProgressCalculable={goalProgress.calculable}
-          withdrawalMode={withdrawalMode}
           afterTax={afterTax}
           includeTaxAdvantaged={includeTaxAdvantagedInSummary}
           dividendDataAvailable={dividendDataAvailable}
           onToggleTax={setAfterTax}
           onToggleGroup={setIncludeTaxAdvantagedInSummary}
-          onToggleWithdrawalMode={updateWithdrawalMode}
         />
         <div className="mb-6 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-[12.5px] text-slate-600 dark:border-[#2a3336] dark:bg-white/[0.03] dark:text-slate-400">
           <div className="font-semibold text-slate-700 dark:text-slate-300">
             수량은 평가금액과 현재가로 역산한 추정치입니다.
           </div>
           <div className="mt-1 leading-relaxed">
-            {withdrawalMode
-              ? "일괄3.5%인출률 모드는 전체 대상 평가금액에 연 3.5% 인출률을 적용한 가정치입니다. 실제 배당 이력은 반영하지 않습니다."
-              : "배당은 최근 12개월 실제 배당 이력 기준입니다. 배당 이력이 없거나 quote/fx 조회가 실패한 종목은 예상 배당을 계산하지 않습니다."}
+            배당은 최근 12개월 실제 배당 이력 기준입니다. 배당 이력이 없거나 quote/fx 조회가 실패한 종목은 예상 배당을 계산하지 않습니다.
             {marketData.loading ? " 현재가·배당 데이터를 불러오는 중입니다." : ""}
           </div>
           {marketData.warnings.length > 0 && (
