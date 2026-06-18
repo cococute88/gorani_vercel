@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { fearGreedColor, fearGreedRating } from "@/lib/market-data";
 import type { BriefingItem, FearGreedData } from "@/lib/market-data";
-import type { IndexDef } from "@/lib/market-index";
+import { DEFAULT_DETAIL_RANGE, type IndexDef } from "@/lib/market-index";
 import { AXIS_LINE, AXIS_TICK_SM, formatFearGreedAxisTick, formatFearGreedTooltipLabel, TOOLTIP_LABEL_STYLE, TOOLTIP_STYLE } from "@/lib/chart-style";
 
 const IndexDetailModal = dynamic(() => import("./IndexDetailModal"), { ssr: false });
@@ -59,7 +59,7 @@ export default function MarketSnapshotSection({ fearGreed, briefing }: Props) {
           })}
         </div>
       </div>
-      {active && <IndexDetailModal def={active} initialRange="1m" onClose={() => setActive(null)} />}
+      {active && <IndexDetailModal def={active} initialRange={DEFAULT_DETAIL_RANGE} onClose={() => setActive(null)} />}
     </section>
   );
 }

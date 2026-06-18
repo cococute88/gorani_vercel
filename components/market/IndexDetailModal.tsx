@@ -12,6 +12,7 @@ import {
 } from "lightweight-charts";
 import { useResolvedTheme } from "@/components/theme/ThemeProvider";
 import {
+  DEFAULT_DETAIL_RANGE,
   DETAIL_RANGES,
   MA_COLORS,
   MA_PERIODS,
@@ -96,7 +97,7 @@ function applyVisibleRange(chart: IChartApi, quote: IndexQuote, range: string) {
       case "5y":
         return addMonths(lastDate, -60);
       default:
-        return addMonths(lastDate, -1);
+        return addMonths(lastDate, -6);
     }
   })();
 
@@ -116,7 +117,7 @@ function palette(dark: boolean): Palette {
 // with selectable ranges. Rendered client-only (lightweight-charts).
 export default function IndexDetailModal({ def, initialRange, onClose }: Props) {
   const dark = useResolvedTheme() === "dark";
-  const [range, setRange] = useState(initialRange || "1m");
+  const [range, setRange] = useState(initialRange || DEFAULT_DETAIL_RANGE);
   const [quote, setQuote] = useState<IndexQuote | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -141,7 +142,7 @@ export default function IndexDetailModal({ def, initialRange, onClose }: Props) 
   // only change the visible viewport, so zooming/panning can reveal older candles.
   useEffect(() => {
     let active = true;
-    setRange(initialRange || "1m");
+    setRange(initialRange || DEFAULT_DETAIL_RANGE);
     setLoading(true);
     setError(false);
     fetchIndexQuote(def.symbol, "max")
