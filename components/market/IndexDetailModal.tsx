@@ -54,6 +54,13 @@ function addMonths(date: Date, months: number): Date {
   return next;
 }
 
+// Yahoo ignores interval=1d for range=max and returns monthly candles.
+// Map the UI range to a fetch range that guarantees daily candles.
+function dataRangeForView(viewRange: string): string {
+  if (viewRange === "1d" || viewRange === "5d") return viewRange;
+  return "5y";
+}
+
 function applyVisibleRange(chart: IChartApi, quote: IndexQuote, range: string) {
   const candles = quote.candles;
   if (candles.length === 0) {
@@ -138,14 +145,22 @@ export default function IndexDetailModal({ def, initialRange, onClose }: Props) 
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  // Fetch the complete available daily history once per symbol. The period buttons
-  // only change the visible viewport, so zooming/panning can reveal older candles.
+  // Reset the visible range when the modal opens for a (new) symbol.
+  useEffect(() => {
+    setRange(initialRange || DEFAULT_DETAIL_RANGE);
+  }, [def.symbol, initialRange]);
+
+  // Fetch daily data. Non-intraday ranges share a single "5y" request
+  // (cached by fetchIndexQuote) so switching between 1M–5Y/MAX is instant.
+  // Only intraday ranges (1D, 5D) trigger a separate fetch.
+  const fetchRange = dataRangeForView(range);
+
   useEffect(() => {
     let active = true;
-    setRange(initialRange || DEFAULT_DETAIL_RANGE);
+    setQuote(null);
     setLoading(true);
     setError(false);
-    fetchIndexQuote(def.symbol, "max")
+    fetchIndexQuote(def.symbol, fetchRange)
       .then((data) => {
         if (!active) return;
         setQuote(data);
@@ -159,7 +174,7 @@ export default function IndexDetailModal({ def, initialRange, onClose }: Props) 
     return () => {
       active = false;
     };
-  }, [def.symbol, initialRange]);
+  }, [def.symbol, fetchRange]);
 
   // Build the chart (re-created when the theme changes).
   useEffect(() => {
