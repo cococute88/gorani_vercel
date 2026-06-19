@@ -367,6 +367,40 @@ export default function PortfolioPage() {
           />
         </section>
 
+        {/* 2.5) 스냅샷 미리보기 — 히스토리에서 날짜 클릭 시 등록 히스토리와 자산 맵
+            사이에 자산군 비중 도넛 + 파싱 결과 요약을 표시한다. */}
+        {previewSnapshot && (
+          <section className="mb-6">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-blue-500/20 bg-blue-500/10 px-4 py-3">
+              <span className="break-keep text-[12.5px] text-blue-700 dark:text-blue-100">
+                스냅샷 미리보기 중: <b className="text-blue-900 dark:text-white">{previewSnapshot.snapshotDate}</b>
+              </span>
+              <button
+                type="button"
+                onClick={() => setPreviewSnapshotId(null)}
+                className="break-keep rounded-md bg-white/10 px-2.5 py-1 text-[12px] font-medium text-slate-100 hover:bg-white/15"
+              >
+                최신 스냅샷 보기
+              </button>
+            </div>
+            {/* desktop(lg+) 2열로 나란히, mobile 에서는 세로 stack. */}
+            <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-2">
+              <div className="w-full min-w-0">
+                <AssetAllocationDonut
+                  holdings={displayedHoldings}
+                  financeAssets={previewSnapshot.financeAssets ?? []}
+                  theme="dark"
+                  title={`자산군 비중 · ${previewSnapshot.snapshotDate} 기준`}
+                  emptyMessage="이 스냅샷에는 표시할 자산군 비중이 없습니다."
+                />
+              </div>
+              <div className="w-full min-w-0">
+                <ParseSummaryCard model={parseSummaryFromSnapshot(previewSnapshot)} />
+              </div>
+            </div>
+          </section>
+        )}
+
         {/* 3) 자산맵 — 좌측 컬럼에 "자산군 비중" 도넛(기존 최하단 카드)을 이동 배치한다. */}
         <AssetMapSection
           assetClassDonut={
@@ -406,39 +440,6 @@ export default function PortfolioPage() {
             이 스냅샷 등록
           </button>
         </section>
-
-        {/* 스냅샷 미리보기 안내 + 미리보기 상세(자산군 도넛 + 파싱 요약) */}
-        {previewSnapshot && (
-          <section className="mb-6">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-blue-500/20 bg-blue-500/10 px-4 py-3">
-              <span className="break-keep text-[12.5px] text-blue-700 dark:text-blue-100">
-                스냅샷 미리보기 중: <b className="text-blue-900 dark:text-white">{previewSnapshot.snapshotDate}</b>
-              </span>
-              <button
-                type="button"
-                onClick={() => setPreviewSnapshotId(null)}
-                className="break-keep rounded-md bg-white/10 px-2.5 py-1 text-[12px] font-medium text-slate-100 hover:bg-white/15"
-              >
-                최신 스냅샷 보기
-              </button>
-            </div>
-            {/* desktop(lg+) 2열로 나란히, mobile 에서는 세로 stack. */}
-            <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-2">
-              <div className="w-full min-w-0">
-                <AssetAllocationDonut
-                  holdings={displayedHoldings}
-                  financeAssets={previewSnapshot.financeAssets ?? []}
-                  theme="dark"
-                  title={`자산군 비중 · ${previewSnapshot.snapshotDate} 기준`}
-                  emptyMessage="이 스냅샷에는 표시할 자산군 비중이 없습니다."
-                />
-              </div>
-              <div className="w-full min-w-0">
-                <ParseSummaryCard model={parseSummaryFromSnapshot(previewSnapshot)} />
-              </div>
-            </div>
-          </section>
-        )}
 
         {/* 5) 보유 종목 리스트 (기본 접힘) */}
         <section className="mb-6">
