@@ -2,9 +2,35 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 
+const APP_NAME = "고라니 자산관리";
+const APP_DESCRIPTION = "고라니 자산관리 — 포트폴리오 자산 관리 대시보드";
+
 export const metadata: Metadata = {
-  title: "고라파이 Gorani-Finance",
-  description: "Next.js + TS + Tailwind + Recharts",
+  applicationName: APP_NAME,
+  title: {
+    default: APP_NAME,
+    template: `%s | ${APP_NAME}`,
+  },
+  description: APP_DESCRIPTION,
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: APP_NAME,
+    statusBarStyle: "default",
+  },
+  openGraph: {
+    type: "website",
+    siteName: APP_NAME,
+    title: APP_NAME,
+    description: APP_DESCRIPTION,
+    images: ["/gorani-logo.png"],
+  },
+  twitter: {
+    card: "summary",
+    title: APP_NAME,
+    description: APP_DESCRIPTION,
+    images: ["/gorani-logo.png"],
+  },
   icons: {
     icon: "/gorani-logo.png",
     shortcut: "/gorani-logo.png",

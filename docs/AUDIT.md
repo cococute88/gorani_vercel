@@ -135,7 +135,7 @@ Observed `original/` top-level structure:
 ## Config Summary
 
 - `package.json`
-  - App name: `pftool-dashboard`
+  - App name: `gorani-finance`
   - Framework/runtime: Next.js `14.2.5`, React `18.3.1`
   - Key dependencies: `recharts`, `lucide-react`, `xlsx`, `firebase`
   - Scripts after this step: `dev`, `build`, `start`, `lint`, `typecheck`

@@ -1,4 +1,4 @@
-# pftool — 포트폴리오 대시보드 (MOCK 클론)
+# 고라니 자산관리 — 포트폴리오 대시보드 (MOCK 클론)
 
 Next.js (App Router) + TypeScript + Tailwind CSS + Recharts + lucide-react 기반의
 **MOCK 데이터 전용** 포트폴리오 대시보드 UI 클론입니다. 외부 API/유료 서비스를 사용하지 않습니다.
