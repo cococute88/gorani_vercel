@@ -2,6 +2,7 @@
 
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { formatCompactKrw } from "@/lib/format";
+import { MIN_ALLOCATION_CHART_AMOUNT_KRW } from "@/lib/allocation-chart-filter";
 import type { PerformanceAssetGroupResult } from "@/lib/performance-asset-group";
 
 // 스트림릿 스타일 자산 구성 도넛 + 하단 상세 범례.
@@ -36,7 +37,10 @@ export default function PerformanceAllocationDonut({
   emptyMessage?: string;
 }) {
   const { groups, totalKRW } = data;
-  const hasData = groups.length > 0 && totalKRW > 0;
+  // 자산 구성 도넛/범례 표시 기준: 평가금액 100만원 미만 종목군은 차트·범례에서 제외한다.
+  // (제거분을 "기타"로 합산하지 않는다. 총 평가금액(totalKRW)은 그대로 유지해 비중 기준을 바꾸지 않는다.)
+  const visibleGroups = groups.filter((g) => g.valueKRW >= MIN_ALLOCATION_CHART_AMOUNT_KRW);
+  const hasData = visibleGroups.length > 0 && totalKRW > 0;
 
   return (
     <div>
@@ -60,7 +64,7 @@ export default function PerformanceAllocationDonut({
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
-                  data={groups}
+                  data={visibleGroups}
                   dataKey="valueKRW"
                   nameKey="label"
                   innerRadius={INNER}
@@ -71,7 +75,7 @@ export default function PerformanceAllocationDonut({
                   endAngle={-270}
                   isAnimationActive={false}
                 >
-                  {groups.map((g) => (
+                  {visibleGroups.map((g) => (
                     <Cell key={g.key} fill={g.color} />
                   ))}
                 </Pie>
@@ -87,7 +91,7 @@ export default function PerformanceAllocationDonut({
 
           {/* 하단(가로폭 좁으면 옆) 상세 범례: 종목군 / 비중 / 수익률 / 금액 */}
           <ul className="w-full min-w-0 flex-1 space-y-0.5">
-            {groups.map((g) => (
+            {visibleGroups.map((g) => (
               <li
                 key={g.key}
                 className="flex items-center gap-2 rounded-md px-1 py-1 transition-colors hover:bg-white/[0.03]"
