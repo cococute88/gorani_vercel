@@ -15,6 +15,9 @@ type Props = {
   legendCols?: number;
   emptyMessage?: string;
   className?: string;
+  // When true the legend drops its max-height/scroll so every entry is visible at
+  // once (card height grows to fit), with slightly taller rows / larger font.
+  expandedLegend?: boolean;
 };
 
 function dotStyleFor(color: string) {
@@ -33,6 +36,7 @@ export default function DonutChartCard({
   legendCols = 1,
   emptyMessage = "표시할 데이터가 없습니다.",
   className = "",
+  expandedLegend = false,
 }: Props) {
   const isLight = theme === "light";
   const cardCls = isLight
@@ -104,25 +108,29 @@ export default function DonutChartCard({
           )}
         </div>
         <div
-          className={`max-h-[180px] flex-1 overflow-y-auto pr-1 ${isLight ? "scroll-light" : "scroll-dark"}`}
+          className={
+            expandedLegend
+              ? "flex-1"
+              : `max-h-[180px] flex-1 overflow-y-auto pr-1 ${isLight ? "scroll-light" : "scroll-dark"}`
+          }
         >
           <div style={legendGridStyle}>
             {legend.map((s) => (
               <div
                 key={s.name}
-                className="flex items-center justify-between gap-2"
+                className={`flex items-center justify-between gap-2 ${expandedLegend ? "min-h-[24px]" : ""}`}
               >
                 <span className="flex min-w-0 items-center gap-1.5">
                   <span
                     className="h-2 w-2 shrink-0 rounded-full"
                     style={dotStyleFor(s.color)}
                   />
-                  <span className={`truncate text-[11.5px] ${legendName}`}>
+                  <span className={`truncate ${expandedLegend ? "text-[12.5px]" : "text-[11.5px]"} ${legendName}`}>
                     {s.name}
                   </span>
                 </span>
                 <span
-                  className={`num shrink-0 text-[11.5px] font-semibold ${legendVal}`}
+                  className={`num shrink-0 ${expandedLegend ? "text-[12.5px]" : "text-[11.5px]"} font-semibold ${legendVal}`}
                 >
                   {s.amountKRW != null
                     ? `${formatCompactKrw(s.amountKRW)} · ${s.value}%`

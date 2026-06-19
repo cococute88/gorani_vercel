@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import DonutChartCard from "@/components/DonutChartCard";
 import HoldingsTable from "@/components/HoldingsTable";
 import type { AssetMapHoldingRow } from "@/components/HoldingsTable";
@@ -31,8 +31,14 @@ const SECTOR_COLORS = [
   "#34d399",
 ];
 
+interface Props {
+  // 좌측 컬럼(섹터 비중 도넛) 하단에 상하로 배치할 "자산군 비중" 도넛 카드.
+  // 페이지에서 데이터/계산 로직을 그대로 유지한 채 이 위치로 이동 렌더링한다.
+  assetClassDonut?: ReactNode;
+}
+
 // 포트폴리오 관리 하단의 자산 맵 / ETF 투시 섹션.
-export default function AssetMapSection() {
+export default function AssetMapSection({ assetClassDonut }: Props) {
   const theme = useResolvedTheme();
   const snapshots = usePortfolioSnapshots();
   const latestSnapshot = useMemo(() => latestOf(snapshots), [snapshots]);
@@ -52,7 +58,6 @@ export default function AssetMapSection() {
       ),
     [portfolioHoldings],
   );
-  const hasSnapshotHoldings = portfolioHoldings.length > 0;
   const usePortfolioExposure = exposure.source === "portfolio";
 
   const sectorAllocation: Slice[] = useMemo(
@@ -88,12 +93,6 @@ export default function AssetMapSection() {
     [exposure.sectorAllocation, usePortfolioExposure],
   );
 
-  const statusText = usePortfolioExposure
-    ? `최신 스냅샷 ${latestSnapshot?.snapshotDate} · 보유종목 ${portfolioHoldings.length}개 · 실데이터 기반 자산맵으로 표시합니다.`
-    : hasSnapshotHoldings
-      ? `최신 스냅샷 ${latestSnapshot?.snapshotDate} · 보유종목 ${portfolioHoldings.length}개 감지 · 유효한 투시 대상이 없어 목업 데이터로 표시합니다.`
-    : "저장된 스냅샷이 없어 목업 데이터로 표시합니다.";
-  const visibleWarnings = usePortfolioExposure ? exposure.warnings.slice(0, 3) : [];
   const coverageText = usePortfolioExposure
     ? `ETF 평가액 ${formatCompactKrw(exposure.etfValueKRW)} · 투시 커버리지 ${exposure.coveragePct.toFixed(2)}%`
     : "목업 ETF 35개 · 커버리지 91%";
@@ -125,28 +124,22 @@ export default function AssetMapSection() {
       </div>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,420px)_1fr]">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-[#2a3336] dark:bg-[#191f20]">
-          <div className="-m-5">
-            <DonutChartCard
-              title="섹터 비중"
-              data={sectorAllocation}
-              theme={theme}
-              size={150}
-              centerLabel="섹터"
-              centerValue={`${sectorAllocation.length}개`}
-            />
+        {/* 좌측 컬럼: 섹터 비중 도넛 ↓ 자산군 비중 도넛 (상하 배치, 간격 16px). */}
+        <div className="flex flex-col gap-4">
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-[#2a3336] dark:bg-[#191f20]">
+            <div className="-m-5">
+              <DonutChartCard
+                title="섹터 비중"
+                data={sectorAllocation}
+                theme={theme}
+                size={150}
+                centerLabel="섹터"
+                centerValue={`${sectorAllocation.length}개`}
+                expandedLegend
+              />
+            </div>
           </div>
-          {/* 도넛 하단 빈 공간에 보조 설명(상태/경고)을 작게 표시. */}
-          <div className="mt-5 border-t border-slate-200 pt-3 text-[11px] leading-relaxed text-slate-500 dark:border-[#2a3336] dark:text-slate-400">
-            <div>{statusText}</div>
-            {visibleWarnings.length > 0 ? (
-              <ul className="mt-1.5 list-disc space-y-0.5 pl-4">
-                {visibleWarnings.map((warning) => (
-                  <li key={warning}>{warning}</li>
-                ))}
-              </ul>
-            ) : null}
-          </div>
+          {assetClassDonut}
         </div>
         <HoldingsTable
           holdings={usePortfolioExposure ? effectiveHoldings : undefined}

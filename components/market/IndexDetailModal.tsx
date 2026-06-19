@@ -22,6 +22,7 @@ import {
   formatUpdatedAt,
   formatUsd,
   movingAverage,
+  type IndexCandle,
   type IndexDef,
   type IndexQuote,
   type MaPeriod,
@@ -35,6 +36,30 @@ interface Props {
 
 const UP = "#16a34a";
 const DOWN = "#dc2626";
+const FLAT = "#6b7280";
+
+// 상단 OHLC 등락 색상: 양수 녹색 / 음수 적색 / 0·미산정 회색.
+function pctColor(pct: number | null): string {
+  if (pct === null || !Number.isFinite(pct)) return FLAT;
+  if (pct > 0) return UP;
+  if (pct < 0) return DOWN;
+  return FLAT;
+}
+
+// 차트 상단에 표시할 OHLC 한 줄 (기준 봉 + 직전 종가).
+type OhlcView = { open: number; high: number; low: number; close: number; prevClose: number | null };
+
+function ohlcFromCandle(candles: IndexCandle[], index: number): OhlcView | null {
+  const bar = candles[index];
+  if (!bar) return null;
+  return {
+    open: bar.open,
+    high: bar.high,
+    low: bar.low,
+    close: bar.close,
+    prevClose: index > 0 ? candles[index - 1].close : null,
+  };
+}
 
 type Palette = {
   text: string;
@@ -129,12 +154,17 @@ export default function IndexDetailModal({ def, initialRange, onClose }: Props) 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [visibleMa, setVisibleMa] = useState<Record<MaPeriod, boolean>>({ 20: true, 60: true, 120: true, 200: true });
+  // Top OHLC row: defaults to the latest bar, syncs to the hovered candle.
+  const [ohlc, setOhlc] = useState<OhlcView | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const candleRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const volumeRef = useRef<ISeriesApi<"Histogram"> | null>(null);
   const maRefs = useRef<Partial<Record<MaPeriod, ISeriesApi<"Line">>>>({});
+  // Latest candles kept in a ref so the crosshair handler (bound once) can resolve
+  // the hovered bar's previous close without rebuilding the chart on every fetch.
+  const candlesRef = useRef<IndexCandle[]>([]);
 
   // Close on Escape.
   useEffect(() => {
@@ -224,6 +254,26 @@ export default function IndexDetailModal({ def, initialRange, onClose }: Props) 
     volumeRef.current = volume;
     maRefs.current = maSeries;
 
+    // Sync the top OHLC row with the hovered candle; fall back to the latest bar
+    // when the pointer leaves the chart.
+    chart.subscribeCrosshairMove((param) => {
+      const candles = candlesRef.current;
+      if (candles.length === 0) return;
+      const bar = param.time !== undefined ? param.seriesData.get(candle) as { open?: number; high?: number; low?: number; close?: number } | undefined : undefined;
+      if (bar && typeof bar.open === "number" && typeof bar.high === "number" && typeof bar.low === "number" && typeof bar.close === "number") {
+        const index = candles.findIndex((c) => c.time === param.time);
+        setOhlc({
+          open: bar.open,
+          high: bar.high,
+          low: bar.low,
+          close: bar.close,
+          prevClose: index > 0 ? candles[index - 1].close : null,
+        });
+        return;
+      }
+      setOhlc(ohlcFromCandle(candles, candles.length - 1));
+    });
+
     const observer = new ResizeObserver((entries) => {
       const rect = entries[0]?.contentRect;
       if (rect) chart.applyOptions({ width: Math.floor(rect.width), height: Math.floor(rect.height) });
@@ -248,6 +298,10 @@ export default function IndexDetailModal({ def, initialRange, onClose }: Props) 
     if (!candle || !volume || !chart || !quote) return;
 
     chart.applyOptions({ timeScale: { timeVisible: quote.intraday, secondsVisible: false } });
+
+    // Keep the OHLC row source in sync and reset it to the latest bar.
+    candlesRef.current = quote.candles;
+    setOhlc(ohlcFromCandle(quote.candles, quote.candles.length - 1));
 
     candle.setData(
       quote.candles.map((c) => ({
@@ -369,6 +423,36 @@ export default function IndexDetailModal({ def, initialRange, onClose }: Props) 
               </button>
             ))}
           </div>
+        </div>
+
+        {/* OHLC row (TradingView-style) — 시작/고가/저가/종가 + 직전 종가 대비 등락(%).
+            기본은 최신 봉, 캔들 hover/tap 시 해당 봉으로 동기화된다. 모바일에서는
+            가로 스크롤로 한 줄을 유지한다. */}
+        <div className="flex items-center gap-3 overflow-x-auto whitespace-nowrap border-b border-slate-200 px-4 py-2 text-[12px] dark:border-[#2a3336] sm:px-5 sm:text-[13px]">
+          {ohlc ? (
+            ([
+              { label: "시작", value: ohlc.open },
+              { label: "고가", value: ohlc.high },
+              { label: "저가", value: ohlc.low },
+              { label: "종가", value: ohlc.close },
+            ] as const).map((field) => {
+              const pct =
+                ohlc.prevClose && ohlc.prevClose !== 0
+                  ? ((field.value - ohlc.prevClose) / ohlc.prevClose) * 100
+                  : null;
+              return (
+                <span key={field.label} className="inline-flex shrink-0 items-baseline gap-1">
+                  <span className="font-bold text-slate-500 dark:text-slate-400">{field.label}</span>
+                  <span className="num font-semibold text-slate-900 dark:text-white">{formatUsd(field.value)}</span>
+                  <span className="num" style={{ color: pctColor(pct) }}>
+                    ({formatSignedPct(pct)})
+                  </span>
+                </span>
+              );
+            })
+          ) : (
+            <span className="text-[12px] text-slate-400">—</span>
+          )}
         </div>
 
         {/* Chart */}
