@@ -30,7 +30,7 @@ import AssetAllocationDonut from "./AssetAllocationDonut";
 import HoldingsTable from "./HoldingsTable";
 import AssetTable from "./AssetTable";
 import SnapshotHistory from "./SnapshotHistory";
-import PortfolioPerformanceChart from "./PortfolioPerformanceChart";
+import PortfolioAssetTrendChart from "./PortfolioAssetTrendChart";
 import PortfolioQuoteStatusPanel from "./PortfolioQuoteStatusPanel";
 import AssetMapSection from "@/components/asset-map/AssetMapSection";
 import { useResolvedTheme } from "@/components/theme/ThemeProvider";
@@ -409,7 +409,7 @@ export default function PortfolioPage() {
         </section>
 
         <section className="mb-6">
-          <PortfolioPerformanceChart snapshots={snapshots} />
+          <PortfolioAssetTrendChart snapshots={snapshots} />
         </section>
 
         <AssetMapSection />
