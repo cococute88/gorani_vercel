@@ -32,6 +32,8 @@ import AssetTable from "./AssetTable";
 import SnapshotHistory from "./SnapshotHistory";
 import PortfolioAssetTrendChart from "./PortfolioAssetTrendChart";
 import PortfolioQuoteStatusPanel from "./PortfolioQuoteStatusPanel";
+import AccountHoldingWeightCard from "./AccountHoldingWeightCard";
+import CollapsibleSection from "./CollapsibleSection";
 import AssetMapSection from "@/components/asset-map/AssetMapSection";
 import { useResolvedTheme } from "@/components/theme/ThemeProvider";
 import { usePortfolioCloudSync } from "@/lib/portfolio-cloud-sync";
@@ -322,6 +324,13 @@ export default function PortfolioPage() {
     ? "평가금액이 있는 항목이 없어 자산군 비중을 표시할 수 없습니다."
     : "엑셀을 업로드하면 자산군 비중이 표시됩니다.";
 
+  // 계좌별 종목 비중 카드 기준 보유종목: 미리보기 > 현재 파싱 결과 > 최신 스냅샷.
+  const accountWeightHoldings = previewSnapshot
+    ? displayedHoldings
+    : result
+      ? holdings
+      : latestSnapshot?.holdings ?? [];
+
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#f8fafc] text-slate-800 dark:bg-[#111516] dark:text-slate-200">
       <TopNav theme={theme} />
@@ -336,14 +345,19 @@ export default function PortfolioPage() {
           </p>
         )}
 
-        {/* 월별 자산 추이를 페이지 최상단에 배치(진입 시 가장 먼저 보이도록). */}
-        <section className="mb-6">
-          <PortfolioAssetTrendChart snapshots={snapshots} />
+        {/* 1) 최상단 2열: [계좌별 종목 비중 조회 40%] [월별 자산 추이 60%]
+            데스크톱(lg+)은 2:3(=40:60) 비율, 모바일은 세로 배치. */}
+        <section className="mb-6 grid grid-cols-1 items-stretch gap-5 lg:grid-cols-[2fr_3fr]">
+          <div className="min-w-0">
+            <AccountHoldingWeightCard holdings={accountWeightHoldings} />
+          </div>
+          <div className="min-w-0">
+            <PortfolioAssetTrendChart snapshots={snapshots} />
+          </div>
         </section>
 
-        {/* 한 줄에 엑셀 업로드 / 자산군 도넛 / 파싱결과 요약 3개 카드.
-            wide(xl): 3열 · tablet(md): 2열(요약은 한 줄 차지) · mobile: 1열 */}
-        <section className="mb-6 grid grid-cols-1 items-stretch gap-5 md:grid-cols-2 xl:grid-cols-3">
+        {/* 스냅샷 생성 워크플로우(엑셀 업로드 / 파싱 결과 / 등록) — 기능 유지. */}
+        <section className="mb-6 grid grid-cols-1 items-stretch gap-5 md:grid-cols-2">
           <ExcelUploadCard
             files={files}
             onAddFiles={(fs) => setFiles((prev) => [...prev, ...fs])}
@@ -352,20 +366,35 @@ export default function PortfolioPage() {
             onLoadMock={handleLoadMock}
             parsing={parsing}
           />
-          <AssetAllocationDonut
-            holdings={donutHoldings}
-            financeAssets={donutFinanceAssets}
-            theme="dark"
-            title="자산군 비중"
-            emptyMessage={donutEmptyMessage}
-          />
-          <div className="h-full md:col-span-2 xl:col-span-1">
+          <div className="h-full">
             <PortfolioParsePreview result={result} />
           </div>
         </section>
 
+        <section className="mb-6 flex justify-end">
+          <button
+            onClick={handleRegister}
+            disabled={!canRegister}
+            className="rounded-lg bg-blue-600 px-5 py-2.5 text-[13.5px] font-semibold text-white hover:bg-blue-700 disabled:opacity-40"
+          >
+            이 스냅샷 등록
+          </button>
+        </section>
+
+        {/* 2) 등록된 스냅샷 히스토리 */}
         <section className="mb-6">
-          {previewSnapshot && (
+          <SnapshotHistory
+            snapshots={snapshots}
+            onDelete={handleDeleteSnapshot}
+            onSelect={(snapshot) => setPreviewSnapshotId(snapshot.id)}
+            selectedSnapshotId={previewSnapshotId}
+            loading={authLoading || syncState.status === "syncing"}
+          />
+        </section>
+
+        {/* 스냅샷 미리보기 안내 + 미리보기 상세(자산군 도넛 + 파싱 요약) */}
+        {previewSnapshot && (
+          <section className="mb-6">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-blue-500/20 bg-blue-500/10 px-4 py-3">
               <span className="break-keep text-[12.5px] text-blue-700 dark:text-blue-100">
                 스냅샷 미리보기 중: <b className="text-blue-900 dark:text-white">{previewSnapshot.snapshotDate}</b>
@@ -378,11 +407,8 @@ export default function PortfolioPage() {
                 최신 스냅샷 보기
               </button>
             </div>
-          )}
-          {previewSnapshot && (
-            // 스냅샷 상세: 왼쪽 도넛 + 오른쪽 파싱 결과 요약(3x3).
-            // desktop(lg+) 2열로 나란히, mobile 에서는 세로 stack.
-            <div className="mb-4 grid grid-cols-1 items-stretch gap-4 lg:grid-cols-2">
+            {/* desktop(lg+) 2열로 나란히, mobile 에서는 세로 stack. */}
+            <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-2">
               <div className="w-full min-w-0">
                 <AssetAllocationDonut
                   holdings={displayedHoldings}
@@ -396,43 +422,47 @@ export default function PortfolioPage() {
                 <ParseSummaryCard model={parseSummaryFromSnapshot(previewSnapshot)} />
               </div>
             </div>
-          )}
-          <PortfolioQuoteStatusPanel holdings={displayedHoldings} />
-          <HoldingsTable
-            holdings={displayedHoldings}
-            selected={displayedSelected}
-            onToggle={previewSnapshot ? () => undefined : onToggle}
-            onTickerChange={previewSnapshot ? () => undefined : onTickerChange}
-            readOnly={Boolean(previewSnapshot)}
-            tickerMapNotice={previewSnapshot ? null : tickerMapNotice}
-          />
-        </section>
+          </section>
+        )}
 
+        {/* 3) 보유 종목 리스트 (기본 접힘) */}
         <section className="mb-6">
-          <AssetTable assets={displayedAssets} />
+          <CollapsibleSection title="보유 종목 리스트">
+            <div className="space-y-4">
+              <PortfolioQuoteStatusPanel holdings={displayedHoldings} />
+              <HoldingsTable
+                holdings={displayedHoldings}
+                selected={displayedSelected}
+                onToggle={previewSnapshot ? () => undefined : onToggle}
+                onTickerChange={previewSnapshot ? () => undefined : onTickerChange}
+                readOnly={Boolean(previewSnapshot)}
+                tickerMapNotice={previewSnapshot ? null : tickerMapNotice}
+                bare
+              />
+            </div>
+          </CollapsibleSection>
         </section>
 
-        <section className="mb-6 flex justify-end">
-          <button
-            onClick={handleRegister}
-            disabled={!canRegister}
-            className="rounded-lg bg-blue-600 px-5 py-2.5 text-[13.5px] font-semibold text-white hover:bg-blue-700 disabled:opacity-40"
-          >
-            이 스냅샷 등록
-          </button>
-        </section>
-
+        {/* 4) 자산 리스트 (기본 접힘) */}
         <section className="mb-6">
-          <SnapshotHistory
-            snapshots={snapshots}
-            onDelete={handleDeleteSnapshot}
-            onSelect={(snapshot) => setPreviewSnapshotId(snapshot.id)}
-            selectedSnapshotId={previewSnapshotId}
-            loading={authLoading || syncState.status === "syncing"}
-          />
+          <CollapsibleSection title="자산 리스트">
+            <AssetTable assets={displayedAssets} bare />
+          </CollapsibleSection>
         </section>
 
+        {/* 5) 자산맵 */}
         <AssetMapSection />
+
+        {/* 6) 기존 자산군 비중 그래프 */}
+        <section className="mt-6">
+          <AssetAllocationDonut
+            holdings={donutHoldings}
+            financeAssets={donutFinanceAssets}
+            theme="dark"
+            title="자산군 비중"
+            emptyMessage={donutEmptyMessage}
+          />
+        </section>
       </main>
     </div>
   );
