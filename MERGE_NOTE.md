@@ -1,6 +1,6 @@
 # QLD 대시보드 병합 메모
 
-이 ZIP은 원본 `pftool-dashboard`를 기준으로 QLD 대시보드만 추가 병합한 버전입니다.
+이 ZIP은 원본 `gorani-finance`를 기준으로 QLD 대시보드만 추가 병합한 버전입니다.
 
 적용한 변경:
 

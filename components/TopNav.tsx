@@ -148,7 +148,7 @@ export default function TopNav({ theme = "dark" }: Props) {
               isLight ? "text-slate-900" : "text-white"
             }`}
           >
-            GORAFI
+            고라니 자산관리
           </span>
         </Link>
 
