@@ -336,6 +336,11 @@ export default function PortfolioPage() {
           </p>
         )}
 
+        {/* 월별 자산 추이를 페이지 최상단에 배치(진입 시 가장 먼저 보이도록). */}
+        <section className="mb-6">
+          <PortfolioAssetTrendChart snapshots={snapshots} />
+        </section>
+
         {/* 한 줄에 엑셀 업로드 / 자산군 도넛 / 파싱결과 요약 3개 카드.
             wide(xl): 3열 · tablet(md): 2열(요약은 한 줄 차지) · mobile: 1열 */}
         <section className="mb-6 grid grid-cols-1 items-stretch gap-5 md:grid-cols-2 xl:grid-cols-3">
@@ -425,10 +430,6 @@ export default function PortfolioPage() {
             selectedSnapshotId={previewSnapshotId}
             loading={authLoading || syncState.status === "syncing"}
           />
-        </section>
-
-        <section className="mb-6">
-          <PortfolioAssetTrendChart snapshots={snapshots} />
         </section>
 
         <AssetMapSection />

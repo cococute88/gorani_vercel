@@ -109,19 +109,7 @@ export default function AssetMapSection() {
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-baseline gap-3">
           <h2 className="text-[20px] font-extrabold text-slate-900 dark:text-white">자산 맵</h2>
-          <span className="text-[12.5px] text-slate-500">포트폴리오 관리 하단</span>
         </div>
-      </div>
-
-      <div className="mb-3 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-[12.5px] text-amber-900 dark:text-amber-100">
-        <div>{statusText}</div>
-        {visibleWarnings.length > 0 ? (
-          <ul className="mt-2 list-disc space-y-1 pl-4 text-amber-800 dark:text-amber-100">
-            {visibleWarnings.map((warning) => (
-              <li key={warning}>{warning}</li>
-            ))}
-          </ul>
-        ) : null}
       </div>
 
       <div className="mb-5 rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-[#2a3336] dark:bg-[#191f20]">
@@ -147,6 +135,17 @@ export default function AssetMapSection() {
               centerLabel="섹터"
               centerValue={`${sectorAllocation.length}개`}
             />
+          </div>
+          {/* 도넛 하단 빈 공간에 보조 설명(상태/경고)을 작게 표시. */}
+          <div className="mt-5 border-t border-slate-200 pt-3 text-[11px] leading-relaxed text-slate-500 dark:border-[#2a3336] dark:text-slate-400">
+            <div>{statusText}</div>
+            {visibleWarnings.length > 0 ? (
+              <ul className="mt-1.5 list-disc space-y-0.5 pl-4">
+                {visibleWarnings.map((warning) => (
+                  <li key={warning}>{warning}</li>
+                ))}
+              </ul>
+            ) : null}
           </div>
         </div>
         <HoldingsTable
