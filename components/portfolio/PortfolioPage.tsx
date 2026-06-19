@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import TopNav from "@/components/TopNav";
-import StorageModeBadge from "@/components/common/StorageModeBadge";
+import PortfolioCloudSyncStatus from "./PortfolioCloudSyncStatus";
 import {
   usePortfolioSnapshots,
   saveSnapshot,
@@ -35,6 +35,7 @@ import PortfolioQuoteStatusPanel from "./PortfolioQuoteStatusPanel";
 import AssetMapSection from "@/components/asset-map/AssetMapSection";
 import { useResolvedTheme } from "@/components/theme/ThemeProvider";
 import { usePortfolioCloudSync } from "@/lib/portfolio-cloud-sync";
+import { markPortfolioCloudSyncNow } from "@/lib/portfolio-cloud-sync-time";
 
 function snapshotToResult(s: PortfolioSnapshot): ParseResult {
   return {
@@ -188,9 +189,13 @@ export default function PortfolioPage() {
     }
     saveSnapshot(snap);
     if (user) {
-      await savePortfolioSnapshot(user.uid, snap).catch((err) =>
-        warnFirestoreFallback("portfolioSnapshots.save", err),
-      );
+      try {
+        await savePortfolioSnapshot(user.uid, snap);
+        // Firestore 저장 성공 시점에 마지막 클라우드 동기화 시각을 기록한다.
+        markPortfolioCloudSyncNow();
+      } catch (err) {
+        warnFirestoreFallback("portfolioSnapshots.save", err);
+      }
     }
   };
 
@@ -198,9 +203,13 @@ export default function PortfolioPage() {
     if (previewSnapshotId === id) setPreviewSnapshotId(null);
     deleteSnapshot(id);
     if (user) {
-      await deletePortfolioSnapshot(user.uid, id).catch((err) =>
-        warnFirestoreFallback("portfolioSnapshots.delete", err),
-      );
+      try {
+        await deletePortfolioSnapshot(user.uid, id);
+        // Firestore 삭제 성공도 클라우드 반영(동기화)이므로 시각을 갱신한다.
+        markPortfolioCloudSyncNow();
+      } catch (err) {
+        warnFirestoreFallback("portfolioSnapshots.delete", err);
+      }
     }
   };
 
@@ -279,6 +288,20 @@ export default function PortfolioPage() {
   const canRegister = useMemo(() => !!result && result.ok, [result]);
   const theme = useResolvedTheme();
 
+  // 우측 상단 클라우드 동기화 상태(PortfolioCloudSyncStatus)로 이동한 "Firestore에 저장돼요" 안내는 제거하고,
+  // 저장 모드/동기화 진행·실패 안내만 필요한 경우에만 노출한다.
+  const portfolioNotice = [
+    user
+      ? ""
+      : configured
+        ? "로그아웃 상태에서는 이 브라우저에만 임시 저장돼요."
+        : "Firebase 설정이 없어 로컬 미리보기 모드로 동작합니다.",
+    syncState.status === "syncing" || authLoading ? "로그인/클라우드 스냅샷을 확인 중입니다." : "",
+    syncState.status === "failed" ? "동기화 실패: 로컬 저장은 유지됩니다." : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   // 최신 등록 스냅샷 (파싱 preview 가 없을 때 자산군 도넛의 기준).
   const latestSnapshot = useMemo(
     () =>
@@ -305,17 +328,13 @@ export default function PortfolioPage() {
       <main className="mx-auto w-full min-w-0 max-w-[1640px] overflow-x-hidden px-4 py-6 sm:px-6 lg:px-8">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-[20px] font-extrabold text-slate-900 dark:text-white">포트폴리오 관리</h1>
-          <StorageModeBadge />
+          <PortfolioCloudSyncStatus />
         </div>
-        <p className="mb-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-[13px] text-slate-500 dark:border-[#273032] dark:bg-[#171d1e] dark:text-slate-400">
-          {user
-            ? "로그인 상태에서는 Firestore에 저장돼요."
-            : configured
-              ? "로그아웃 상태에서는 이 브라우저에만 임시 저장돼요."
-              : "Firebase 설정이 없어 로컬 미리보기 모드로 동작합니다."}
-          {syncState.status === "syncing" || authLoading ? " 로그인/클라우드 스냅샷을 확인 중입니다." : ""}
-          {syncState.status === "failed" ? " 동기화 실패: 로컬 저장은 유지됩니다." : ""}
-        </p>
+        {portfolioNotice && (
+          <p className="mb-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-[13px] text-slate-500 dark:border-[#273032] dark:bg-[#171d1e] dark:text-slate-400">
+            {portfolioNotice}
+          </p>
+        )}
 
         {/* 한 줄에 엑셀 업로드 / 자산군 도넛 / 파싱결과 요약 3개 카드.
             wide(xl): 3열 · tablet(md): 2열(요약은 한 줄 차지) · mobile: 1열 */}
