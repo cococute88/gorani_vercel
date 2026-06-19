@@ -1,13 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Holding } from "@/lib/portfolio-types";
 import {
   ACCOUNT_TABS,
   aggregateHoldingWeights,
   type AccountTabKey,
 } from "@/lib/account-holding-weights";
-import { formatCompactKrw } from "@/lib/format";
+import { formatAccountHoldingAmount, formatCompactKrw } from "@/lib/format";
+
+// 데이터가 0건이면 탭바에서 숨기는 계좌 탭 (영구 삭제 아님, 조건부 hidden).
+const HIDE_WHEN_EMPTY_TABS: AccountTabKey[] = ["IRP", "비상장"];
 
 interface Props {
   holdings: Holding[];
@@ -24,6 +27,23 @@ const INLINE_LABEL_MIN_PCT = 8;
 export default function AccountHoldingWeightCard({ holdings }: Props) {
   const [tab, setTab] = useState<AccountTabKey>("전체");
 
+  // IRP/비상장 탭은 해당 탭으로 필터링한 종목이 0건이면 탭바에서 숨긴다.
+  // 데이터가 들어오면 자동으로 다시 노출된다(조건부 렌더링).
+  const visibleTabs = useMemo(
+    () =>
+      ACCOUNT_TABS.filter((key) =>
+        HIDE_WHEN_EMPTY_TABS.includes(key)
+          ? aggregateHoldingWeights(holdings, key).length > 0
+          : true,
+      ),
+    [holdings],
+  );
+
+  // 현재 선택된 탭이 숨김 처리되면 기본 탭(전체)으로 되돌린다.
+  useEffect(() => {
+    if (!visibleTabs.includes(tab)) setTab("전체");
+  }, [visibleTabs, tab]);
+
   // 탭 선택 시 즉시 재계산된다.
   const slices = useMemo(() => aggregateHoldingWeights(holdings, tab), [holdings, tab]);
   const total = useMemo(() => slices.reduce((sum, s) => sum + s.valueKRW, 0), [slices]);
@@ -39,7 +59,7 @@ export default function AccountHoldingWeightCard({ holdings }: Props) {
 
       {/* 계좌 필터 탭 (가로 배치, 선택 탭 강조) */}
       <div className="mb-4 flex flex-wrap gap-1.5">
-        {ACCOUNT_TABS.map((key) => {
+        {visibleTabs.map((key) => {
           const active = key === tab;
           return (
             <button
@@ -94,8 +114,14 @@ export default function AccountHoldingWeightCard({ holdings }: Props) {
                 <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-slate-200">
                   {slice.name}
                 </span>
-                <span className="num shrink-0 text-[12px] font-semibold text-slate-300">
-                  {slice.weightPct.toFixed(1)}%
+                {/* 평가금액(우측 정렬) · 비율% — 금액과 비율 사이 간격 8px(gap-2). */}
+                <span className="flex shrink-0 items-center gap-2">
+                  <span className="num text-[12px] font-medium text-slate-400">
+                    {formatAccountHoldingAmount(slice.valueKRW)}
+                  </span>
+                  <span className="num text-[12px] font-semibold text-slate-300">
+                    {slice.weightPct.toFixed(1)}%
+                  </span>
                 </span>
               </li>
             ))}

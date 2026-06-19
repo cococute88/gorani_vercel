@@ -164,15 +164,25 @@ export default function CalendarGrid({
                       onClick={(clickEvent) => { clickEvent.stopPropagation(); onSelectDate(cell.isoDate); onOpenEvent(event); }}
                       onKeyDown={(keyEvent) => { if (keyEvent.key === "Enter") onOpenEvent(event); }}
                       className={[
-                        "block min-w-0 truncate rounded border px-1 py-0.5 text-[10px] font-semibold leading-tight sm:px-1.5 sm:py-0.5 sm:text-[11px]",
+                        // Flex chip: prefix emoji is a fixed (shrink-0) span so the
+                        // ticker text can clip naturally. On mobile (< md) the text
+                        // clips with NO ellipsis (text-overflow: clip) so the emoji +
+                        // leading ticker chars stay readable (avoids "♥..." / "⭐...");
+                        // desktop (md+) keeps the original ellipsis behavior.
+                        "flex min-w-0 items-center gap-[2px] rounded border px-1 py-0.5 text-[10px] font-semibold leading-tight sm:px-1.5 sm:py-0.5 sm:text-[11px]",
                         visual.bg, visual.border, visual.text,
                         eventStateClasses(event, todayIso),
                       ].join(" ")}
                     >
-                      {event.favorite ? `${event.favorite} ` : ""}{eventChipLabel(event)}
-                      {/* Tax-saving amount shown on wider cells only (hidden on
-                          mobile / narrow columns to avoid breaking the cell). */}
-                      {taxAmount && <span className="hidden font-bold sm:inline"> {taxAmount}</span>}
+                      {event.favorite && (
+                        <span className="shrink-0 leading-none">{event.favorite}</span>
+                      )}
+                      <span className="min-w-0 overflow-hidden whitespace-nowrap [text-overflow:clip] md:[text-overflow:ellipsis]">
+                        {eventChipLabel(event)}
+                        {/* Tax-saving amount shown on wider cells only (hidden on
+                            mobile / narrow columns to avoid breaking the cell). */}
+                        {taxAmount && <span className="hidden font-bold sm:inline"> {taxAmount}</span>}
+                      </span>
                     </span>
                   );
                 })}

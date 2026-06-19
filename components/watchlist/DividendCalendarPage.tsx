@@ -517,38 +517,44 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
             sits full-width below). The rail is absolutely filled on desktop so it
             never dictates the row height — it always matches the calendar and
             scrolls internally. */}
+        {/* All three blocks live in one grid so CSS `order` can reshuffle them on
+            mobile (< md) without touching the desktop/tablet layout. Mobile order:
+            캘린더 → 선택 날짜 일정 → 종목별 예상 절세액. At md+ `order-none` restores the
+            source order (캘린더 → 절세액 → 선택 날짜 일정) and the xl 2-column layout. */}
         <div className="grid grid-cols-1 items-stretch gap-4 xl:grid-cols-[minmax(0,1fr)_280px]">
-          <CalendarGrid
-            month={month}
-            events={filteredEvents}
-            customEvents={customCalendarEvents}
-            selectedDate={selectedDate}
-            todayIso={todayIso}
-            onSelectDate={setSelectedDate}
-            onOpenEvent={handleOpenEvent}
-            onPrevMonth={() => moveMonth(-1)}
-            onNextMonth={() => moveMonth(1)}
-            onToday={goToday}
-            taxSavingByTicker={taxSavingByTicker}
-            filters={filters}
-            onToggleFilter={(type) => setFilters((current) => ({ ...current, [type]: !current[type] }))}
-            onAddEvent={openCreateCustomEvent}
-          />
-          <aside className="relative min-w-0">
+          <div className="order-1 min-w-0 md:order-none">
+            <CalendarGrid
+              month={month}
+              events={filteredEvents}
+              customEvents={customCalendarEvents}
+              selectedDate={selectedDate}
+              todayIso={todayIso}
+              onSelectDate={setSelectedDate}
+              onOpenEvent={handleOpenEvent}
+              onPrevMonth={() => moveMonth(-1)}
+              onNextMonth={() => moveMonth(1)}
+              onToday={goToday}
+              taxSavingByTicker={taxSavingByTicker}
+              filters={filters}
+              onToggleFilter={(type) => setFilters((current) => ({ ...current, [type]: !current[type] }))}
+              onAddEvent={openCreateCustomEvent}
+            />
+          </div>
+          <aside className="relative order-3 min-w-0 md:order-none">
             <div className="xl:absolute xl:inset-0">
               <TaxSavingTable rows={taxRows} />
             </div>
           </aside>
-        </div>
-        <div className="mt-4">
-          <SelectedDateList
-            selectedDate={selectedDate}
-            events={selectedEvents}
-            todayIso={todayIso}
-            onOpenEvent={handleOpenEvent}
-            taxSavingByTicker={taxSavingByTicker}
-            tickerMemos={tickerMemos}
-          />
+          <div className="order-2 min-w-0 md:order-none xl:col-span-2">
+            <SelectedDateList
+              selectedDate={selectedDate}
+              events={selectedEvents}
+              todayIso={todayIso}
+              onOpenEvent={handleOpenEvent}
+              taxSavingByTicker={taxSavingByTicker}
+              tickerMemos={tickerMemos}
+            />
+          </div>
         </div>
       </section>
 

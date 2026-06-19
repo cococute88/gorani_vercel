@@ -14,6 +14,7 @@ interface Props {
   emptyMessage?: string;
   includeFinanceAssets?: boolean;
   className?: string;
+  size?: number;
 }
 
 // 기존 Streamlit 스타일 자산군 도넛 그래프.
@@ -27,6 +28,7 @@ export default function AssetAllocationDonut({
   emptyMessage = "엑셀을 업로드하면 자산군 비중이 표시됩니다.",
   includeFinanceAssets = true,
   className = "h-full",
+  size,
 }: Props) {
   const { slices, totalKRW } = useMemo(
     () =>
@@ -42,6 +44,7 @@ export default function AssetAllocationDonut({
       title={title}
       data={slices}
       theme={theme}
+      size={size}
       className={className}
       centerLabel={totalKRW > 0 ? "총 자산" : undefined}
       centerValue={totalKRW > 0 ? formatCompactKrw(totalKRW) : undefined}

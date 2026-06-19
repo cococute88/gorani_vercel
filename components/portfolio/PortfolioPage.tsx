@@ -356,8 +356,34 @@ export default function PortfolioPage() {
           </div>
         </section>
 
-        {/* 스냅샷 생성 워크플로우(엑셀 업로드 / 파싱 결과 / 등록) — 기능 유지. */}
-        <section className="mb-6 grid grid-cols-1 items-stretch gap-5 md:grid-cols-2">
+        {/* 2) 등록된 스냅샷 히스토리 */}
+        <section className="mb-6">
+          <SnapshotHistory
+            snapshots={snapshots}
+            onDelete={handleDeleteSnapshot}
+            onSelect={(snapshot) => setPreviewSnapshotId(snapshot.id)}
+            selectedSnapshotId={previewSnapshotId}
+            loading={authLoading || syncState.status === "syncing"}
+          />
+        </section>
+
+        {/* 3) 자산맵 — 좌측 컬럼에 "자산군 비중" 도넛(기존 최하단 카드)을 이동 배치한다. */}
+        <AssetMapSection
+          assetClassDonut={
+            <AssetAllocationDonut
+              holdings={donutHoldings}
+              financeAssets={donutFinanceAssets}
+              theme="dark"
+              title="자산군 비중"
+              emptyMessage={donutEmptyMessage}
+              size={150}
+              className=""
+            />
+          }
+        />
+
+        {/* 4) 스냅샷 생성 워크플로우(엑셀 업로드 / 파싱 결과 / 등록) — 기능 유지. */}
+        <section className="mb-6 mt-6 grid grid-cols-1 items-stretch gap-5 md:grid-cols-2">
           <ExcelUploadCard
             files={files}
             onAddFiles={(fs) => setFiles((prev) => [...prev, ...fs])}
@@ -379,17 +405,6 @@ export default function PortfolioPage() {
           >
             이 스냅샷 등록
           </button>
-        </section>
-
-        {/* 2) 등록된 스냅샷 히스토리 */}
-        <section className="mb-6">
-          <SnapshotHistory
-            snapshots={snapshots}
-            onDelete={handleDeleteSnapshot}
-            onSelect={(snapshot) => setPreviewSnapshotId(snapshot.id)}
-            selectedSnapshotId={previewSnapshotId}
-            loading={authLoading || syncState.status === "syncing"}
-          />
         </section>
 
         {/* 스냅샷 미리보기 안내 + 미리보기 상세(자산군 도넛 + 파싱 요약) */}
@@ -425,7 +440,7 @@ export default function PortfolioPage() {
           </section>
         )}
 
-        {/* 3) 보유 종목 리스트 (기본 접힘) */}
+        {/* 5) 보유 종목 리스트 (기본 접힘) */}
         <section className="mb-6">
           <CollapsibleSection title="보유 종목 리스트">
             <div className="space-y-4">
@@ -443,25 +458,11 @@ export default function PortfolioPage() {
           </CollapsibleSection>
         </section>
 
-        {/* 4) 자산 리스트 (기본 접힘) */}
+        {/* 6) 자산 리스트 (기본 접힘) */}
         <section className="mb-6">
           <CollapsibleSection title="자산 리스트">
             <AssetTable assets={displayedAssets} bare />
           </CollapsibleSection>
-        </section>
-
-        {/* 5) 자산맵 */}
-        <AssetMapSection />
-
-        {/* 6) 기존 자산군 비중 그래프 */}
-        <section className="mt-6">
-          <AssetAllocationDonut
-            holdings={donutHoldings}
-            financeAssets={donutFinanceAssets}
-            theme="dark"
-            title="자산군 비중"
-            emptyMessage={donutEmptyMessage}
-          />
         </section>
       </main>
     </div>
