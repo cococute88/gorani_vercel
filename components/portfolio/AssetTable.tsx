@@ -7,6 +7,8 @@ import type { FinanceAsset } from "@/lib/portfolio-types";
 
 interface Props {
   assets: FinanceAsset[];
+  // 외부(접기/펼치기 섹션 등)에서 카드/제목을 제공할 때 내부 카드·제목을 생략한다.
+  bare?: boolean;
 }
 
 const card = "rounded-2xl border border-[#2a3336] bg-[#191f20] p-5";
@@ -25,12 +27,12 @@ function categoryTone(cat?: string): string {
 }
 
 // 자산 리스트 (항목/상품명/금액/태그/분류)
-export default function AssetTable({ assets }: Props) {
+export default function AssetTable({ assets, bare = false }: Props) {
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
   return (
-    <div className={card}>
+    <div className={bare ? "" : card}>
       <div className="mb-4 flex items-center justify-between gap-3">
-        <h2 className="text-[15px] font-bold text-slate-300">자산 리스트</h2>
+        {!bare && <h2 className="text-[15px] font-bold text-slate-300">자산 리스트</h2>}
         <TableCsvMenu filename={`portfolio-assets-${today}.csv`} rows={assets} columns={[
           { header: "항목(그룹)", value: (row) => row.groupName || "—" },
           { header: "상품명", value: (row) => row.cleanName ?? row.productName },
