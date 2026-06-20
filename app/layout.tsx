@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
+import AuthGate from "@/components/auth/AuthGate";
 
 const APP_NAME = "고라니 자산관리";
 const APP_DESCRIPTION = "고라니 자산관리 — 포트폴리오 자산 관리 대시보드";
@@ -53,7 +54,9 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body>
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <AuthGate>{children}</AuthGate>
+        </ThemeProvider>
       </body>
     </html>
   );
