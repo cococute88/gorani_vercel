@@ -22,10 +22,12 @@ type Props = {
   theme?: "dark" | "light";
 };
 
-// 상단 네비게이션. 단일 measured priority nav 으로 동작한다.
-// - 좁은 폭: 1행(로고 + 우측 컨트롤), 2행(네비 전체 폭)의 2행 레이아웃.
-// - 넓은 폭(lg 이상): 로고 | 네비 | 우측 컨트롤의 1행 레이아웃.
-// 두 경우 모두 들어갈 수 있는 만큼 항목을 노출하고, 숨겨진 항목이 있으면 더보기를 우측에 고정한다.
+// 상단 네비게이션.
+// - 모바일(md 미만): 1행(로고 + 우측 컨트롤) + 2행(전체 메뉴 가로 스크롤)의 2행 레이아웃.
+//   2행은 chuchu.gg 모바일 메뉴처럼 한 줄을 유지한 채 좌우 스와이프/스크롤로 모든 메뉴를 노출한다.
+// - 태블릿(md~lg): 1행(로고 + 우측 컨트롤) + 2행(measured priority nav)의 2행 레이아웃.
+// - 데스크톱(lg 이상): 로고 | 네비 | 우측 컨트롤의 1행 레이아웃.
+// 태블릿·데스크톱의 measured nav 는 들어갈 수 있는 만큼 항목을 노출하고, 숨겨진 항목이 있으면 더보기를 우측에 고정한다.
 export default function TopNav({ theme = "dark" }: Props) {
   usePortfolioCloudSync();
   const pathname = usePathname();
@@ -162,10 +164,42 @@ export default function TopNav({ theme = "dark" }: Props) {
           <LoginButton />
         </div>
 
-        {/* 네비게이션 (좁은 폭: 2행 전체 폭 / lg: 1행 가운데 flex-1) */}
+        {/* 모바일 전용 네비게이션 (md 미만): chuchu.gg 모바일 메뉴처럼
+            한 줄을 유지한 채 좌우 스와이프/가로 스크롤로 모든 메뉴에 접근한다.
+            - 줄바꿈 없이(whitespace-nowrap + shrink-0) 항목이 늘어나도 레이아웃이 깨지지 않음
+            - 컨테이너 패딩만큼 음수 마진을 줘 화면 가장자리까지 끊김 없이 스크롤됨
+            - no-scrollbar 로 스크롤바는 숨기되 스크롤/스와이프 동작은 유지
+            데스크톱·태블릿(md 이상)에서는 아래의 측정형 네비를 사용한다. */}
+        <nav
+          aria-label="모바일 메뉴"
+          className="no-scrollbar order-3 -mx-3 flex w-[calc(100%+1.5rem)] items-center gap-1 overflow-x-auto overflow-y-hidden overscroll-x-contain px-3 pb-0.5 [-webkit-overflow-scrolling:touch] sm:-mx-5 sm:w-[calc(100%+2.5rem)] sm:px-5 md:hidden"
+        >
+          {NAV_ITEMS.map((item) => {
+            const active = isActive(item.href);
+            return (
+              <Link
+                key={item.label}
+                href={item.href}
+                aria-current={active ? "page" : undefined}
+                className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-2 text-[13px] font-medium transition-colors ${
+                  active
+                    ? "bg-blue-600 text-white"
+                    : isLight
+                      ? "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                      : "text-slate-300 hover:bg-white/10 hover:text-white"
+                }`}
+              >
+                <span className="text-[13px] leading-none">{item.icon}</span>
+                <span className="whitespace-nowrap">{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* 네비게이션 (태블릿(md~lg): 2행 전체 폭 / lg: 1행 가운데 flex-1) */}
         <nav
           ref={navRef}
-          className="order-3 relative flex w-full min-w-0 items-center gap-1 overflow-hidden lg:order-2 lg:w-auto lg:flex-1"
+          className="order-3 relative hidden w-full min-w-0 items-center gap-1 overflow-hidden md:flex lg:order-2 lg:w-auto lg:flex-1"
         >
           {/* 폭 측정용(보이지 않음). 실제 렌더 항목과 동일 구조여야 정확하게 측정된다. */}
           <div
