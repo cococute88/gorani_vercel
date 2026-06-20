@@ -16,9 +16,9 @@ import { useResolvedTheme } from "@/components/theme/ThemeProvider";
 // PORTFOLIO-CALCULATOR-UX-FIX-2 #7: 원본 Streamlit 입력 흐름에 맞춰 입력칸을 간소화하고
 // 프리셋 저장/선택/불러오기 UI는 메인 화면에서 제거했다.
 const tabs = [
+  { key: "mdd", label: "티커MDD 계산기" },
   { key: "capture", label: "배당치기 시뮬" },
   { key: "conversion", label: "매도전환 계산기" },
-  { key: "mdd", label: "MDD 계산기" },
 ] as const;
 
 type TabKey = (typeof tabs)[number]["key"];
@@ -36,7 +36,7 @@ export default function CalculatorPage() {
   const theme = useResolvedTheme();
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab");
-  const initialTab = (tabParam && TAB_PARAM_MAP[tabParam]) || "capture";
+  const initialTab = (tabParam && TAB_PARAM_MAP[tabParam]) || "mdd";
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
 
   // 이미 계산기 페이지에 있을 때 submenu 로 다른 탭을 누르면 URL 만 바뀌므로

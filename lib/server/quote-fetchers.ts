@@ -160,12 +160,11 @@ export async function fetchYahooChart(input: {
   url.searchParams.set("includePrePost", "false");
   url.searchParams.set("events", input.events ?? "history");
 
-  if (window.start) {
-    url.searchParams.set("period1", String(unixSeconds(window.start)));
-    url.searchParams.set("period2", String(unixSeconds(window.end, true)));
-  } else {
-    url.searchParams.set("range", "max");
-  }
+  // Yahoo chart can ignore interval=1d for range=max and return monthly candles.
+  // Always use explicit unix period bounds so the requested daily interval is preserved
+  // for full-history MDD analysis and CSV exports.
+  url.searchParams.set("period1", String(window.start ? unixSeconds(window.start) : 0));
+  url.searchParams.set("period2", String(unixSeconds(window.end, true)));
 
   const payload = (await (await fetchWithTimeout(url.toString())).json()) as YahooChartPayload;
   const error = payload.chart?.error;

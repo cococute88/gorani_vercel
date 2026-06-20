@@ -7,9 +7,9 @@ import { useAnchoredMenu } from "./useAnchoredMenu";
 // 계산기 하위 메뉴. URL 은 /calculator?tab=... 로 이동하고 CalculatorPage 가
 // searchParams 를 읽어 해당 탭을 연다.
 const CALC_SUBITEMS = [
-  { label: "배당치기", tab: "dividend-capture" },
-  { label: "매도전환", tab: "conversion" },
-  { label: "MDD", tab: "mdd" },
+  { label: "티커MDD 계산기", tab: "mdd" },
+  { label: "배당치기 시뮬", tab: "dividend-capture" },
+  { label: "매도전환 계산기", tab: "conversion" },
 ] as const;
 
 type Props = {

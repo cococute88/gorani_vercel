@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import type { SimulatorInputs } from "@/lib/asset-simulator-types";
 
 const INPUTS: Array<{ key: keyof SimulatorInputs; label: string; suffix: string; step?: number; min?: number; max?: number }> = [
@@ -15,6 +18,11 @@ const INPUTS: Array<{ key: keyof SimulatorInputs; label: string; suffix: string;
 ];
 
 const INTEGER_KEYS: Array<keyof SimulatorInputs> = ["startYear", "years", "withdrawalDelayYears"];
+const PERCENT_KEYS = INPUTS.filter((input) => input.suffix === "%").map((input) => input.key);
+
+function displayInputValue(key: keyof SimulatorInputs, value: number) {
+  return PERCENT_KEYS.includes(key) ? value.toFixed(2) : String(value);
+}
 
 type Props = {
   inputs: SimulatorInputs;
@@ -27,6 +35,18 @@ type Props = {
 };
 
 export default function SimulatorInputPanel({ inputs, onChange, onReset, onSave, saving = false, saveMessage, saveError }: Props) {
+  const [draftValues, setDraftValues] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    setDraftValues((current) => {
+      const next = { ...current };
+      for (const item of INPUTS) {
+        if (!(item.key in next)) next[item.key] = displayInputValue(item.key, inputs[item.key]);
+      }
+      return next;
+    });
+  }, [inputs]);
+
   const updateInput = (key: keyof SimulatorInputs, rawValue: string) => {
     const item = INPUTS.find((input) => input.key === key);
     const parsed = Number(rawValue);
@@ -35,6 +55,12 @@ export default function SimulatorInputPanel({ inputs, onChange, onReset, onSave,
     const max = item?.max ?? Number.POSITIVE_INFINITY;
     const value = INTEGER_KEYS.includes(key) ? Math.round(Math.min(max, Math.max(min, safe))) : Math.min(max, Math.max(min, safe));
     onChange({ ...inputs, [key]: value });
+    return value;
+  };
+
+  const handleBlur = (key: keyof SimulatorInputs) => {
+    const value = updateInput(key, draftValues[key] ?? String(inputs[key]));
+    setDraftValues((current) => ({ ...current, [key]: displayInputValue(key, value) }));
   };
 
   return (
@@ -83,8 +109,13 @@ export default function SimulatorInputPanel({ inputs, onChange, onReset, onSave,
                 min={item.min}
                 max={item.max}
                 step={item.step ?? 1}
-                value={inputs[item.key]}
-                onChange={(event) => updateInput(item.key, event.target.value)}
+                value={draftValues[item.key] ?? displayInputValue(item.key, inputs[item.key])}
+                onChange={(event) => {
+                  const raw = event.target.value;
+                  setDraftValues((current) => ({ ...current, [item.key]: raw }));
+                  updateInput(item.key, raw);
+                }}
+                onBlur={() => handleBlur(item.key)}
                 className="num min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-right text-[14px] font-bold text-slate-900 outline-none placeholder:text-slate-400 focus:border-blue-500 dark:border-[#303a3d] dark:bg-[#0c1011] dark:text-white"
               />
               <span className="w-12 text-[12px] font-semibold text-slate-500">{item.suffix}</span>
