@@ -2,6 +2,9 @@
 
 import Image from "next/image";
 import { useFirebaseAuth } from "@/lib/firebase/auth";
+// 정적 import 를 사용하면 Next 가 빌드 시 너비/높이와 blur 플레이스홀더를
+// 자동 생성하고, 최적화 대상(WebP, 약 180KB)을 인라인으로 연결해 로딩이 빨라진다.
+import goraniImage from "@/public/gorani_image.webp";
 
 // 비로그인 사용자 전용 랜딩 로그인 화면.
 // 좌측: 밝은 배경 + 브랜드명 + Welcome back + Google 로그인 버튼.
@@ -16,10 +19,11 @@ export default function LandingLogin() {
           캐릭터가 보이게 한다), 데스크톱에서는 우측 55~60% */}
       <div className="relative order-1 h-[40vh] w-full shrink-0 sm:h-[44vh] md:order-2 md:h-auto md:min-h-screen md:w-[57%] lg:w-[58%]">
         <Image
-          src="/gorani_image.png"
+          src={goraniImage}
           alt="고라니 브랜드 이미지"
           fill
           priority
+          placeholder="blur"
           sizes="(max-width: 768px) 100vw, 58vw"
           // 모바일은 캐릭터(이미지 하단 중앙)가 보이도록 아래쪽을 기준으로 크롭하고,
           // 데스크톱(md+)에서는 중앙 정렬로 되돌린다.
@@ -42,7 +46,7 @@ export default function LandingLogin() {
               Welcome back
             </h1>
             <p className="mt-3 text-[14px] leading-relaxed text-slate-500">
-              Google 계정으로 로그인하고 포트폴리오를 이어서 확인하세요.
+              google 계정으로 로그인해주세요.
             </p>
 
             <button
