@@ -2,21 +2,29 @@
 
 import Image from "next/image";
 import { useFirebaseAuth } from "@/lib/firebase/auth";
-import { getCurrentSeason, type Season } from "@/lib/season";
+import {
+  getLandingHeroVariant,
+  type LandingHeroVariant,
+} from "@/lib/season";
 // 정적 import 를 사용하면 Next 가 빌드 시 너비/높이와 blur 플레이스홀더를
-// 자동 생성하고, 최적화된 WebP(약 115~150KB)를 인라인으로 연결해 로딩이 빨라진다.
-// 계절 이미지 4종 모두 동일한 WebP 최적화 파이프라인으로 관리한다.
+// 자동 생성하고, 최적화된 WebP(약 115~160KB)를 인라인으로 연결해 로딩이 빨라진다.
+// 히어로 이미지 5종(여름은 이른 여름/늦여름으로 세분) 모두 동일한 WebP
+// 최적화 파이프라인으로 관리한다.
 // (정적 import 는 URL/메타데이터만 제공하므로, 실제 네트워크 요청은
-//  현재 계절로 렌더된 <Image> 1장에 대해서만 발생한다.)
+//  현재 시기로 렌더된 <Image> 1장에 대해서만 발생한다.)
 import goraniSpring from "@/public/gorani_spring.webp";
 import goraniSummer from "@/public/gorani_summer.webp";
+import goraniBeach from "@/public/gorani_beach.webp";
 import goraniFall from "@/public/gorani_fall.webp";
 import goraniWinter from "@/public/gorani_winter.webp";
 
-// 계절 -> 히어로 이미지 매핑.
-const SEASON_IMAGES: Record<Season, typeof goraniSpring> = {
+// 히어로 변형 -> 이미지 매핑.
+//  - summer: 이른 여름(6/1~7/15)
+//  - beach:  늦여름(7/16~8/31)
+const HERO_IMAGES: Record<LandingHeroVariant, typeof goraniSpring> = {
   spring: goraniSpring,
   summer: goraniSummer,
+  beach: goraniBeach,
   fall: goraniFall,
   winter: goraniWinter,
 };
@@ -28,11 +36,11 @@ const SEASON_IMAGES: Record<Season, typeof goraniSpring> = {
 export default function LandingLogin() {
   const { signInWithGoogle, loading, error, configured } = useFirebaseAuth();
 
-  // 현재 날짜 기준 계절을 판별해 해당 계절 이미지를 선택한다.
-  // 순수 함수라 SSR/클라이언트가 동일한 월에서 같은 결과를 내며,
-  // 월이 바뀌면 코드 수정 없이 자동으로 다른 이미지가 선택된다.
-  const season = getCurrentSeason();
-  const heroImage = SEASON_IMAGES[season];
+  // 현재 날짜 기준 히어로 변형(계절 + 여름 세분)을 판별해 이미지를 선택한다.
+  // 순수 함수라 SSR/클라이언트가 동일한 날짜에서 같은 결과를 내며,
+  // 시기가 바뀌면 코드 수정 없이 자동으로 다른 이미지가 선택된다.
+  const heroVariant = getLandingHeroVariant();
+  const heroImage = HERO_IMAGES[heroVariant];
 
   return (
     <div className="flex min-h-screen w-full flex-col overflow-x-hidden bg-white text-slate-900 md:flex-row">
