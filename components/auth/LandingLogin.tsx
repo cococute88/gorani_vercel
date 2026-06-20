@@ -2,16 +2,37 @@
 
 import Image from "next/image";
 import { useFirebaseAuth } from "@/lib/firebase/auth";
+import { getCurrentSeason, type Season } from "@/lib/season";
 // 정적 import 를 사용하면 Next 가 빌드 시 너비/높이와 blur 플레이스홀더를
-// 자동 생성하고, 최적화 대상(WebP, 약 180KB)을 인라인으로 연결해 로딩이 빨라진다.
-import goraniImage from "@/public/gorani_image.webp";
+// 자동 생성하고, 최적화된 WebP(약 115~150KB)를 인라인으로 연결해 로딩이 빨라진다.
+// 계절 이미지 4종 모두 동일한 WebP 최적화 파이프라인으로 관리한다.
+// (정적 import 는 URL/메타데이터만 제공하므로, 실제 네트워크 요청은
+//  현재 계절로 렌더된 <Image> 1장에 대해서만 발생한다.)
+import goraniSpring from "@/public/gorani_spring.webp";
+import goraniSummer from "@/public/gorani_summer.webp";
+import goraniFall from "@/public/gorani_fall.webp";
+import goraniWinter from "@/public/gorani_winter.webp";
+
+// 계절 -> 히어로 이미지 매핑.
+const SEASON_IMAGES: Record<Season, typeof goraniSpring> = {
+  spring: goraniSpring,
+  summer: goraniSummer,
+  fall: goraniFall,
+  winter: goraniWinter,
+};
 
 // 비로그인 사용자 전용 랜딩 로그인 화면.
 // 좌측: 밝은 배경 + 브랜드명 + Welcome back + Google 로그인 버튼.
-// 우측: gorani_image.png 히어로 이미지(비율 유지, object-cover).
+// 우측: 현재 계절에 맞는 고라니 히어로 이미지(비율 유지, object-cover).
 // 로그인 로직은 기존 useFirebaseAuth().signInWithGoogle 를 그대로 사용한다.
 export default function LandingLogin() {
   const { signInWithGoogle, loading, error, configured } = useFirebaseAuth();
+
+  // 현재 날짜 기준 계절을 판별해 해당 계절 이미지를 선택한다.
+  // 순수 함수라 SSR/클라이언트가 동일한 월에서 같은 결과를 내며,
+  // 월이 바뀌면 코드 수정 없이 자동으로 다른 이미지가 선택된다.
+  const season = getCurrentSeason();
+  const heroImage = SEASON_IMAGES[season];
 
   return (
     <div className="flex min-h-screen w-full flex-col overflow-x-hidden bg-white text-slate-900 md:flex-row">
@@ -19,7 +40,7 @@ export default function LandingLogin() {
           캐릭터가 보이게 한다), 데스크톱에서는 우측 55~60% */}
       <div className="relative order-1 h-[40vh] w-full shrink-0 sm:h-[44vh] md:order-2 md:h-auto md:min-h-screen md:w-[57%] lg:w-[58%]">
         <Image
-          src={goraniImage}
+          src={heroImage}
           alt="고라니 브랜드 이미지"
           fill
           priority
@@ -39,8 +60,11 @@ export default function LandingLogin() {
           Gorafi
         </div>
 
-        {/* 중앙 영역 */}
-        <div className="flex flex-1 flex-col justify-center py-10">
+        {/* 중앙 영역.
+            모바일에서는 Gorafi 바로 아래에 컴팩트하게 붙여(justify-start, py-5) 한 카드처럼
+            이어 보이게 하고, 데스크톱(md+)에서는 기존처럼 세로 중앙 정렬(justify-center, py-10)로
+            되돌려 레이아웃을 그대로 유지한다. */}
+        <div className="flex flex-1 flex-col justify-start py-5 md:justify-center md:py-10">
           <div className="mx-auto w-full max-w-sm">
             <h1 className="text-[28px] font-extrabold leading-tight text-slate-900 sm:text-[32px]">
               Welcome back
