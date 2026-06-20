@@ -17,16 +17,22 @@ import goraniSummer from "@/public/gorani_summer.webp";
 import goraniBeach from "@/public/gorani_beach.webp";
 import goraniFall from "@/public/gorani_fall.webp";
 import goraniWinter from "@/public/gorani_winter.webp";
+import goraniNewyear1 from "@/public/gorani_newyear_1.webp";
+import goraniNewyear2 from "@/public/gorani_newyear_2.webp";
 
 // 히어로 변형 -> 이미지 매핑.
-//  - summer: 이른 여름(6/1~7/15)
-//  - beach:  늦여름(7/16~8/31)
+//  - summer:   이른 여름(6/1~7/15)
+//  - beach:    늦여름(7/16~8/31)
+//  - winter:   12월
+//  - newyear1: 1월 / newyear2: 2월
 const HERO_IMAGES: Record<LandingHeroVariant, typeof goraniSpring> = {
   spring: goraniSpring,
   summer: goraniSummer,
   beach: goraniBeach,
   fall: goraniFall,
   winter: goraniWinter,
+  newyear1: goraniNewyear1,
+  newyear2: goraniNewyear2,
 };
 
 // 비로그인 사용자 전용 랜딩 로그인 화면.
