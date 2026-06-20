@@ -7,9 +7,10 @@ import {
   type LandingHeroVariant,
 } from "@/lib/season";
 // 정적 import 를 사용하면 Next 가 빌드 시 너비/높이와 blur 플레이스홀더를
-// 자동 생성하고, 최적화된 WebP(약 115~160KB)를 인라인으로 연결해 로딩이 빨라진다.
-// 히어로 이미지 5종(여름은 이른 여름/늦여름으로 세분) 모두 동일한 WebP
-// 최적화 파이프라인으로 관리한다.
+// 자동 생성하고, 최적화된 WebP(약 200~300KB, q90/method6)를 인라인으로 연결해
+// 로딩이 빨라진다. 마스터 WebP 는 scripts/generate-hero-webp.py 단일 파이프라인으로
+// 생성하며, 히어로 이미지 7종(여름은 이른 여름/늦여름, 겨울은 12월/1월/2월로 세분)
+// 모두 동일한 품질 기준(q90)으로 관리한다.
 // (정적 import 는 URL/메타데이터만 제공하므로, 실제 네트워크 요청은
 //  현재 시기로 렌더된 <Image> 1장에 대해서만 발생한다.)
 import goraniSpring from "@/public/gorani_spring.webp";
@@ -59,6 +60,10 @@ export default function LandingLogin() {
           fill
           priority
           placeholder="blur"
+          // Next 이미지 최적화기는 마스터 WebP 를 재인코딩하므로, 기본 q75 로
+          // 한 번 더 압축되면 이미 손실 압축된 소스가 이중 압축돼 디테일이
+          // 뭉개진다. 마스터 품질(q90)에 맞춰 90 으로 올려 이중 압축 손실을 없앤다.
+          quality={90}
           sizes="(max-width: 768px) 100vw, 58vw"
           // 모바일은 캐릭터(이미지 하단 중앙)가 보이도록 아래쪽을 기준으로 크롭하고,
           // 데스크톱(md+)에서는 중앙 정렬로 되돌린다.
