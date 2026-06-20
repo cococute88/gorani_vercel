@@ -22,3 +22,26 @@ export function getCurrentSeason(date: Date = new Date()): Season {
   // getMonth() 는 0 기반이므로 +1 하여 1 기반 월로 변환한다.
   return getSeasonForMonth(date.getMonth() + 1);
 }
+
+// 랜딩 히어로 이미지 변형.
+// 기본 4계절에 더해, 여름을 두 시기로 세분한다:
+//  - 이른 여름(summer):  6월 1일 ~ 7월 15일
+//  - 늦여름(beach):      7월 16일 ~ 8월 31일
+export type LandingHeroVariant = "spring" | "summer" | "beach" | "fall" | "winter";
+
+// 주어진(또는 현재) 날짜 기준 랜딩 히어로 변형을 반환한다.
+// 여름 구간만 일(day) 단위로 세분하고, 나머지 계절은 기본 매핑을 따른다.
+// 순수 함수라 월/일/연도가 바뀌어도 코드 수정 없이 자동 반영된다.
+export function getLandingHeroVariant(
+  date: Date = new Date(),
+): LandingHeroVariant {
+  const month = date.getMonth() + 1; // 1 기반 월
+  const day = date.getDate(); // 1~31
+
+  if (month === 6) return "summer"; // 6월 전체 = 이른 여름
+  if (month === 7) return day <= 15 ? "summer" : "beach"; // 7/15 까지 summer, 7/16~ beach
+  if (month === 8) return "beach"; // 8월 전체 = 늦여름
+
+  // 그 외(가을/겨울/봄)는 기본 계절 매핑을 그대로 사용한다.
+  return getSeasonForMonth(month);
+}
