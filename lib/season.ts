@@ -24,13 +24,20 @@ export function getCurrentSeason(date: Date = new Date()): Season {
 }
 
 // 랜딩 히어로 이미지 변형.
-// 기본 4계절에 더해, 여름을 두 시기로 세분한다:
-//  - 이른 여름(summer):  6월 1일 ~ 7월 15일
-//  - 늦여름(beach):      7월 16일 ~ 8월 31일
-export type LandingHeroVariant = "spring" | "summer" | "beach" | "fall" | "winter";
+// 기본 4계절에 더해, 일부 계절을 시기별로 세분한다:
+//  - 여름: 이른 여름(summer, 6/1~7/15) / 늦여름(beach, 7/16~8/31)
+//  - 겨울: 12월은 기존 winter, 1월은 newyear1, 2월은 newyear2
+export type LandingHeroVariant =
+  | "spring"
+  | "summer"
+  | "beach"
+  | "fall"
+  | "winter"
+  | "newyear1"
+  | "newyear2";
 
 // 주어진(또는 현재) 날짜 기준 랜딩 히어로 변형을 반환한다.
-// 여름 구간만 일(day) 단위로 세분하고, 나머지 계절은 기본 매핑을 따른다.
+// 여름은 일(day) 단위, 겨울은 월 단위로 세분하고, 나머지 계절은 기본 매핑을 따른다.
 // 순수 함수라 월/일/연도가 바뀌어도 코드 수정 없이 자동 반영된다.
 export function getLandingHeroVariant(
   date: Date = new Date(),
@@ -42,6 +49,10 @@ export function getLandingHeroVariant(
   if (month === 7) return day <= 15 ? "summer" : "beach"; // 7/15 까지 summer, 7/16~ beach
   if (month === 8) return "beach"; // 8월 전체 = 늦여름
 
-  // 그 외(가을/겨울/봄)는 기본 계절 매핑을 그대로 사용한다.
+  if (month === 1) return "newyear1"; // 1월 = 새해 이미지 1
+  if (month === 2) return "newyear2"; // 2월 = 새해 이미지 2
+  // 12월은 아래 기본 매핑에서 winter 로 처리된다.
+
+  // 그 외(가을/겨울(12월)/봄)는 기본 계절 매핑을 그대로 사용한다.
   return getSeasonForMonth(month);
 }
