@@ -98,7 +98,7 @@ const asOf = today.toISOString().slice(0, 10);
 
 const spy = series(startISO, 25, 400, 0.01); // 미국 USD
 const qqq = series(startISO, 25, 300, 0.015);
-const kospi = series(startISO, 25, 2500, 0.005); // 원화
+const schd = series(startISO, 25, 70, 0.008); // 사용자 선택 비교 티커(USD)
 const fx = series(startISO, 25, 1300, 0.0); // 환율 평탄
 const aceSpy = series(startISO, 25, 15000, 0.008); // 360200.KS (원화)
 
@@ -109,39 +109,61 @@ const result = buildSnapshotBacktest({
     { key: "name:원화현금", label: "원화 현금", valueKRW: 2_000_000, ticker: null, isUsd: false, isCash: true },
   ],
   priceHistories: { "360200.KS": aceSpy, SGOV: series(startISO, 25, 100, 0.001) },
-  benchmarkHistories: { spy, qqq, kospi },
+  benchmarkHistories: { spy, qqq, custom: schd },
   fxHistory: fx,
   months: 24,
   asOfDate: asOf,
+  customTicker: "SCHD",
 });
 
 assert.equal(result.available, true, "백테스트 available");
 assert.equal(result.basePrincipalKRW, 12_000_000, "원금 합계");
 assert.ok(result.points.length >= 20, `월별 포인트 수: ${result.points.length}`);
 assert.equal(result.fxApplied, true, "환율 반영");
-for (const key of ["portfolio", "spy", "qqq", "kospi"]) {
+for (const key of ["portfolio", "spy", "qqq", "custom"]) {
   assert.equal(result.cards[key].available, true, `${key} 카드 available`);
   assert.equal(result.cards[key].principalKRW, 12_000_000, `${key} 원금`);
   assert.ok(Number.isFinite(result.cards[key].currentValueKRW), `${key} 현재가치 유한`);
 }
+// 사용자 선택 비교 티커 카드 라벨은 "<티커> 투자 시" 로 동적 생성된다.
+assert.equal(result.cards.custom.label, "SCHD 투자 시", "custom 카드 라벨 동적 생성");
 // 현금(200만)은 평탄 → 포트폴리오 최종값은 (성장한 ACE+SGOV) + 200만 현금.
 assert.ok(result.cards.portfolio.currentValueKRW > result.basePrincipalKRW, "성장 포트폴리오 > 원금");
 // QQQ(1.5%/월) > SPY(1%/월) 누적
 assert.ok(result.cards.qqq.currentValueKRW > result.cards.spy.currentValueKRW, "QQQ > SPY");
-console.log("✓ buildSnapshotBacktest: 포트폴리오/SPY/QQQ/KOSPI 계산 + 현금 평탄 처리");
+console.log("✓ buildSnapshotBacktest: 포트폴리오/SPY/QQQ/커스텀 비교 티커 계산 + 현금 평탄 처리");
 
 // ---- 5) 환율 미반영 케이스 ----
 const noFx = buildSnapshotBacktest({
   entries: [{ key: "SGOV", label: "SGOV", valueKRW: 1_000_000, ticker: "SGOV", isUsd: true, isCash: false }],
   priceHistories: { SGOV: series(startISO, 25, 100, 0.001) },
-  benchmarkHistories: { spy, qqq, kospi },
+  benchmarkHistories: { spy, qqq, custom: schd },
   fxHistory: null,
   months: 24,
   asOfDate: asOf,
+  customTicker: "SCHD",
 });
 assert.equal(noFx.fxApplied, false, "환율 미반영 플래그");
 assert.ok(noFx.warnings.includes("환율 미반영"), "환율 미반영 경고");
 console.log("✓ 환율 데이터 없을 때 '환율 미반영' 플래그/경고");
+
+// ---- 5b) 기간 선택(6개월) 및 기간별 포인트 수 ----
+const sixMonth = buildSnapshotBacktest({
+  entries: [
+    { key: "360200.KS", label: "ACE 미국S&P500", valueKRW: 6_000_000, ticker: "360200.KS", proxyTicker: "SPY", isUsd: false, isCash: false },
+  ],
+  priceHistories: { "360200.KS": aceSpy },
+  benchmarkHistories: { spy, qqq, custom: schd },
+  fxHistory: fx,
+  months: 6,
+  asOfDate: asOf,
+  customTicker: "QLD",
+});
+assert.equal(sixMonth.available, true, "6개월 백테스트 available");
+assert.ok(sixMonth.points.length <= 8, `6개월 포인트 수 제한: ${sixMonth.points.length}`);
+assert.ok(sixMonth.points.length < result.points.length, "6개월 포인트 < 2년 포인트");
+assert.equal(sixMonth.cards.custom.label, "QLD 투자 시", "6개월 custom 라벨");
+console.log("✓ 기간(6개월) 선택 시 포인트 범위 축소 + 라벨 동적 변경");
 
 // ---- 6) 빈 스냅샷 방어 ----
 const empty = buildSnapshotBacktest({ entries: [], priceHistories: {}, benchmarkHistories: {}, fxHistory: null });
