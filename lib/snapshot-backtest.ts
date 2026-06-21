@@ -2,11 +2,11 @@
 // 스냅샷 기반 "2년 역산 성과 분석" 순수 계산 로직.
 //
 // 포트폴리오 관리 페이지에서 선택된 스냅샷의 "계좌별 종목 비중"을 그대로 사용해
-// "2년 전에 동일 비중으로 매수했다면" 가정의 성과를 역산한다.
-//   - 내 포트폴리오 : 스냅샷 비중을 2년 전 가격으로 매수 → 현재까지 평가
-//   - SPY 투자 시   : 동일 원금을 전액 SPY 에 2년 전 매수
-//   - QQQ 투자 시   : 동일 원금을 전액 QQQ 에 2년 전 매수
-//   - KOSPI 투자 시 : 동일 원금을 전액 KOSPI(^KS11) 추종
+// "N개월 전에 동일 비중으로 매수했다면" 가정의 성과를 역산한다.
+//   - 내 포트폴리오 : 스냅샷 비중을 기간 전 가격으로 매수 → 현재까지 평가
+//   - SPY 투자 시   : 동일 원금을 전액 SPY 에 기간 전 매수
+//   - QQQ 투자 시   : 동일 원금을 전액 QQQ 에 기간 전 매수
+//   - (사용자 선택 티커) 투자 시 : 동일 원금을 전액 사용자가 고른 비교 티커에 기간 전 매수
 //
 // 원칙:
 //   - 새 가격/샘플 데이터를 만들지 않는다. 실제 가격 히스토리만 사용한다.
@@ -30,14 +30,14 @@ export type BacktestEntry = {
   isCash: boolean;
 };
 
-export type BacktestSeriesKey = "portfolio" | "spy" | "qqq" | "kospi";
+export type BacktestSeriesKey = "portfolio" | "spy" | "qqq" | "custom";
 
 export type BacktestPoint = {
   date: string; // YYYY-MM
   portfolio: number | null;
   spy: number | null;
   qqq: number | null;
-  kospi: number | null;
+  custom: number | null;
 };
 
 export type BacktestCard = {
@@ -68,11 +68,15 @@ export type BuildSnapshotBacktestInput = {
   benchmarkHistories: {
     spy?: BacktestPricePoint[] | null;
     qqq?: BacktestPricePoint[] | null;
-    kospi?: BacktestPricePoint[] | null;
+    custom?: BacktestPricePoint[] | null;
   };
   fxHistory?: BacktestPricePoint[] | null;
   months?: number;
   asOfDate?: string;
+  // 사용자 선택 비교 티커. 카드/범례 라벨과 USD 여부(환율 반영)를 결정한다.
+  customLabel?: string;
+  customTicker?: string;
+  customIsUsd?: boolean;
 };
 
 const DEFAULT_MONTHS = 24;
@@ -166,7 +170,7 @@ function makeCard(
   return { key, label, principalKRW: base, currentValueKRW, gainKRW, returnPct, available };
 }
 
-function emptyResult(reason: string, base = 0): SnapshotBacktestResult {
+function emptyResult(reason: string, base = 0, customLabel = "비교 티커 투자 시"): SnapshotBacktestResult {
   const card = (key: BacktestSeriesKey, label: string): BacktestCard => ({
     key,
     label,
@@ -185,7 +189,7 @@ function emptyResult(reason: string, base = 0): SnapshotBacktestResult {
       portfolio: card("portfolio", "내 포트폴리오"),
       spy: card("spy", "SPY 투자 시"),
       qqq: card("qqq", "QQQ 투자 시"),
-      kospi: card("kospi", "KOSPI 투자 시"),
+      custom: card("custom", customLabel),
     },
     fxApplied: false,
     warnings: [reason],
@@ -223,12 +227,16 @@ function benchmarkLine(
 export function buildSnapshotBacktest(input: BuildSnapshotBacktestInput): SnapshotBacktestResult {
   const months = input.months ?? DEFAULT_MONTHS;
   const asOfDate = isValidDate(input.asOfDate) ? input.asOfDate : new Date().toISOString().slice(0, 10);
+  const customTicker = (input.customTicker ?? "").toUpperCase();
+  const customLabel = input.customLabel ?? (customTicker ? `${customTicker} 투자 시` : "비교 티커 투자 시");
+  // 사용자 비교 티커는 별도 지정이 없으면 미국 ETF(USD)로 간주해 환율을 반영한다.
+  const customIsUsd = input.customIsUsd ?? true;
 
   const entries = (input.entries ?? []).filter((entry) => finite(entry.valueKRW) > 0);
   const basePrincipalKRW = entries.reduce((sum, entry) => sum + finite(entry.valueKRW), 0);
 
   if (entries.length === 0 || basePrincipalKRW <= 0) {
-    return emptyResult("성과분석 데이터 부족: 이 스냅샷에 평가금액이 있는 보유종목이 없습니다.");
+    return emptyResult("성과분석 데이터 부족: 이 스냅샷에 평가금액이 있는 보유종목이 없습니다.", 0, customLabel);
   }
 
   const fxSorted = sortSeries(input.fxHistory);
@@ -240,14 +248,15 @@ export function buildSnapshotBacktest(input: BuildSnapshotBacktestInput): Snapsh
     ...resolved.map((row) => row.history),
     input.benchmarkHistories.spy,
     input.benchmarkHistories.qqq,
-    input.benchmarkHistories.kospi,
+    input.benchmarkHistories.custom,
   ];
   const monthDates = monthEnds(axisHistories, asOfDate, months);
 
   if (monthDates.length < 2) {
     return emptyResult(
-      "성과분석 데이터 부족: 최근 2년 과거 가격 데이터를 불러오지 못했습니다.",
+      "성과분석 데이터 부족: 선택한 기간의 과거 가격 데이터를 불러오지 못했습니다.",
       basePrincipalKRW,
+      customLabel,
     );
   }
 
@@ -303,21 +312,28 @@ export function buildSnapshotBacktest(input: BuildSnapshotBacktestInput): Snapsh
 
   const spySeries = benchmarkLine(input.benchmarkHistories.spy, monthDates, basePrincipalKRW, true, fxSorted, fxApplied);
   const qqqSeries = benchmarkLine(input.benchmarkHistories.qqq, monthDates, basePrincipalKRW, true, fxSorted, fxApplied);
-  const kospiSeries = benchmarkLine(input.benchmarkHistories.kospi, monthDates, basePrincipalKRW, false, fxSorted, fxApplied);
+  const customSeries = benchmarkLine(
+    input.benchmarkHistories.custom,
+    monthDates,
+    basePrincipalKRW,
+    customIsUsd,
+    fxSorted,
+    fxApplied,
+  );
 
   const points: BacktestPoint[] = monthDates.map((date, i) => ({
     date: monthKey(date),
     portfolio: finite(portfolioSeries[i]) > 0 ? portfolioSeries[i] : null,
     spy: spySeries[i],
     qqq: qqqSeries[i],
-    kospi: kospiSeries[i],
+    custom: customSeries[i],
   }));
 
   const cards: Record<BacktestSeriesKey, BacktestCard> = {
     portfolio: makeCard("portfolio", "내 포트폴리오", basePrincipalKRW, portfolioSeries),
     spy: makeCard("spy", "SPY 투자 시", basePrincipalKRW, spySeries),
     qqq: makeCard("qqq", "QQQ 투자 시", basePrincipalKRW, qqqSeries),
-    kospi: makeCard("kospi", "KOSPI 투자 시", basePrincipalKRW, kospiSeries),
+    custom: makeCard("custom", customLabel, basePrincipalKRW, customSeries),
   };
 
   if (excludedTickers.length > 0) {
@@ -338,7 +354,10 @@ export function buildSnapshotBacktest(input: BuildSnapshotBacktestInput): Snapsh
   }
   if (!cards.spy.available) warnings.push("SPY 가격/환율 데이터를 불러오지 못해 SPY 비교선을 표시하지 않습니다.");
   if (!cards.qqq.available) warnings.push("QQQ 가격/환율 데이터를 불러오지 못해 QQQ 비교선을 표시하지 않습니다.");
-  if (!cards.kospi.available) warnings.push("KOSPI 가격 데이터를 불러오지 못해 KOSPI 비교선을 표시하지 않습니다.");
+  if (!cards.custom.available) {
+    const tickerName = customTicker || "비교 티커";
+    warnings.push(`${tickerName} 가격 데이터를 불러오지 못해 비교선을 표시하지 않습니다.`);
+  }
 
   return {
     available: true,

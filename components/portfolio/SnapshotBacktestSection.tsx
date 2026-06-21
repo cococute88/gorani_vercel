@@ -26,6 +26,11 @@ import {
 } from "@/lib/account-holding-weights";
 import { quoteHistoryPath } from "@/lib/quote-client";
 import type { QuoteHistoryResponse } from "@/lib/quote-types";
+import {
+  COMPARE_TICKER_OPTIONS,
+  DEFAULT_COMPARE_TICKER,
+  normalizeCompareTicker,
+} from "@/lib/backtest-compare-tickers";
 import { AXIS_LINE, AXIS_TICK_SM, CHART_GRID, CHART_MARGIN, TOOLTIP_STYLE } from "@/lib/chart-style";
 import { formatPercent } from "@/lib/format";
 
@@ -37,20 +42,23 @@ interface Props {
 
 const card = "rounded-2xl border border-slate-200 bg-white p-5 dark:border-[#2a3336] dark:bg-[#191f20]";
 const LEGEND_WRAPPER = { fontSize: 12, paddingTop: 8 };
-const BACKTEST_MONTHS = 24;
 
 // 벤치마크/환율 티커: 기존 quote/history API 를 그대로 재사용한다.
 const SPY_TICKER = "SPY";
 const QQQ_TICKER = "QQQ";
-const KOSPI_TICKER = "^KS11";
 const FX_TICKER = "KRW=X";
 
-const SERIES_META: Array<{ key: BacktestSeriesKey; name: string; color: string; width: number; dashed: boolean }> = [
-  { key: "portfolio", name: "내 포트폴리오", color: "#3b82f6", width: 2.4, dashed: false },
-  { key: "spy", name: "SPY 투자 시", color: "#10b981", width: 1.6, dashed: true },
-  { key: "qqq", name: "QQQ 투자 시", color: "#f97316", width: 1.6, dashed: true },
-  { key: "kospi", name: "KOSPI 투자 시", color: "#f59e0b", width: 1.6, dashed: true },
+// 기간 선택(세그먼트 토글). 기본값 2년(24개월).
+const PERIOD_OPTIONS: Array<{ months: number; label: string }> = [
+  { months: 24, label: "2년" },
+  { months: 12, label: "1년" },
+  { months: 6, label: "6개월" },
 ];
+const DEFAULT_MONTHS = 24;
+
+// 마지막 선택값 복원용 localStorage 키.
+const STORE_KEY_TICKER = "gorani.backtest.compareTicker";
+const STORE_KEY_MONTHS = "gorani.backtest.months";
 
 function eokFmt(value: number): string {
   return `${(value / 100000000).toFixed(1)}억`;
@@ -74,11 +82,15 @@ function monthHistoryStart(latestDate: string, months: number): string {
   return date.toISOString().slice(0, 10);
 }
 
+function periodLabel(months: number): string {
+  return PERIOD_OPTIONS.find((option) => option.months === months)?.label ?? `${months}개월`;
+}
+
 function performanceDomain(
   points: Array<Record<BacktestSeriesKey | "date", number | string | null>>,
 ): [number | string, number | string] {
   const values = points
-    .flatMap((point) => [point.portfolio, point.spy, point.qqq, point.kospi])
+    .flatMap((point) => [point.portfolio, point.spy, point.qqq, point.custom])
     .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
   if (values.length === 0) return ["auto", "auto"];
   const min = Math.min(...values);
@@ -178,6 +190,51 @@ function Kpi({
 }
 
 export default function SnapshotBacktestSection({ snapshots, selectedSnapshotId }: Props) {
+  // 기간 / 비교 티커 상태 (마지막 선택값은 localStorage 로 복원).
+  const [months, setMonths] = useState<number>(DEFAULT_MONTHS);
+  const [customTicker, setCustomTicker] = useState<string>(DEFAULT_COMPARE_TICKER);
+  const [tickerInput, setTickerInput] = useState<string>(DEFAULT_COMPARE_TICKER);
+
+  // 최초 마운트 시 마지막 선택값 복원.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const savedTicker = window.localStorage.getItem(STORE_KEY_TICKER);
+      if (savedTicker) {
+        const normalized = normalizeCompareTicker(savedTicker);
+        if (normalized) {
+          setCustomTicker(normalized);
+          setTickerInput(normalized);
+        }
+      }
+      const savedMonths = Number(window.localStorage.getItem(STORE_KEY_MONTHS));
+      if (PERIOD_OPTIONS.some((option) => option.months === savedMonths)) {
+        setMonths(savedMonths);
+      }
+    } catch {
+      // localStorage 접근 불가(시크릿 모드 등)는 무시하고 기본값 사용.
+    }
+  }, []);
+
+  // 입력값을 디바운스하여 비교 티커로 확정 → 즉시 재계산/재조회.
+  useEffect(() => {
+    const normalized = normalizeCompareTicker(tickerInput);
+    if (!normalized) return;
+    const timer = setTimeout(() => setCustomTicker(normalized), 400);
+    return () => clearTimeout(timer);
+  }, [tickerInput]);
+
+  // 선택값 저장.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(STORE_KEY_TICKER, customTicker);
+      window.localStorage.setItem(STORE_KEY_MONTHS, String(months));
+    } catch {
+      // 저장 실패는 무시.
+    }
+  }, [customTicker, months]);
+
   const latestSnapshot = useMemo(
     () =>
       snapshots.length > 0
@@ -206,41 +263,57 @@ export default function SnapshotBacktestSection({ snapshots, selectedSnapshotId 
     return Array.from(set).sort();
   }, [entries]);
 
-  const start = useMemo(() => monthHistoryStart(todayISO(), BACKTEST_MONTHS + 1), []);
-  const fetchKey = useMemo(() => `${activeSnapshot?.id ?? "none"}|${holdingTickers.join(",")}`, [activeSnapshot, holdingTickers]);
+  // 기간 선택에 맞춰 조회 시작일을 다시 계산 → API 재조회 범위와 그래프 범위를 일치시킨다.
+  const start = useMemo(() => monthHistoryStart(todayISO(), months + 1), [months]);
+  const fetchKey = useMemo(
+    () => `${activeSnapshot?.id ?? "none"}|${months}|${customTicker}|${holdingTickers.join(",")}`,
+    [activeSnapshot, months, customTicker, holdingTickers],
+  );
 
   const [histories, setHistories] = useState<{
     holdingPrices: Record<string, BacktestPricePoint[]>;
     spy: BacktestPricePoint[] | null;
     qqq: BacktestPricePoint[] | null;
-    kospi: BacktestPricePoint[] | null;
+    custom: BacktestPricePoint[] | null;
+    customInvalid: boolean;
     fx: BacktestPricePoint[] | null;
     loaded: boolean;
-  }>({ holdingPrices: {}, spy: null, qqq: null, kospi: null, fx: null, loaded: false });
+  }>({ holdingPrices: {}, spy: null, qqq: null, custom: null, customInvalid: false, fx: null, loaded: false });
 
   useEffect(() => {
     if (!activeSnapshot) {
-      setHistories({ holdingPrices: {}, spy: null, qqq: null, kospi: null, fx: null, loaded: false });
+      setHistories({
+        holdingPrices: {},
+        spy: null,
+        qqq: null,
+        custom: null,
+        customInvalid: false,
+        fx: null,
+        loaded: false,
+      });
       return;
     }
     let active = true;
     setHistories((prev) => ({ ...prev, loaded: false }));
     async function load() {
-      const [spy, qqq, kospi, fx, holdingEntries] = await Promise.all([
+      const [spy, qqq, customResponse, fx, holdingEntries] = await Promise.all([
         fetchHistory(SPY_TICKER, start),
         fetchHistory(QQQ_TICKER, start),
-        fetchHistory(KOSPI_TICKER, start),
+        fetchHistory(customTicker, start),
         fetchHistory(FX_TICKER, start),
         Promise.all(
           holdingTickers.map(async (ticker) => [ticker, toPriceSeries(await fetchHistory(ticker, start)) ?? []] as const),
         ),
       ]);
       if (!active) return;
+      // 존재하지 않는 티커는 quote API 가 source="sample" 로 응답한다 → 유효하지 않은 티커로 처리.
+      const customInvalid = customResponse != null && customResponse.source === "sample";
       setHistories({
         holdingPrices: Object.fromEntries(holdingEntries),
         spy: toPriceSeries(spy),
         qqq: toPriceSeries(qqq),
-        kospi: toPriceSeries(kospi),
+        custom: toPriceSeries(customResponse),
+        customInvalid,
         fx: toPriceSeries(fx),
         loaded: true,
       });
@@ -249,21 +322,38 @@ export default function SnapshotBacktestSection({ snapshots, selectedSnapshotId 
     return () => {
       active = false;
     };
-    // fetchKey 가 티커/스냅샷 변경을 반영한다.
+    // fetchKey 가 티커/스냅샷/기간 변경을 반영한다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchKey, start]);
+
+  const customLabel = `${customTicker} 투자 시`;
 
   const result = useMemo(
     () =>
       buildSnapshotBacktest({
         entries,
         priceHistories: histories.holdingPrices,
-        benchmarkHistories: { spy: histories.spy, qqq: histories.qqq, kospi: histories.kospi },
+        benchmarkHistories: { spy: histories.spy, qqq: histories.qqq, custom: histories.custom },
         fxHistory: histories.fx,
-        months: BACKTEST_MONTHS,
+        months,
         asOfDate: todayISO(),
+        customTicker,
+        customLabel,
+        customIsUsd: true,
       }),
-    [entries, histories],
+    [entries, histories, months, customTicker, customLabel],
+  );
+
+  const seriesMeta = useMemo<
+    Array<{ key: BacktestSeriesKey; name: string; color: string; width: number; dashed: boolean }>
+  >(
+    () => [
+      { key: "portfolio", name: "내 포트폴리오", color: "#3b82f6", width: 2.4, dashed: false },
+      { key: "spy", name: "SPY 투자 시", color: "#10b981", width: 1.6, dashed: true },
+      { key: "qqq", name: "QQQ 투자 시", color: "#f97316", width: 1.6, dashed: true },
+      { key: "custom", name: customLabel, color: "#a855f7", width: 1.6, dashed: true },
+    ],
+    [customLabel],
   );
 
   const chartPoints = useMemo(
@@ -273,30 +363,88 @@ export default function SnapshotBacktestSection({ snapshots, selectedSnapshotId 
         portfolio: point.portfolio,
         spy: point.spy,
         qqq: point.qqq,
-        kospi: point.kospi,
+        custom: point.custom,
       })),
     [result.points],
   );
 
   const cardWarnings = result.warnings.filter((warning) => warning !== "환율 미반영");
   const showFxNotice = !result.fxApplied;
+  const titleLabel = periodLabel(months);
 
   return (
     <section className="mb-6">
       <div className={card}>
-        <div className="mb-1 flex flex-wrap items-center gap-2">
-          <h2 className="text-[16px] font-extrabold text-slate-900 dark:text-white">2년 역산 성과 분석</h2>
-          <span className="rounded-md bg-blue-500/10 px-2 py-0.5 text-[11px] text-blue-400">스냅샷 비중 기준 역산</span>
-          {activeSnapshot && (
-            <span className="text-[12px] text-slate-500">
-              {activeSnapshot.snapshotDate} 스냅샷 비중 · 2년 전 동일 비중 매수 가정
-            </span>
-          )}
+        <div className="mb-1 flex flex-wrap items-start justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-[16px] font-extrabold text-slate-900 dark:text-white">{titleLabel} 역산 성과 분석</h2>
+            <span className="rounded-md bg-blue-500/10 px-2 py-0.5 text-[11px] text-blue-400">스냅샷 비중 기준 역산</span>
+            {activeSnapshot && (
+              <span className="text-[12px] text-slate-500">
+                {activeSnapshot.snapshotDate} 스냅샷 비중 · {titleLabel} 전 동일 비중 매수 가정
+              </span>
+            )}
+          </div>
+
+          {/* 기간 / 비교 티커 선택 — 우측 상단. 모바일에서는 줄바꿈된다. */}
+          <div className="flex flex-wrap items-center gap-2">
+            <div
+              className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-0.5 dark:border-[#2a3336] dark:bg-[#11181a]"
+              role="group"
+              aria-label="기간 선택"
+            >
+              {PERIOD_OPTIONS.map((option) => {
+                const activePeriod = option.months === months;
+                return (
+                  <button
+                    key={option.months}
+                    type="button"
+                    onClick={() => setMonths(option.months)}
+                    aria-pressed={activePeriod}
+                    className={`rounded-md px-2.5 py-1 text-[12px] font-semibold transition-colors ${
+                      activePeriod
+                        ? "bg-blue-500 text-white shadow-sm"
+                        : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            <label className="flex items-center gap-1.5 text-[12px] font-semibold text-slate-500">
+              비교 티커
+              <input
+                list="snapshot-compare-tickers"
+                value={tickerInput}
+                onChange={(event) => setTickerInput(event.target.value.toUpperCase())}
+                spellCheck={false}
+                autoCapitalize="characters"
+                placeholder="SCHD"
+                aria-label="비교 티커 입력"
+                className="w-[120px] rounded-lg border border-slate-200 bg-white px-2 py-1 text-[13px] font-bold uppercase text-slate-900 outline-none focus:border-blue-400 dark:border-[#2a3336] dark:bg-[#11181a] dark:text-slate-100"
+              />
+            </label>
+            <datalist id="snapshot-compare-tickers">
+              {COMPARE_TICKER_OPTIONS.map((option) => (
+                <option key={option.ticker} value={option.ticker}>
+                  {option.name}
+                </option>
+              ))}
+            </datalist>
+          </div>
         </div>
+
+        {histories.loaded && histories.customInvalid && (
+          <div className="mt-2 inline-block rounded-md bg-rose-500/10 px-2 py-0.5 text-[11.5px] text-rose-500">
+            유효하지 않은 티커입니다. (비교 티커 가격 데이터를 찾을 수 없습니다)
+          </div>
+        )}
 
         {!activeSnapshot ? (
           <div className="mt-3 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-[13px] text-slate-500 dark:border-[#334044] dark:bg-[#11181a]">
-            등록된 스냅샷이 없습니다. 엑셀을 업로드하고 스냅샷을 등록하면 2년 역산 성과를 분석할 수 있습니다.
+            등록된 스냅샷이 없습니다. 엑셀을 업로드하고 스냅샷을 등록하면 역산 성과를 분석할 수 있습니다.
           </div>
         ) : !histories.loaded ? (
           <div className="mt-3 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-[13px] text-slate-500 dark:border-[#334044] dark:bg-[#11181a]">
@@ -312,10 +460,10 @@ export default function SnapshotBacktestSection({ snapshots, selectedSnapshotId 
         ) : (
           <>
             <p className="mb-4 mt-1 text-[12px] text-slate-500">
-              선택한 스냅샷의 종목 비중을 2년 전에 그대로 매수했다고 가정하고, 동일 원금을 SPY · QQQ · KOSPI 에 전액 투자한 경우와 비교합니다.
+              선택한 스냅샷의 종목 비중을 {titleLabel} 전에 그대로 매수했다고 가정하고, 동일 원금을 SPY · QQQ · {customTicker} 에 전액 투자한 경우와 비교합니다.
             </p>
             <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-              {SERIES_META.map((meta) => {
+              {seriesMeta.map((meta) => {
                 const c = result.cards[meta.key];
                 return (
                   <Kpi
@@ -346,7 +494,7 @@ export default function SnapshotBacktestSection({ snapshots, selectedSnapshotId 
                   />
                   <Tooltip contentStyle={TOOLTIP_STYLE} formatter={tooltipFormatter} />
                   <Legend wrapperStyle={LEGEND_WRAPPER} />
-                  {SERIES_META.map((meta) => (
+                  {seriesMeta.map((meta) => (
                     <Line
                       key={meta.key}
                       type="monotone"
