@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import type { Holding } from "@/lib/portfolio-types";
 import {
   ACCOUNT_TABS,
@@ -14,6 +14,9 @@ const HIDE_WHEN_EMPTY_TABS: AccountTabKey[] = ["IRP", "비상장"];
 
 interface Props {
   holdings: Holding[];
+  // 선택된 계좌 탭(상위에서 제어). 역산 성과 분석과 필터 상태를 공유하기 위해 끌어올린다.
+  tab: AccountTabKey;
+  onTabChange: (tab: AccountTabKey) => void;
 }
 
 const card =
@@ -24,9 +27,7 @@ const INLINE_LABEL_MIN_PCT = 8;
 
 // 계좌별 종목 비중 조회 카드.
 // 계좌 필터 탭 → 100% 누적 가로 스택 바 → 하단 범례(2열) 구성.
-export default function AccountHoldingWeightCard({ holdings }: Props) {
-  const [tab, setTab] = useState<AccountTabKey>("전체");
-
+export default function AccountHoldingWeightCard({ holdings, tab, onTabChange }: Props) {
   // IRP/비상장 탭은 해당 탭으로 필터링한 종목이 0건이면 탭바에서 숨긴다.
   // 데이터가 들어오면 자동으로 다시 노출된다(조건부 렌더링).
   const visibleTabs = useMemo(
@@ -41,8 +42,8 @@ export default function AccountHoldingWeightCard({ holdings }: Props) {
 
   // 현재 선택된 탭이 숨김 처리되면 기본 탭(전체)으로 되돌린다.
   useEffect(() => {
-    if (!visibleTabs.includes(tab)) setTab("전체");
-  }, [visibleTabs, tab]);
+    if (!visibleTabs.includes(tab)) onTabChange("전체");
+  }, [visibleTabs, tab, onTabChange]);
 
   // 탭 선택 시 즉시 재계산된다.
   const slices = useMemo(() => aggregateHoldingWeights(holdings, tab), [holdings, tab]);
@@ -65,7 +66,7 @@ export default function AccountHoldingWeightCard({ holdings }: Props) {
             <button
               key={key}
               type="button"
-              onClick={() => setTab(key)}
+              onClick={() => onTabChange(key)}
               aria-pressed={active}
               className={`rounded-lg px-2.5 py-1 text-[12.5px] font-semibold transition-colors ${
                 active
