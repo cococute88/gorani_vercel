@@ -35,6 +35,7 @@ import {
 } from "@/lib/backtest-compare-tickers";
 import { AXIS_LINE, AXIS_TICK_SM, CHART_GRID, CHART_MARGIN, TOOLTIP_STYLE } from "@/lib/chart-style";
 import { formatPercent } from "@/lib/format";
+import { computeBacktestRiskMetrics, type BacktestRiskMetrics } from "@/lib/backtest-risk-metrics";
 
 interface Props {
   snapshots: PortfolioSnapshot[];
@@ -159,18 +160,28 @@ function buildEntries(holdings: Holding[]): BacktestEntry[] {
   return Array.from(map.values()).filter((entry) => entry.valueKRW >= MIN_HOLDING_VALUE_KRW);
 }
 
+// 위험조정수익률 비율(소수 2자리). 계산 불가 시 "—".
+function ratioFmt(value: number | null): string {
+  return value == null ? "—" : value.toFixed(2);
+}
+
+// MDD 등 % 지표(소수 1자리). MDD 는 음수라 부호는 toFixed 가 그대로 붙인다.
+function pct1Fmt(value: number | null): string {
+  return value == null ? "—" : `${value.toFixed(1)}%`;
+}
+
 function Kpi({
   label,
-  principal,
   value,
   rate,
+  metrics,
   accent,
   unavailable,
 }: {
   label: string;
-  principal: number;
   value: number | null | undefined;
   rate?: number | null;
+  metrics: BacktestRiskMetrics;
   accent: string;
   unavailable?: boolean;
 }) {
@@ -184,10 +195,18 @@ function Kpi({
         {unavailable ? "비교 불가" : won(value)}
       </div>
       {!unavailable && (
-        <div className="num mt-0.5 flex items-center gap-1.5 text-[11px]">
-          {rate != null && <span style={{ color: accent }}>{formatPercent(rate, 1)}</span>}
-          <span className="text-slate-500">원금 {won(principal)}</span>
-        </div>
+        <>
+          {/* 수익률 + 해당 기간 MDD (기존 원금 자리). */}
+          <div className="num mt-0.5 flex items-center gap-1.5 text-[11px]">
+            {rate != null && <span style={{ color: accent }}>{formatPercent(rate, 1)}</span>}
+            <span className="text-slate-500">MDD {pct1Fmt(metrics.mddPct)}</span>
+          </div>
+          {/* 위험조정수익률 지표. 작은 화면에서는 자연 줄바꿈되어 겹치지 않는다. */}
+          <div className="num mt-0.5 text-[10.5px] leading-tight text-slate-500">
+            Sharpe {ratioFmt(metrics.sharpe)} · Sortino {ratioFmt(metrics.sortino)} · Calmar{" "}
+            {ratioFmt(metrics.calmar)}
+          </div>
+        </>
       )}
     </div>
   );
@@ -358,6 +377,18 @@ export default function SnapshotBacktestSection({
     [entries, histories, months, customTicker, customLabel],
   );
 
+  // 카드별 위험/위험조정수익률 지표. 차트와 동일한 result.points(=선택 기간) 시계열에서
+  // 각 시리즈를 독립 계산한다 → 기간 변경 시 즉시 재계산되고, 차트와 KPI 기간이 일치한다.
+  const cardMetrics = useMemo<Record<BacktestSeriesKey, BacktestRiskMetrics>>(
+    () => ({
+      portfolio: computeBacktestRiskMetrics(result.points.map((point) => point.portfolio)),
+      spy: computeBacktestRiskMetrics(result.points.map((point) => point.spy)),
+      qqq: computeBacktestRiskMetrics(result.points.map((point) => point.qqq)),
+      custom: computeBacktestRiskMetrics(result.points.map((point) => point.custom)),
+    }),
+    [result.points],
+  );
+
   const seriesMeta = useMemo<
     Array<{ key: BacktestSeriesKey; name: string; color: string; width: number; dashed: boolean }>
   >(
@@ -400,6 +431,10 @@ export default function SnapshotBacktestSection({
             {activeSnapshot && (
               <span className="text-[12px] text-slate-500">
                 {activeSnapshot.snapshotDate} 스냅샷 · 계좌 {accountTab} · {titleLabel} · 비교 {customTicker}
+                {/* 원금은 카드마다 반복하지 않고 상단 분석 정보 영역에서 한 번만 표시한다. */}
+                {result.available && result.basePrincipalKRW > 0 && (
+                  <> · 원금 {won(result.basePrincipalKRW)}</>
+                )}
               </span>
             )}
           </div>
@@ -487,9 +522,9 @@ export default function SnapshotBacktestSection({
                   <Kpi
                     key={meta.key}
                     label={meta.name}
-                    principal={result.basePrincipalKRW}
                     value={c.currentValueKRW}
                     rate={c.returnPct}
+                    metrics={cardMetrics[meta.key]}
                     accent={meta.color}
                     unavailable={!c.available}
                   />
