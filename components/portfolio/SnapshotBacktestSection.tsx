@@ -13,6 +13,7 @@ import {
 } from "recharts";
 import type { Holding, PortfolioSnapshot } from "@/lib/portfolio-types";
 import {
+  buildBacktestDailyCurves,
   buildSnapshotBacktest,
   type BacktestEntry,
   type BacktestPricePoint,
@@ -196,15 +197,17 @@ function Kpi({
       </div>
       {!unavailable && (
         <>
-          {/* 수익률 + 해당 기간 MDD (기존 원금 자리). */}
-          <div className="num mt-0.5 flex items-center gap-1.5 text-[11px]">
+          {/* 수익률 + 해당 기간 MDD (기존 원금 자리). 좁은 폭에서는 줄바꿈된다. */}
+          <div className="num mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px]">
             {rate != null && <span style={{ color: accent }}>{formatPercent(rate, 1)}</span>}
-            <span className="text-slate-500">MDD {pct1Fmt(metrics.mddPct)}</span>
+            <span className="whitespace-nowrap text-slate-500">MDD {pct1Fmt(metrics.mddPct)}</span>
           </div>
-          {/* 위험조정수익률 지표. 작은 화면에서는 자연 줄바꿈되어 겹치지 않는다. */}
-          <div className="num mt-0.5 text-[10.5px] leading-tight text-slate-500">
-            Sharpe {ratioFmt(metrics.sharpe)} · Sortino {ratioFmt(metrics.sortino)} · Calmar{" "}
-            {ratioFmt(metrics.calmar)}
+          {/* 위험조정수익률 지표. 각 지표를 줄바꿈 단위(whitespace-nowrap)로 묶어
+              좁은 모바일 폭(360~430px)에서도 Calmar 가 잘리지 않고 자연 줄바꿈된다. */}
+          <div className="num mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5 text-[10.5px] leading-tight text-slate-500">
+            <span className="whitespace-nowrap">Sharpe {ratioFmt(metrics.sharpe)}</span>
+            <span className="whitespace-nowrap">Sortino {ratioFmt(metrics.sortino)}</span>
+            <span className="whitespace-nowrap">Calmar {ratioFmt(metrics.calmar)}</span>
           </div>
         </>
       )}
@@ -377,16 +380,35 @@ export default function SnapshotBacktestSection({
     [entries, histories, months, customTicker, customLabel],
   );
 
-  // 카드별 위험/위험조정수익률 지표. 차트와 동일한 result.points(=선택 기간) 시계열에서
-  // 각 시리즈를 독립 계산한다 → 기간 변경 시 즉시 재계산되고, 차트와 KPI 기간이 일치한다.
+  // 위험지표 전용 "일별" 평가액 곡선. 차트(월별 축약)와 달리 기간 내 모든 거래일을
+  // 축으로 사용한다 → MDD 가 기간 내 최대 낙폭(월중 하락)을 정확히 반영한다.
+  // 차트는 result.points(월별)를, 지표는 dailyCurves(일별)를 쓴다(요구사항 4·5: 분리).
+  const dailyCurves = useMemo(
+    () =>
+      buildBacktestDailyCurves({
+        entries,
+        priceHistories: histories.holdingPrices,
+        benchmarkHistories: { spy: histories.spy, qqq: histories.qqq, custom: histories.custom },
+        fxHistory: histories.fx,
+        months,
+        asOfDate: todayISO(),
+        customTicker,
+        customLabel,
+        customIsUsd: true,
+      }),
+    [entries, histories, months, customTicker, customLabel],
+  );
+
+  // 카드별 위험/위험조정수익률 지표. 일별 곡선에서 각 시리즈를 독립 계산한다
+  // → 기간 변경 시 즉시 재계산되고, 모든 비교군(포트/SPY/QQQ/custom)이 동일 기준이다.
   const cardMetrics = useMemo<Record<BacktestSeriesKey, BacktestRiskMetrics>>(
     () => ({
-      portfolio: computeBacktestRiskMetrics(result.points.map((point) => point.portfolio)),
-      spy: computeBacktestRiskMetrics(result.points.map((point) => point.spy)),
-      qqq: computeBacktestRiskMetrics(result.points.map((point) => point.qqq)),
-      custom: computeBacktestRiskMetrics(result.points.map((point) => point.custom)),
+      portfolio: computeBacktestRiskMetrics(dailyCurves.portfolio),
+      spy: computeBacktestRiskMetrics(dailyCurves.spy),
+      qqq: computeBacktestRiskMetrics(dailyCurves.qqq),
+      custom: computeBacktestRiskMetrics(dailyCurves.custom),
     }),
-    [result.points],
+    [dailyCurves],
   );
 
   const seriesMeta = useMemo<
