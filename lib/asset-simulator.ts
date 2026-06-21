@@ -668,7 +668,11 @@ export function calculateAssetSimulatorPreview(
   exitMode = false,
 ): SimulatorProjection {
   const inputs = normalizeInputs(rawInputs);
-  // EXIT 모드: 계획표 입력값을 전부 무시하고 현재 보유 자산만 시작 자산으로 사용한다.
+  // EXIT 모드: 연도별 투자 계획표 입력값을 전부 무시하고 현재 보유 자산만 시작 자산으로 사용한다.
+  // buildExitYearPlans 는 모든 적립액을 0 으로 두므로 assign_statuses 가 첫 해(=시작년도)를
+  // "은퇴" 로 표시한다. 즉 retireIdx === 0, 은퇴년도 === inputs.startYear 가 보장되고,
+  // 인출 시작 연도 === inputs.startYear + withdrawalDelayYears (simulate_tax_account_withdraw 의
+  // actualStartIdx = retireIdx + delay) 규칙이 계획표와 무관하게 정확히 성립한다.
   const yearPlans = exitMode
     ? assign_statuses(buildExitYearPlans(inputs))
     : assign_statuses(normalizeYearPlans(inputs, rawYearPlans));
