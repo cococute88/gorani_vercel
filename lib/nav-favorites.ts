@@ -20,7 +20,7 @@ export const DEFAULT_FAVORITES: FavoriteItem[] = [
   { id: "fav-portfolio", name: "투자현황", href: "/portfolio", order: 0 },
   { id: "fav-calendar", name: "캘린더", href: "/calendar", order: 1 },
   { id: "fav-market", name: "시장 현황", href: "/market", order: 2 },
-  { id: "fav-mdd", name: "MDD 계산기", href: "/calculator?tab=mdd", order: 3 },
+  { id: "fav-mdd", name: "티커MDD 계산기", href: "/calculator?tab=mdd", order: 3 },
 ];
 
 // crypto.randomUUID 우선, 없으면 deterministic fallback 으로 id 생성.
