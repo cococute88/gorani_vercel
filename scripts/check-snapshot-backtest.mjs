@@ -116,22 +116,33 @@ const result = buildSnapshotBacktest({
   customTicker: "SCHD",
 });
 
+const SNAPSHOT_TOTAL = 12_000_000; // 현재 평가액 합계(= 그래프 마지막 값).
 assert.equal(result.available, true, "백테스트 available");
-assert.equal(result.basePrincipalKRW, 12_000_000, "원금 합계");
 assert.ok(result.points.length >= 20, `월별 포인트 수: ${result.points.length}`);
 assert.equal(result.fxApplied, true, "환율 반영");
+
+// [핵심] 그래프 마지막 값(= 포트폴리오 현재 가치)은 스냅샷 평가액과 정확히 일치해야 한다.
+assert.equal(result.cards.portfolio.currentValueKRW, SNAPSHOT_TOTAL, "포트폴리오 현재가치 = 스냅샷 평가액");
+const lastPoint = result.points[result.points.length - 1];
+assert.equal(lastPoint.portfolio, SNAPSHOT_TOTAL, "그래프 마지막 점 = 카드 현재가치");
+
+// [핵심] 원금은 현재 평가액이 아니라 "역산된 과거 원금"이며, 가격이 올랐으므로 현재값보다 작아야 한다.
+assert.ok(result.basePrincipalKRW > 0, "원금 > 0");
+assert.ok(result.basePrincipalKRW < SNAPSHOT_TOTAL, "역산 원금 < 현재 평가액(가격 상승 가정)");
+
 for (const key of ["portfolio", "spy", "qqq", "custom"]) {
   assert.equal(result.cards[key].available, true, `${key} 카드 available`);
-  assert.equal(result.cards[key].principalKRW, 12_000_000, `${key} 원금`);
+  // 모든 카드는 동일한 역산 원금을 기준으로 한다.
+  assert.equal(result.cards[key].principalKRW, result.basePrincipalKRW, `${key} 원금 = 역산 원금`);
   assert.ok(Number.isFinite(result.cards[key].currentValueKRW), `${key} 현재가치 유한`);
 }
 // 사용자 선택 비교 티커 카드 라벨은 "<티커> 투자 시" 로 동적 생성된다.
 assert.equal(result.cards.custom.label, "SCHD 투자 시", "custom 카드 라벨 동적 생성");
-// 현금(200만)은 평탄 → 포트폴리오 최종값은 (성장한 ACE+SGOV) + 200만 현금.
+// 성장 가정이므로 포트폴리오 현재가치 > 역산 원금.
 assert.ok(result.cards.portfolio.currentValueKRW > result.basePrincipalKRW, "성장 포트폴리오 > 원금");
 // QQQ(1.5%/월) > SPY(1%/월) 누적
 assert.ok(result.cards.qqq.currentValueKRW > result.cards.spy.currentValueKRW, "QQQ > SPY");
-console.log("✓ buildSnapshotBacktest: 포트폴리오/SPY/QQQ/커스텀 비교 티커 계산 + 현금 평탄 처리");
+console.log("✓ buildSnapshotBacktest: 현재가치=스냅샷 / 원금 역산 / 그래프-카드 일치 / SPY·QQQ·커스텀 계산");
 
 // ---- 5) 환율 미반영 케이스 ----
 const noFx = buildSnapshotBacktest({
@@ -163,7 +174,32 @@ assert.equal(sixMonth.available, true, "6개월 백테스트 available");
 assert.ok(sixMonth.points.length <= 8, `6개월 포인트 수 제한: ${sixMonth.points.length}`);
 assert.ok(sixMonth.points.length < result.points.length, "6개월 포인트 < 2년 포인트");
 assert.equal(sixMonth.cards.custom.label, "QLD 투자 시", "6개월 custom 라벨");
+// 현재가치는 기간과 무관하게 스냅샷 평가액(6,000,000)과 일치한다.
+assert.equal(sixMonth.cards.portfolio.currentValueKRW, 6_000_000, "6개월 현재가치 = 스냅샷 평가액");
 console.log("✓ 기간(6개월) 선택 시 포인트 범위 축소 + 라벨 동적 변경");
+
+// ---- 5c) 기간별 원금 차이 (2년 < 1년 < 6개월) ----
+// 동일 종목·동일 현재 평가액에서, 가격이 우상향(0.8%/월)이면
+// 더 먼 과거일수록 역산 원금이 작아져야 한다(req 7-2).
+function aceOnlyPrincipal(monthsSel) {
+  return buildSnapshotBacktest({
+    entries: [
+      { key: "360200.KS", label: "ACE 미국S&P500", valueKRW: 6_000_000, ticker: "360200.KS", proxyTicker: "SPY", isUsd: false, isCash: false },
+    ],
+    priceHistories: { "360200.KS": aceSpy },
+    benchmarkHistories: { spy, qqq, custom: schd },
+    fxHistory: fx,
+    months: monthsSel,
+    asOfDate: asOf,
+    customTicker: "QLD",
+  }).basePrincipalKRW;
+}
+const p24 = aceOnlyPrincipal(24);
+const p12 = aceOnlyPrincipal(12);
+const p6 = aceOnlyPrincipal(6);
+assert.ok(p24 < p12 && p12 < p6, `기간별 원금 단조성 실패: 2년=${p24}, 1년=${p12}, 6개월=${p6}`);
+assert.ok(p6 < 6_000_000, "6개월 원금 < 현재 평가액");
+console.log(`✓ 기간별 원금 차이: 2년 ${Math.round(p24).toLocaleString()} < 1년 ${Math.round(p12).toLocaleString()} < 6개월 ${Math.round(p6).toLocaleString()}`);
 
 // ---- 6) 빈 스냅샷 방어 ----
 const empty = buildSnapshotBacktest({ entries: [], priceHistories: {}, benchmarkHistories: {}, fxHistory: null });

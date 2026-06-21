@@ -22,7 +22,9 @@ import { normalizeHoldingTickerInfo } from "@/lib/holding-ticker-normalizer";
 import { getQuoteTickerForHolding } from "@/lib/ticker-mapper";
 import {
   MIN_HOLDING_VALUE_KRW,
+  matchesAccountTab,
   resolveHoldingDisplayName,
+  type AccountTabKey,
 } from "@/lib/account-holding-weights";
 import { quoteHistoryPath } from "@/lib/quote-client";
 import type { QuoteHistoryResponse } from "@/lib/quote-types";
@@ -38,6 +40,8 @@ interface Props {
   snapshots: PortfolioSnapshot[];
   // 선택된 스냅샷 id. null 이면 최신 스냅샷을 기준으로 한다.
   selectedSnapshotId?: string | null;
+  // 상단 "계좌별 종목 비중 조회"와 공유하는 계좌 필터. 기본값은 전체.
+  accountTab?: AccountTabKey;
 }
 
 const card = "rounded-2xl border border-slate-200 bg-white p-5 dark:border-[#2a3336] dark:bg-[#191f20]";
@@ -189,7 +193,11 @@ function Kpi({
   );
 }
 
-export default function SnapshotBacktestSection({ snapshots, selectedSnapshotId }: Props) {
+export default function SnapshotBacktestSection({
+  snapshots,
+  selectedSnapshotId,
+  accountTab = "전체",
+}: Props) {
   // 기간 / 비교 티커 상태 (마지막 선택값은 localStorage 로 복원).
   const [months, setMonths] = useState<number>(DEFAULT_MONTHS);
   const [customTicker, setCustomTicker] = useState<string>(DEFAULT_COMPARE_TICKER);
@@ -251,7 +259,13 @@ export default function SnapshotBacktestSection({ snapshots, selectedSnapshotId 
     return latestSnapshot;
   }, [latestSnapshot, selectedSnapshotId, snapshots]);
 
-  const entries = useMemo(() => buildEntries(activeSnapshot?.holdings ?? []), [activeSnapshot]);
+  // 상단 계좌 필터와 동일한 기준(matchesAccountTab)으로 보유종목을 거른 뒤 역산한다.
+  // → 전체/국내/해외/ISA/연금 선택에 따라 종목 비중·총평가액·원금·그래프가 모두 달라진다.
+  const entries = useMemo(() => {
+    const all = activeSnapshot?.holdings ?? [];
+    const filtered = accountTab === "전체" ? all : all.filter((holding) => matchesAccountTab(holding, accountTab));
+    return buildEntries(filtered);
+  }, [activeSnapshot, accountTab]);
 
   // 가격 조회가 필요한 티커 목록(보유 + 대체 프록시). 현금성은 제외.
   const holdingTickers = useMemo(() => {
@@ -379,9 +393,13 @@ export default function SnapshotBacktestSection({ snapshots, selectedSnapshotId 
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-[16px] font-extrabold text-slate-900 dark:text-white">{titleLabel} 역산 성과 분석</h2>
             <span className="rounded-md bg-blue-500/10 px-2 py-0.5 text-[11px] text-blue-400">스냅샷 비중 기준 역산</span>
+            {/* 현재 적용 중인 조건(스냅샷·계좌·기간·비교티커)을 즉시 확인할 수 있게 표시한다. */}
+            <span className="rounded-md bg-slate-500/10 px-2 py-0.5 text-[11px] font-semibold text-slate-500">
+              계좌 {accountTab}
+            </span>
             {activeSnapshot && (
               <span className="text-[12px] text-slate-500">
-                {activeSnapshot.snapshotDate} 스냅샷 비중 · {titleLabel} 전 동일 비중 매수 가정
+                {activeSnapshot.snapshotDate} 스냅샷 · 계좌 {accountTab} · {titleLabel} · 비교 {customTicker}
               </span>
             )}
           </div>

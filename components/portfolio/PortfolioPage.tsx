@@ -34,6 +34,7 @@ import SnapshotBacktestSection from "./SnapshotBacktestSection";
 import PortfolioAssetTrendChart from "./PortfolioAssetTrendChart";
 import PortfolioQuoteStatusPanel from "./PortfolioQuoteStatusPanel";
 import AccountHoldingWeightCard from "./AccountHoldingWeightCard";
+import type { AccountTabKey } from "@/lib/account-holding-weights";
 import CollapsibleSection from "./CollapsibleSection";
 import AssetMapSection from "@/components/asset-map/AssetMapSection";
 import { useResolvedTheme } from "@/components/theme/ThemeProvider";
@@ -107,6 +108,8 @@ export default function PortfolioPage() {
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [previewSnapshotId, setPreviewSnapshotId] = useState<string | null>(null);
+  // 계좌별 종목 비중 카드와 역산 성과 분석이 공유하는 계좌 필터 상태.
+  const [accountTab, setAccountTab] = useState<AccountTabKey>("전체");
   const [tickerMapNotice, setTickerMapNotice] = useState<{
     tone: "success" | "error" | "info";
     text: string;
@@ -350,7 +353,11 @@ export default function PortfolioPage() {
             데스크톱(lg+)은 2:3(=40:60) 비율, 모바일은 세로 배치. */}
         <section className="mb-6 grid grid-cols-1 items-stretch gap-5 lg:grid-cols-[2fr_3fr]">
           <div className="min-w-0">
-            <AccountHoldingWeightCard holdings={accountWeightHoldings} />
+            <AccountHoldingWeightCard
+              holdings={accountWeightHoldings}
+              tab={accountTab}
+              onTabChange={setAccountTab}
+            />
           </div>
           <div className="min-w-0">
             <PortfolioAssetTrendChart snapshots={snapshots} />
@@ -359,7 +366,11 @@ export default function PortfolioPage() {
 
         {/* 1.5) 2년 역산 성과 분석 — 선택된(없으면 최신) 스냅샷 비중 기준 역산.
             등록된 스냅샷 히스토리 바로 위에 배치한다. */}
-        <SnapshotBacktestSection snapshots={snapshots} selectedSnapshotId={previewSnapshotId} />
+        <SnapshotBacktestSection
+          snapshots={snapshots}
+          selectedSnapshotId={previewSnapshotId}
+          accountTab={accountTab}
+        />
 
         {/* 2) 등록된 스냅샷 히스토리 */}
         <section className="mb-6">

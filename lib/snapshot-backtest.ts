@@ -1,10 +1,22 @@
 // =============================================================
-// 스냅샷 기반 "2년 역산 성과 분석" 순수 계산 로직.
+// 스냅샷 기반 "N년 역산 성과 분석" 순수 계산 로직.
 //
 // 포트폴리오 관리 페이지에서 선택된 스냅샷의 "계좌별 종목 비중"을 그대로 사용해
-// "N개월 전에 동일 비중으로 매수했다면" 가정의 성과를 역산한다.
-//   - 내 포트폴리오 : 스냅샷 비중을 기간 전 가격으로 매수 → 현재까지 평가
-//   - SPY 투자 시   : 동일 원금을 전액 SPY 에 기간 전 매수
+// "지금 보유한 좌수를 N개월 전부터 그대로 들고 있었다면" 가정의 성과를 역산한다.
+//
+// 계산 방향(중요):
+//   - 기준점은 "현재 평가액(스냅샷 평가금액)"이다. 절대 원금으로 쓰지 않는다.
+//   - 각 종목의 좌수(units)는 "현재가" 기준으로 역산한다.
+//       units = 현재평가액 / (현재가 × 현재환율)
+//     → 즉, 현재 시점에서 그래프의 마지막 값은 항상 스냅샷 평가액과 정확히 일치한다.
+//   - 과거 시점의 평가액은 그 좌수를 과거 가격으로 재평가해서 구한다.
+//       value(t) = units × price(t) × rate(t)
+//     → 가장 과거(시작) 시점의 합계가 곧 "역산 원금"이다.
+//   - 따라서 원금은 기간(2년/1년/6개월)에 따라 자연히 달라진다.
+//
+// 시리즈 정의:
+//   - 내 포트폴리오 : 현재 좌수를 N개월 전부터 보유했다고 가정한 평가액 추이
+//   - SPY 투자 시   : 위에서 구한 역산 원금을 전액 SPY 에 기간 전 매수
 //   - QQQ 투자 시   : 동일 원금을 전액 QQQ 에 기간 전 매수
 //   - (사용자 선택 티커) 투자 시 : 동일 원금을 전액 사용자가 고른 비교 티커에 기간 전 매수
 //
@@ -233,9 +245,10 @@ export function buildSnapshotBacktest(input: BuildSnapshotBacktestInput): Snapsh
   const customIsUsd = input.customIsUsd ?? true;
 
   const entries = (input.entries ?? []).filter((entry) => finite(entry.valueKRW) > 0);
-  const basePrincipalKRW = entries.reduce((sum, entry) => sum + finite(entry.valueKRW), 0);
+  // 스냅샷 현재 평가액 합계(= 그래프 마지막 값의 기준). 원금이 아니다.
+  const snapshotTotalKRW = entries.reduce((sum, entry) => sum + finite(entry.valueKRW), 0);
 
-  if (entries.length === 0 || basePrincipalKRW <= 0) {
+  if (entries.length === 0 || snapshotTotalKRW <= 0) {
     return emptyResult("성과분석 데이터 부족: 이 스냅샷에 평가금액이 있는 보유종목이 없습니다.", 0, customLabel);
   }
 
@@ -255,7 +268,7 @@ export function buildSnapshotBacktest(input: BuildSnapshotBacktestInput): Snapsh
   if (monthDates.length < 2) {
     return emptyResult(
       "성과분석 데이터 부족: 선택한 기간의 과거 가격 데이터를 불러오지 못했습니다.",
-      basePrincipalKRW,
+      snapshotTotalKRW,
       customLabel,
     );
   }
@@ -266,49 +279,72 @@ export function buildSnapshotBacktest(input: BuildSnapshotBacktestInput): Snapsh
   let usedFxForHolding = false;
   let needFxButMissing = false;
 
-  // 종목별 평가액 시계열(KRW). 현금/가격불가 종목은 평가액을 그대로 유지한다.
+  // 현재(최근 월말) 시점. 좌수 역산과 그래프 마지막 값의 기준점이 된다.
+  const lastDate = monthDates[monthDates.length - 1];
+
+  // 종목별 평가액 시계열(KRW).
+  // 좌수는 "현재가" 기준으로 역산하므로, 마지막 시점 값은 항상 현재 평가액과 일치한다.
+  // 현금/가격불가 종목은 평가액을 그대로 유지한다(현금 수익률 ≈ 0).
   const entrySeriesList = resolved.map(({ entry, history, usedProxy }) => {
     const valueKRW = finite(entry.valueKRW);
 
     if (entry.isCash || !history || history.length === 0) {
       if (!entry.isCash && entry.ticker) excludedTickers.push(entry.ticker);
-      // 현금성/가격불가: 원화 평가액을 그대로 유지(현금 수익률 ≈ 0).
       return monthDates.map(() => valueKRW);
     }
 
     if (usedProxy && entry.proxyTicker) proxyTickers.push(entry.proxyTicker);
 
-    const startPrice = asof(history, monthDates[0]);
-    if (!startPrice) {
-      // 시작 시점 가격을 구할 수 없으면 평가액을 그대로 유지한다(가짜 라인 금지).
+    // 현재가(최근 월말 기준)를 구할 수 없으면 평가액을 그대로 유지한다(가짜 라인 금지).
+    const currentPrice = asof(history, lastDate);
+    if (!currentPrice) {
       if (entry.ticker) excludedTickers.push(entry.ticker);
       return monthDates.map(() => valueKRW);
     }
 
     const useFx = entry.isUsd && fxApplied;
     if (entry.isUsd && !fxApplied) needFxButMissing = true;
-    const startRate = useFx ? asof(fxSorted, monthDates[0]) : 1;
-    const safeStartRate = startRate && startRate > 0 ? startRate : 1;
+    const currentRate = useFx ? asof(fxSorted, lastDate) : 1;
+    const safeCurrentRate = currentRate && currentRate > 0 ? currentRate : 1;
     if (useFx) usedFxForHolding = true;
 
-    // 시작 시점 평가액이 valueKRW 가 되도록 좌수(units)를 역산한다.
-    const units = valueKRW / (startPrice * (useFx ? safeStartRate : 1));
+    // 현재 평가액(valueKRW)이 되도록 좌수(units)를 "현재가" 기준으로 역산한다.
+    //   units = 현재평가액 / (현재가 × 현재환율)
+    // 과거 시점은 이 좌수를 과거 가격으로 재평가 → 그 시작값이 역산 원금이 된다.
+    const units = valueKRW / (currentPrice * (useFx ? safeCurrentRate : 1));
 
-    let last = valueKRW;
-    return monthDates.map((date) => {
+    const raw: Array<number | null> = monthDates.map((date) => {
       const price = asof(history, date);
       const rate = useFx ? asof(fxSorted, date) : 1;
       if (price && price > 0 && rate && rate > 0) {
         const value = units * price * rate;
-        if (Number.isFinite(value) && value > 0) last = value;
+        if (Number.isFinite(value) && value > 0) return value;
       }
-      return last;
+      return null;
     });
+
+    // 구간 내 빈 값은 앞/뒤 유효값으로 채워 라인에 구멍이 없도록 한다.
+    // (마지막 시점은 currentPrice 가 존재하므로 항상 valueKRW 와 정확히 일치한다.)
+    let prev: number | null = null;
+    for (let i = 0; i < raw.length; i += 1) {
+      if (raw[i] == null) raw[i] = prev;
+      else prev = raw[i];
+    }
+    let next: number | null = null;
+    for (let i = raw.length - 1; i >= 0; i -= 1) {
+      if (raw[i] == null) raw[i] = next;
+      else next = raw[i];
+    }
+    return raw.map((value) => (value == null ? valueKRW : value));
   });
 
   const portfolioSeries = monthDates.map((_, i) =>
     entrySeriesList.reduce((sum, series) => sum + finite(series[i]), 0),
   );
+
+  // 역산 원금 = 가장 과거(시작) 시점의 포트폴리오 평가액 합계.
+  // 기간(2년/1년/6개월)에 따라 시작 가격이 달라지므로 원금도 자연히 달라진다.
+  const basePrincipalKRW = finite(portfolioSeries[0]);
 
   const spySeries = benchmarkLine(input.benchmarkHistories.spy, monthDates, basePrincipalKRW, true, fxSorted, fxApplied);
   const qqqSeries = benchmarkLine(input.benchmarkHistories.qqq, monthDates, basePrincipalKRW, true, fxSorted, fxApplied);
