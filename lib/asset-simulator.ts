@@ -97,6 +97,20 @@ export function normalizeYearPlans(inputs: SimulatorInputs, yearPlans: YearPlanR
   });
 }
 
+// EXIT("지금 EXIT?") 모드 전용 계획표를 만든다.
+// 연도별 투자 계획표의 모든 적립/납입 계획을 무시하고, 현재 보유 자산만으로
+// 즉시 은퇴(시작년도) 후 인출 조건만 적용하도록 모든 적립 항목을 0/false 로 둔다.
+// 정상 모드 계산 경로(normalizeYearPlans 결과)는 전혀 건드리지 않는다.
+export function buildExitYearPlans(inputs: SimulatorInputs): YearPlanRow[] {
+  return Array.from({ length: inputs.years }, (_, index) => ({
+    year: inputs.startYear + index,
+    monthlyContribution: 0,
+    isaContribution: false,
+    pensionContribution: false,
+    isaToPensionTransfer: false,
+  }));
+}
+
 export function assign_statuses(plans: YearPlan[]): YearPlan[] {
   let retireFound = false;
   return plans.map((plan) => {
@@ -648,9 +662,16 @@ export function simulate_dividend_brokerage(cfg: SimConfig, results: YearResult[
   });
 }
 
-export function calculateAssetSimulatorPreview(rawInputs: SimulatorInputs, rawYearPlans: YearPlanRow[]): SimulatorProjection {
+export function calculateAssetSimulatorPreview(
+  rawInputs: SimulatorInputs,
+  rawYearPlans: YearPlanRow[],
+  exitMode = false,
+): SimulatorProjection {
   const inputs = normalizeInputs(rawInputs);
-  const yearPlans = assign_statuses(normalizeYearPlans(inputs, rawYearPlans));
+  // EXIT 모드: 계획표 입력값을 전부 무시하고 현재 보유 자산만 시작 자산으로 사용한다.
+  const yearPlans = exitMode
+    ? assign_statuses(buildExitYearPlans(inputs))
+    : assign_statuses(normalizeYearPlans(inputs, rawYearPlans));
   const depositResults = simulate_deposits(inputs, yearPlans);
   const nominalResults = apply_returns(inputs, depositResults);
   const results = get_real_balances(inputs, nominalResults);

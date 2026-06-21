@@ -6,11 +6,12 @@ import type { SimulatorChartRow } from "@/lib/asset-simulator-types";
 type Props = {
   data: SimulatorChartRow[];
   retirementYear?: number | null;
+  withdrawalStartYear?: number | null;
 };
 
 const tooltipFormatter = (value: number | string) => `${Number(value).toLocaleString("ko-KR")}만원`;
 
-export default function SimulatorCashflowChart({ data, retirementYear }: Props) {
+export default function SimulatorCashflowChart({ data, retirementYear, withdrawalStartYear }: Props) {
   return (
     <section className="rounded-2xl border border-[#273032] bg-[#171d1e] p-4">
       <div className="mb-4">
@@ -25,7 +26,8 @@ export default function SimulatorCashflowChart({ data, retirementYear }: Props) 
             <YAxis stroke="#94a3b8" tick={{ fontSize: 12 }} tickFormatter={(value) => `${Number(value).toLocaleString("ko-KR")}만`} />
             <Tooltip formatter={tooltipFormatter} contentStyle={{ background: "#111516", border: "1px solid #334155", borderRadius: 12 }} />
             <Legend wrapperStyle={{ fontSize: 12 }} />
-            {retirementYear ? <ReferenceLine x={retirementYear} stroke="#f59e0b" strokeWidth={2} strokeDasharray="6 4" ifOverflow="extendDomain" label={{ value: `인출 시작 · 은퇴 시작 · ${retirementYear}년`, position: "insideTopRight", fill: "#fbbf24", fontSize: 12 }} /> : null}
+            {retirementYear ? <ReferenceLine x={retirementYear} stroke="#f59e0b" strokeWidth={2} strokeDasharray="6 4" ifOverflow="extendDomain" label={{ value: `은퇴 시작 : ${retirementYear}년`, position: "insideTopRight", fill: "#fbbf24", fontSize: 12 }} /> : null}
+            {withdrawalStartYear ? <ReferenceLine x={withdrawalStartYear} stroke="#22d3ee" strokeWidth={2} strokeDasharray="6 4" ifOverflow="extendDomain" label={{ value: `인출 시작 : ${withdrawalStartYear}년`, position: "insideBottomRight", fill: "#67e8f9", fontSize: 12 }} /> : null}
             <Line type="monotone" dataKey="taxSavingMonthlyNominal" name="절세 월인출금(명목)" stroke="#60a5fa" strokeWidth={2.3} dot={false} />
             <Line type="monotone" dataKey="taxSavingMonthlyReal" name="절세 월인출금(실질)" stroke="#60a5fa" strokeWidth={2} strokeDasharray="6 4" dot={false} />
             <Line type="monotone" dataKey="taxableMonthlyDividendNominal" name="위탁 월배당금(명목)" stroke="#f472b6" strokeWidth={2.3} dot={false} />
