@@ -32,9 +32,11 @@ type Props = {
   saving?: boolean;
   saveMessage?: string | null;
   saveError?: string | null;
+  exitMode?: boolean;
+  onExitModeChange?: (next: boolean) => void;
 };
 
-export default function SimulatorInputPanel({ inputs, onChange, onReset, onSave, saving = false, saveMessage, saveError }: Props) {
+export default function SimulatorInputPanel({ inputs, onChange, onReset, onSave, saving = false, saveMessage, saveError, exitMode = false, onExitModeChange }: Props) {
   const [draftValues, setDraftValues] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -70,7 +72,24 @@ export default function SimulatorInputPanel({ inputs, onChange, onReset, onSave,
           <h2 className="text-base font-extrabold text-slate-900 dark:text-white">기본 설정 입력폼</h2>
           <p className="mt-1 text-[13px] text-slate-500 dark:text-slate-400">Streamlit 원본 자산 시뮬레이터의 입력 순서와 항목을 기준으로 구성했습니다.</p>
         </div>
-        <div className="flex w-full items-center gap-2 sm:w-auto">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:flex-nowrap">
+          {/* "지금 EXIT?" : Save 버튼 왼쪽의 로컬 UI 체크박스 (저장하지 않음, 새로고침 시 초기화) */}
+          <label
+            className={`flex shrink-0 cursor-pointer select-none items-center gap-2 rounded-xl border px-3 py-2 text-[13px] font-bold transition-colors ${
+              exitMode
+                ? "border-cyan-400 bg-cyan-500/15 text-cyan-600 dark:text-cyan-300"
+                : "border-slate-300 text-slate-600 hover:bg-slate-100 dark:border-[#303a3d] dark:text-slate-300 dark:hover:bg-white/5"
+            }`}
+            title="체크 시 연도별 투자 계획표를 무시하고 현재 보유 자산만으로 계산합니다."
+          >
+            <input
+              type="checkbox"
+              checked={exitMode}
+              onChange={(event) => onExitModeChange?.(event.target.checked)}
+              className="h-4 w-4 accent-cyan-500"
+            />
+            지금 EXIT?
+          </label>
           {saveMessage ? (
             <span className="text-[12px] font-semibold text-emerald-400" role="status">
               {saveMessage}

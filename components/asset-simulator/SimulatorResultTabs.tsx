@@ -173,8 +173,8 @@ export default function SimulatorResultTabs({ projection }: Props) {
         ))}
       </div>
 
-      {activeTab === "잔고 추이 차트" && <SimulatorBalanceChart data={projection.chartRows} retirementYear={projection.summary.retirementYear ?? undefined} />}
-      {activeTab === "배당금 추이 차트" && <SimulatorCashflowChart data={projection.chartRows} retirementYear={projection.summary.retirementYear ?? undefined} />}
+      {activeTab === "잔고 추이 차트" && <SimulatorBalanceChart data={projection.chartRows} retirementYear={projection.summary.retirementYear ?? undefined} withdrawalStartYear={projection.summary.actualWithdrawalStartYear ?? undefined} />}
+      {activeTab === "배당금 추이 차트" && <SimulatorCashflowChart data={projection.chartRows} retirementYear={projection.summary.retirementYear ?? undefined} withdrawalStartYear={projection.summary.actualWithdrawalStartYear ?? undefined} />}
       {activeTab === "적립 현황" && <AccumulationTable rows={projection.results} />}
       {activeTab === "절세계좌인출(원금만)" && <WithdrawTable rows={projection.taxWithdrawRows} />}
       {activeTab === "위탁계좌(배당용) 잔고" && <DividendTable rows={projection.dividendRows} />}

@@ -32,6 +32,8 @@ export default function AssetSimulatorPage() {
   const { user, configured } = useFirebaseAuth();
   const [inputs, setInputs] = useState<SimulatorInputs>(DEFAULT_SIMULATOR_INPUTS);
   const [yearPlans, setYearPlans] = useState<YearPlanRow[]>(DEFAULT_YEAR_PLANS);
+  // "지금 EXIT?" 모드는 로컬 UI 상태로만 관리한다. Firebase/로컬 저장 금지, 새로고침 시 초기화.
+  const [exitMode, setExitMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -105,7 +107,14 @@ export default function AssetSimulatorPage() {
   }, [user]);
 
   const projection = useMemo(
-    () => calculateAssetSimulatorPreview(inputs, yearPlans),
+    () => calculateAssetSimulatorPreview(inputs, yearPlans, exitMode),
+    [inputs, yearPlans, exitMode],
+  );
+
+  // 연도별 투자 계획표는 EXIT 모드 여부와 무관하게 사용자가 입력한 실제 계획표를 표시한다.
+  // (EXIT 모드는 계산에서만 무시할 뿐, 입력 데이터를 시각적으로 지우지 않는다.)
+  const tablePlans = useMemo(
+    () => normalizeYearPlans(normalizeInputs(inputs), yearPlans),
     [inputs, yearPlans],
   );
 
@@ -181,8 +190,8 @@ export default function AssetSimulatorPage() {
         </div>
 
         <div className="space-y-5">
-          <SimulatorInputPanel inputs={inputs} onChange={handleInputsChange} onReset={handleReset} onSave={handleSave} saving={saving} saveMessage={saveMessage} saveError={saveError} />
-          <YearPlanTable plans={projection.yearPlans} onChange={setYearPlans} />
+          <SimulatorInputPanel inputs={inputs} onChange={handleInputsChange} onReset={handleReset} onSave={handleSave} saving={saving} saveMessage={saveMessage} saveError={saveError} exitMode={exitMode} onExitModeChange={setExitMode} />
+          <YearPlanTable plans={tablePlans} onChange={setYearPlans} />
           <SimulatorMetricCards summary={projection.summary} />
           <SimulatorResultTabs projection={projection} />
           <p className="rounded-2xl border border-[#273032] bg-[#171d1e] px-4 py-3 text-[13px] text-slate-400">
