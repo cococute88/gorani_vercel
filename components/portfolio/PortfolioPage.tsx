@@ -30,6 +30,7 @@ import AssetAllocationDonut from "./AssetAllocationDonut";
 import HoldingsTable from "./HoldingsTable";
 import AssetTable from "./AssetTable";
 import SnapshotHistory from "./SnapshotHistory";
+import SnapshotBacktestSection from "./SnapshotBacktestSection";
 import PortfolioAssetTrendChart from "./PortfolioAssetTrendChart";
 import PortfolioQuoteStatusPanel from "./PortfolioQuoteStatusPanel";
 import AccountHoldingWeightCard from "./AccountHoldingWeightCard";
@@ -355,6 +356,10 @@ export default function PortfolioPage() {
             <PortfolioAssetTrendChart snapshots={snapshots} />
           </div>
         </section>
+
+        {/* 1.5) 2년 역산 성과 분석 — 선택된(없으면 최신) 스냅샷 비중 기준 역산.
+            등록된 스냅샷 히스토리 바로 위에 배치한다. */}
+        <SnapshotBacktestSection snapshots={snapshots} selectedSnapshotId={previewSnapshotId} />
 
         {/* 2) 등록된 스냅샷 히스토리 */}
         <section className="mb-6">

@@ -55,6 +55,8 @@ const KEYWORD_RULES: KeywordRule[] = [
   { ticker: "NFLX", confidence: "high", keywords: ["nflx", "netflix", "넷플릭스"] },
   { ticker: "NVDA", confidence: "high", keywords: ["nvda", "nvidia", "엔비디아"] },
   { ticker: "JEPI", confidence: "high", keywords: ["jepi"] },
+  // SGOV(미국 단기국채 ETF): "SGOV", "SGOV US", "SGOV ETF" 등 변형 표기를 모두 인식한다.
+  { ticker: "SGOV", confidence: "high", keywords: ["sgov"] },
   { ticker: "QQQ", confidence: "medium", keywords: ["qqq"] },
   { ticker: "SPY", confidence: "medium", keywords: ["spy"] },
 ];
@@ -65,7 +67,7 @@ const CASH_KEYWORDS = [
   "mmf",
   "money market",
   "rp",
-  "sgov",
+  // "sgov" 는 현금성 키워드에서 제외한다. SGOV 는 실제 가격을 사용하는 달러 단기국채 ETF 로 인식한다.
   "bil",
   "box",
   "treasury bond",
