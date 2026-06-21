@@ -160,12 +160,13 @@ export async function fetchYahooChart(input: {
   url.searchParams.set("includePrePost", "false");
   url.searchParams.set("events", input.events ?? "history");
 
-  if (window.start) {
-    url.searchParams.set("period1", String(unixSeconds(window.start)));
-    url.searchParams.set("period2", String(unixSeconds(window.end, true)));
-  } else {
-    url.searchParams.set("range", "max");
-  }
+  // Yahoo's chart endpoint silently downgrades `range=max` to monthly candles even
+  // when `interval=1d` is requested, which collapses MDD/recovery analysis onto
+  // month-start dates (e.g. 2009-02-01). Always pin explicit unix period bounds so
+  // the daily interval is preserved across the full history. period1=0 (epoch) means
+  // "from inception" for full-history requests.
+  url.searchParams.set("period1", String(window.start ? unixSeconds(window.start) : 0));
+  url.searchParams.set("period2", String(unixSeconds(window.end, true)));
 
   const payload = (await (await fetchWithTimeout(url.toString())).json()) as YahooChartPayload;
   const error = payload.chart?.error;
@@ -199,6 +200,28 @@ function parseYahooPrices(payload: YahooChartPayload, window: DateWindow): Quote
   });
 
   return Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/**
+ * Detect whether a price series is genuinely daily. Yahoo can return monthly
+ * candles (each stamped on the 1st of the month) for long spans; that would
+ * collapse MDD analysis. Daily series have a small median gap between
+ * consecutive points (1-4 calendar days incl. weekends/holidays), whereas
+ * monthly/weekly series have median gaps of ~30/~7 days. We only flag clearly
+ * non-daily series (median gap > 10 days) over a window long enough to judge.
+ */
+function looksDaily(prices: QuoteHistoryPrice[]): boolean {
+  if (prices.length < 3) return true; // too short to judge; don't reject
+  const gaps: number[] = [];
+  for (let i = 1; i < prices.length; i += 1) {
+    const prev = new Date(`${prices[i - 1].date}T00:00:00.000Z`).getTime();
+    const curr = new Date(`${prices[i].date}T00:00:00.000Z`).getTime();
+    if (Number.isFinite(prev) && Number.isFinite(curr)) gaps.push((curr - prev) / DAY_MS);
+  }
+  if (gaps.length === 0) return true;
+  gaps.sort((a, b) => a - b);
+  const median = gaps[Math.floor(gaps.length / 2)];
+  return median <= 10;
 }
 
 function parseYahooDividends(payload: YahooChartPayload, window: DateWindow) {
@@ -353,10 +376,16 @@ export async function getQuoteHistory(input: {
   try {
     const yahoo = await fetchYahooChart({ ...input, ticker: normalizedTicker, events: "history" });
     const prices = parseYahooPrices(yahoo, window);
-    if (prices.length > 0) {
+    if (prices.length > 0 && looksDaily(prices)) {
       return { ticker, normalizedTicker, source: "yahoo", updatedAt: nowIso(), warnings, prices };
     }
-    warnings.push(createWarning("Yahoo returned no usable daily prices for", normalizedTicker));
+    if (prices.length > 0) {
+      // Non-daily (monthly/weekly) candles slipped through; reject and try the
+      // daily Stooq fallback rather than serving downsampled MDD history.
+      warnings.push(createWarning("Yahoo returned non-daily candles for", normalizedTicker, "- falling back to daily source"));
+    } else {
+      warnings.push(createWarning("Yahoo returned no usable daily prices for", normalizedTicker));
+    }
   } catch (error) {
     warnings.push(createWarning("Yahoo history fallback triggered:", error instanceof Error ? error.message : String(error)));
   }
