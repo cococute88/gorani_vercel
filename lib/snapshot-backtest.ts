@@ -236,51 +236,59 @@ function benchmarkLine(
   });
 }
 
-export function buildSnapshotBacktest(input: BuildSnapshotBacktestInput): SnapshotBacktestResult {
-  const months = input.months ?? DEFAULT_MONTHS;
-  const asOfDate = isValidDate(input.asOfDate) ? input.asOfDate : new Date().toISOString().slice(0, 10);
-  const customTicker = (input.customTicker ?? "").toUpperCase();
-  const customLabel = input.customLabel ?? (customTicker ? `${customTicker} 투자 시` : "비교 티커 투자 시");
-  // 사용자 비교 티커는 별도 지정이 없으면 미국 ETF(USD)로 간주해 환율을 반영한다.
-  const customIsUsd = input.customIsUsd ?? true;
-
-  const entries = (input.entries ?? []).filter((entry) => finite(entry.valueKRW) > 0);
-  // 스냅샷 현재 평가액 합계(= 그래프 마지막 값의 기준). 원금이 아니다.
-  const snapshotTotalKRW = entries.reduce((sum, entry) => sum + finite(entry.valueKRW), 0);
-
-  if (entries.length === 0 || snapshotTotalKRW <= 0) {
-    return emptyResult("성과분석 데이터 부족: 이 스냅샷에 평가금액이 있는 보유종목이 없습니다.", 0, customLabel);
+// 윈도우 구간 안의 "모든 거래일" 날짜를 모은다(일별 축).
+// 차트는 월말 축약 데이터(monthEnds)를 쓰지만, 위험지표(MDD/Sharpe/Sortino/Calmar)는
+// 반드시 이 일별 축 기준으로 계산해야 기간 내 최대 낙폭(월중 하락)을 놓치지 않는다.
+function dailyDates(
+  histories: Array<BacktestPricePoint[] | null | undefined>,
+  asOfDate: string,
+  months: number,
+): string[] {
+  const cutoff = new Date(`${asOfDate}T00:00:00Z`);
+  cutoff.setUTCMonth(cutoff.getUTCMonth() - months);
+  const minDate = cutoff.toISOString().slice(0, 10);
+  const set = new Set<string>();
+  for (const history of histories) {
+    for (const point of history ?? []) {
+      if (!isValidDate(point.date)) continue;
+      const date = point.date.slice(0, 10);
+      if (date < minDate || date > asOfDate) continue;
+      set.add(date);
+    }
   }
+  return Array.from(set).sort();
+}
 
-  const fxSorted = sortSeries(input.fxHistory);
-  const fxApplied = fxSorted.length > 0;
+// 경고/플래그 수집 싱크. 월별 본계산(차트·카드)에서만 넘기고,
+// 일별 지표 계산은 싱크 없이 순수 계산만 수행한다(경고 중복 방지).
+type WarningSink = {
+  excludedTickers: string[];
+  proxyTickers: string[];
+  markUsedFx: () => void;
+  markNeedFxMissing: () => void;
+};
 
-  // X축(월별) 구성: 보유종목 + 벤치마크의 모든 가격 히스토리를 합쳐 월말 날짜를 모은다.
-  const resolved = entries.map((entry) => ({ entry, ...resolveHistory(entry, input.priceHistories) }));
-  const axisHistories: Array<BacktestPricePoint[] | null | undefined> = [
-    ...resolved.map((row) => row.history),
-    input.benchmarkHistories.spy,
-    input.benchmarkHistories.qqq,
-    input.benchmarkHistories.custom,
-  ];
-  const monthDates = monthEnds(axisHistories, asOfDate, months);
+type SeriesBundle = {
+  portfolioSeries: number[];
+  spySeries: Array<number | null>;
+  qqqSeries: Array<number | null>;
+  customSeries: Array<number | null>;
+  basePrincipalKRW: number;
+};
 
-  if (monthDates.length < 2) {
-    return emptyResult(
-      "성과분석 데이터 부족: 선택한 기간의 과거 가격 데이터를 불러오지 못했습니다.",
-      snapshotTotalKRW,
-      customLabel,
-    );
-  }
-
-  const warnings: string[] = [];
-  const excludedTickers: string[] = [];
-  const proxyTickers: string[] = [];
-  let usedFxForHolding = false;
-  let needFxButMissing = false;
-
-  // 현재(최근 월말) 시점. 좌수 역산과 그래프 마지막 값의 기준점이 된다.
-  const lastDate = monthDates[monthDates.length - 1];
+// 주어진 날짜 축(월별=차트, 일별=지표) 위에서 4개 시리즈(포트/SPY/QQQ/custom)를
+// 계산한다. 차트와 지표가 "완전히 동일한 계산식"을 쓰도록 한 곳에 모은다 → 축만 다르다.
+function buildSeriesForDates(
+  dates: string[],
+  resolved: Array<{ entry: BacktestEntry; history: BacktestPricePoint[] | null; usedProxy: boolean }>,
+  benchmarkHistories: BuildSnapshotBacktestInput["benchmarkHistories"],
+  fxSorted: BacktestPricePoint[],
+  fxApplied: boolean,
+  customIsUsd: boolean,
+  sink?: WarningSink,
+): SeriesBundle {
+  // 현재(축의 마지막) 시점. 좌수 역산과 마지막 값의 기준점이 된다.
+  const lastDate = dates[dates.length - 1];
 
   // 종목별 평가액 시계열(KRW).
   // 좌수는 "현재가" 기준으로 역산하므로, 마지막 시점 값은 항상 현재 평가액과 일치한다.
@@ -289,31 +297,31 @@ export function buildSnapshotBacktest(input: BuildSnapshotBacktestInput): Snapsh
     const valueKRW = finite(entry.valueKRW);
 
     if (entry.isCash || !history || history.length === 0) {
-      if (!entry.isCash && entry.ticker) excludedTickers.push(entry.ticker);
-      return monthDates.map(() => valueKRW);
+      if (!entry.isCash && entry.ticker) sink?.excludedTickers.push(entry.ticker);
+      return dates.map(() => valueKRW);
     }
 
-    if (usedProxy && entry.proxyTicker) proxyTickers.push(entry.proxyTicker);
+    if (usedProxy && entry.proxyTicker) sink?.proxyTickers.push(entry.proxyTicker);
 
-    // 현재가(최근 월말 기준)를 구할 수 없으면 평가액을 그대로 유지한다(가짜 라인 금지).
+    // 현재가(축 마지막 기준)를 구할 수 없으면 평가액을 그대로 유지한다(가짜 라인 금지).
     const currentPrice = asof(history, lastDate);
     if (!currentPrice) {
-      if (entry.ticker) excludedTickers.push(entry.ticker);
-      return monthDates.map(() => valueKRW);
+      if (entry.ticker) sink?.excludedTickers.push(entry.ticker);
+      return dates.map(() => valueKRW);
     }
 
     const useFx = entry.isUsd && fxApplied;
-    if (entry.isUsd && !fxApplied) needFxButMissing = true;
+    if (entry.isUsd && !fxApplied) sink?.markNeedFxMissing();
     const currentRate = useFx ? asof(fxSorted, lastDate) : 1;
     const safeCurrentRate = currentRate && currentRate > 0 ? currentRate : 1;
-    if (useFx) usedFxForHolding = true;
+    if (useFx) sink?.markUsedFx();
 
     // 현재 평가액(valueKRW)이 되도록 좌수(units)를 "현재가" 기준으로 역산한다.
     //   units = 현재평가액 / (현재가 × 현재환율)
     // 과거 시점은 이 좌수를 과거 가격으로 재평가 → 그 시작값이 역산 원금이 된다.
     const units = valueKRW / (currentPrice * (useFx ? safeCurrentRate : 1));
 
-    const raw: Array<number | null> = monthDates.map((date) => {
+    const raw: Array<number | null> = dates.map((date) => {
       const price = asof(history, date);
       const rate = useFx ? asof(fxSorted, date) : 1;
       if (price && price > 0 && rate && rate > 0) {
@@ -338,23 +346,150 @@ export function buildSnapshotBacktest(input: BuildSnapshotBacktestInput): Snapsh
     return raw.map((value) => (value == null ? valueKRW : value));
   });
 
-  const portfolioSeries = monthDates.map((_, i) =>
+  const portfolioSeries = dates.map((_, i) =>
     entrySeriesList.reduce((sum, series) => sum + finite(series[i]), 0),
   );
 
   // 역산 원금 = 가장 과거(시작) 시점의 포트폴리오 평가액 합계.
-  // 기간(2년/1년/6개월)에 따라 시작 가격이 달라지므로 원금도 자연히 달라진다.
   const basePrincipalKRW = finite(portfolioSeries[0]);
 
-  const spySeries = benchmarkLine(input.benchmarkHistories.spy, monthDates, basePrincipalKRW, true, fxSorted, fxApplied);
-  const qqqSeries = benchmarkLine(input.benchmarkHistories.qqq, monthDates, basePrincipalKRW, true, fxSorted, fxApplied);
-  const customSeries = benchmarkLine(
+  const spySeries = benchmarkLine(benchmarkHistories.spy, dates, basePrincipalKRW, true, fxSorted, fxApplied);
+  const qqqSeries = benchmarkLine(benchmarkHistories.qqq, dates, basePrincipalKRW, true, fxSorted, fxApplied);
+  const customSeries = benchmarkLine(benchmarkHistories.custom, dates, basePrincipalKRW, customIsUsd, fxSorted, fxApplied);
+
+  return { portfolioSeries, spySeries, qqqSeries, customSeries, basePrincipalKRW };
+}
+
+// 공통 준비 단계(엔트리 필터/가격 해상도/환율/축 히스토리).
+// 차트(월별)와 지표(일별) 두 경로가 동일한 입력 가공을 공유하도록 한 곳에 모은다.
+function prepareBacktest(input: BuildSnapshotBacktestInput) {
+  const months = input.months ?? DEFAULT_MONTHS;
+  const asOfDate = isValidDate(input.asOfDate) ? input.asOfDate : new Date().toISOString().slice(0, 10);
+  // 사용자 비교 티커는 별도 지정이 없으면 미국 ETF(USD)로 간주해 환율을 반영한다.
+  const customIsUsd = input.customIsUsd ?? true;
+
+  const entries = (input.entries ?? []).filter((entry) => finite(entry.valueKRW) > 0);
+  // 스냅샷 현재 평가액 합계(= 그래프 마지막 값의 기준). 원금이 아니다.
+  const snapshotTotalKRW = entries.reduce((sum, entry) => sum + finite(entry.valueKRW), 0);
+
+  const fxSorted = sortSeries(input.fxHistory);
+  const fxApplied = fxSorted.length > 0;
+
+  const resolved = entries.map((entry) => ({ entry, ...resolveHistory(entry, input.priceHistories) }));
+  const axisHistories: Array<BacktestPricePoint[] | null | undefined> = [
+    ...resolved.map((row) => row.history),
+    input.benchmarkHistories.spy,
+    input.benchmarkHistories.qqq,
     input.benchmarkHistories.custom,
-    monthDates,
-    basePrincipalKRW,
-    customIsUsd,
+  ];
+
+  return { months, asOfDate, customIsUsd, entries, snapshotTotalKRW, fxSorted, fxApplied, resolved, axisHistories };
+}
+
+// 위험지표 전용 "일별" 평가액 곡선. 차트(월별 축약)와 동일한 계산식을 쓰되,
+// 기간 내 모든 거래일을 축으로 사용한다 → MDD 가 기간 내 최대 낙폭을 정확히 반영한다.
+export type BacktestDailyCurves = {
+  dates: string[];
+  portfolio: Array<number | null>;
+  spy: Array<number | null>;
+  qqq: Array<number | null>;
+  custom: Array<number | null>;
+  // 시리즈별 유효(양수·유한) 데이터 포인트 수(검증/리포트용).
+  counts: { portfolio: number; spy: number; qqq: number; custom: number };
+};
+
+const EMPTY_DAILY_CURVES: BacktestDailyCurves = {
+  dates: [],
+  portfolio: [],
+  spy: [],
+  qqq: [],
+  custom: [],
+  counts: { portfolio: 0, spy: 0, qqq: 0, custom: 0 },
+};
+
+export function buildBacktestDailyCurves(input: BuildSnapshotBacktestInput): BacktestDailyCurves {
+  const { months, asOfDate, customIsUsd, entries, snapshotTotalKRW, fxSorted, fxApplied, resolved, axisHistories } =
+    prepareBacktest(input);
+
+  if (entries.length === 0 || snapshotTotalKRW <= 0) return { ...EMPTY_DAILY_CURVES };
+
+  const dayDates = dailyDates(axisHistories, asOfDate, months);
+  if (dayDates.length < 2) return { ...EMPTY_DAILY_CURVES };
+
+  const { portfolioSeries, spySeries, qqqSeries, customSeries } = buildSeriesForDates(
+    dayDates,
+    resolved,
+    input.benchmarkHistories,
     fxSorted,
     fxApplied,
+    customIsUsd,
+  );
+
+  const portfolio = portfolioSeries.map((value) => (finite(value) > 0 ? value : null));
+  const countValid = (series: Array<number | null>) =>
+    series.filter((value) => typeof value === "number" && Number.isFinite(value) && value > 0).length;
+
+  return {
+    dates: dayDates,
+    portfolio,
+    spy: spySeries,
+    qqq: qqqSeries,
+    custom: customSeries,
+    counts: {
+      portfolio: countValid(portfolio),
+      spy: countValid(spySeries),
+      qqq: countValid(qqqSeries),
+      custom: countValid(customSeries),
+    },
+  };
+}
+
+export function buildSnapshotBacktest(input: BuildSnapshotBacktestInput): SnapshotBacktestResult {
+  const customTicker = (input.customTicker ?? "").toUpperCase();
+  const customLabel = input.customLabel ?? (customTicker ? `${customTicker} 투자 시` : "비교 티커 투자 시");
+
+  const { months, asOfDate, customIsUsd, entries, snapshotTotalKRW, fxSorted, fxApplied, resolved, axisHistories } =
+    prepareBacktest(input);
+
+  if (entries.length === 0 || snapshotTotalKRW <= 0) {
+    return emptyResult("성과분석 데이터 부족: 이 스냅샷에 평가금액이 있는 보유종목이 없습니다.", 0, customLabel);
+  }
+
+  // X축(월별) 구성: 보유종목 + 벤치마크의 모든 가격 히스토리를 합쳐 월말 날짜를 모은다.
+  const monthDates = monthEnds(axisHistories, asOfDate, months);
+
+  if (monthDates.length < 2) {
+    return emptyResult(
+      "성과분석 데이터 부족: 선택한 기간의 과거 가격 데이터를 불러오지 못했습니다.",
+      snapshotTotalKRW,
+      customLabel,
+    );
+  }
+
+  const warnings: string[] = [];
+  const excludedTickers: string[] = [];
+  const proxyTickers: string[] = [];
+  let usedFxForHolding = false;
+  let needFxButMissing = false;
+  const sink: WarningSink = {
+    excludedTickers,
+    proxyTickers,
+    markUsedFx: () => {
+      usedFxForHolding = true;
+    },
+    markNeedFxMissing: () => {
+      needFxButMissing = true;
+    },
+  };
+
+  const { portfolioSeries, spySeries, qqqSeries, customSeries, basePrincipalKRW } = buildSeriesForDates(
+    monthDates,
+    resolved,
+    input.benchmarkHistories,
+    fxSorted,
+    fxApplied,
+    customIsUsd,
+    sink,
   );
 
   const points: BacktestPoint[] = monthDates.map((date, i) => ({
