@@ -114,6 +114,21 @@ export function normalizeHoldingTickerInfo(
   const searchableText = textOf(input);
   const hasKoreanText = /[가-힣]/.test(searchableText);
   const isCashLike = isCashLikeInput(input);
+  const registry = findKoreanEtfMapping(searchableText);
+
+  // 원화 MMF(머니마켓액티브 등): 현금성으로 취급하되 가격 조회용 대표 티커(488770.KS)는 부여한다.
+  // 일반 현금성 자산보다 먼저 검사해 대표 티커가 사라지지 않게 한다.
+  if (registry?.isMoneyMarket && registry.quoteTicker) {
+    return {
+      quoteTicker: registry.quoteTicker,
+      krxCode: registry.krxCode,
+      dividendBucket: "KRW",
+      displayTicker: registry.quoteTicker,
+      isCashLike: true,
+      source: "korean-etf-registry",
+      warnings: ["money_market_cash_like"],
+    };
+  }
 
   if (isCashLike) {
     return {
@@ -125,7 +140,6 @@ export function normalizeHoldingTickerInfo(
     };
   }
 
-  const registry = findKoreanEtfMapping(searchableText);
   const fallback = registry ? null : inferKoreanEtfFallbackBucket(searchableText);
   const nameMapping = quoteTicker ? null : findKrxTickerMappingForHolding(input);
   const dividendBucket = markerBucket ?? registry?.dividendBucket ?? fallback?.dividendBucket;

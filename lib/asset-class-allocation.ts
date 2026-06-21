@@ -73,13 +73,13 @@ export function classifyAssetClass(text: string): AssetClassName {
   if (t.includes("schd")) return "SCHD";
   if (t.includes("msft") || t.includes("마이크로소프트")) return "MSFT";
   // USD/달러/외화/$ 신호가 있는 현금성 자산은 "달러".
-  if (includesAny(t, ["달러", "dollar", "usd", "외화", "미국달러", "us$", "$"])) return "달러";
+  if (includesAny(t, ["달러", "dollar", "usd", "외화", "미국달러", "us$", "$", "sgov"])) return "달러";
   // KRW/원화/예적금/현금성 원화 자산은 모두 "원화"로 합산한다.
   // (예적금·적금·예금·저축·채권·청약 + 현금·예수금·CMA·MMF·파킹 등 + 명시적 원화/KRW 신호.)
   if (
     includesAny(t, [
       "예적금", "적금", "예금", "저축", "채권", "청약",
-      "현금", "예수금", "예치금", "cma", "mmf", "mmw", "파킹", "입출금", "대기자금", "통장", "rp",
+      "현금", "예수금", "예치금", "cma", "mmf", "mmw", "머니마켓", "파킹", "입출금", "대기자금", "통장", "rp",
       "원화", "krw",
     ])
   ) {

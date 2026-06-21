@@ -13,6 +13,7 @@
     "check:performance-ranking-filters": "node scripts/check-performance-ranking-filters.mjs",
     "check:krx-ticker-name-map": "node scripts/check-krx-ticker-name-map.mjs",
     "check:performance-snapshots": "node scripts/check-performance-snapshots.mjs",
+    "check:snapshot-backtest": "node scripts/check-snapshot-backtest.mjs",
     "check:performance-qld-snapshots": "node scripts/check-performance-qld-snapshots.mjs",
     "check:portfolio-parser": "node scripts/check-portfolio-parser.mjs",
     "check:portfolio-parser:private": "node scripts/check-portfolio-parser.mjs --private docs/fixtures/portfolio-parser/private/2025-06-12~2026-06-12.xlsx",
