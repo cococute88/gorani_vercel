@@ -373,7 +373,7 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
       <form className={panel} onSubmit={(e) => { e.preventDefault(); setSubmitted(input); }}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className={cardTitle}>입력값</h2>
+            <h2 className={cardTitle}>티커MDD 계산기 입력값</h2>
             <CalculatorDataStatus source={result.source} loading={loading} updatedAt={result.updatedAt} loadingText="시세 불러오는 중" />
           </div>
           <button
@@ -394,7 +394,7 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
           </div>
         </div>
         <p className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] text-slate-500 dark:border-[#2a3336] dark:bg-[#151a1b] dark:text-slate-400">
-          티커를 입력하고 분석 실행을 누른 뒤, 기간 버튼으로 분석 구간을 조정하세요. 10년 버튼은 데이터가 10년 미만이면 자동으로 전체 기간을 보여줍니다.
+          티커MDD 계산을 위해 티커를 입력하고 분석 실행을 누른 뒤, 기간 버튼으로 분석 구간을 조정하세요. 10년 버튼은 데이터가 10년 미만이면 자동으로 전체 기간을 보여줍니다.
         </p>
       </form>
 
