@@ -34,6 +34,8 @@ export default function AssetSimulatorPage() {
   const [yearPlans, setYearPlans] = useState<YearPlanRow[]>(DEFAULT_YEAR_PLANS);
   // "지금 EXIT?" 모드는 로컬 UI 상태로만 관리한다. Firebase/로컬 저장 금지, 새로고침 시 초기화.
   const [exitMode, setExitMode] = useState(false);
+  // 연도별 투자 계획표 펼침/접힘 상태. 일반 모드 기본값은 열림.
+  const [planTableOpen, setPlanTableOpen] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -118,6 +120,14 @@ export default function AssetSimulatorPage() {
     [inputs, yearPlans],
   );
 
+  // "지금 EXIT?" 토글 시 계획표를 자동으로 접고/펼친다.
+  // ON → 계산에 쓰이지 않으므로 즉시 접기, OFF → 기본 상태(열림) 복원.
+  // 토글 사이에는 사용자가 직접 펼치기/접기 버튼으로 제어할 수 있다.
+  const handleExitModeChange = (next: boolean) => {
+    setExitMode(next);
+    setPlanTableOpen(!next);
+  };
+
   const handleInputsChange = (nextInputs: SimulatorInputs) => {
     const normalizedInputs = normalizeInputs(nextInputs);
     setInputs(normalizedInputs);
@@ -190,8 +200,8 @@ export default function AssetSimulatorPage() {
         </div>
 
         <div className="space-y-5">
-          <SimulatorInputPanel inputs={inputs} onChange={handleInputsChange} onReset={handleReset} onSave={handleSave} saving={saving} saveMessage={saveMessage} saveError={saveError} exitMode={exitMode} onExitModeChange={setExitMode} />
-          <YearPlanTable plans={tablePlans} onChange={setYearPlans} />
+          <SimulatorInputPanel inputs={inputs} onChange={handleInputsChange} onReset={handleReset} onSave={handleSave} saving={saving} saveMessage={saveMessage} saveError={saveError} exitMode={exitMode} onExitModeChange={handleExitModeChange} />
+          <YearPlanTable plans={tablePlans} onChange={setYearPlans} open={planTableOpen} onToggleOpen={() => setPlanTableOpen((prev) => !prev)} exitMode={exitMode} />
           <SimulatorMetricCards summary={projection.summary} />
           <SimulatorResultTabs projection={projection} />
           <p className="rounded-2xl border border-[#273032] bg-[#171d1e] px-4 py-3 text-[13px] text-slate-400">
