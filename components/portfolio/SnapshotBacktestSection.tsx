@@ -64,6 +64,16 @@ function tooltipFormatter(value: number, name: string): [string, string] {
   return [won(value), name];
 }
 
+function priceText(price: number | null, isCash: boolean): string {
+  if (isCash) return "-";
+  return price == null ? "—" : price.toLocaleString("ko-KR", { maximumFractionDigits: 2 });
+}
+
+function unitsText(units: number | null, isCash: boolean): string {
+  if (isCash) return "-";
+  return units == null ? "—" : units.toLocaleString("ko-KR", { maximumFractionDigits: 2 });
+}
+
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
 }
@@ -278,6 +288,46 @@ export default function SnapshotBacktestSection({ snapshots, selectedSnapshotId 
     [result.points],
   );
 
+  const [showBreakdown, setShowBreakdown] = useState(false);
+
+  // 디버그 검증 로그(요구사항 3): ?debug=backtest 쿼리 또는 localStorage 플래그가 있을 때만 출력.
+  useEffect(() => {
+    if (typeof window === "undefined" || !result.available) return;
+    const debugOn =
+      new URLSearchParams(window.location.search).get("debug") === "backtest" ||
+      window.localStorage.getItem("gorani:debug:backtest") === "1";
+    if (!debugOn) return;
+    const lastPoint = result.points[result.points.length - 1];
+    /* eslint-disable no-console */
+    console.groupCollapsed(`[2년 역산 검증] ${activeSnapshot?.snapshotDate ?? ""}`);
+    console.log("스냅샷 평가액(현재가치합):", Math.round(result.snapshotValueKRW).toLocaleString("ko-KR"));
+    console.log("당시(2년 전) 원금:", Math.round(result.portfolioStartKRW).toLocaleString("ko-KR"));
+    console.log("증가 배수:", result.portfolioStartKRW > 0 ? (result.snapshotValueKRW / result.portfolioStartKRW).toFixed(3) : "-");
+    console.log("카드 vs 그래프 마지막 값:", {
+      portfolioCard: result.cards.portfolio.currentValueKRW,
+      portfolioChart: lastPoint?.portfolio,
+      spyCard: result.cards.spy.currentValueKRW,
+      spyChart: lastPoint?.spy,
+      qqqCard: result.cards.qqq.currentValueKRW,
+      qqqChart: lastPoint?.qqq,
+      kospiCard: result.cards.kospi.currentValueKRW,
+      kospiChart: lastPoint?.kospi,
+    });
+    console.table(
+      result.breakdown.map((row) => ({
+        종목: row.label,
+        "비중%": Number(row.weightPct.toFixed(1)),
+        당시원금: Math.round(row.allocatedPrincipalKRW),
+        "2년전가격": row.startPrice,
+        좌수: row.units,
+        현재가격: row.endPrice,
+        현재가치: Math.round(row.currentValueKRW),
+      })),
+    );
+    console.groupEnd();
+    /* eslint-enable no-console */
+  }, [activeSnapshot, result]);
+
   const cardWarnings = result.warnings.filter((warning) => warning !== "환율 미반영");
   const showFxNotice = !result.fxApplied;
 
@@ -312,7 +362,8 @@ export default function SnapshotBacktestSection({ snapshots, selectedSnapshotId 
         ) : (
           <>
             <p className="mb-4 mt-1 text-[12px] text-slate-500">
-              선택한 스냅샷의 종목 비중을 2년 전에 그대로 매수했다고 가정하고, 동일 원금을 SPY · QQQ · KOSPI 에 전액 투자한 경우와 비교합니다.
+              현재 보유 수량(좌수)을 2년 전부터 그대로 들고 있었다고 가정합니다. 내 포트폴리오의 현재 가치는 스냅샷 평가액과 같고,
+              같은 &quot;당시 원금&quot;을 SPY · QQQ · KOSPI 에 전액 투자한 경우와 비교합니다.
             </p>
             <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
               {SERIES_META.map((meta) => {
@@ -321,7 +372,7 @@ export default function SnapshotBacktestSection({ snapshots, selectedSnapshotId 
                   <Kpi
                     key={meta.key}
                     label={meta.name}
-                    principal={result.basePrincipalKRW}
+                    principal={c.principalKRW}
                     value={c.currentValueKRW}
                     rate={c.returnPct}
                     accent={meta.color}
@@ -370,6 +421,74 @@ export default function SnapshotBacktestSection({ snapshots, selectedSnapshotId 
             )}
             {cardWarnings.length > 0 && (
               <div className="mt-2 text-[11.5px] text-slate-500">{cardWarnings.join(" · ")}</div>
+            )}
+
+            {/* 계산 기준 표시 (요구사항 11) */}
+            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-400">
+              <span>
+                기준 스냅샷 평가액: <b className="text-slate-300">{won(result.snapshotValueKRW)}</b>
+              </span>
+              <span>
+                당시(2년 전) 원금: <b className="text-slate-300">{won(result.portfolioStartKRW)}</b>
+              </span>
+              {activeSnapshot && (
+                <span>
+                  선택 스냅샷: <b className="text-slate-300">{activeSnapshot.snapshotDate}</b>
+                </span>
+              )}
+              {result.breakdown.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowBreakdown((prev) => !prev)}
+                  className="rounded-md bg-white/5 px-2 py-0.5 text-[11px] font-medium text-slate-300 hover:bg-white/10"
+                >
+                  {showBreakdown ? "계산 근거 숨기기" : "계산 근거 보기"}
+                </button>
+              )}
+            </div>
+
+            {showBreakdown && result.breakdown.length > 0 && (
+              <div className="scroll-dark mt-3 overflow-x-auto rounded-xl border border-slate-200 dark:border-[#2a3336]">
+                <table className="w-full min-w-[640px] text-[11.5px]">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-left text-slate-500 dark:border-[#2a3336]">
+                      <th className="px-2.5 py-2 font-medium">종목</th>
+                      <th className="px-2.5 py-2 text-right font-medium">비중</th>
+                      <th className="px-2.5 py-2 text-right font-medium">당시 원금</th>
+                      <th className="px-2.5 py-2 text-right font-medium">2년전 가격</th>
+                      <th className="px-2.5 py-2 text-right font-medium">좌수</th>
+                      <th className="px-2.5 py-2 text-right font-medium">현재 가격</th>
+                      <th className="px-2.5 py-2 text-right font-medium">현재 가치</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {result.breakdown.map((row) => (
+                      <tr key={row.key} className="border-b border-slate-100 dark:border-[#1c2426]">
+                        <td className="px-2.5 py-1.5 text-slate-700 dark:text-slate-200">
+                          {row.label}
+                          {row.isCash && <span className="ml-1 text-[10px] text-slate-400">현금성</span>}
+                          {row.usedProxy && <span className="ml-1 text-[10px] text-amber-500">대체</span>}
+                        </td>
+                        <td className="num px-2.5 py-1.5 text-right text-slate-500">{row.weightPct.toFixed(1)}%</td>
+                        <td className="num px-2.5 py-1.5 text-right text-slate-500">{won(row.allocatedPrincipalKRW)}</td>
+                        <td className="num px-2.5 py-1.5 text-right text-slate-500">{priceText(row.startPrice, row.isCash)}</td>
+                        <td className="num px-2.5 py-1.5 text-right text-slate-500">{unitsText(row.units, row.isCash)}</td>
+                        <td className="num px-2.5 py-1.5 text-right text-slate-500">{priceText(row.endPrice, row.isCash)}</td>
+                        <td className="num px-2.5 py-1.5 text-right text-slate-700 dark:text-slate-200">{won(row.currentValueKRW)}</td>
+                      </tr>
+                    ))}
+                    <tr className="font-semibold text-slate-700 dark:text-slate-200">
+                      <td className="px-2.5 py-2">합계</td>
+                      <td className="num px-2.5 py-2 text-right">100.0%</td>
+                      <td className="num px-2.5 py-2 text-right">{won(result.portfolioStartKRW)}</td>
+                      <td className="px-2.5 py-2" />
+                      <td className="px-2.5 py-2" />
+                      <td className="px-2.5 py-2" />
+                      <td className="num px-2.5 py-2 text-right">{won(result.snapshotValueKRW)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             )}
           </>
         )}

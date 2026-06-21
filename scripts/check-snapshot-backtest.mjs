@@ -115,20 +115,64 @@ const result = buildSnapshotBacktest({
   asOfDate: asOf,
 });
 
+const SNAPSHOT_VALUE = 12_000_000;
 assert.equal(result.available, true, "백테스트 available");
-assert.equal(result.basePrincipalKRW, 12_000_000, "원금 합계");
 assert.ok(result.points.length >= 20, `월별 포인트 수: ${result.points.length}`);
 assert.equal(result.fxApplied, true, "환율 반영");
+
+// ★ 핵심 보정: 내 포트폴리오 현재 가치 == 스냅샷 평가액 (현재 자산보다 과도하지 않다).
+assert.equal(result.snapshotValueKRW, SNAPSHOT_VALUE, "스냅샷 평가액 합");
+assert.ok(
+  Math.abs(result.cards.portfolio.currentValueKRW - SNAPSHOT_VALUE) < 1,
+  `내 포트폴리오 현재가치(${result.cards.portfolio.currentValueKRW}) == 스냅샷 평가액(${SNAPSHOT_VALUE})`,
+);
+// 가격 상승장 → 당시 원금 < 스냅샷 평가액 (역산이 과대계상되지 않음).
+assert.ok(result.portfolioStartKRW < SNAPSHOT_VALUE, "당시 원금 < 스냅샷 평가액");
+assert.ok(result.portfolioStartKRW > 0, "당시 원금 > 0");
+
+// 모든 카드의 원금은 동일한 "당시 원금" 기준.
 for (const key of ["portfolio", "spy", "qqq", "kospi"]) {
   assert.equal(result.cards[key].available, true, `${key} 카드 available`);
-  assert.equal(result.cards[key].principalKRW, 12_000_000, `${key} 원금`);
+  assert.ok(Math.abs(result.cards[key].principalKRW - result.portfolioStartKRW) < 1, `${key} 원금 = 당시 원금`);
   assert.ok(Number.isFinite(result.cards[key].currentValueKRW), `${key} 현재가치 유한`);
 }
-// 현금(200만)은 평탄 → 포트폴리오 최종값은 (성장한 ACE+SGOV) + 200만 현금.
-assert.ok(result.cards.portfolio.currentValueKRW > result.basePrincipalKRW, "성장 포트폴리오 > 원금");
+
+// ★ 카드 값 == 그래프 마지막 값 (요구사항 6/7).
+const lastPoint = result.points[result.points.length - 1];
+for (const key of ["portfolio", "spy", "qqq", "kospi"]) {
+  assert.ok(
+    Math.abs(result.cards[key].currentValueKRW - lastPoint[key]) < 1,
+    `${key}: 카드(${result.cards[key].currentValueKRW}) == 그래프 마지막(${lastPoint[key]})`,
+  );
+}
+
+// breakdown 현재가치 합 == 스냅샷 평가액, 당시원금 합 == 당시 원금.
+const sumCurrent = result.breakdown.reduce((s, r) => s + r.currentValueKRW, 0);
+const sumAllocated = result.breakdown.reduce((s, r) => s + r.allocatedPrincipalKRW, 0);
+assert.ok(Math.abs(sumCurrent - SNAPSHOT_VALUE) < 1, "breakdown 현재가치 합 == 스냅샷 평가액");
+assert.ok(Math.abs(sumAllocated - result.portfolioStartKRW) < 1, "breakdown 당시원금 합 == 당시 원금");
+
+// 현금(200만)은 좌수 없이 평탄 (당시원금 == 현재가치).
+const cashRow = result.breakdown.find((r) => r.isCash);
+assert.ok(cashRow && cashRow.units === null && Math.abs(cashRow.allocatedPrincipalKRW - cashRow.currentValueKRW) < 1, "현금성 평탄 처리");
+
 // QQQ(1.5%/월) > SPY(1%/월) 누적
 assert.ok(result.cards.qqq.currentValueKRW > result.cards.spy.currentValueKRW, "QQQ > SPY");
-console.log("✓ buildSnapshotBacktest: 포트폴리오/SPY/QQQ/KOSPI 계산 + 현금 평탄 처리");
+console.log("✓ end-anchor 보정: 현재가치==스냅샷평가액, 당시원금<현재가치, 카드==그래프, 합계 일치");
+
+// 검증용 표 출력 (요구사항 5).
+console.log(`\n[검증 표] 스냅샷 평가액 ${result.snapshotValueKRW.toLocaleString("ko-KR")} · 당시원금 ${Math.round(result.portfolioStartKRW).toLocaleString("ko-KR")} · 증가배수 ${(result.snapshotValueKRW / result.portfolioStartKRW).toFixed(3)}배`);
+console.table(
+  result.breakdown.map((r) => ({
+    종목: r.label,
+    "비중%": Number(r.weightPct.toFixed(1)),
+    당시원금: Math.round(r.allocatedPrincipalKRW),
+    "2년전가격": r.startPrice,
+    좌수: r.units == null ? null : Number(r.units.toFixed(2)),
+    현재가격: r.endPrice,
+    현재가치: Math.round(r.currentValueKRW),
+  })),
+);
 
 // ---- 5) 환율 미반영 케이스 ----
 const noFx = buildSnapshotBacktest({

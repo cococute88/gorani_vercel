@@ -2,16 +2,24 @@
 // 스냅샷 기반 "2년 역산 성과 분석" 순수 계산 로직.
 //
 // 포트폴리오 관리 페이지에서 선택된 스냅샷의 "계좌별 종목 비중"을 그대로 사용해
-// "2년 전에 동일 비중으로 매수했다면" 가정의 성과를 역산한다.
-//   - 내 포트폴리오 : 스냅샷 비중을 2년 전 가격으로 매수 → 현재까지 평가
-//   - SPY 투자 시   : 동일 원금을 전액 SPY 에 2년 전 매수
-//   - QQQ 투자 시   : 동일 원금을 전액 QQQ 에 2년 전 매수
-//   - KOSPI 투자 시 : 동일 원금을 전액 KOSPI(^KS11) 추종
+// "현재 보유(좌수)를 2년 전부터 그대로 들고 있었다면" 가정의 성과를 역산한다.
+//
+// 핵심 정의(2026-06 보정):
+//   - 좌수(units) = 현재 평가액 / 현재가격  ← 실제 현재 보유 수량
+//   - 종목 현재가치 = 좌수 × 현재가격 = 현재 평가액  ⇒ 포트폴리오 "현재 가치" = 스냅샷 평가액
+//   - 당시(2년 전) 원금 = 좌수 × 2년 전 가격  (스냅샷 평가액보다 작다)
+//   - 즉 그래프는 "당시 원금"에서 시작해 "현재 스냅샷 평가액"에서 끝난다.
+//
+// 비교(동일 원금):
+//   - SPY/QQQ/KOSPI : 동일한 "당시 원금"을 2년 전에 전액 투자했다고 가정해 현재 평가.
+//
+// 과거(버그) 정의는 "현재 평가액을 2년 전 원금으로 보고 다시 성장"시켜 현재 가치가
+// 실제 자산보다 과도하게 커졌다(start-anchor). 본 로직은 end-anchor 로 바로잡는다.
 //
 // 원칙:
 //   - 새 가격/샘플 데이터를 만들지 않는다. 실제 가격 히스토리만 사용한다.
-//   - 가격이 없는 종목/구간은 0 으로 채우지 않고 마지막 유효값을 유지(현금형)하거나 제외한다.
 //   - 현금성 자산(원화 MMF/현금)은 KRW 평가액을 그대로 유지(현금 수익률 ≈ 0)한다.
+//   - SGOV 등 달러 자산은 실제 가격을 사용한다(현금 취급 아님).
 //   - 환율(USD/KRW) 데이터가 없으면 환율 미반영으로 계산하고 플래그를 내려준다.
 //   - NaN/null/undefined 는 모든 경로에서 방어한다.
 // =============================================================
@@ -50,12 +58,32 @@ export type BacktestCard = {
   available: boolean;
 };
 
+// 종목별 계산 근거(검증/디버그용). 카드·그래프 값과 1:1로 추적 가능해야 한다.
+export type BacktestBreakdownRow = {
+  key: string;
+  label: string;
+  ticker: string | null;
+  isCash: boolean;
+  isUsd: boolean;
+  usedProxy: boolean;
+  weightPct: number; // 스냅샷 평가액 대비 비중(%)
+  allocatedPrincipalKRW: number; // 당시(2년 전) 원금 = 좌수 × 2년전가격
+  startPrice: number | null; // 2년 전 가격(원통화)
+  endPrice: number | null; // 현재 가격(원통화)
+  units: number | null; // 좌수(현재 보유 수량)
+  currentValueKRW: number; // 현재 가치(= 스냅샷 평가액 분담분)
+};
+
 export type SnapshotBacktestResult = {
   available: boolean;
   unavailableReason?: string;
-  basePrincipalKRW: number;
+  // 현재 스냅샷 평가액 합(= 내 포트폴리오 현재 가치, 그래프 마지막 값과 동일).
+  snapshotValueKRW: number;
+  // 2년 전 동일 보유 가정 시 당시 원금(= 모든 비교선의 공통 시작 원금).
+  portfolioStartKRW: number;
   points: BacktestPoint[];
   cards: Record<BacktestSeriesKey, BacktestCard>;
+  breakdown: BacktestBreakdownRow[];
   fxApplied: boolean;
   warnings: string[];
   excludedTickers: string[];
@@ -166,11 +194,11 @@ function makeCard(
   return { key, label, principalKRW: base, currentValueKRW, gainKRW, returnPct, available };
 }
 
-function emptyResult(reason: string, base = 0): SnapshotBacktestResult {
+function emptyResult(reason: string, snapshotValueKRW = 0): SnapshotBacktestResult {
   const card = (key: BacktestSeriesKey, label: string): BacktestCard => ({
     key,
     label,
-    principalKRW: base,
+    principalKRW: 0,
     currentValueKRW: null,
     gainKRW: null,
     returnPct: null,
@@ -179,7 +207,8 @@ function emptyResult(reason: string, base = 0): SnapshotBacktestResult {
   return {
     available: false,
     unavailableReason: reason,
-    basePrincipalKRW: base,
+    snapshotValueKRW,
+    portfolioStartKRW: 0,
     points: [],
     cards: {
       portfolio: card("portfolio", "내 포트폴리오"),
@@ -187,11 +216,29 @@ function emptyResult(reason: string, base = 0): SnapshotBacktestResult {
       qqq: card("qqq", "QQQ 투자 시"),
       kospi: card("kospi", "KOSPI 투자 시"),
     },
+    breakdown: [],
     fxApplied: false,
     warnings: [reason],
     excludedTickers: [],
     proxyTickers: [],
   };
+}
+
+// null 구간을 앞/뒤 유효값으로 채워 합산 가능한 숫자 시계열로 만든다.
+// (대부분 종목은 2년 내내 가격이 있고, 상장 이전 구간만 back-fill 된다.)
+function fillSeries(raw: Array<number | null>): number[] {
+  const out = raw.slice();
+  let last: number | null = null;
+  for (let i = 0; i < out.length; i += 1) {
+    if (out[i] != null) last = out[i];
+    else if (last != null) out[i] = last;
+  }
+  let next: number | null = null;
+  for (let i = out.length - 1; i >= 0; i -= 1) {
+    if (out[i] != null) next = out[i];
+    else if (next != null) out[i] = next;
+  }
+  return out.map((value) => (value == null ? 0 : value));
 }
 
 // 동일 원금을 벤치마크에 전액 투자했다고 가정한 평가액 라인.
@@ -225,9 +272,9 @@ export function buildSnapshotBacktest(input: BuildSnapshotBacktestInput): Snapsh
   const asOfDate = isValidDate(input.asOfDate) ? input.asOfDate : new Date().toISOString().slice(0, 10);
 
   const entries = (input.entries ?? []).filter((entry) => finite(entry.valueKRW) > 0);
-  const basePrincipalKRW = entries.reduce((sum, entry) => sum + finite(entry.valueKRW), 0);
+  const snapshotValueKRW = entries.reduce((sum, entry) => sum + finite(entry.valueKRW), 0);
 
-  if (entries.length === 0 || basePrincipalKRW <= 0) {
+  if (entries.length === 0 || snapshotValueKRW <= 0) {
     return emptyResult("성과분석 데이터 부족: 이 스냅샷에 평가금액이 있는 보유종목이 없습니다.");
   }
 
@@ -247,63 +294,108 @@ export function buildSnapshotBacktest(input: BuildSnapshotBacktestInput): Snapsh
   if (monthDates.length < 2) {
     return emptyResult(
       "성과분석 데이터 부족: 최근 2년 과거 가격 데이터를 불러오지 못했습니다.",
-      basePrincipalKRW,
+      snapshotValueKRW,
     );
   }
+
+  const firstMonth = monthDates[0];
+  const lastMonth = monthDates[monthDates.length - 1];
 
   const warnings: string[] = [];
   const excludedTickers: string[] = [];
   const proxyTickers: string[] = [];
   let usedFxForHolding = false;
-  let needFxButMissing = false;
 
-  // 종목별 평가액 시계열(KRW). 현금/가격불가 종목은 평가액을 그대로 유지한다.
-  const entrySeriesList = resolved.map(({ entry, history, usedProxy }) => {
+  // 종목별 평가액 시계열(KRW) + 계산 근거.
+  // end-anchor: 좌수 = 현재 평가액 / 현재가격 → 현재 시점 평가액 = valueKRW(스냅샷 평가액).
+  const computed = resolved.map(({ entry, history, usedProxy }) => {
     const valueKRW = finite(entry.valueKRW);
 
-    if (entry.isCash || !history || history.length === 0) {
-      if (!entry.isCash && entry.ticker) excludedTickers.push(entry.ticker);
-      // 현금성/가격불가: 원화 평가액을 그대로 유지(현금 수익률 ≈ 0).
-      return monthDates.map(() => valueKRW);
+    const flat = (): { series: number[]; row: BacktestBreakdownRow } => ({
+      series: monthDates.map(() => valueKRW),
+      row: {
+        key: entry.key,
+        label: entry.label,
+        ticker: entry.ticker,
+        isCash: entry.isCash,
+        isUsd: entry.isUsd,
+        usedProxy: false,
+        weightPct: (valueKRW / snapshotValueKRW) * 100,
+        allocatedPrincipalKRW: valueKRW, // 현금성: 당시=현재(평탄)
+        startPrice: null,
+        endPrice: null,
+        units: null,
+        currentValueKRW: valueKRW,
+      },
+    });
+
+    if (entry.isCash) return flat();
+    if (!history || history.length === 0) {
+      if (entry.ticker) excludedTickers.push(entry.ticker);
+      return flat();
     }
 
+    const endPrice = asof(history, lastMonth);
+    if (!endPrice) {
+      if (entry.ticker) excludedTickers.push(entry.ticker);
+      return flat();
+    }
     if (usedProxy && entry.proxyTicker) proxyTickers.push(entry.proxyTicker);
 
-    const startPrice = asof(history, monthDates[0]);
-    if (!startPrice) {
-      // 시작 시점 가격을 구할 수 없으면 평가액을 그대로 유지한다(가짜 라인 금지).
-      if (entry.ticker) excludedTickers.push(entry.ticker);
-      return monthDates.map(() => valueKRW);
-    }
-
     const useFx = entry.isUsd && fxApplied;
-    if (entry.isUsd && !fxApplied) needFxButMissing = true;
-    const startRate = useFx ? asof(fxSorted, monthDates[0]) : 1;
-    const safeStartRate = startRate && startRate > 0 ? startRate : 1;
     if (useFx) usedFxForHolding = true;
+    const endRate = useFx ? asof(fxSorted, lastMonth) : 1;
+    const safeEndRate = endRate && endRate > 0 ? endRate : 1;
 
-    // 시작 시점 평가액이 valueKRW 가 되도록 좌수(units)를 역산한다.
-    const units = valueKRW / (startPrice * (useFx ? safeStartRate : 1));
+    // 좌수 = 현재 평가액 / (현재가격 × 현재환율) = 실제 현재 보유 수량.
+    const units = valueKRW / (endPrice * (useFx ? safeEndRate : 1));
 
-    let last = valueKRW;
-    return monthDates.map((date) => {
+    const raw: Array<number | null> = monthDates.map((date) => {
       const price = asof(history, date);
       const rate = useFx ? asof(fxSorted, date) : 1;
       if (price && price > 0 && rate && rate > 0) {
         const value = units * price * rate;
-        if (Number.isFinite(value) && value > 0) last = value;
+        return Number.isFinite(value) && value > 0 ? value : null;
       }
-      return last;
+      return null;
     });
+    const series = fillSeries(raw);
+    const startPrice = asof(history, firstMonth);
+
+    return {
+      series,
+      row: {
+        key: entry.key,
+        label: entry.label,
+        ticker: entry.ticker,
+        isCash: false,
+        isUsd: entry.isUsd,
+        usedProxy,
+        weightPct: (valueKRW / snapshotValueKRW) * 100,
+        allocatedPrincipalKRW: finite(series[0]), // 당시(2년 전) 원금 분담분
+        startPrice: startPrice ?? null,
+        endPrice,
+        units,
+        currentValueKRW: valueKRW,
+      } satisfies BacktestBreakdownRow,
+    };
   });
+
+  const entrySeriesList = computed.map((row) => row.series);
+  const breakdown = computed
+    .map((row) => row.row)
+    .sort((a, b) => b.currentValueKRW - a.currentValueKRW);
 
   const portfolioSeries = monthDates.map((_, i) =>
     entrySeriesList.reduce((sum, series) => sum + finite(series[i]), 0),
   );
 
-  const spySeries = benchmarkLine(input.benchmarkHistories.spy, monthDates, basePrincipalKRW, true, fxSorted, fxApplied);
-  const qqqSeries = benchmarkLine(input.benchmarkHistories.qqq, monthDates, basePrincipalKRW, true, fxSorted, fxApplied);
-  const kospiSeries = benchmarkLine(input.benchmarkHistories.kospi, monthDates, basePrincipalKRW, false, fxSorted, fxApplied);
+  // 당시(2년 전) 원금 = 포트폴리오 시작값. 모든 비교선의 공통 시작 원금으로 사용한다.
+  const portfolioStartKRW = finite(portfolioSeries[0]);
+
+  const spySeries = benchmarkLine(input.benchmarkHistories.spy, monthDates, portfolioStartKRW, true, fxSorted, fxApplied);
+  const qqqSeries = benchmarkLine(input.benchmarkHistories.qqq, monthDates, portfolioStartKRW, true, fxSorted, fxApplied);
+  const kospiSeries = benchmarkLine(input.benchmarkHistories.kospi, monthDates, portfolioStartKRW, false, fxSorted, fxApplied);
 
   const points: BacktestPoint[] = monthDates.map((date, i) => ({
     date: monthKey(date),
@@ -314,10 +406,10 @@ export function buildSnapshotBacktest(input: BuildSnapshotBacktestInput): Snapsh
   }));
 
   const cards: Record<BacktestSeriesKey, BacktestCard> = {
-    portfolio: makeCard("portfolio", "내 포트폴리오", basePrincipalKRW, portfolioSeries),
-    spy: makeCard("spy", "SPY 투자 시", basePrincipalKRW, spySeries),
-    qqq: makeCard("qqq", "QQQ 투자 시", basePrincipalKRW, qqqSeries),
-    kospi: makeCard("kospi", "KOSPI 투자 시", basePrincipalKRW, kospiSeries),
+    portfolio: makeCard("portfolio", "내 포트폴리오", portfolioStartKRW, portfolioSeries),
+    spy: makeCard("spy", "SPY 투자 시", portfolioStartKRW, spySeries),
+    qqq: makeCard("qqq", "QQQ 투자 시", portfolioStartKRW, qqqSeries),
+    kospi: makeCard("kospi", "KOSPI 투자 시", portfolioStartKRW, kospiSeries),
   };
 
   if (excludedTickers.length > 0) {
@@ -330,11 +422,9 @@ export function buildSnapshotBacktest(input: BuildSnapshotBacktestInput): Snapsh
       `일부 한국 ETF 는 대표 지수(${Array.from(new Set(proxyTickers)).join(", ")})로 대체 계산했습니다.`,
     );
   }
-  if ((usedFxForHolding || cards.spy.available || cards.qqq.available) && !fxApplied) {
+  const usdBenchmarkShown = cards.spy.available || cards.qqq.available;
+  if ((usedFxForHolding || usdBenchmarkShown) && !fxApplied) {
     warnings.push("환율 미반영");
-  }
-  if (needFxButMissing && fxApplied === false) {
-    // 위 메시지에 이미 포함.
   }
   if (!cards.spy.available) warnings.push("SPY 가격/환율 데이터를 불러오지 못해 SPY 비교선을 표시하지 않습니다.");
   if (!cards.qqq.available) warnings.push("QQQ 가격/환율 데이터를 불러오지 못해 QQQ 비교선을 표시하지 않습니다.");
@@ -342,9 +432,11 @@ export function buildSnapshotBacktest(input: BuildSnapshotBacktestInput): Snapsh
 
   return {
     available: true,
-    basePrincipalKRW,
+    snapshotValueKRW,
+    portfolioStartKRW,
     points,
     cards,
+    breakdown,
     fxApplied,
     warnings,
     excludedTickers: Array.from(new Set(excludedTickers)),
