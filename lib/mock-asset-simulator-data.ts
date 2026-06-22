@@ -17,17 +17,25 @@ export const DEFAULT_SIMULATOR_INPUTS: SimulatorInputs = {
   withdrawalDelayYears: 1,
 };
 
+// 기본 투자 계획의 초기 적립 기간/월 적립액. 계획 생성 로직과 안내 문구가
+// 동일한 상수를 공유하도록 하여, 값이 바뀌어도 둘이 어긋나지 않게 한다.
+export const DEFAULT_CONTRIBUTION_YEARS = 5;
+export const DEFAULT_MONTHLY_CONTRIBUTION = 300;
+
 export function buildDefaultYearPlans(
   startYear = DEFAULT_SIMULATOR_INPUTS.startYear,
   years = DEFAULT_SIMULATOR_INPUTS.years,
 ): YearPlanRow[] {
-  return Array.from({ length: years }, (_, index) => ({
-    year: startYear + index,
-    monthlyContribution: index < 8 ? 300 : 0,
-    isaContribution: index < 8,
-    pensionContribution: index < 8,
-    isaToPensionTransfer: false,
-  }));
+  return Array.from({ length: years }, (_, index) => {
+    const isContributionYear = index < DEFAULT_CONTRIBUTION_YEARS;
+    return {
+      year: startYear + index,
+      monthlyContribution: isContributionYear ? DEFAULT_MONTHLY_CONTRIBUTION : 0,
+      isaContribution: isContributionYear,
+      pensionContribution: isContributionYear,
+      isaToPensionTransfer: false,
+    };
+  });
 }
 
 export const DEFAULT_YEAR_PLANS = buildDefaultYearPlans();
