@@ -38,16 +38,22 @@ type Props = {
 
 export default function SimulatorInputPanel({ inputs, onChange, onReset, onSave, saving = false, saveMessage, saveError, exitMode = false, onExitModeChange }: Props) {
   const [draftValues, setDraftValues] = useState<Record<string, string>>({});
+  // 현재 편집(포커스) 중인 항목만 사용자의 입력 중 텍스트를 보존하고,
+  // 나머지 항목은 항상 최신 inputs 값을 그대로 표시한다.
+  const [focusedKey, setFocusedKey] = useState<keyof SimulatorInputs | null>(null);
 
+  // 저장값 로딩(하이드레이션)·초기화 등으로 inputs 가 바뀌면 화면 표시값(draft)을
+  // 다시 동기화한다. 편집 중인 항목은 입력 도중 값이 덮어써지지 않도록 건너뛴다.
   useEffect(() => {
     setDraftValues((current) => {
       const next = { ...current };
       for (const item of INPUTS) {
-        if (!(item.key in next)) next[item.key] = displayInputValue(item.key, inputs[item.key]);
+        if (item.key === focusedKey) continue;
+        next[item.key] = displayInputValue(item.key, inputs[item.key]);
       }
       return next;
     });
-  }, [inputs]);
+  }, [inputs, focusedKey]);
 
   const updateInput = (key: keyof SimulatorInputs, rawValue: string) => {
     const item = INPUTS.find((input) => input.key === key);
@@ -63,6 +69,7 @@ export default function SimulatorInputPanel({ inputs, onChange, onReset, onSave,
   const handleBlur = (key: keyof SimulatorInputs) => {
     const value = updateInput(key, draftValues[key] ?? String(inputs[key]));
     setDraftValues((current) => ({ ...current, [key]: displayInputValue(key, value) }));
+    setFocusedKey((current) => (current === key ? null : current));
   };
 
   return (
@@ -129,6 +136,7 @@ export default function SimulatorInputPanel({ inputs, onChange, onReset, onSave,
                 max={item.max}
                 step={item.step ?? 1}
                 value={draftValues[item.key] ?? displayInputValue(item.key, inputs[item.key])}
+                onFocus={() => setFocusedKey(item.key)}
                 onChange={(event) => {
                   const raw = event.target.value;
                   setDraftValues((current) => ({ ...current, [item.key]: raw }));

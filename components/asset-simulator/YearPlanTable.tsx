@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import TableCsvMenu from "@/components/ui/TableCsvMenu";
 import type { YearPlanRow } from "@/lib/asset-simulator-types";
+import { DEFAULT_CONTRIBUTION_YEARS, DEFAULT_MONTHLY_CONTRIBUTION } from "@/lib/mock-asset-simulator-data";
 
 type Props = {
   plans: YearPlanRow[];
@@ -38,7 +39,7 @@ export default function YearPlanTable({ plans, onChange, open = true, onToggleOp
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h2 className="text-base font-extrabold text-white">연도별 투자 계획표</h2>
-        <p className="mt-1 break-keep text-[13px] text-slate-400">기본 계획은 원본처럼 초기 8년 월 300만원 적립입니다. 체크 여부와 월적립액을 바꾸면 즉시 재계산됩니다.</p>
+        <p className="mt-1 break-keep text-[13px] text-slate-400">기본 계획은 초기 {DEFAULT_CONTRIBUTION_YEARS}년 월 {DEFAULT_MONTHLY_CONTRIBUTION}만원 적립입니다. 체크 여부와 월적립액을 바꾸면 즉시 재계산됩니다.</p>
         {exitMode ? (
           <p className="mt-1 break-keep text-[12px] font-semibold text-cyan-300">지금 EXIT? 모드에서는 이 계획표가 계산에 사용되지 않습니다.</p>
         ) : null}
