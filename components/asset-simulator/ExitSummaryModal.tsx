@@ -200,8 +200,8 @@ export default function ExitSummaryModal({ open, onClose, projection, inputs }: 
               amount={toManwon(summary.oneMoreYearMonthlyDeltaNominal)}
               unit="만"
               desc={
-                summary.oneMoreYearWorkYear
-                  ? `${summary.oneMoreYearWorkYear}년 월 ${summary.oneMoreYearMonthlyContribution}만 추가 적립 · 명목가치`
+                summary.oneMoreYearContributionYear
+                  ? `${summary.oneMoreYearContributionYear}년 월 ${summary.oneMoreYearMonthlyContribution}만 추가 적립 · 명목가치`
                   : "명목가치 기준 증가분"
               }
             />

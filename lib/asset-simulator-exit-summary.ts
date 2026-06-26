@@ -47,7 +47,7 @@ export type ExitSummary = {
 
   // 부가 설명용 메타데이터 (UI 보조 표기 / 향후 확장 포인트)
   firstWithdrawYear: number | null;
-  oneMoreYearWorkYear: number | null;
+  oneMoreYearContributionYear: number | null;
   oneMoreYearMonthlyContribution: number | null;
 };
 
@@ -85,19 +85,23 @@ export function buildExitSummary(
   //     · 인출 시작 시점까지 기존 CAGR 로 성장 → 추가 잔고
   //     · 기존 인출률 = 기존 첫 월 인출(명목) ÷ 인출 시작 시 절세계좌 잔고(명목) (실효 인출률)
   //     · 월 증가분(명목) = 기존 인출률 × 추가 잔고
+  // 카드3: 1년 더 근무 — "현재 연도(시뮬레이터 시작연도)에 1년 동안 추가로 적립하는 금액"이
+  //   절세계좌 자산을 늘렸을 때, 기존 인출률을 그대로 적용하면 월 얼마 증가하는가를 보여준다.
+  //   ※ 은퇴연도가 아니라 "현재 연도" 기준 추가 적립금을 사용한다(예: 2026→280, 2027→290 ...).
+  //   재시뮬레이션을 하지 않으므로 은퇴시점·CAGR·배당·인출구간·할인기준 등 다른 변수는 일절 변하지 않는다.
   const plan = projection.withdrawPlan;
   let oneMoreYearMonthlyDeltaNominal = 0;
-  let oneMoreYearWorkYear: number | null = null;
+  let oneMoreYearContributionYear: number | null = null;
   let oneMoreYearMonthlyContribution: number | null = null;
 
-  const retireIndex = projection.yearPlans.findIndex((p) => p.status === "은퇴");
-  if (retireIndex >= 0 && plan && firstWithdrawRow) {
-    const retireYear = projection.yearPlans[retireIndex].year;
+  if (plan && firstWithdrawRow) {
+    // 현재 연도 = 시뮬레이터 시작연도. 그 해에 맞는 추가 적립금(월, 만원)을 사용한다.
+    const currentYear = inputs.startYear;
     const additionalMonthly = getAdditionalMonthlyContribution(
-      retireYear,
+      currentYear,
       options.additionalContributionOverrides,
     );
-    oneMoreYearWorkYear = retireYear;
+    oneMoreYearContributionYear = currentYear;
     oneMoreYearMonthlyContribution = additionalMonthly;
 
     // 인출 시작 시점의 절세계좌(연금+ISA) 잔고(명목). 기존 인출 계산이 사용하는 값과 동일하다.
@@ -106,8 +110,8 @@ export function buildExitSummary(
 
     if (balanceAtStart > 0) {
       const cagr = inputs.annualReturnRate / 100;
-      // 추가 적립은 "1년 더 근무하는" 은퇴 연도에 이뤄지고, 인출 시작까지 CAGR 로 성장한다.
-      const growthYears = Math.max(0, plan.actualStartYear - retireYear);
+      // 추가 적립은 현재 연도에 이뤄지고, 인출 시작 시점까지 기존 CAGR 로 성장한다.
+      const growthYears = Math.max(0, plan.actualStartYear - currentYear);
       const addedBalanceAtStart = additionalMonthly * 12 * Math.pow(1 + cagr, growthYears);
       const effectiveMonthlyRate = baselineMonthlyNominal / balanceAtStart;
       oneMoreYearMonthlyDeltaNominal = Math.max(0, effectiveMonthlyRate * addedBalanceAtStart);
@@ -120,7 +124,7 @@ export function buildExitSummary(
     oneMoreYearMonthlyDeltaNominal,
     afterFiftyFiveMonthlyReal,
     firstWithdrawYear,
-    oneMoreYearWorkYear,
+    oneMoreYearContributionYear,
     oneMoreYearMonthlyContribution,
   };
 }
