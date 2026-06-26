@@ -116,6 +116,14 @@ export default function AssetSimulatorPage() {
     [inputs, yearPlans, exitMode],
   );
 
+  // "지금탈출" 모달 전용 계산 결과.
+  // 사용자가 "지금 EXIT?" 토글을 켜지 않았더라도, 모달은 항상 EXIT 모드(=ON) 기준으로
+  // 계산한 결과를 보여준다. (화면의 토글/계획표 상태는 변경하지 않는다.)
+  const exitProjection = useMemo(
+    () => calculateAssetSimulatorPreview(inputs, yearPlans, true),
+    [inputs, yearPlans],
+  );
+
   // 연도별 투자 계획표는 EXIT 모드 여부와 무관하게 사용자가 입력한 실제 계획표를 표시한다.
   // (EXIT 모드는 계산에서만 무시할 뿐, 입력 데이터를 시각적으로 지우지 않는다.)
   const tablePlans = useMemo(
@@ -192,31 +200,43 @@ export default function AssetSimulatorPage() {
     <div className="min-h-screen overflow-x-hidden bg-[#f8fafc] text-slate-800 dark:bg-[#111516] dark:text-slate-200">
       <TopNav theme={theme} />
       <main className="mx-auto w-full max-w-[1640px] px-4 py-6 sm:px-6 lg:px-8">
-        <div className="mb-5">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
               <h1 className="text-[22px] font-extrabold text-slate-900 dark:text-white">자산 시뮬레이터</h1>
-              <button
-                type="button"
-                onClick={() => setExitModalOpen(true)}
-                aria-haspopup="dialog"
-                className="group inline-flex items-center gap-1.5 rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-[13px] font-extrabold text-rose-600 shadow-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-rose-100 hover:shadow-md hover:shadow-rose-300/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-400 active:translate-y-0 active:scale-95 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300 dark:hover:bg-rose-500/20 dark:hover:shadow-rose-500/20"
-              >
-                <Image
-                  src="/exit.png"
-                  alt=""
-                  width={20}
-                  height={20}
-                  className="h-5 w-5 object-contain transition-transform duration-200 ease-out group-hover:scale-110"
-                />
-                지금탈출
-              </button>
+              <StorageModeBadge />
             </div>
-            <StorageModeBadge />
+            <p className="mt-2 max-w-3xl text-[13.5px] leading-6 text-slate-500 dark:text-slate-400">
+              장기 투자·인출 계획을 계산합니다.
+            </p>
           </div>
-          <p className="mt-2 max-w-3xl text-[13.5px] leading-6 text-slate-500 dark:text-slate-400">
-            장기 투자·인출 계획을 계산합니다.
-          </p>
+
+          {/*
+            대표 CTA: "🚪 당장탈출" 정사각형 카드.
+            "지금 EXIT?" 토글 상태와 무관하게 항상 EXIT 모드 기준 요약 모달을 연다.
+            헤더 우측(데스크톱) / 타이틀 아래(모바일)에 배치해 입력폼 버튼과 분리한다.
+          */}
+          <button
+            type="button"
+            onClick={() => setExitModalOpen(true)}
+            aria-haspopup="dialog"
+            aria-label="🚪 당장탈출"
+            title="🚪 당장탈출 — 지금 바로 은퇴할 경우의 요약 보기"
+            className="group relative flex aspect-square w-28 shrink-0 flex-col items-center justify-between self-start overflow-hidden rounded-2xl border-2 border-rose-300 bg-gradient-to-b from-rose-50 to-rose-100 p-2.5 shadow-lg shadow-rose-200/50 ring-1 ring-rose-200/60 transition-all duration-200 ease-out hover:-translate-y-1 hover:border-rose-400 hover:shadow-xl hover:shadow-rose-300/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-400 active:translate-y-0 active:scale-95 sm:w-32 dark:border-rose-500/40 dark:from-rose-500/10 dark:to-rose-500/20 dark:shadow-rose-900/30 dark:ring-rose-500/20"
+          >
+            <span className="flex w-full flex-1 items-center justify-center">
+              <Image
+                src="/exit.png"
+                alt=""
+                width={1254}
+                height={1254}
+                className="h-full w-full object-contain transition-transform duration-200 ease-out group-hover:scale-110"
+              />
+            </span>
+            <span className="mt-1 shrink-0 text-[13px] font-extrabold leading-none text-rose-600 dark:text-rose-300">
+              🚪 당장탈출
+            </span>
+          </button>
         </div>
 
         <div className="space-y-5">
@@ -236,7 +256,7 @@ export default function AssetSimulatorPage() {
       <ExitSummaryModal
         open={exitModalOpen}
         onClose={() => setExitModalOpen(false)}
-        projection={projection}
+        projection={exitProjection}
         inputs={inputs}
       />
     </div>
