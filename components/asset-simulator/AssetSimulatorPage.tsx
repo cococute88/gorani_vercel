@@ -26,7 +26,9 @@ import SimulatorMetricCards from "./SimulatorMetricCards";
 import SimulatorPreviewNotice from "./SimulatorPreviewNotice";
 import YearPlanTable from "./YearPlanTable";
 import SimulatorResultTabs from "./SimulatorResultTabs";
+import ExitSummaryModal from "./ExitSummaryModal";
 import { useResolvedTheme } from "@/components/theme/ThemeProvider";
+import Image from "next/image";
 
 export default function AssetSimulatorPage() {
   const theme = useResolvedTheme();
@@ -37,6 +39,7 @@ export default function AssetSimulatorPage() {
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [lastSavedAtMs, setLastSavedAtMs] = useState(0);
+  const [exitModalOpen, setExitModalOpen] = useState(false);
   const lastLocalWriteAtRef = useRef(0);
 
   const readLocalConfig = () => {
@@ -173,7 +176,24 @@ export default function AssetSimulatorPage() {
       <main className="mx-auto w-full max-w-[1640px] px-4 py-6 sm:px-6 lg:px-8">
         <div className="mb-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h1 className="text-[22px] font-extrabold text-slate-900 dark:text-white">자산 시뮬레이터</h1>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+              <h1 className="text-[22px] font-extrabold text-slate-900 dark:text-white">자산 시뮬레이터</h1>
+              <button
+                type="button"
+                onClick={() => setExitModalOpen(true)}
+                aria-haspopup="dialog"
+                className="group inline-flex items-center gap-1.5 rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-[13px] font-extrabold text-rose-600 shadow-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-rose-100 hover:shadow-md hover:shadow-rose-300/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-400 active:translate-y-0 active:scale-95 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300 dark:hover:bg-rose-500/20 dark:hover:shadow-rose-500/20"
+              >
+                <Image
+                  src="/exit.png"
+                  alt=""
+                  width={20}
+                  height={20}
+                  className="h-5 w-5 object-contain transition-transform duration-200 ease-out group-hover:scale-110"
+                />
+                지금탈출
+              </button>
+            </div>
             <StorageModeBadge />
           </div>
           <p className="mt-2 max-w-3xl text-[13.5px] leading-6 text-slate-500 dark:text-slate-400">
@@ -196,6 +216,12 @@ export default function AssetSimulatorPage() {
           </p>
         </div>
       </main>
+      <ExitSummaryModal
+        open={exitModalOpen}
+        onClose={() => setExitModalOpen(false)}
+        projection={projection}
+        inputs={inputs}
+      />
     </div>
   );
 }
