@@ -35,6 +35,7 @@ import PortfolioQuoteStatusPanel from "./PortfolioQuoteStatusPanel";
 import AssetMapSection from "@/components/asset-map/AssetMapSection";
 import { useResolvedTheme } from "@/components/theme/ThemeProvider";
 import { usePortfolioCloudSync } from "@/lib/portfolio-cloud-sync";
+import { USE_FIRESTORE_CONTRACT } from "@/lib/feature-flags";
 
 function snapshotToResult(s: PortfolioSnapshot): ParseResult {
   return {
@@ -187,7 +188,7 @@ export default function PortfolioPage() {
       if (!ok) return;
     }
     saveSnapshot(snap);
-    if (user) {
+    if (user && !USE_FIRESTORE_CONTRACT) {
       await savePortfolioSnapshot(user.uid, snap).catch((err) =>
         warnFirestoreFallback("portfolioSnapshots.save", err),
       );
@@ -197,7 +198,7 @@ export default function PortfolioPage() {
   const handleDeleteSnapshot = async (id: string) => {
     if (previewSnapshotId === id) setPreviewSnapshotId(null);
     deleteSnapshot(id);
-    if (user) {
+    if (user && !USE_FIRESTORE_CONTRACT) {
       await deletePortfolioSnapshot(user.uid, id).catch((err) =>
         warnFirestoreFallback("portfolioSnapshots.delete", err),
       );
