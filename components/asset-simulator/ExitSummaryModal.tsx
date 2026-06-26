@@ -165,10 +165,11 @@ export default function ExitSummaryModal({ open, onClose, projection, inputs }: 
         <div className="overflow-y-auto px-5 pb-5">
           <div className="mt-3 overflow-hidden rounded-2xl bg-slate-100 dark:bg-black/20">
             <Image
-              src="/bye.png"
+              src="/bye.webp"
               alt="당장탈출"
               width={1234}
               height={621}
+              sizes="(max-width: 560px) 92vw, 520px"
               className="h-auto w-full object-contain"
               priority
             />
