@@ -228,11 +228,12 @@ export default function AssetSimulatorPage() {
             className="group relative mt-0.5 aspect-square w-24 shrink-0 self-start overflow-hidden rounded-lg border border-slate-200/90 shadow-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.03] hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-400 active:translate-y-0 active:scale-100 dark:border-white/10 sm:w-28"
           >
             <Image
-              src="/exit.png"
+              src="/exit.webp"
               alt=""
               width={1254}
               height={1254}
-              className="h-full w-full object-contain"
+              sizes="(max-width: 640px) 96px, 112px"
+              className="h-full w-full object-cover"
             />
           </button>
         </div>
