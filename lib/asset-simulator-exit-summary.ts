@@ -6,11 +6,9 @@
 //
 // 모든 금액은 시뮬레이터 내부 단위(만원)이며, 월 단위 값이다.
 
-import { calculateAssetSimulatorPreview } from "./asset-simulator";
 import type {
   SimulatorInputs,
   SimulatorProjection,
-  YearPlanRow,
 } from "./asset-simulator-types";
 
 // ---------------------------------------------------------------------------
@@ -57,13 +55,6 @@ export type ExitSummaryOptions = {
   // 향후 환경설정에서 주입할 사용자 정의 추가 적립금 (연도 -> 월 만원)
   additionalContributionOverrides?: Record<number, number>;
 };
-
-// 첫 실제 인출(대기 제외) 연도의 절세계좌 월 인출(명목, 만원).
-function firstActualWithdrawMonthlyNominal(projection: SimulatorProjection): number {
-  const row = projection.taxWithdrawRows.find((r) => !r.isDelay);
-  return row ? row.monthlyNominal : 0;
-}
-
 export function buildExitSummary(
   projection: SimulatorProjection,
   inputs: SimulatorInputs,
@@ -78,19 +69,29 @@ export function buildExitSummary(
   const taxSavingMonthlyReal = firstWithdrawRow?.monthlyReal ?? 0;
   const firstWithdrawYear = firstWithdrawRow?.year ?? null;
 
-  // 카드4: 55세 이후 — 2051~ (과세) 구간 첫 연도의 세후 월 인출(현재가치=실질).
-  const afterFiftyFiveRow = projection.taxWithdrawRows.find((r) => r.category === "2051~" && !r.isDelay);
+  // 카드4: 55세 이후 — "2051~" 라는 문자열이 아니라, 실제로 연금/ISA 과세가 적용되기 시작하는
+  //   (= 55세 이후 연금 인출 과세 단계) 첫 인출 행을 로직 기준으로 찾는다.
+  //   과세 단계 행은 isaTaxRate / pensionTaxRate 가 0보다 크다(비과세 ~2050 구간은 0).
+  const afterFiftyFiveRow = projection.taxWithdrawRows.find(
+    (r) => !r.isDelay && (r.pensionTaxRate > 0 || r.isaTaxRate > 0),
+  );
   const afterFiftyFiveMonthlyReal = afterFiftyFiveRow?.monthlyReal ?? 0;
 
-  // 카드3: 1년 더 근무 — 현재 은퇴 연도를 "적립 1년"으로 전환해 동일 계산식으로 재계산하고,
-  //        첫 인출 월액(명목)의 증가분을 구한다. (실질 변환 미적용 = 명목 기준)
-  const baselineMonthlyNominal = firstActualWithdrawMonthlyNominal(projection);
+  // 카드3: 1년 더 근무 — "추가 적립금만큼 절세계좌 자산이 늘었을 때, 기존 인출률을 그대로
+  //   적용하면 월 얼마 증가하는가" 를 보여준다.
+  //   재시뮬레이션을 하지 않으므로 은퇴시점·CAGR·배당·인출구간·할인기준 등 다른 변수는 일절 변하지 않고,
+  //   오직 추가 적립금에 의한 절세계좌 자산 증가분만 반영된다.
+  //     · 추가 적립금(연) = 스케줄 월적립금 × 12
+  //     · 인출 시작 시점까지 기존 CAGR 로 성장 → 추가 잔고
+  //     · 기존 인출률 = 기존 첫 월 인출(명목) ÷ 인출 시작 시 절세계좌 잔고(명목) (실효 인출률)
+  //     · 월 증가분(명목) = 기존 인출률 × 추가 잔고
+  const plan = projection.withdrawPlan;
   let oneMoreYearMonthlyDeltaNominal = 0;
   let oneMoreYearWorkYear: number | null = null;
   let oneMoreYearMonthlyContribution: number | null = null;
 
   const retireIndex = projection.yearPlans.findIndex((p) => p.status === "은퇴");
-  if (retireIndex >= 0) {
+  if (retireIndex >= 0 && plan && firstWithdrawRow) {
     const retireYear = projection.yearPlans[retireIndex].year;
     const additionalMonthly = getAdditionalMonthlyContribution(
       retireYear,
@@ -99,28 +100,18 @@ export function buildExitSummary(
     oneMoreYearWorkYear = retireYear;
     oneMoreYearMonthlyContribution = additionalMonthly;
 
-    // 은퇴 연도를 1년 더 적립으로 바꾼 계획표를 만들어 기존 계산식을 그대로 재사용한다.
-    const extendedPlans: YearPlanRow[] = projection.yearPlans.map((plan) =>
-      plan.year === retireYear
-        ? {
-            year: plan.year,
-            monthlyContribution: additionalMonthly,
-            isaContribution: true,
-            pensionContribution: true,
-            isaToPensionTransfer: plan.isaToPensionTransfer,
-          }
-        : {
-            year: plan.year,
-            monthlyContribution: plan.monthlyContribution,
-            isaContribution: plan.isaContribution,
-            pensionContribution: plan.pensionContribution,
-            isaToPensionTransfer: plan.isaToPensionTransfer,
-          },
-    );
+    // 인출 시작 시점의 절세계좌(연금+ISA) 잔고(명목). 기존 인출 계산이 사용하는 값과 동일하다.
+    const balanceAtStart = plan.isaBalanceAtStart + plan.pensionBalanceAtStart;
+    const baselineMonthlyNominal = firstWithdrawRow.monthlyNominal;
 
-    const extendedProjection = calculateAssetSimulatorPreview(inputs, extendedPlans);
-    const extendedMonthlyNominal = firstActualWithdrawMonthlyNominal(extendedProjection);
-    oneMoreYearMonthlyDeltaNominal = Math.max(0, extendedMonthlyNominal - baselineMonthlyNominal);
+    if (balanceAtStart > 0) {
+      const cagr = inputs.annualReturnRate / 100;
+      // 추가 적립은 "1년 더 근무하는" 은퇴 연도에 이뤄지고, 인출 시작까지 CAGR 로 성장한다.
+      const growthYears = Math.max(0, plan.actualStartYear - retireYear);
+      const addedBalanceAtStart = additionalMonthly * 12 * Math.pow(1 + cagr, growthYears);
+      const effectiveMonthlyRate = baselineMonthlyNominal / balanceAtStart;
+      oneMoreYearMonthlyDeltaNominal = Math.max(0, effectiveMonthlyRate * addedBalanceAtStart);
+    }
   }
 
   return {

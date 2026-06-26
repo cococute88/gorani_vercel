@@ -62,11 +62,11 @@ function SummaryCard({
         {title}
       </span>
       <div className="mt-3 flex items-baseline gap-1">
-        {prefix && <span className={`text-[18px] font-extrabold leading-none ${styles.value}`}>{prefix}</span>}
-        <span className={`num text-[34px] font-extrabold leading-none tracking-tight sm:text-[40px] ${styles.value}`}>
+        {prefix && <span className={`text-[16px] font-extrabold leading-none sm:text-[18px] ${styles.value}`}>{prefix}</span>}
+        <span className={`num min-w-0 truncate text-[28px] font-extrabold leading-none tracking-tight tabular-nums sm:text-[36px] ${styles.value}`}>
           {amount.toLocaleString("ko-KR")}
         </span>
-        <span className={`text-[16px] font-bold ${styles.value}`}>{unit}</span>
+        <span className={`shrink-0 text-[15px] font-bold ${styles.value}`}>{unit}</span>
       </div>
       <p className="mt-2 break-keep text-[12px] leading-4 text-slate-500 dark:text-slate-400">{desc}</p>
     </div>
@@ -167,8 +167,8 @@ export default function ExitSummaryModal({ open, onClose, projection, inputs }: 
             <Image
               src="/bye.png"
               alt="당장탈출"
-              width={1040}
-              height={560}
+              width={1234}
+              height={621}
               className="h-auto w-full object-contain"
               priority
             />
