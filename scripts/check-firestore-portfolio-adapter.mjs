@@ -56,12 +56,35 @@ const {
   validateDocumentVersion,
 } = require("../lib/firestore-portfolio-contract.ts");
 const { adaptContractDocuments } = require("../lib/firestore-portfolio-adapter.ts");
+const { validateContractDocument } = require("../lib/firestore-portfolio-validate.ts");
+const { summaryOf, replaceSnapshots, getSnapshots, clearSnapshots } = require("../lib/portfolio-store.ts");
 const { MOCK_LATEST_SNAPSHOT } = require("../lib/mock-portfolio-data.ts");
+
+// In-memory window/localStorage shim so the localStorage-backed portfolio-store
+// behaves as it does in the browser (read() returns EMPTY when window is absent).
+if (typeof globalThis.window === "undefined") {
+  const store = new Map();
+  const localStorage = {
+    getItem: (k) => (store.has(k) ? store.get(k) : null),
+    setItem: (k, v) => store.set(k, String(v)),
+    removeItem: (k) => store.delete(k),
+    clear: () => store.clear(),
+  };
+  globalThis.window = { localStorage };
+  globalThis.localStorage = localStorage;
+}
 
 // ---- Build a contract document from a PortfolioSnapshot --------------------
 
 function snapshotToContractDocument(snapshot, version) {
-  const totalCashKRW = snapshot.totalAssetKRW - snapshot.investmentValueKRW;
+  // Build the totals the way bs-report-auto would emit them: precise, internally
+  // consistent values. This mirrors what the legacy reconcile recompute produces,
+  // so OFF (recompute) and ON (contract verbatim) must match exactly.
+  const investmentValueKRW = snapshot.investmentValueKRW;
+  const investmentPrincipalKRW = snapshot.investmentPrincipalKRW;
+  const returnAmountKRW = investmentValueKRW - investmentPrincipalKRW;
+  const returnPct = investmentPrincipalKRW > 0 ? (returnAmountKRW / investmentPrincipalKRW) * 100 : 0;
+  const totalCashKRW = snapshot.totalAssetKRW - investmentValueKRW;
   const enriched = version === "1.1.0";
   return {
     document_version: version,
@@ -70,10 +93,10 @@ function snapshotToContractDocument(snapshot, version) {
     generated_at: snapshot.createdAt,
     totals: {
       total_assets_krw: snapshot.totalAssetKRW,
-      total_investments_krw: snapshot.investmentValueKRW,
-      investment_principal_krw: snapshot.investmentPrincipalKRW,
-      return_amount_krw: snapshot.returnAmountKRW,
-      return_pct: snapshot.returnPct,
+      total_investments_krw: investmentValueKRW,
+      investment_principal_krw: investmentPrincipalKRW,
+      return_amount_krw: returnAmountKRW,
+      return_pct: returnPct,
       total_cash_krw: totalCashKRW,
       total_debt_krw: snapshot.totalDebtKRW,
       net_worth_krw: snapshot.netAssetKRW,
@@ -244,7 +267,148 @@ function assertAdapterSkipsBadDocs() {
   assert.equal(result.snapshots.length, 1);
   assert.equal(result.skipped.length, 1);
   assert.equal(result.skipped[0].id, "bad-version");
+  assert.equal(result.outcome, "ok");
+  assert.equal(result.documentCount, 2);
   return { case: "adapter skips invalid docs", skipped: result.skipped.length };
+}
+
+// ---- Phase F: non-destructive loading + authoritative protection -----------
+
+function assertEmptyContractOutcome() {
+  const result = adaptContractDocuments([]);
+  assert.equal(result.outcome, "empty-collection");
+  assert.equal(result.documentCount, 0);
+  assert.equal(result.snapshots.length, 0);
+  return { case: "empty contract -> empty-collection", outcome: result.outcome };
+}
+
+function assertInvalidContractOutcome() {
+  const result = adaptContractDocuments([
+    { id: "bad1", data: { document_version: "9.9.9" } },
+    { id: "bad2", data: { document_version: "1.1.0" } },
+  ]);
+  assert.equal(result.outcome, "all-skipped");
+  assert.equal(result.documentCount, 2);
+  assert.equal(result.snapshots.length, 0);
+  assert.equal(result.skipped.length, 2);
+  return { case: "all-invalid contract -> all-skipped", outcome: result.outcome };
+}
+
+function applyContractToStoreSafely(adapted) {
+  if (adapted.outcome === "ok") {
+    replaceSnapshots(adapted.snapshots);
+    return "replaced";
+  }
+  return "preserved-local";
+}
+
+function assertNonDestructiveStore() {
+  clearSnapshots();
+  replaceSnapshots([MOCK_LATEST_SNAPSHOT]);
+  assert.equal(getSnapshots().length, 1);
+
+  const empty = adaptContractDocuments([]);
+  assert.equal(applyContractToStoreSafely(empty), "preserved-local");
+  assert.equal(getSnapshots().length, 1, "empty contract must not erase local snapshots");
+
+  const invalid = adaptContractDocuments([{ id: "bad", data: { document_version: "9.9.9" } }]);
+  assert.equal(applyContractToStoreSafely(invalid), "preserved-local");
+  assert.equal(getSnapshots().length, 1, "all-invalid contract must not erase local snapshots");
+
+  const ok = adaptContractDocuments([{ id: "d", data: snapshotToContractDocument(MOCK_LATEST_SNAPSHOT, "1.1.0") }]);
+  assert.equal(applyContractToStoreSafely(ok), "replaced");
+  assert.equal(getSnapshots().length, 1);
+  clearSnapshots();
+  return { case: "non-destructive store (no data loss)", result: "local preserved on empty/invalid" };
+}
+
+function assertAuthoritativeTotalsProtected() {
+  const doc = snapshotToContractDocument(MOCK_LATEST_SNAPSHOT, "1.1.0");
+  const mapped = mapContractToSnapshot(doc, { docId: "auth" }).snapshot;
+  const withAggregateRow = {
+    ...mapped,
+    holdings: [
+      ...mapped.holdings,
+      { id: "agg", broker: "", assetType: "기타", productName: "총 43개", ticker: "", principalKRW: 0, valueKRW: 0, needsReview: true },
+    ],
+  };
+
+  const summary = summaryOf(withAggregateRow);
+  assert.equal(summary.investmentValueKRW, doc.totals.total_investments_krw);
+  assert.equal(summary.investmentPrincipalKRW, doc.totals.investment_principal_krw);
+  assert.equal(summary.returnAmountKRW, doc.totals.return_amount_krw);
+  assert.equal(summary.totalAssetKRW, doc.totals.total_assets_krw);
+  assert.equal(summary.netAssetKRW, doc.totals.net_worth_krw);
+
+  clearSnapshots();
+  replaceSnapshots([withAggregateRow]);
+  const stored = getSnapshots()[0];
+  assert.equal(stored.investmentValueKRW, doc.totals.total_investments_krw, "sanitize must not overwrite authoritative totals");
+  assert.equal(stored.returnAmountKRW, doc.totals.return_amount_krw);
+  assert.ok(stored.holdings.every((h) => h.id !== "agg"), "aggregate row should be filtered for display");
+  clearSnapshots();
+  return { case: "authoritativeTotals protected from sanitize/recalc", result: "totals preserved, row filtered" };
+}
+
+// ---- Phase F: developer-only validator -------------------------------------
+
+function assertValidatorAcceptsConsistentDoc() {
+  const doc = snapshotToContractDocument(MOCK_LATEST_SNAPSHOT, "1.1.0");
+  const report = validateContractDocument(doc, { documentId: "consistent" });
+  assert.equal(report.ok, true);
+  assert.equal(report.issues.length, 0, JSON.stringify(report.issues));
+  return { case: "validator accepts consistent doc", ok: report.ok };
+}
+
+function assertValidatorFlagsDivergence() {
+  const doc = snapshotToContractDocument(MOCK_LATEST_SNAPSHOT, "1.1.0");
+  doc.totals.return_amount_krw += 1_000_000;
+  doc.totals.net_worth_krw += 5_000;
+  const report = validateContractDocument(doc, { documentId: "divergent" });
+  assert.equal(report.ok, true, "divergence is warning-severity, not a hard error");
+  assert.ok(report.issues.some((i) => i.code === "return_amount_divergence"));
+  assert.ok(report.issues.some((i) => i.code === "net_worth_divergence"));
+  return { case: "validator flags total divergence", issues: report.issues.length };
+}
+
+function assertValidatorRejectsMissing() {
+  const missingVersion = validateContractDocument({ snapshot_date: "2026-01-01", totals: {} });
+  assert.equal(missingVersion.ok, false);
+  assert.ok(missingVersion.issues.some((i) => i.code === "document_version_invalid"));
+
+  const missingTotals = validateContractDocument({ document_version: "1.1.0", snapshot_date: "2026-01-01" });
+  assert.equal(missingTotals.ok, false);
+  assert.ok(missingTotals.issues.some((i) => i.code === "totals_missing"));
+  return { case: "validator rejects missing version/totals", result: "errors reported" };
+}
+
+function assertContractTotalsFlowThroughPipeline() {
+  // Phase D: prove the FULL pipeline (adapter -> buildPortfolioPageFromSnapshots)
+  // surfaces the contract totals verbatim and does NOT recompute them. Feed
+  // sentinels that are intentionally inconsistent with value - principal.
+  const doc = snapshotToContractDocument(MOCK_LATEST_SNAPSHOT, "1.1.0");
+  doc.totals.return_amount_krw = 777000777;
+  doc.totals.return_pct = 33.33;
+  doc.totals.total_cash_krw = 555000555;
+  doc.totals.total_assets_krw = 999000999;
+  const adapted = adaptContractDocuments([{ id: doc.snapshot_date, data: doc }]);
+  const model = buildPortfolioPageFromSnapshots(adapted.snapshots);
+  assert.equal(model.summary.returnAmountKRW, 777000777, "returnAmount must come from contract, not recompute");
+  assert.equal(model.summary.returnPct, 33.33, "returnPct must come from contract, not recompute");
+  assert.equal(model.summary.cashAndOtherKRW, 555000555, "cash must come from contract.total_cash_krw");
+  assert.equal(model.summary.totalAssetKRW, 999000999, "totalAsset must come from contract");
+  assert.equal(model.summary.totalFinancialAssetSource, "contract.total_assets_krw");
+  assert.equal(model.summary.investmentValueSource, "contract.total_investments_krw");
+  return { case: "contract totals flow through pipeline (no recompute)", result: "sentinels surfaced in summary" };
+}
+
+function assertOfflineFallbackStillRecomputes() {
+  // Offline / legacy parsed snapshot (no authoritativeTotals): recompute path
+  // must still run so offline fallback is preserved.
+  const model = buildPortfolioPageFromSnapshots([MOCK_LATEST_SNAPSHOT]);
+  assert.equal(model.summary.totalFinancialAssetSource, "snapshot.totalAssetKRW");
+  assert.equal(model.summary.investmentValueSource, "snapshot.investmentValueKRW");
+  return { case: "offline fallback preserved (recompute path)", result: "non-contract source labels" };
 }
 
 function runCompatibility(version) {
@@ -257,7 +421,20 @@ function runCompatibility(version) {
 }
 
 function main() {
-  const rows = [assertVersionValidation(), assertVerbatimTotals(), assertAdapterSkipsBadDocs()];
+  const rows = [
+    assertVersionValidation(),
+    assertVerbatimTotals(),
+    assertAdapterSkipsBadDocs(),
+    assertContractTotalsFlowThroughPipeline(),
+    assertOfflineFallbackStillRecomputes(),
+    assertEmptyContractOutcome(),
+    assertInvalidContractOutcome(),
+    assertNonDestructiveStore(),
+    assertAuthoritativeTotalsProtected(),
+    assertValidatorAcceptsConsistentDoc(),
+    assertValidatorFlagsDivergence(),
+    assertValidatorRejectsMissing(),
+  ];
 
   const compatibility = [runCompatibility("1.0.0"), runCompatibility("1.1.0")];
   let totalDiffs = 0;

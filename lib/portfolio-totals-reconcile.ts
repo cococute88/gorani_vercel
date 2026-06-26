@@ -1,14 +1,22 @@
 import type { FinanceAsset, Holding, PortfolioSnapshot } from "./portfolio-types";
 
 export type TotalFinancialAssetSource =
+  | "contract.total_assets_krw"
   | "snapshot.totalAssetKRW"
   | "financeAssets.sum"
   | "investmentValueKRW"
   | "holdings.sum"
   | "unavailable";
 
-export type InvestmentValueSource = "snapshot.investmentValueKRW" | "holdings.sum" | "unavailable";
-export type CashAndOtherSource = "total-minus-investment" | "unavailable";
+export type InvestmentValueSource =
+  | "contract.total_investments_krw"
+  | "snapshot.investmentValueKRW"
+  | "holdings.sum"
+  | "unavailable";
+export type CashAndOtherSource =
+  | "contract.total_cash_krw"
+  | "total-minus-investment"
+  | "unavailable";
 
 export interface PortfolioTotalsWarning {
   code: string;
@@ -124,6 +132,32 @@ export function reconcilePortfolioTotals(
   warnInvalidField(warnings, "snapshot.totalAssetKRW", snapshot.totalAssetKRW);
   warnInvalidField(warnings, "snapshot.investmentValueKRW", snapshot.investmentValueKRW);
   warnInvalidField(warnings, "snapshot.investmentPrincipalKRW", snapshot.investmentPrincipalKRW);
+
+  // ── Phase D: contract adoption ──────────────────────────────────────────
+  // When the snapshot carries authoritative totals (produced by bs-report-auto
+  // and mapped by the Firestore read adapter), consume them VERBATIM. No sums,
+  // no return%/cash re-derivation happen here. The recompute path below remains
+  // only as the offline / legacy-parser fallback.
+  const authoritative = snapshot.authoritativeTotals;
+  if (authoritative) {
+    return {
+      totalFinancialAssetKRW: Math.round(authoritative.totalAssetsKRW),
+      totalFinancialAssetSource: "contract.total_assets_krw",
+      investmentValueKRW: Math.round(authoritative.totalInvestmentsKRW),
+      investmentValueSource: "contract.total_investments_krw",
+      investmentPrincipalKRW: Math.round(authoritative.investmentPrincipalKRW),
+      cashAndOtherKRW: Math.round(authoritative.totalCashKRW),
+      cashAndOtherSource: "contract.total_cash_krw",
+      returnAmountKRW: Math.round(authoritative.returnAmountKRW),
+      returnPct: authoritative.returnPct,
+      sources: {
+        totalFinancialAsset: "contract.total_assets_krw",
+        investmentValue: "contract.total_investments_krw",
+        cashAndOther: "contract.total_cash_krw",
+      },
+      warnings,
+    };
+  }
 
   const holdingsSum = sumHoldings(snapshot.holdings, warnings);
   const financeAssetsSum = sumFinanceAssets(snapshot.financeAssets, warnings);

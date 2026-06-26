@@ -29,6 +29,16 @@ import {
 
 export const PORTFOLIO_CONTRACT_COLLECTION = "portfolioContract";
 
+/**
+ * Load outcome, used by the sync layer to decide whether it is SAFE to replace
+ * the local store. Critically distinguishes "no contract exists yet" and
+ * "contract exists but produced zero usable snapshots" from a healthy load.
+ */
+export type ContractLoadOutcome =
+  | "ok" // at least one valid snapshot mapped
+  | "empty-collection" // the contract collection has no documents at all
+  | "all-skipped"; // documents exist but every one failed validation/mapping
+
 export interface AdaptedPortfolioContract {
   snapshots: PortfolioSnapshot[];
   documentVersions: FirestorePortfolioContractVersion[];
@@ -36,6 +46,10 @@ export interface AdaptedPortfolioContract {
   source: "firestore-contract";
   /** Documents that failed validation/mapping, with the reason. Skipped, not thrown. */
   skipped: Array<{ id: string; reason: string }>;
+  /** Number of raw documents found in the contract collection (before mapping). */
+  documentCount: number;
+  /** Coarse outcome for safe, non-destructive store handling. */
+  outcome: ContractLoadOutcome;
 }
 
 /**
@@ -71,12 +85,24 @@ export function adaptContractDocuments(
 
   snapshots.sort((a, b) => (a.snapshotDate < b.snapshotDate ? -1 : 1));
 
+  const documentCount = documents.length;
+  let outcome: ContractLoadOutcome;
+  if (snapshots.length > 0) {
+    outcome = "ok";
+  } else if (documentCount === 0) {
+    outcome = "empty-collection";
+  } else {
+    outcome = "all-skipped";
+  }
+
   return {
     snapshots,
     documentVersions: Array.from(versions),
     warnings,
     source: "firestore-contract",
     skipped,
+    documentCount,
+    outcome,
   };
 }
 

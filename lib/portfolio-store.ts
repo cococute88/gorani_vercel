@@ -46,6 +46,14 @@ function sanitizeSnapshot(snapshot: PortfolioSnapshot): PortfolioSnapshot {
   const holdings = filterAggregateHoldings(snapshot.holdings ?? []);
   if (holdings.length === (snapshot.holdings ?? []).length) return snapshot;
 
+  // Phase F — authoritative totals protection: contract snapshots own their
+  // totals. We may still drop aggregate display rows from `holdings`, but we
+  // MUST NOT recompute/overwrite the totals from holdings. Recomputation is
+  // reserved for offline/legacy-parsed snapshots (no authoritativeTotals).
+  if (snapshot.authoritativeTotals) {
+    return { ...snapshot, holdings };
+  }
+
   return {
     ...snapshot,
     ...recalcInvestment(holdings),
@@ -206,6 +214,24 @@ export function summaryOf(snap: PortfolioSnapshot | null): PortfolioSummary {
   }
   const holdings = filterAggregateHoldings(snap.holdings ?? []);
   const investment = recalcInvestment(holdings);
+
+  // Phase F — authoritative totals protection: never let recomputed holdings
+  // sums override contract-owned totals. For contract snapshots, the summary
+  // reports the authoritative values verbatim.
+  const authoritative = snap.authoritativeTotals;
+  if (authoritative) {
+    return {
+      snapshotDate: snap.snapshotDate,
+      totalAssetKRW: authoritative.totalAssetsKRW,
+      totalDebtKRW: authoritative.totalDebtKRW,
+      netAssetKRW: authoritative.netWorthKRW,
+      investmentPrincipalKRW: authoritative.investmentPrincipalKRW,
+      investmentValueKRW: authoritative.totalInvestmentsKRW,
+      returnAmountKRW: authoritative.returnAmountKRW,
+      returnPct: authoritative.returnPct,
+      holdingCount: holdings.length,
+    };
+  }
 
   return {
     snapshotDate: snap.snapshotDate,
