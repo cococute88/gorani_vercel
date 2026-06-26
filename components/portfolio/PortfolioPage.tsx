@@ -39,6 +39,7 @@ import CollapsibleSection from "./CollapsibleSection";
 import AssetMapSection from "@/components/asset-map/AssetMapSection";
 import { useResolvedTheme } from "@/components/theme/ThemeProvider";
 import { usePortfolioCloudSync } from "@/lib/portfolio-cloud-sync";
+import { USE_FIRESTORE_CONTRACT } from "@/lib/feature-flags";
 import { markPortfolioCloudSyncNow } from "@/lib/portfolio-cloud-sync-time";
 
 function snapshotToResult(s: PortfolioSnapshot): ParseResult {
@@ -194,7 +195,7 @@ export default function PortfolioPage() {
       if (!ok) return;
     }
     saveSnapshot(snap);
-    if (user) {
+    if (user && !USE_FIRESTORE_CONTRACT) {
       try {
         await savePortfolioSnapshot(user.uid, snap);
         // Firestore 저장 성공 시점에 마지막 클라우드 동기화 시각을 기록한다.
@@ -208,7 +209,7 @@ export default function PortfolioPage() {
   const handleDeleteSnapshot = async (id: string) => {
     if (previewSnapshotId === id) setPreviewSnapshotId(null);
     deleteSnapshot(id);
-    if (user) {
+    if (user && !USE_FIRESTORE_CONTRACT) {
       try {
         await deletePortfolioSnapshot(user.uid, id);
         // Firestore 삭제 성공도 클라우드 반영(동기화)이므로 시각을 갱신한다.

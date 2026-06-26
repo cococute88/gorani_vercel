@@ -12,6 +12,8 @@ import {
   savePortfolioSnapshot,
   warnFirestoreFallback,
 } from "@/lib/firebase/firestore-repositories";
+import { USE_FIRESTORE_CONTRACT } from "@/lib/feature-flags";
+import { loadPortfolioContract } from "@/lib/firestore-portfolio-adapter";
 import { markPortfolioCloudSyncNow } from "@/lib/portfolio-cloud-sync-time";
 
 export type PortfolioCloudSyncStatus = "idle" | "auth-loading" | "local-only" | "syncing" | "synced" | "failed";
@@ -50,6 +52,27 @@ export function usePortfolioCloudSync(): PortfolioCloudSyncState {
     let cancelled = false;
     syncedUid = user.uid;
     setState({ status: "syncing", error: null });
+
+    // Phase C: when USE_FIRESTORE_CONTRACT is ON, the Firestore read adapter is
+    // the ONLY entry point for portfolio data. Read the contract, map it into
+    // snapshots, and replace the store. No raw-snapshot read, no write-back.
+    if (USE_FIRESTORE_CONTRACT) {
+      loadPortfolioContract(user.uid)
+        .then((adapted) => {
+          if (cancelled) return;
+          replaceSnapshots(adapted.snapshots);
+          setState({ status: "synced", error: null });
+        })
+        .catch((err) => {
+          syncedUid = null;
+          warnFirestoreFallback("portfolioContract.read", err);
+          if (!cancelled) setState({ status: "failed", error: "Firestore 계약 로드 실패 · 로컬 저장 유지" });
+        });
+
+      return () => {
+        cancelled = true;
+      };
+    }
 
     const localBeforeLoad = getSnapshots();
     loadPortfolioSnapshots(user.uid)
