@@ -293,6 +293,20 @@ export function mapContractToSnapshot(
     holdings,
     financeAssets,
     createdAt: optionalString(document.generated_at) ?? new Date(0).toISOString(),
+    // Phase D: mark these totals as authoritative so the runtime consumes them
+    // verbatim instead of recomputing (see reconcilePortfolioTotals).
+    authoritativeTotals: {
+      totalAssetsKRW: contractTotals.totalAssetsKRW,
+      totalInvestmentsKRW: contractTotals.totalInvestmentsKRW,
+      investmentPrincipalKRW: contractTotals.investmentPrincipalKRW,
+      returnAmountKRW: contractTotals.returnAmountKRW,
+      returnPct: contractTotals.returnPct,
+      totalCashKRW: contractTotals.totalCashKRW,
+      totalDebtKRW: contractTotals.totalDebtKRW,
+      netWorthKRW: contractTotals.netWorthKRW,
+      source: "firestore-contract",
+      documentVersion: validation.supported,
+    },
     metadata: {
       parserVersion:
         optionalString(document.metadata?.parser_version) ?? `firestore-contract-${validation.supported}`,

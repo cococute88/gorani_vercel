@@ -58,6 +58,23 @@ export interface FinanceAsset {
   parsedTags?: import("./portfolio-tags").PortfolioTags;
 }
 
+// 권위 있는(authoritative) 합계 묶음.
+// Firestore 계약(bs-report-auto)이 미리 계산해 내려준 8개 합계를 그대로 담는다.
+// 이 값이 존재하면 gorani_vercel 런타임은 합계를 재계산하지 않고 그대로 소비한다.
+// (오프라인/레거시 파싱 스냅샷에는 이 필드가 없으며, 기존 reconcile 폴백이 계산한다.)
+export interface PortfolioAuthoritativeTotals {
+  totalAssetsKRW: number; // total_assets_krw
+  totalInvestmentsKRW: number; // total_investments_krw
+  investmentPrincipalKRW: number; // investment_principal_krw
+  returnAmountKRW: number; // return_amount_krw
+  returnPct: number; // return_pct
+  totalCashKRW: number; // total_cash_krw
+  totalDebtKRW: number; // total_debt_krw
+  netWorthKRW: number; // net_worth_krw
+  source: "firestore-contract";
+  documentVersion: string;
+}
+
 // 한 시점의 포트폴리오 스냅샷 (엑셀 1개 = 스냅샷 1개)
 export interface PortfolioSnapshot {
   id: string;
@@ -73,6 +90,8 @@ export interface PortfolioSnapshot {
   holdings: Holding[];
   financeAssets: FinanceAsset[];
   createdAt: string; // ISO
+  // 계약 어댑터가 채우는 권위 합계. 존재하면 런타임 재계산을 우회한다 (Phase D).
+  authoritativeTotals?: PortfolioAuthoritativeTotals;
   metadata?: {
     parserVersion: string;
     excludedSmallCount: number;

@@ -61,7 +61,14 @@ const { MOCK_LATEST_SNAPSHOT } = require("../lib/mock-portfolio-data.ts");
 // ---- Build a contract document from a PortfolioSnapshot --------------------
 
 function snapshotToContractDocument(snapshot, version) {
-  const totalCashKRW = snapshot.totalAssetKRW - snapshot.investmentValueKRW;
+  // Build the totals the way bs-report-auto would emit them: precise, internally
+  // consistent values. This mirrors what the legacy reconcile recompute produces,
+  // so OFF (recompute) and ON (contract verbatim) must match exactly.
+  const investmentValueKRW = snapshot.investmentValueKRW;
+  const investmentPrincipalKRW = snapshot.investmentPrincipalKRW;
+  const returnAmountKRW = investmentValueKRW - investmentPrincipalKRW;
+  const returnPct = investmentPrincipalKRW > 0 ? (returnAmountKRW / investmentPrincipalKRW) * 100 : 0;
+  const totalCashKRW = snapshot.totalAssetKRW - investmentValueKRW;
   const enriched = version === "1.1.0";
   return {
     document_version: version,
@@ -70,10 +77,10 @@ function snapshotToContractDocument(snapshot, version) {
     generated_at: snapshot.createdAt,
     totals: {
       total_assets_krw: snapshot.totalAssetKRW,
-      total_investments_krw: snapshot.investmentValueKRW,
-      investment_principal_krw: snapshot.investmentPrincipalKRW,
-      return_amount_krw: snapshot.returnAmountKRW,
-      return_pct: snapshot.returnPct,
+      total_investments_krw: investmentValueKRW,
+      investment_principal_krw: investmentPrincipalKRW,
+      return_amount_krw: returnAmountKRW,
+      return_pct: returnPct,
       total_cash_krw: totalCashKRW,
       total_debt_krw: snapshot.totalDebtKRW,
       net_worth_krw: snapshot.netAssetKRW,
@@ -247,6 +254,35 @@ function assertAdapterSkipsBadDocs() {
   return { case: "adapter skips invalid docs", skipped: result.skipped.length };
 }
 
+function assertContractTotalsFlowThroughPipeline() {
+  // Phase D: prove the FULL pipeline (adapter -> buildPortfolioPageFromSnapshots)
+  // surfaces the contract totals verbatim and does NOT recompute them. Feed
+  // sentinels that are intentionally inconsistent with value - principal.
+  const doc = snapshotToContractDocument(MOCK_LATEST_SNAPSHOT, "1.1.0");
+  doc.totals.return_amount_krw = 777000777;
+  doc.totals.return_pct = 33.33;
+  doc.totals.total_cash_krw = 555000555;
+  doc.totals.total_assets_krw = 999000999;
+  const adapted = adaptContractDocuments([{ id: doc.snapshot_date, data: doc }]);
+  const model = buildPortfolioPageFromSnapshots(adapted.snapshots);
+  assert.equal(model.summary.returnAmountKRW, 777000777, "returnAmount must come from contract, not recompute");
+  assert.equal(model.summary.returnPct, 33.33, "returnPct must come from contract, not recompute");
+  assert.equal(model.summary.cashAndOtherKRW, 555000555, "cash must come from contract.total_cash_krw");
+  assert.equal(model.summary.totalAssetKRW, 999000999, "totalAsset must come from contract");
+  assert.equal(model.summary.totalFinancialAssetSource, "contract.total_assets_krw");
+  assert.equal(model.summary.investmentValueSource, "contract.total_investments_krw");
+  return { case: "contract totals flow through pipeline (no recompute)", result: "sentinels surfaced in summary" };
+}
+
+function assertOfflineFallbackStillRecomputes() {
+  // Offline / legacy parsed snapshot (no authoritativeTotals): recompute path
+  // must still run so offline fallback is preserved.
+  const model = buildPortfolioPageFromSnapshots([MOCK_LATEST_SNAPSHOT]);
+  assert.equal(model.summary.totalFinancialAssetSource, "snapshot.totalAssetKRW");
+  assert.equal(model.summary.investmentValueSource, "snapshot.investmentValueKRW");
+  return { case: "offline fallback preserved (recompute path)", result: "non-contract source labels" };
+}
+
 function runCompatibility(version) {
   const offModel = buildPortfolioPageFromSnapshots([MOCK_LATEST_SNAPSHOT]);
   const doc = snapshotToContractDocument(MOCK_LATEST_SNAPSHOT, version);
@@ -257,7 +293,13 @@ function runCompatibility(version) {
 }
 
 function main() {
-  const rows = [assertVersionValidation(), assertVerbatimTotals(), assertAdapterSkipsBadDocs()];
+  const rows = [
+    assertVersionValidation(),
+    assertVerbatimTotals(),
+    assertAdapterSkipsBadDocs(),
+    assertContractTotalsFlowThroughPipeline(),
+    assertOfflineFallbackStillRecomputes(),
+  ];
 
   const compatibility = [runCompatibility("1.0.0"), runCompatibility("1.1.0")];
   let totalDiffs = 0;
