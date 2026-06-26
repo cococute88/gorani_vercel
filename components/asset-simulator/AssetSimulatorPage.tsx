@@ -212,7 +212,8 @@ export default function AssetSimulatorPage() {
           </div>
 
           {/*
-            대표 CTA: "🚪 당장탈출" 정사각형 카드.
+            대표 CTA: "당장탈출" 앱 아이콘형 버튼.
+            카드/테두리/그라데이션/텍스트 없이 exit.png 이미지 자체가 버튼 역할을 한다.
             "지금 EXIT?" 토글 상태와 무관하게 항상 EXIT 모드 기준 요약 모달을 연다.
             헤더 우측(데스크톱) / 타이틀 아래(모바일)에 배치해 입력폼 버튼과 분리한다.
           */}
@@ -222,20 +223,15 @@ export default function AssetSimulatorPage() {
             aria-haspopup="dialog"
             aria-label="🚪 당장탈출"
             title="🚪 당장탈출 — 지금 바로 은퇴할 경우의 요약 보기"
-            className="group relative flex aspect-square w-28 shrink-0 flex-col items-center justify-between self-start overflow-hidden rounded-2xl border-2 border-rose-300 bg-gradient-to-b from-rose-50 to-rose-100 p-2.5 shadow-lg shadow-rose-200/50 ring-1 ring-rose-200/60 transition-all duration-200 ease-out hover:-translate-y-1 hover:border-rose-400 hover:shadow-xl hover:shadow-rose-300/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-400 active:translate-y-0 active:scale-95 sm:w-32 dark:border-rose-500/40 dark:from-rose-500/10 dark:to-rose-500/20 dark:shadow-rose-900/30 dark:ring-rose-500/20"
+            className="group relative aspect-square w-28 shrink-0 self-start rounded-2xl transition-all duration-200 ease-out hover:-translate-y-1 hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-400 active:translate-y-0 active:scale-100 sm:w-32"
           >
-            <span className="flex w-full flex-1 items-center justify-center">
-              <Image
-                src="/exit.png"
-                alt=""
-                width={1254}
-                height={1254}
-                className="h-full w-full object-contain transition-transform duration-200 ease-out group-hover:scale-110"
-              />
-            </span>
-            <span className="mt-1 shrink-0 text-[13px] font-extrabold leading-none text-rose-600 dark:text-rose-300">
-              🚪 당장탈출
-            </span>
+            <Image
+              src="/exit.png"
+              alt=""
+              width={1254}
+              height={1254}
+              className="h-full w-full object-contain drop-shadow-md transition-[filter] duration-200 ease-out group-hover:drop-shadow-xl"
+            />
           </button>
         </div>
 
