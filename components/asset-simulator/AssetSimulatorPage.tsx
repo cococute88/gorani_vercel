@@ -212,8 +212,10 @@ export default function AssetSimulatorPage() {
           </div>
 
           {/*
-            대표 CTA: "당장탈출" 앱 아이콘형 버튼.
-            카드/테두리/그라데이션/텍스트 없이 exit.png 이미지 자체가 버튼 역할을 한다.
+            대표 CTA: "당장탈출" 버튼.
+            앱 아이콘처럼 보이지 않도록 둥근 마스킹을 최소화(8px)하고,
+            얇은 테두리 + 아주 약한 그림자로 "누를 수 있는 버튼" 느낌만 준다(과한 카드 X).
+            hover 시 살짝 확대·상승하고 그림자가 약간 진해진다(Glow/색상 변화 없음).
             "지금 EXIT?" 토글 상태와 무관하게 항상 EXIT 모드 기준 요약 모달을 연다.
             헤더 우측(데스크톱) / 타이틀 아래(모바일)에 배치해 입력폼 버튼과 분리한다.
           */}
@@ -223,14 +225,14 @@ export default function AssetSimulatorPage() {
             aria-haspopup="dialog"
             aria-label="🚪 당장탈출"
             title="🚪 당장탈출 — 지금 바로 은퇴할 경우의 요약 보기"
-            className="group relative aspect-square w-28 shrink-0 self-start rounded-2xl transition-all duration-200 ease-out hover:-translate-y-1 hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-400 active:translate-y-0 active:scale-100 sm:w-32"
+            className="group relative mt-0.5 aspect-square w-24 shrink-0 self-start overflow-hidden rounded-lg border border-slate-200/90 shadow-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.03] hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-400 active:translate-y-0 active:scale-100 dark:border-white/10 sm:w-28"
           >
             <Image
               src="/exit.png"
               alt=""
               width={1254}
               height={1254}
-              className="h-full w-full object-contain drop-shadow-md transition-[filter] duration-200 ease-out group-hover:drop-shadow-xl"
+              className="h-full w-full object-contain"
             />
           </button>
         </div>
