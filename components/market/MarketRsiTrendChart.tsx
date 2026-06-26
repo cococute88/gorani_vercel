@@ -11,7 +11,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import type { EtfTemperature, SeriesPoint } from "@/lib/market-data";
+import { MARKET_RANGES, type MarketRange, type SeriesPoint } from "@/lib/market-data";
 import {
   AXIS_LINE,
   AXIS_TICK_SM,
@@ -22,8 +22,9 @@ import {
 } from "@/lib/chart-style";
 
 interface Props {
-  temps: EtfTemperature[];
   rsi: SeriesPoint[];
+  range: MarketRange;
+  onRangeChange: (range: MarketRange) => void;
 }
 
 const card = "rounded-2xl border border-[#2a3336] bg-[#191f20] p-5";
@@ -32,40 +33,30 @@ const WATCHLIST = ["QQQ", "SCHD", "SPY"] as const;
 const TICKER_COLORS: Record<string, string> = { QQQ: "#3b82f6", SCHD: "#22c55e", SPY: "#f59e0b" };
 const LEGEND_WRAPPER = { fontSize: 11, paddingTop: 6 };
 
-function rsiState(rsi: number): { label: string; cls: string } {
-  if (rsi >= 70) return { label: "과매수", cls: "text-red-400" };
-  if (rsi <= 30) return { label: "과매도", cls: "text-blue-400" };
-  return { label: "중립", cls: "text-slate-300" };
-}
-
-// RSI 섹션: 현재 RSI 카드(QQQ/SCHD/SPY) + RSI 14 추이 차트.
-export default function MarketRsiSection({ temps, rsi }: Props) {
-  const byTicker = new Map(temps.map((t) => [t.ticker, t]));
-
+// RSI 14 추이 차트. (RSI 카드는 시장 지수 섹션으로 대체되었고, 추이 차트만 유지한다.)
+export default function MarketRsiTrendChart({ rsi, range, onRangeChange }: Props) {
   return (
-    <section className="mb-6 space-y-4">
-      <h2 className="text-[15px] font-bold text-slate-300">RSI (14)</h2>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        {WATCHLIST.map((ticker) => {
-          const t = byTicker.get(ticker);
-          const state = t ? rsiState(t.rsi) : null;
-          return (
-            <div key={ticker} className={card}>
-              <div className="flex items-center justify-between">
-                <span className="text-[14px] font-bold text-white">{ticker}</span>
-                {state && <span className={`text-[12px] font-semibold ${state.cls}`}>{state.label}</span>}
-              </div>
-              <div className="num mt-2 text-[26px] font-extrabold text-white">{t ? t.rsi : "조회 불가"}</div>
-              <div className="mt-1 text-[11.5px] text-slate-500">현재 RSI 14</div>
-            </div>
-          );
-        })}
-      </div>
-
+    <section className="mb-6">
       <div className={card}>
-        <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+        <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
           <h3 className="text-[14px] font-bold text-slate-300">RSI 14 추이</h3>
           <span className="text-[12px] text-slate-500">과매수 70 · 과매도 30</span>
+        </div>
+        <div className="mb-4 flex flex-wrap items-center gap-1 rounded-lg border border-slate-700/60 bg-[#111516] p-1 w-fit">
+          {MARKET_RANGES.map((r) => (
+            <button
+              key={r}
+              type="button"
+              onClick={() => onRangeChange(r)}
+              className={`rounded-md px-2.5 py-1 text-[12.5px] font-medium transition-colors ${
+                range === r
+                  ? "bg-blue-600 text-white"
+                  : "text-slate-400 hover:bg-white/10 hover:text-slate-200"
+              }`}
+            >
+              {r}
+            </button>
+          ))}
         </div>
         <div className="h-[300px] w-full">
           {rsi.length === 0 ? <div className="flex h-full items-center justify-center text-[13px] text-slate-500">RSI 추이 데이터를 조회할 수 없습니다.</div> : <ResponsiveContainer width="100%" height="100%">

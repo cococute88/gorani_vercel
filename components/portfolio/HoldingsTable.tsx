@@ -1,5 +1,6 @@
 "use client";
 
+import TableCsvMenu from "@/components/ui/TableCsvMenu";
 import { formatWon, formatPercent } from "@/lib/format";
 import { splitSmallHoldings } from "@/lib/portfolio-small-holdings";
 import type { Holding } from "@/lib/portfolio-types";
@@ -14,6 +15,8 @@ interface Props {
     tone: "success" | "error" | "info";
     text: string;
   } | null;
+  // 외부(접기/펼치기 섹션 등)에서 카드/제목을 제공할 때 내부 카드·제목을 생략한다.
+  bare?: boolean;
 }
 
 const card = "rounded-2xl border border-[#2a3336] bg-[#191f20] p-5";
@@ -26,6 +29,7 @@ export default function HoldingsTable({
   onTickerChange,
   readOnly = false,
   tickerMapNotice = null,
+  bare = false,
 }: Props) {
   const noticeToneClass =
     tickerMapNotice?.tone === "error"
@@ -37,18 +41,29 @@ export default function HoldingsTable({
   // 소액(#소액 또는 20만원 미만) 항목은 표시 단계에서 숨겨 리스트를 짧게 유지한다.
   // (parser 원천/저장 데이터는 그대로 두고, 화면에서만 visible 만 렌더한다.)
   const { visible: visibleHoldings, hiddenCount } = splitSmallHoldings(holdings);
+  const today = new Date().toISOString().slice(0, 10);
 
   return (
-    <div className={card}>
+    <div className={bare ? "" : card}>
       <div className="mb-4 flex min-w-0 flex-wrap items-center justify-between gap-2">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <h2 className="text-[15px] font-bold text-slate-300">보유종목 리스트</h2>
+          {!bare && <h2 className="text-[15px] font-bold text-slate-300">보유종목 리스트</h2>}
           {hiddenCount > 0 ? (
             <span className="shrink-0 whitespace-nowrap rounded-md border border-slate-600/40 bg-white/5 px-2 py-0.5 text-[11px] text-slate-400">
               소액 {hiddenCount}개 숨김
             </span>
           ) : null}
         </div>
+        <TableCsvMenu filename={`portfolio-holdings-${today}.csv`} rows={visibleHoldings} columns={[
+          { header: "금융사", value: (row) => row.broker },
+          { header: "종류", value: (row) => row.assetType },
+          { header: "상품명", value: (row) => row.cleanName ?? row.productName },
+          { header: "티커", value: (row) => row.ticker },
+          { header: "원금", value: (row) => formatWon(row.principalKRW) },
+          { header: "평가금액", value: (row) => formatWon(row.valueKRW) },
+          { header: "수익률", value: (row) => row.returnPct != null ? formatPercent(row.returnPct, 1) : "—" },
+          { header: "확인상태", value: (row) => row.needsReview ? "확인 필요" : "인식됨" },
+        ]} />
         {tickerMapNotice ? (
           <span className={`max-w-full break-keep rounded-md border px-2.5 py-1 text-[11.5px] ${noticeToneClass}`}>
             {tickerMapNotice.text}

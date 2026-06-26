@@ -129,6 +129,24 @@ export function normalizeAssetMapTicker(holding: AssetMapPortfolioHoldingInput):
   return null;
 }
 
+// 현금성 자산 이름/티커 패턴. 기존 cash-like 감지(MMF/현금/달러 등)에 더해
+// SGOV 계열 단기 국채 ETF 등 현금 등가물을 자산맵/섹터 분석에서 제외하기 위함.
+const CASH_LIKE_NAME_PATTERNS = ["SGOV", "MMF", "머니마켓", "현금", "예수금", "CMA", "달러"];
+
+// 현금성 자산(원화/달러 현금, 예수금, MMF, SGOV 계열 등)은 자산맵 TreeMap 및
+// 섹터 비중 분석 대상에서 제외한다. 평가금액 합산에는 영향을 주지 않는다.
+function isCashLikeHolding(holding: AssetMapPortfolioHoldingInput): boolean {
+  const normalized = normalizeHoldingTickerInfo({
+    ticker: holding.ticker ?? undefined,
+    productName: holding.name ?? undefined,
+    name: holding.name,
+    assetType: holding.assetType ?? undefined,
+  });
+  if (normalized.isCashLike) return true;
+  const haystack = `${holding.name ?? ""} ${holding.ticker ?? ""}`.toUpperCase();
+  return CASH_LIKE_NAME_PATTERNS.some((pattern) => haystack.includes(pattern.toUpperCase()));
+}
+
 function isEtfHolding(ticker: string, holding: AssetMapPortfolioHoldingInput): boolean {
   const haystack = `${holding.assetType ?? ""} ${holding.name ?? ""} ${ticker}`.toUpperCase();
   return (
@@ -197,6 +215,8 @@ export function buildAssetMapExposureFromHoldings(
   for (const holding of holdings) {
     const amountKRW = Number(holding.valueKRW ?? 0);
     if (!Number.isFinite(amountKRW) || amountKRW <= 0) continue;
+    // 현금성 자산은 자산맵/섹터 분석에서 제외(평가금액에는 이미 반영됨).
+    if (isCashLikeHolding(holding)) continue;
     totalValueKRW += amountKRW;
 
     const ticker = normalizeAssetMapTicker(holding);

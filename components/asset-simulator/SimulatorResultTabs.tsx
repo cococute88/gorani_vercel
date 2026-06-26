@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { DividendBrokerageRow, SimulatorProjection, WithdrawRow, YearResult } from "@/lib/asset-simulator-types";
 import SimulatorBalanceChart from "./SimulatorBalanceChart";
 import SimulatorCashflowChart from "./SimulatorCashflowChart";
+import TableCsvMenu from "@/components/ui/TableCsvMenu";
 
 const TABS = ["잔고 추이 차트", "배당금 추이 차트", "적립 현황", "절세계좌인출(원금만)", "위탁계좌(배당용) 잔고"] as const;
 
@@ -18,8 +19,21 @@ function decimalMoney(value: number) {
 }
 
 function AccumulationTable({ rows }: { rows: YearResult[] }) {
+  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
   return (
-    <div className="overflow-x-auto rounded-xl border border-[#263033]">
+    <div className="rounded-xl border border-[#263033]">
+      <div className="flex justify-end border-b border-[#263033] bg-[#111516] px-3 py-2"><TableCsvMenu filename={`asset-simulator-accumulation-${today}.csv`} rows={rows} columns={[
+        { header: "년도", value: (row) => row.year },
+        { header: "상태", value: (row) => row.status },
+        { header: "연금적립", value: (row) => money(row.pensionContribution) },
+        { header: "연금잔고", value: (row) => money(row.pensionBalance) },
+        { header: "ISA적립", value: (row) => money(row.isaContribution) },
+        { header: "ISA잔고", value: (row) => money(row.isaBalance) },
+        { header: "적립액from예비금", value: (row) => money(row.reserveUsed) },
+        { header: "예비금 잔고", value: (row) => money(row.reserveBalance) },
+        { header: "전체잔고", value: (row) => money(row.totalBalance) },
+      ]} /></div>
+      <div className="overflow-x-auto">
       <table className="w-full min-w-[980px] border-collapse text-sm">
         <thead className="bg-[#111516] text-[12px] uppercase tracking-wide text-slate-400">
           <tr>
@@ -44,13 +58,24 @@ function AccumulationTable({ rows }: { rows: YearResult[] }) {
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }
 
 function WithdrawTable({ rows }: { rows: WithdrawRow[] }) {
+  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
   return (
-    <div className="overflow-x-auto rounded-xl border border-[#263033]">
+    <div className="rounded-xl border border-[#263033]">
+      <div className="flex justify-end border-b border-[#263033] bg-[#111516] px-3 py-2"><TableCsvMenu filename={`asset-simulator-tax-withdrawals-${today}.csv`} rows={rows} columns={[
+        { header: "년도", value: (row) => row.year },
+        { header: "구분", value: (row) => row.isDelay ? "대기중" : row.category },
+        { header: "ISA잔고(명목)", value: (row) => money(row.isaBalanceNominal) },
+        { header: "연금잔고(명목)", value: (row) => money(row.pensionBalanceNominal) },
+        { header: "월수령(명목)", value: (row) => row.isDelay ? "대기중" : decimalMoney(row.monthlyNominal) },
+        { header: "월수령(실질)", value: (row) => row.isDelay ? "대기중" : decimalMoney(row.monthlyReal) },
+      ]} /></div>
+      <div className="overflow-x-auto">
       <table className="w-full min-w-[760px] border-collapse text-sm">
         <thead className="bg-[#111516] text-[12px] uppercase tracking-wide text-slate-400">
           <tr>
@@ -71,6 +96,7 @@ function WithdrawTable({ rows }: { rows: WithdrawRow[] }) {
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }
@@ -87,8 +113,21 @@ function DividendTable({ rows }: { rows: DividendBrokerageRow[] }) {
     "월배당합(절세+위탁)(명목)",
     "월배당합(절세+위탁)(실질)",
   ];
+  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
   return (
-    <div className="overflow-x-auto rounded-xl border border-[#263033]">
+    <div className="rounded-xl border border-[#263033]">
+      <div className="flex justify-end border-b border-[#263033] bg-[#111516] px-3 py-2"><TableCsvMenu filename={`asset-simulator-dividend-brokerage-${today}.csv`} rows={rows} columns={[
+        { header: "년도", value: (row) => row.year },
+        { header: "배당용 위탁잔고(명목)", value: (row) => money(row.taxableDividendBalanceNominal) },
+        { header: "배당용 위탁잔고(실질)", value: (row) => money(row.taxableDividendBalanceReal) },
+        { header: "세후 연간 배당금(명목)", value: (row) => decimalMoney(row.afterTaxAnnualDividendNominal) },
+        { header: "세후 연간 배당금(실질)", value: (row) => decimalMoney(row.afterTaxAnnualDividendReal) },
+        { header: "세후 월별 배당금(명목)", value: (row) => decimalMoney(row.afterTaxMonthlyDividendNominal) },
+        { header: "세후 월별 배당금(실질)", value: (row) => decimalMoney(row.afterTaxMonthlyDividendReal) },
+        { header: "월배당합(절세+위탁)(명목)", value: (row) => decimalMoney(row.totalMonthlyDividendNominal) },
+        { header: "월배당합(절세+위탁)(실질)", value: (row) => decimalMoney(row.totalMonthlyDividendReal) },
+      ]} /></div>
+      <div className="overflow-x-auto">
       <table className="w-full min-w-[1280px] border-collapse text-sm">
         <thead className="bg-[#111516] text-[12px] uppercase tracking-wide text-slate-400">
           <tr>{headers.map((header) => <th key={header} className="px-3 py-3 text-right first:text-left">{header}</th>)}</tr>
@@ -109,6 +148,7 @@ function DividendTable({ rows }: { rows: DividendBrokerageRow[] }) {
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }
@@ -133,8 +173,8 @@ export default function SimulatorResultTabs({ projection }: Props) {
         ))}
       </div>
 
-      {activeTab === "잔고 추이 차트" && <SimulatorBalanceChart data={projection.chartRows} retirementYear={projection.summary.retirementYear ?? undefined} />}
-      {activeTab === "배당금 추이 차트" && <SimulatorCashflowChart data={projection.chartRows} retirementYear={projection.summary.retirementYear ?? undefined} />}
+      {activeTab === "잔고 추이 차트" && <SimulatorBalanceChart data={projection.chartRows} retirementYear={projection.summary.retirementYear ?? undefined} withdrawalStartYear={projection.summary.actualWithdrawalStartYear ?? undefined} />}
+      {activeTab === "배당금 추이 차트" && <SimulatorCashflowChart data={projection.chartRows} retirementYear={projection.summary.retirementYear ?? undefined} withdrawalStartYear={projection.summary.actualWithdrawalStartYear ?? undefined} />}
       {activeTab === "적립 현황" && <AccumulationTable rows={projection.results} />}
       {activeTab === "절세계좌인출(원금만)" && <WithdrawTable rows={projection.taxWithdrawRows} />}
       {activeTab === "위탁계좌(배당용) 잔고" && <DividendTable rows={projection.dividendRows} />}

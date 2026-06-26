@@ -4,6 +4,7 @@ import {
   type CalendarTickerCacheSource,
 } from "@/lib/calendar-event-identity";
 import { STORAGE_KEYS } from "@/lib/storage-keys";
+import { DEFAULT_CALENDAR_PORTFOLIO_ID, getCalendarLocalStorageKey, getLegacyCalendarLocalStorageKey } from "@/lib/calendar-portfolio";
 
 export const CALENDAR_TICKER_CACHE_SCHEMA_VERSION = 1;
 export const DEFAULT_CALENDAR_TICKER_CACHE_TTL_HOURS = 24;
@@ -20,6 +21,7 @@ type CreateCalendarTickerCacheEntryInput<TEvent> = {
 };
 
 const CALENDAR_CACHE_STORAGE_KEY = STORAGE_KEYS.calendarCache;
+function calendarCacheStorageKey(portfolioId = DEFAULT_CALENDAR_PORTFOLIO_ID): string { return getCalendarLocalStorageKey("cache", portfolioId); }
 
 function hasWindowLocalStorage(): boolean {
   return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
@@ -87,11 +89,12 @@ export function isCalendarTickerCacheExpired(entry: CalendarTickerCache<unknown>
   return !isCalendarTickerCacheFresh(entry, now);
 }
 
-export function loadCalendarCacheMap<TEvent = Record<string, unknown>>(): CalendarTickerCacheMap<TEvent> {
+export function loadCalendarCacheMap<TEvent = Record<string, unknown>>(portfolioId = DEFAULT_CALENDAR_PORTFOLIO_ID): CalendarTickerCacheMap<TEvent> {
   if (!hasWindowLocalStorage()) return {};
 
   try {
-    const stored = window.localStorage.getItem(CALENDAR_CACHE_STORAGE_KEY);
+    const storageKey = calendarCacheStorageKey(portfolioId);
+    const stored = window.localStorage.getItem(storageKey) ?? (portfolioId === DEFAULT_CALENDAR_PORTFOLIO_ID ? window.localStorage.getItem(getLegacyCalendarLocalStorageKey("cache")) : null);
     if (!stored) return {};
 
     const parsed = JSON.parse(stored) as unknown;
@@ -108,7 +111,7 @@ export function loadCalendarCacheMap<TEvent = Record<string, unknown>>(): Calend
     return out;
   } catch {
     try {
-      window.localStorage.removeItem(CALENDAR_CACHE_STORAGE_KEY);
+      window.localStorage.removeItem(calendarCacheStorageKey(portfolioId));
     } catch {
       // Ignore secondary storage errors and return an empty cache.
     }
@@ -116,34 +119,34 @@ export function loadCalendarCacheMap<TEvent = Record<string, unknown>>(): Calend
   }
 }
 
-export function saveCalendarCacheMap<TEvent>(cacheMap: CalendarTickerCacheMap<TEvent>): void {
+export function saveCalendarCacheMap<TEvent>(cacheMap: CalendarTickerCacheMap<TEvent>, portfolioId = DEFAULT_CALENDAR_PORTFOLIO_ID): void {
   if (!hasWindowLocalStorage()) return;
 
   try {
-    window.localStorage.setItem(CALENDAR_CACHE_STORAGE_KEY, JSON.stringify(cacheMap));
+    window.localStorage.setItem(calendarCacheStorageKey(portfolioId), JSON.stringify(cacheMap));
   } catch {
     // localStorage may be full or unavailable; cache writes are best effort.
   }
 }
 
-export function loadCalendarTickerCache<TEvent = Record<string, unknown>>(ticker: string): CalendarTickerCache<TEvent> | null {
+export function loadCalendarTickerCache<TEvent = Record<string, unknown>>(ticker: string, portfolioId = DEFAULT_CALENDAR_PORTFOLIO_ID): CalendarTickerCache<TEvent> | null {
   const key = getCalendarTickerCacheKey(ticker);
   if (!key) return null;
-  return loadCalendarCacheMap<TEvent>()[key] ?? null;
+  return loadCalendarCacheMap<TEvent>(portfolioId)[key] ?? null;
 }
 
-export function saveCalendarTickerCache<TEvent>(entry: CalendarTickerCache<TEvent>): void {
+export function saveCalendarTickerCache<TEvent>(entry: CalendarTickerCache<TEvent>, portfolioId = DEFAULT_CALENDAR_PORTFOLIO_ID): void {
   const key = getCalendarTickerCacheKey(entry.ticker);
   if (!key) return;
-  const cacheMap = loadCalendarCacheMap<TEvent>();
+  const cacheMap = loadCalendarCacheMap<TEvent>(portfolioId);
   cacheMap[key] = { ...entry, ticker: key };
-  saveCalendarCacheMap(cacheMap);
+  saveCalendarCacheMap(cacheMap, portfolioId);
 }
 
-export function removeCalendarTickerCache(ticker: string): void {
+export function removeCalendarTickerCache(ticker: string, portfolioId = DEFAULT_CALENDAR_PORTFOLIO_ID): void {
   const key = getCalendarTickerCacheKey(ticker);
   if (!key) return;
-  const cacheMap = loadCalendarCacheMap();
+  const cacheMap = loadCalendarCacheMap(portfolioId);
   delete cacheMap[key];
-  saveCalendarCacheMap(cacheMap);
+  saveCalendarCacheMap(cacheMap, portfolioId);
 }

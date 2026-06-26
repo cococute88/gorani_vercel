@@ -1,5 +1,6 @@
 "use client";
 
+import TableCsvMenu from "@/components/ui/TableCsvMenu";
 import { EVENT_META } from "@/lib/mock-dividend-data";
 import type { DividendEvent } from "@/lib/mock-dividend-data";
 
@@ -15,9 +16,21 @@ function badgeStyle(color: string, border: string): { background: string; border
 
 // 일정 리스트 (날짜/티커/이벤트/예상·확정/배당금/현재가/배당률)
 export default function DividendEventTable({ events }: Props) {
+  const month = events[0]?.date?.slice(0, 7) ?? new Date().toISOString().slice(0, 7);
   return (
     <div className={card}>
-      <h2 className="mb-4 text-[15px] font-bold text-slate-300">일정 리스트</h2>
+      <div className="mb-4 flex items-center justify-between gap-2">
+        <h2 className="text-[15px] font-bold text-slate-300">일정 리스트</h2>
+        <TableCsvMenu filename={`dividend-calendar-events-${month}.csv`} rows={events} columns={[
+          { header: "날짜", value: (row) => row.date },
+          { header: "티커", value: (row) => row.ticker },
+          { header: "이벤트", value: (row) => EVENT_META[row.type].labelKo },
+          { header: "구분", value: (row) => row.estimated ? "예상" : "확정" },
+          { header: "배당금($)", value: (row) => row.amount != null ? row.amount.toFixed(2) : "—" },
+          { header: "현재가($)", value: (row) => row.price != null ? row.price.toFixed(2) : "—" },
+          { header: "예상 배당률", value: (row) => row.annualYieldPct != null ? `${row.annualYieldPct.toFixed(2)}%` : "—" },
+        ]} />
+      </div>
       <div className="scroll-dark max-h-[420px] overflow-auto">
         <table className="w-full min-w-[680px] text-[13px]">
           <thead className="sticky top-0 bg-[#191f20]">

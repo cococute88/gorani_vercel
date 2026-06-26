@@ -1,5 +1,6 @@
 "use client";
 
+import TableCsvMenu from "@/components/ui/TableCsvMenu";
 import { formatWon, formatPercent } from "@/lib/format";
 import { dividendHoldingWeightPct, type DividendHoldingRow } from "@/lib/mock-dividend-data";
 
@@ -47,12 +48,24 @@ function formatDividendAmount(row: DividendHoldingRow): string {
 }
 
 export default function DividendHoldingsTable({ title, rows, totalKRW, loading = false }: Props) {
+  const today = new Date().toISOString().slice(0, 10);
   return (
     <section className="mb-6">
       <div className={card}>
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <h2 className="break-keep text-[15px] font-bold text-slate-300">{title}</h2>
           <div className="flex flex-wrap items-center justify-end gap-2">
+            <TableCsvMenu filename={`dividend-holdings-${title.replace(/\s+/g, "-")}-${today}.csv`} rows={rows} columns={[
+              { header: "티커", value: (row) => row.ticker },
+              { header: "종목명", value: (row) => row.name },
+              { header: "수량(추정)", value: (row) => row.quantityEstimated ? `≈ ${formatOptionalNumber(row.quantity, 2)}주` : formatOptionalNumber(row.quantity, 6) },
+              { header: "평균단가(추정)", value: (row) => row.averageCostEstimated ? `≈ ${formatOptionalMoney(row.averageCost, row.averageCostCurrency)}` : formatOptionalMoney(row.averageCost, row.averageCostCurrency) },
+              { header: "현재가", value: (row) => formatOptionalMoney(row.currentPrice, row.currentPriceCurrency) },
+              { header: "내 배당률", value: (row) => formatDividendRate(row) },
+              { header: "비중", value: (row) => formatWeight(row, totalKRW) },
+              { header: "평가금액", value: (row) => formatWon(row.valueKRW) },
+              { header: "예상 연배당", value: (row) => formatDividendAmount(row) },
+            ]} />
             {loading && <span className="text-[12px] text-blue-300">quote/dividend 조회 중</span>}
             <span className="num shrink-0 text-[13px] font-semibold text-white">
               합계 {formatWon(totalKRW)}

@@ -1,5 +1,10 @@
+import { Suspense } from "react";
 import DividendPage from "@/components/dividend/DividendPage";
 
 export default function Page() {
-  return <DividendPage />;
+  return (
+    <Suspense fallback={null}>
+      <DividendPage />
+    </Suspense>
+  );
 }

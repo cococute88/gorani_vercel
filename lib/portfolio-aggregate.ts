@@ -3,6 +3,7 @@ import { ACCOUNT_CARDS, PORTFOLIO_SUMMARY_DARK } from "./mockData";
 import type { FinanceAsset, Holding, PortfolioSnapshot } from "./portfolio-types";
 import { filterAggregateHoldings } from "./portfolio-summary-row";
 import { applyKrxTickerMappingsToHoldings } from "./krx-ticker-name-map";
+import { isAllocationChartAmountVisible } from "./allocation-chart-filter";
 
 const COLORS = [
   "#3b82f6",
@@ -55,7 +56,7 @@ function groupSlices<T>(
   const totals = new Map<string, number>();
   for (const row of rows) {
     const value = valueOf(row);
-    if (!Number.isFinite(value) || value <= 0) continue;
+    if (!isAllocationChartAmountVisible(value)) continue;
     const name = nameOf(row)?.trim() || "미분류";
     totals.set(name, (totals.get(name) ?? 0) + value);
   }

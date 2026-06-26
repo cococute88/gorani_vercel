@@ -66,6 +66,22 @@ export function formatWonCompact(value: number): string {
 }
 
 // 만원 단위 금액 표시 (예: 12345 -> 1억 2,345만원)
+// 계좌별 종목 비중 카드의 평가금액 표기 (display only).
+//   - 1억(1,000,000,000) 이상: 'X.XX억' (소수점 둘째 자리 고정, 예: 1.23억)
+//   - 1만 이상 1억 미만: 'XXXX만' (정수 만 단위, 콤마 없음, 예: 3592만)
+//   - 1만 미만: 'X,XXX원' (천단위 콤마 + 원, 예: 9,500원)
+export function formatAccountHoldingAmount(value: number): string {
+  const sign = value < 0 ? "-" : "";
+  const abs = Math.abs(Math.round(value));
+  if (abs >= 100000000) {
+    return `${sign}${(abs / 100000000).toFixed(2)}억`;
+  }
+  if (abs >= 10000) {
+    return `${sign}${Math.floor(abs / 10000)}만`;
+  }
+  return `${sign}${abs.toLocaleString("ko-KR")}원`;
+}
+
 export function formatManwonMoney(value: number): string {
   const sign = value < 0 ? "-" : "";
   const safe = Math.round(Math.abs(value));

@@ -43,7 +43,9 @@ export function getTickerOhlcHistory(ticker: string, start: string, end: string,
   const seed = stableSeed(ticker.toUpperCase());
   const points: OhlcPoint[] = [];
   const totalDays = Math.max(1, Math.ceil((endDate.getTime() - startDate.getTime()) / 86_400_000));
-  const step = totalDays > 420 ? 7 : totalDays > 160 ? 3 : 1;
+  // Keep fallback history at daily density so calculator charts never collapse
+  // into weekly/monthly-looking samples when live providers are unavailable.
+  const step = 1;
   const anchor = basePrice && basePrice > 0 ? basePrice : 60 + (seed % 90);
   let previousClose = anchor;
 

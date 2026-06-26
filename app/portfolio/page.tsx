@@ -17,7 +17,7 @@ export default function PortfolioPage() {
   const portfolioView = usePortfolioView();
   const theme = useResolvedTheme();
 
-  // 하단 "보유 자산군 분석": 보유종목/현금성 잔액을 TQQQ·QLD·QQQ·SPY·SCHD·MSFT·달러·현금·예적금·기타
+  // 하단 "보유 비중 분석": 보유종목/현금성 잔액을 TQQQ·QLD·QQQ·SPY·SCHD·MSFT·달러·현금·예적금·기타
   // 자산군 단위로 합산해 Streamlit 방식 도넛으로 표시한다 (원본 상품명 단위로 쪼개지 않는다).
   const assetClassSlices = useMemo(
     () => buildAssetClassAllocation(portfolioView.mappedHoldings, portfolioView.snapshot?.financeAssets ?? []),
@@ -81,17 +81,17 @@ export default function PortfolioPage() {
             emptyMessage="계좌별 평가금액 정보가 없어 계좌 비중을 표시할 수 없습니다."
           />
           <AssetAllocationDonut
-            title="자산군 비중"
+            title="종목별 비중"
             holdings={portfolioView.mappedHoldings}
             financeAssets={portfolioView.snapshot?.financeAssets ?? []}
             theme={theme}
-            emptyMessage="평가금액이 있는 보유종목이 없어 자산군 비중을 표시할 수 없습니다."
+            emptyMessage="평가금액이 있는 보유종목이 없어 종목별 비중을 표시할 수 없습니다."
           />
           <DonutChartCard
-            title="자산 구성"
+            title="목적별 비중"
             data={portfolioView.assetAllocation}
             theme={theme}
-            emptyMessage="자산 종류 정보가 없어 자산 구성을 표시할 수 없습니다."
+            emptyMessage="자산 종류 정보가 없어 목적별 비중을 표시할 수 없습니다."
           />
         </section>
 
@@ -109,7 +109,7 @@ export default function PortfolioPage() {
           <section className="min-w-0 overflow-x-hidden min-[1300px]:col-start-1 min-[1300px]:row-start-1">
             <div className="mb-3 flex items-center gap-2">
               <h2 className="text-[15px] font-bold text-slate-700 dark:text-slate-300">
-                보유 자산군 분석
+                보유 비중 분석
               </h2>
               {assetClassSlices.length === 0 ? (
                 <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-500 dark:border-[#2a3336] dark:bg-white/[0.03] dark:text-slate-400">

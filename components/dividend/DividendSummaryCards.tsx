@@ -10,13 +10,11 @@ interface Props {
   achievementPct?: number;
   goalProgressLabel: string;
   goalProgressCalculable: boolean;
-  withdrawalMode: boolean;
   afterTax: boolean;
   includeTaxAdvantaged: boolean;
   dividendDataAvailable: boolean;
   onToggleTax: (afterTax: boolean) => void;
   onToggleGroup: (includeTaxAdvantaged: boolean) => void;
-  onToggleWithdrawalMode: (enabled: boolean) => void;
 }
 
 const card =
@@ -55,13 +53,11 @@ export default function DividendSummaryCards({
   achievementPct,
   goalProgressLabel,
   goalProgressCalculable,
-  withdrawalMode,
   afterTax,
   includeTaxAdvantaged,
   dividendDataAvailable,
   onToggleTax,
   onToggleGroup,
-  onToggleWithdrawalMode,
 }: Props) {
   return (
     <section className="mb-6">
@@ -88,17 +84,6 @@ export default function DividendSummaryCards({
           </div>
           <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1 dark:border-transparent dark:bg-[#1b2021]">
             <button
-              onClick={() => onToggleWithdrawalMode(!withdrawalMode)}
-              className={`break-keep rounded-md px-2.5 py-1 text-[12.5px] font-medium transition-colors ${
-                withdrawalMode ? "bg-violet-600 text-white" : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
-              }`}
-              aria-pressed={withdrawalMode}
-            >
-              일괄 3.5% 인출률 적용
-            </button>
-          </div>
-          <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1 dark:border-transparent dark:bg-[#1b2021]">
-            <button
               onClick={() => onToggleGroup(false)}
               className={`break-keep rounded-md px-2.5 py-1 text-[12.5px] font-medium transition-colors ${
                 !includeTaxAdvantaged ? "bg-blue-600 text-white" : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
@@ -112,7 +97,7 @@ export default function DividendSummaryCards({
                 includeTaxAdvantaged ? "bg-blue-600 text-white" : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
               }`}
             >
-              절세합산
+              절세합
             </button>
           </div>
         </div>
@@ -120,15 +105,14 @@ export default function DividendSummaryCards({
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5">
         <Kpi label="평가금액" value={formatWon(evaluationKRW)} />
         <Kpi
-          label={withdrawalMode ? `연간 예상 금액(3.5% 인출률, ${afterTax ? "세후" : "세전"})` : `연간 예상 배당(추정, ${afterTax ? "세후" : "세전"})`}
-          value={withdrawalMode || dividendDataAvailable ? formatWon(annualDividendKRW) : "데이터 없음"}
-          accent={withdrawalMode || dividendDataAvailable ? "text-emerald-400" : "text-amber-400"}
-          sub={withdrawalMode ? "실제 배당 이력은 반영하지 않습니다" : undefined}
+          label={`연간 예상 배당(추정, ${afterTax ? "세후" : "세전"})`}
+          value={dividendDataAvailable ? formatWon(annualDividendKRW) : "데이터 없음"}
+          accent={dividendDataAvailable ? "text-emerald-400" : "text-amber-400"}
         />
         <Kpi
-          label={withdrawalMode ? "월평균 예상 금액(3.5% 가정)" : "월평균 예상 배당(추정)"}
-          value={withdrawalMode || dividendDataAvailable ? formatWon(monthlyAvgKRW) : "데이터 없음"}
-          accent={withdrawalMode || dividendDataAvailable ? "text-emerald-400" : "text-amber-400"}
+          label="월평균 예상 배당(추정)"
+          value={dividendDataAvailable ? formatWon(monthlyAvgKRW) : "데이터 없음"}
+          accent={dividendDataAvailable ? "text-emerald-400" : "text-amber-400"}
         />
         <Kpi
           label="환산 예상 배당"

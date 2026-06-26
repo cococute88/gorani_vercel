@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import TopNav from "@/components/TopNav";
 import StorageModeBadge from "@/components/common/StorageModeBadge";
-import PreviewNotice from "./PreviewNotice";
 import DividendCaptureSimulator from "./DividendCaptureSimulator";
 import ConversionCalculator from "./ConversionCalculator";
 import MddCalculator from "./MddCalculator";
@@ -16,16 +16,34 @@ import { useResolvedTheme } from "@/components/theme/ThemeProvider";
 // PORTFOLIO-CALCULATOR-UX-FIX-2 #7: 원본 Streamlit 입력 흐름에 맞춰 입력칸을 간소화하고
 // 프리셋 저장/선택/불러오기 UI는 메인 화면에서 제거했다.
 const tabs = [
+  { key: "mdd", label: "티커MDD 계산기" },
   { key: "capture", label: "배당치기 시뮬" },
   { key: "conversion", label: "매도전환 계산기" },
-  { key: "mdd", label: "MDD 계산기" },
 ] as const;
 
 type TabKey = (typeof tabs)[number]["key"];
 
+// 상단 nav 계산기 submenu 는 /calculator?tab=... 로 이동한다.
+// URL tab 값을 내부 탭 key 로 매핑한다.
+const TAB_PARAM_MAP: Record<string, TabKey> = {
+  "dividend-capture": "capture",
+  capture: "capture",
+  conversion: "conversion",
+  mdd: "mdd",
+};
+
 export default function CalculatorPage() {
   const theme = useResolvedTheme();
-  const [activeTab, setActiveTab] = useState<TabKey>("capture");
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const initialTab = (tabParam && TAB_PARAM_MAP[tabParam]) || "mdd";
+  const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
+
+  // 이미 계산기 페이지에 있을 때 submenu 로 다른 탭을 누르면 URL 만 바뀌므로
+  // searchParams 변화에 맞춰 활성 탭을 갱신한다.
+  useEffect(() => {
+    if (tabParam && TAB_PARAM_MAP[tabParam]) setActiveTab(TAB_PARAM_MAP[tabParam]);
+  }, [tabParam]);
   const [captureInput, setCaptureInput] = useState<DividendCaptureInput>(defaultDividendCaptureInput);
   const [conversionInput, setConversionInput] = useState<ConversionInput>(defaultConversionInput);
   const [mddInput, setMddInput] = useState<MddInput>(defaultMddInput);
@@ -40,11 +58,9 @@ export default function CalculatorPage() {
             <StorageModeBadge />
           </div>
           <p className="mt-2 text-[13.5px] text-slate-500 dark:text-slate-400">
-            Streamlit 원본 계산 흐름을 TypeScript로 포팅한 배당치기, 매도전환, MDD 계산기입니다.
+            실시간 시세 기반 계산을 지원합니다.
           </p>
         </div>
-
-        <PreviewNotice />
 
         <div className="no-scrollbar my-5 flex max-w-full gap-1.5 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-1.5 dark:border-[#273032] dark:bg-[#171d1e] sm:gap-2 sm:p-2">
           {tabs.map((tab) => (

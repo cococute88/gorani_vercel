@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 import TopNav from "@/components/TopNav";
 import { fetchMarketPayload, MARKET_RANGES } from "@/lib/market-data";
 import type { BriefingItem, EtfTemperature, FearGreedData, MarketRange, MarketWarning, SeriesPoint } from "@/lib/market-data";
-import MarketTopBriefing from "./MarketTopBriefing";
-import MarketRsiSection from "./MarketRsiSection";
+import MarketSnapshotSection from "./MarketSnapshotSection";
+import MarketIndexSection from "./MarketIndexSection";
+import MarketRsiTrendChart from "./MarketRsiTrendChart";
 import MarketMddSection from "./MarketMddSection";
 import VixChart from "./VixChart";
 import MarketTemperatureSheet from "./MarketTemperatureSheet";
@@ -56,15 +57,11 @@ export default function MarketPage() {
               데이터 상태: {status}{updatedAt ? ` · 최근 업데이트: ${new Date(updatedAt).toLocaleString("ko-KR")}` : ""}
             </p>
           </div>
-          <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1 dark:border-transparent dark:bg-[#1b2021]">
-            {MARKET_RANGES.map((r) => (
-              <button key={r} onClick={() => setRange(r)} className={`rounded-md px-2.5 py-1 text-[12.5px] font-medium transition-colors ${range === r ? "bg-blue-600 text-white" : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"}`}>{r}</button>
-            ))}
-          </div>
         </div>
         {warnings.length > 0 && <div className="mb-4 rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-2 text-[12.5px] text-amber-700 dark:text-amber-200">일부 시장 데이터를 불러오지 못했습니다. 조회 불가로 표시된 항목은 외부 데이터 제공처 응답이 복구되면 다시 표시됩니다.</div>}
-        <MarketTopBriefing fearGreed={fearGreed} briefing={briefing} />
-        <MarketRsiSection temps={temps} rsi={rsi} />
+        <MarketIndexSection />
+        <MarketSnapshotSection fearGreed={fearGreed} briefing={briefing} />
+        <MarketRsiTrendChart rsi={rsi} range={range} onRangeChange={setRange} />
         <MarketMddSection temps={temps} drawdown={drawdown} />
         <VixChart data={vix} />
         <MarketTemperatureSheet />

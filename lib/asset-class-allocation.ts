@@ -1,4 +1,5 @@
 import type { FinanceAsset, Holding } from "./portfolio-types";
+import { isAllocationChartAmountVisible } from "./allocation-chart-filter";
 
 // =============================================================
 // PORTFOLIO-TREEMAP-TO-STREAMLIT-DONUT-1
@@ -56,10 +57,6 @@ function finiteNumber(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
-function positiveNumber(value: unknown): number | null {
-  const n = finiteNumber(value);
-  return n !== null && n > 0 ? n : null;
-}
 
 function includesAny(haystack: string, tokens: string[]): boolean {
   return tokens.some((token) => haystack.includes(token));
@@ -76,13 +73,13 @@ export function classifyAssetClass(text: string): AssetClassName {
   if (t.includes("schd")) return "SCHD";
   if (t.includes("msft") || t.includes("마이크로소프트")) return "MSFT";
   // USD/달러/외화/$ 신호가 있는 현금성 자산은 "달러".
-  if (includesAny(t, ["달러", "dollar", "usd", "외화", "미국달러", "us$", "$"])) return "달러";
+  if (includesAny(t, ["달러", "dollar", "usd", "외화", "미국달러", "us$", "$", "sgov"])) return "달러";
   // KRW/원화/예적금/현금성 원화 자산은 모두 "원화"로 합산한다.
   // (예적금·적금·예금·저축·채권·청약 + 현금·예수금·CMA·MMF·파킹 등 + 명시적 원화/KRW 신호.)
   if (
     includesAny(t, [
       "예적금", "적금", "예금", "저축", "채권", "청약",
-      "현금", "예수금", "예치금", "cma", "mmf", "mmw", "파킹", "입출금", "대기자금", "통장", "rp",
+      "현금", "예수금", "예치금", "cma", "mmf", "mmw", "머니마켓", "파킹", "입출금", "대기자금", "통장", "rp",
       "원화", "krw",
     ])
   ) {
@@ -119,7 +116,7 @@ export function buildAssetClassAllocation(
   };
 
   for (const holding of holdings) {
-    const value = positiveNumber(holding.valueKRW);
+    const value = isAllocationChartAmountVisible(holding.valueKRW) ? holding.valueKRW : null;
     if (value === null) continue;
     add(classifyAssetClass(holdingClassText(holding)), value, finiteNumber(holding.principalKRW) ?? 0);
   }
@@ -131,7 +128,7 @@ export function buildAssetClassAllocation(
     return true;
   });
   for (const asset of financeRows) {
-    const value = positiveNumber(asset.amountKRW);
+    const value = isAllocationChartAmountVisible(asset.amountKRW) ? asset.amountKRW : null;
     if (value === null) continue;
     // 현금성 잔액은 투자원금/수익률 개념이 없어 원금 0 으로 둔다.
     add(classifyAssetClass(financeAssetClassText(asset)), value, 0);

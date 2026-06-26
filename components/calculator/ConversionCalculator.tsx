@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import MetricCard from "@/components/MetricCard";
+import TableCsvMenu from "@/components/ui/TableCsvMenu";
 import CalculatorDataStatus from "./CalculatorDataStatus";
 import CalculatorWarningPanel from "./CalculatorWarningPanel";
 import { TextInput, DateInput } from "./CalculatorInputField";
@@ -110,6 +111,7 @@ export default function ConversionCalculator({ input, onChange }: { input: Conve
   const update = <K extends keyof ConversionInput>(key: K, value: ConversionInput[K]) => onChange({ ...input, [key]: value });
   const conversionSortType = detailSort ? conversionColumns.find((column) => column.key === detailSort.key)?.type ?? "string" : "string";
   const sortedRows = useMemo(() => sortRows(result.rows, detailSort?.key, detailSort?.direction ?? "asc", conversionSortType, (row, key) => row[key]), [conversionSortType, detailSort, result.rows]);
+  const today = new Date().toISOString().slice(0, 10);
 
   return (
     <div className="space-y-4">
@@ -182,7 +184,10 @@ export default function ConversionCalculator({ input, onChange }: { input: Conve
 
       {/* Table */}
       <div className={panel}>
-        <h2 className="mb-4 text-[15px] font-bold text-white">전환비 상세 표</h2>
+        <div className="mb-4 flex items-center justify-between gap-2">
+          <h2 className="text-[15px] font-bold text-white">전환비 상세 표</h2>
+          <TableCsvMenu filename={`sell-conversion-results-${submitted.sellTicker}-to-${submitted.buyTicker}-${today}.csv`} rows={sortedRows} columns={conversionColumns.map((column) => ({ header: column.label, value: (row: ConversionRow) => row[column.key] }))} />
+        </div>
         <div className="-mx-5 max-h-[520px] min-w-0 overflow-auto px-5">
           <table className="w-full min-w-[700px] text-left text-[12.5px]">
             <thead className="text-slate-500">

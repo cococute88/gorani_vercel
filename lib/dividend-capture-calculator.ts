@@ -47,9 +47,12 @@ function isPositiveNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value) && value > 0;
 }
 
+function buyOffsetFor(buyType: DividendCaptureInput["buyType"]) {
+  return buyType.startsWith("D-2") ? 2 : 1;
+}
+
 function buyPriceFor(history: OhlcPoint[], index: number, buyType: DividendCaptureInput["buyType"]) {
-  const offset = buyType.startsWith("D-2") ? 2 : 1;
-  const source = history[Math.max(0, index - offset)];
+  const source = history[index - buyOffsetFor(buyType)];
   return buyType.endsWith("시가") ? source.open : source.close;
 }
 
@@ -60,6 +63,7 @@ export const defaultDividendCaptureInput: DividendCaptureInput = {
   sellWindow: 0,
   taxRate: 15,
   recent5yOnly: false,
+  lookbackPeriod: "all",
   dividendPerShare: 0.48,
   commissionRate: 0,
   slippageRate: 0,
@@ -70,7 +74,8 @@ export const defaultDividendCaptureInput: DividendCaptureInput = {
 
 export function resolveDividendCaptureDates(input: DividendCaptureInput) {
   const end = new Date().toISOString().slice(0, 10);
-  const start = input.recent5yOnly ? addDays(end, -365 * 5) : "1900-01-01";
+  const recent5yOnly = input.lookbackPeriod ? input.lookbackPeriod === "recent5y" : input.recent5yOnly;
+  const start = recent5yOnly ? addDays(end, -365 * 5) : "1900-01-01";
   return { start, end };
 }
 
@@ -167,48 +172,39 @@ function emptyDividendCaptureResult(
   };
 }
 
-export function simulateDividendCaptureFromHistory(
+export function buildDividendCaptureRowsFromStreamlitLogic(
   input: DividendCaptureInput,
-  history: Required<DividendCaptureHistoryInput>,
-  meta: DividendCaptureCalculationMeta = {},
-): DividendCaptureResult {
-  const source = meta.source ?? "sample";
-  const warnings = [...(meta.warnings ?? [])];
-  const normalizedPrices = normalizePrices(history.prices);
-  const normalizedDividends = normalizeDividends(history.dividends);
+  priceRows: DividendCapturePricePoint[],
+  dividendEvents: DividendCaptureDividendPoint[],
+): { rows: DividendCaptureRow[]; warnings: string[]; usedStartDate: string; usedEndDate: string } {
+  const warnings: string[] = [];
+  const normalizedPrices = normalizePrices(priceRows);
+  const normalizedDividends = normalizeDividends(dividendEvents);
   warnings.push(...normalizedPrices.warnings, ...normalizedDividends.warnings);
 
   const prices = normalizedPrices.prices;
   const dividends = normalizedDividends.dividends;
   const usedStartDate = prices[0]?.date ?? resolveDividendCaptureDates(input).start;
   const usedEndDate = prices.at(-1)?.date ?? resolveDividendCaptureDates(input).end;
-
-  if (prices.length < 3) {
-    warnings.push("At least three valid price rows are required for D-1/D-2 dividend capture calculation.");
-    return emptyDividendCaptureResult(input, source, warnings, usedStartDate, usedEndDate, meta.updatedAt);
-  }
-
-  if (dividends.length === 0) {
-    warnings.push("No valid dividend events were available for dividend capture calculation.");
-    return emptyDividendCaptureResult(input, source, warnings, usedStartDate, usedEndDate, meta.updatedAt);
-  }
-
   const dateToIndex = new Map(prices.map((point, index) => [point.date, index]));
   const taxMultiplier = Math.max(0, 1 - input.taxRate / 100);
   const totalCostRate = Math.max(0, input.commissionRate + input.slippageRate) / 100;
-
+  let skippedForMissingExDate = 0;
   let skippedForInsufficientRows = 0;
 
   const rows = dividends.flatMap<DividendCaptureRow>((dividend) => {
-    let index = dateToIndex.get(dividend.exDate);
+    const index = dateToIndex.get(dividend.exDate);
     if (index === undefined) {
-      index = prices.findIndex((point) => point.date >= dividend.exDate);
+      skippedForMissingExDate += 1;
+      return [];
     }
-    if (index < 2 || index < 0 || index + input.sellWindow >= prices.length) {
+    const buyOffset = buyOffsetFor(input.buyType);
+    if (index < buyOffset || index + input.sellWindow >= prices.length) {
       skippedForInsufficientRows += 1;
       return [];
     }
 
+    const buyDate = prices[index - buyOffset].date;
     const buyPrice = buyPriceFor(prices, index, input.buyType);
     const shares = Math.max(0, Math.floor(input.investmentAmount / Math.max(buyPrice, 0.01)));
     const afterTaxDividend = dividend.amount * taxMultiplier;
@@ -217,9 +213,10 @@ export function simulateDividendCaptureFromHistory(
     const windowData = prices.slice(index, index + input.sellWindow + 1);
     const maxHigh = Math.max(...windowData.map((point) => point.high));
     const isSuccess = maxHigh >= breakevenPrice;
+    const sellDate = windowData.at(-1)?.date ?? prices[index].date;
     const sellPrice = windowData.at(-1)?.close ?? prices[index].close;
-    const futureRecovery = prices.slice(index).find((point) => point.high >= breakevenPrice);
-    const recoveryDate = isSuccess ? undefined : futureRecovery?.date;
+    const futureRecovery = isSuccess ? undefined : prices.slice(index).find((point) => point.high >= breakevenPrice);
+    const recoveryDate = futureRecovery?.date;
     const grossDividend = shares * dividend.amount;
     const netDividend = shares * afterTaxDividend;
     const costs = shares * buyPrice * totalCostRate * 2;
@@ -233,10 +230,14 @@ export function simulateDividendCaptureFromHistory(
     return [{
       round: `${dividend.exDate.slice(2, 4)}.${dividend.exDate.slice(5, 7)}`,
       exDate: dividend.exDate,
+      buyDate,
       buyPrice: round(buyPrice),
+      dividendAmount: round(dividend.amount, 6),
       afterTaxDividend: round(afterTaxDividend, 4),
       breakevenPrice: round(breakevenPrice, 4),
       maxHigh: round(maxHigh),
+      windowHigh: round(maxHigh),
+      sellDate,
       sellPrice: round(sellPrice),
       shares,
       grossDividend: round(grossDividend),
@@ -244,30 +245,42 @@ export function simulateDividendCaptureFromHistory(
       pricePnL: round(pricePnL),
       totalPnL: round(totalPnL),
       profitPct: round(streamlitProfitPct - totalCostRate * 100 * 2, 2),
+      returnPct: round(streamlitProfitPct - totalCostRate * 100 * 2, 2),
       result: isSuccess ? "성공" : "실패",
+      success: isSuccess,
       recoveryDate: isSuccess ? "-" : recoveryDate ?? "회복불가",
       recoveryDays: recoveryTradingDays ?? 0,
       recoveryTradingDays: isSuccess ? "-" : recoveryTradingDays === null ? "회복불가" : `${recoveryTradingDays}거래일`,
       recoveryCalendarDays: isSuccess ? "-" : recoveryDate ? `${daysBetween(dividend.exDate, recoveryDate)}일` : "회복불가",
       note: isSuccess ? "매도허용기간 안에 손익분기점을 회복" : "허용기간 내 손익분기점 미회복",
     }];
-  });
+  }).sort((a, b) => a.exDate.localeCompare(b.exDate));
 
-  if (skippedForInsufficientRows > 0) {
-    warnings.push(`${skippedForInsufficientRows} dividend event(s) were skipped because matching D-1/D-2 price rows or sell-window rows were unavailable.`);
-  }
+  if (skippedForMissingExDate > 0) warnings.push(`배당락일이 가격 데이터에 없어 제외된 이벤트 ${skippedForMissingExDate}건`);
+  if (skippedForInsufficientRows > 0) warnings.push(`D-1/D-2 매수 행 또는 매도 허용기간 행이 없어 제외된 이벤트 ${skippedForInsufficientRows}건`);
 
-  if (rows.length === 0) {
-    warnings.push("No dividend capture rounds could be calculated after price/dividend date matching.");
-    return emptyDividendCaptureResult(input, source, warnings, usedStartDate, usedEndDate, meta.updatedAt);
-  }
+  return { rows, warnings, usedStartDate, usedEndDate };
+}
 
+export function summarizeDividendCaptureRows(
+  input: DividendCaptureInput,
+  rows: DividendCaptureRow[],
+  source: QuoteSource,
+  warnings: string[],
+  usedStartDate: string,
+  usedEndDate: string,
+  updatedAt?: string,
+): DividendCaptureResult {
+  if (rows.length === 0) return emptyDividendCaptureResult(input, source, warnings, usedStartDate, usedEndDate, updatedAt);
+
+  const taxMultiplier = Math.max(0, 1 - input.taxRate / 100);
+  const totalCostRate = Math.max(0, input.commissionRate + input.slippageRate) / 100;
   const successRows = rows.filter((row) => row.result === "성공");
   const failureRows = rows.filter((row) => row.result === "실패");
   const successAverageReturnPct = successRows.length ? round(successRows.reduce((sum, row) => sum + row.profitPct, 0) / successRows.length, 2) : 0;
   const failureAverageLossPct = failureRows.length ? round(failureRows.reduce((sum, row) => sum + row.profitPct, 0) / failureRows.length, 2) : 0;
   const rewardRiskRatio = failureRows.length && failureAverageLossPct !== 0 ? round(Math.abs(successAverageReturnPct / failureAverageLossPct), 2) : null;
-  const expectedReturnPct = rows.length ? round(rows.reduce((sum, row) => sum + row.profitPct, 0) / rows.length, 2) : 0;
+  const expectedReturnPct = round(rows.reduce((sum, row) => sum + row.profitPct, 0) / rows.length, 2);
   const taxSavingPerTrade = round((successAverageReturnPct / 100) * input.investmentAmount * 0.22, 2);
   const numericRecoveryDays = rows.map((row) => Number.parseFloat(row.recoveryTradingDays)).filter(Number.isFinite);
   const firstBuyPrice = rows.at(-1)?.buyPrice ?? input.referenceBuyPrice;
@@ -275,20 +288,16 @@ export function simulateDividendCaptureFromHistory(
   const latestDividendPerShare = rows.at(-1)?.afterTaxDividend ?? input.dividendPerShare * taxMultiplier;
   const netDividend = firstShares * latestDividendPerShare;
 
-  if (source === "sample" && !warnings.some((warning) => warning.toLowerCase().includes("sample"))) {
-    warnings.push("Sample fallback is being used for this dividend capture result.");
-  }
-
   return {
     rows,
     source,
     warnings,
-    updatedAt: meta.updatedAt,
+    updatedAt,
     usedStartDate,
     usedEndDate,
-    successRate: rows.length ? round((successRows.length / rows.length) * 100, 1) : 0,
+    successRate: round((successRows.length / rows.length) * 100, 1),
     totalNetProfit: round(rows.reduce((sum, row) => sum + row.totalPnL, 0)),
-    averageProfitPct: rows.length ? round(rows.reduce((sum, row) => sum + row.profitPct, 0) / rows.length, 2) : 0,
+    averageProfitPct: expectedReturnPct,
     averageRecoveryDays: numericRecoveryDays.length ? round(numericRecoveryDays.reduce((sum, day) => sum + day, 0) / numericRecoveryDays.length, 1) : 0,
     successAverageReturnPct,
     failureAverageLossPct,
@@ -301,6 +310,40 @@ export function simulateDividendCaptureFromHistory(
     expectedDrop: round(Math.max(0, input.referenceBuyPrice - input.referenceExOpenPrice)),
     warning: warnings.length ? warnings.join(" ") : "Live quote history and dividend events were used for this dividend capture result.",
   };
+}
+
+export function simulateDividendCaptureFromHistory(
+  input: DividendCaptureInput,
+  history: Required<DividendCaptureHistoryInput>,
+  meta: DividendCaptureCalculationMeta = {},
+): DividendCaptureResult {
+  const source = meta.source ?? "sample";
+  const warnings = [...(meta.warnings ?? [])];
+  const normalizedPrices = normalizePrices(history.prices);
+  const normalizedDividends = normalizeDividends(history.dividends);
+  const usedStartDate = normalizedPrices.prices[0]?.date ?? resolveDividendCaptureDates(input).start;
+  const usedEndDate = normalizedPrices.prices.at(-1)?.date ?? resolveDividendCaptureDates(input).end;
+
+  if (normalizedPrices.prices.length < 3) {
+    warnings.push(...normalizedPrices.warnings, ...normalizedDividends.warnings, "At least three valid price rows are required for D-1/D-2 dividend capture calculation.");
+    return emptyDividendCaptureResult(input, source, warnings, usedStartDate, usedEndDate, meta.updatedAt);
+  }
+
+  if (normalizedDividends.dividends.length === 0) {
+    warnings.push(...normalizedPrices.warnings, ...normalizedDividends.warnings, "No valid dividend events were available for dividend capture calculation.");
+    return emptyDividendCaptureResult(input, source, warnings, usedStartDate, usedEndDate, meta.updatedAt);
+  }
+
+  const built = buildDividendCaptureRowsFromStreamlitLogic(input, history.prices, history.dividends);
+  warnings.push(...built.warnings);
+  if (built.rows.length === 0) {
+    warnings.push("No dividend capture rounds could be calculated after Streamlit price/dividend date matching.");
+  }
+  if (source === "sample" && !warnings.some((warning) => warning.toLowerCase().includes("sample"))) {
+    warnings.push("Sample fallback is being used for this dividend capture result.");
+  }
+
+  return summarizeDividendCaptureRows(input, built.rows, source, warnings, built.usedStartDate, built.usedEndDate, meta.updatedAt);
 }
 
 export function simulateDividendCapture(

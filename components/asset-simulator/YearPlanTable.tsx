@@ -1,8 +1,19 @@
+"use client";
+
+import { useMemo } from "react";
+import { ChevronDown, ChevronUp } from "lucide-react";
+import TableCsvMenu from "@/components/ui/TableCsvMenu";
 import type { YearPlanRow } from "@/lib/asset-simulator-types";
+import { DEFAULT_CONTRIBUTION_YEARS, DEFAULT_MONTHLY_CONTRIBUTION } from "@/lib/mock-asset-simulator-data";
 
 type Props = {
   plans: YearPlanRow[];
   onChange: (plans: YearPlanRow[]) => void;
+  // 계획표 펼침/접힘 상태. 미지정 시 항상 펼침(기존 동작 유지).
+  open?: boolean;
+  onToggleOpen?: () => void;
+  // EXIT 모드에서는 계획표가 계산에 사용되지 않음을 안내한다.
+  exitMode?: boolean;
 };
 
 // 체크박스 3종을 표/카드 양쪽에서 공유한다. (모바일 카드는 짧은 라벨, sm+ 표는 전체 라벨)
@@ -12,7 +23,10 @@ const CHECKBOX_FIELDS: Array<{ key: keyof Pick<YearPlanRow, "isaContribution" | 
   { key: "isaToPensionTransfer", label: "ISA연금이전", short: "연금이전" },
 ];
 
-export default function YearPlanTable({ plans, onChange }: Props) {
+export default function YearPlanTable({ plans, onChange, open = true, onToggleOpen, exitMode = false }: Props) {
+  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const collapsible = typeof onToggleOpen === "function";
+  const bodyVisible = !collapsible || open;
   const updatePlan = (index: number, patch: Partial<YearPlanRow>) => {
     onChange(plans.map((plan, planIndex) => (planIndex === index ? { ...plan, ...patch } : plan)));
   };
@@ -22,11 +36,39 @@ export default function YearPlanTable({ plans, onChange }: Props) {
 
   return (
     <section className="rounded-2xl border border-[#273032] bg-[#171d1e] p-4">
-      <div className="mb-4">
-        <h2 className="text-base font-extrabold text-white">연도별 투자 계획표</h2>
-        <p className="mt-1 break-keep text-[13px] text-slate-400">기본 계획은 원본처럼 초기 8년 월 300만원 적립입니다. 체크 여부와 월적립액을 바꾸면 즉시 재계산됩니다.</p>
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 className="text-base font-extrabold text-white">연도별 투자 계획표</h2>
+        <p className="mt-1 break-keep text-[13px] text-slate-400">기본 계획은 초기 {DEFAULT_CONTRIBUTION_YEARS}년 월 {DEFAULT_MONTHLY_CONTRIBUTION}만원 적립입니다. 체크 여부와 월적립액을 바꾸면 즉시 재계산됩니다.</p>
+        {exitMode ? (
+          <p className="mt-1 break-keep text-[12px] font-semibold text-cyan-300">지금 EXIT? 모드에서는 이 계획표가 계산에 사용되지 않습니다.</p>
+        ) : null}
+        </div>
+        {/* CSV 버튼은 항상 접근 가능. 그 왼쪽에 계획표 접기/펼치기 토글을 둔다. */}
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          {collapsible ? (
+            <button
+              type="button"
+              onClick={onToggleOpen}
+              aria-expanded={open}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-[#303a3d] px-3 py-2 text-[13px] font-bold text-slate-200 transition-colors hover:bg-white/5"
+            >
+              {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              {open ? "계획표 접기" : "계획표 펼치기"}
+            </button>
+          ) : null}
+          <TableCsvMenu filename={`asset-simulator-year-plan-${today}.csv`} rows={plans} columns={[
+            { header: "년도", value: (row) => row.year },
+            { header: "월적립액(만원)", value: (row) => row.monthlyContribution },
+            { header: "ISA적립", value: (row) => row.isaContribution ? "예" : "아니오" },
+            { header: "연금저축적립", value: (row) => row.pensionContribution ? "예" : "아니오" },
+            { header: "ISA연금이전", value: (row) => row.isaToPensionTransfer ? "예" : "아니오" },
+          ]} />
+        </div>
       </div>
 
+      {bodyVisible ? (
+      <>
       {/* 모바일: 연도별 카드 (가로 스크롤 없이 카드 안에 모두 표시).
           연차가 많으면(기본 30년) 카드 영역 안에서만 세로 스크롤하여 페이지가 과도하게 늘어나지 않게 한다. */}
       <div className="-mr-1 max-h-[60vh] space-y-2 overflow-y-auto pr-1 sm:hidden">
@@ -110,6 +152,10 @@ export default function YearPlanTable({ plans, onChange }: Props) {
         </table>
       </div>
       <p className="mt-3 break-keep text-[12px] text-slate-500">금액 입력 단위는 만원입니다. 모바일에서는 연도별 카드로 표시되고, 넓은 화면에서는 표 형태로 표시됩니다.</p>
+      </>
+      ) : (
+        <p className="break-keep text-[13px] text-slate-500">계획표가 접혀 있습니다. 위의 “계획표 펼치기” 버튼으로 다시 열 수 있습니다.</p>
+      )}
     </section>
   );
 }

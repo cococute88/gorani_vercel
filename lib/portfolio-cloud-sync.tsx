@@ -14,6 +14,7 @@ import {
 } from "@/lib/firebase/firestore-repositories";
 import { USE_FIRESTORE_CONTRACT } from "@/lib/feature-flags";
 import { loadPortfolioContract } from "@/lib/firestore-portfolio-adapter";
+import { markPortfolioCloudSyncNow } from "@/lib/portfolio-cloud-sync-time";
 
 export type PortfolioCloudSyncStatus = "idle" | "auth-loading" | "local-only" | "syncing" | "synced" | "failed";
 
@@ -83,6 +84,8 @@ export function usePortfolioCloudSync(): PortfolioCloudSyncState {
         const cloudDates = new Set(cloudSnapshots.map((snapshot) => snapshot.snapshotDate));
         const localOnlySnapshots = merged.filter((snapshot) => !cloudDates.has(snapshot.snapshotDate));
         await Promise.all(localOnlySnapshots.map((snapshot) => savePortfolioSnapshot(user.uid, snapshot)));
+        // 로컬 전용 스냅샷을 실제로 Firestore 에 올린 경우에만 마지막 동기화 시각을 갱신한다.
+        if (localOnlySnapshots.length > 0) markPortfolioCloudSyncNow();
 
         if (!cancelled) setState({ status: "synced", error: null });
       })

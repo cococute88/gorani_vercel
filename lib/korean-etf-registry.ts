@@ -6,6 +6,8 @@ export type KoreanEtfMapping = {
   exposureProxy?: string;
   displayName: string;
   notes?: string;
+  // 머니마켓(원화 MMF) 계열 여부. true 면 현금성으로 취급하되 가격 조회용 대표 티커는 부여한다.
+  isMoneyMarket?: boolean;
 };
 
 export type KoreanEtfMatch = {
@@ -15,6 +17,7 @@ export type KoreanEtfMatch = {
   dividendBucket?: string;
   exposureProxy?: string;
   matchedAlias: string;
+  isMoneyMarket?: boolean;
 };
 
 export const KOREAN_ETF_MAPPINGS: KoreanEtfMapping[] = [
@@ -103,6 +106,24 @@ export const KOREAN_ETF_MAPPINGS: KoreanEtfMapping[] = [
     dividendBucket: "SPY",
     exposureProxy: "SPY",
   },
+  {
+    // 원화 머니마켓(MMF) 계열 대표 매핑. 현금성으로 취급하되 가격 조회용 티커는 488770.KS 로 통일한다.
+    displayName: "KODEX 머니마켓액티브",
+    aliases: [
+      "KODEX머니마켓액티브",
+      "KODEX 머니마켓액티브",
+      "코덱스머니마켓액티브",
+      "머니마켓액티브",
+      "원화MMF",
+      "원MMF",
+      "MMF",
+    ],
+    krxCode: "488770",
+    quoteTicker: "488770.KS",
+    dividendBucket: "KRW",
+    isMoneyMarket: true,
+    notes: "원화 MMF는 현금성 자산으로 간주하되 대표 티커(488770.KS)를 부여한다.",
+  },
 ];
 
 function normalizeSearchText(value: string): string {
@@ -136,6 +157,7 @@ export function findKoreanEtfMapping(text: string): KoreanEtfMatch | null {
           dividendBucket: mapping.dividendBucket,
           exposureProxy: mapping.exposureProxy,
           matchedAlias: alias,
+          isMoneyMarket: mapping.isMoneyMarket,
         };
       }
     }

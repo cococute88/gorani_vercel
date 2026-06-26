@@ -3,10 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import MetricCard from "@/components/MetricCard";
+import TableCsvMenu from "@/components/ui/TableCsvMenu";
 import CalculatorDataStatus from "./CalculatorDataStatus";
 import CalculatorWarningPanel from "./CalculatorWarningPanel";
 import { TextInput, NumberInput, SelectInput } from "./CalculatorInputField";
-import { fetchQuoteDividends, fetchQuoteHistory } from "@/lib/calculator-data-provider";
 import { resolveDividendCaptureDates, simulateDividendCapture } from "@/lib/dividend-capture-calculator";
 import type { DividendCaptureDividendPoint, DividendCaptureInput, DividendCapturePricePoint, DividendCaptureRow } from "@/lib/calculator-types";
 import type { QuoteSource } from "@/lib/quote-types";
@@ -15,6 +15,17 @@ import { nextSortState, sortArrow, sortRows, type SortColumnType, type SortState
 
 const panel = "rounded-2xl border border-[#2a3336] bg-[#191f20] p-5";
 
+type DividendCaptureDiagnostics = {
+  dividendEventsLength: number;
+  priceRowsLength: number;
+  matchedEvents: number;
+  skippedEvents: number;
+  skippedExDatesFirst10: string[];
+  priceDateSampleFirst10: string[];
+  priceDateSampleLast10: string[];
+  mixedSources: boolean;
+};
+
 type DividendCaptureQuoteState = {
   prices?: DividendCapturePricePoint[];
   dividends?: DividendCaptureDividendPoint[];
@@ -22,17 +33,14 @@ type DividendCaptureQuoteState = {
   warnings: string[];
   updatedAt?: string;
   error?: string | null;
+  diagnostics?: DividendCaptureDiagnostics;
+  exchangeTimezoneName?: string;
+  dividendDateNormalization?: string;
+  priceDateNormalization?: string;
 };
 
-function combineSource(historySource: QuoteSource, dividendSource: QuoteSource): QuoteSource {
-  if (historySource === "sample" || dividendSource === "sample") return "sample";
-  if (historySource === "stooq") return "stooq";
-  return "yahoo";
-}
-
-function latestUpdatedAt(values: Array<string | undefined>) {
-  return values.filter(Boolean).sort().at(-1);
-}
+type DividendCaptureChartRow = DividendCaptureRow & { exDateMs: number };
+type DividendCaptureLookbackPeriod = "all" | "recent5y";
 
 type DividendSortKey = keyof Pick<DividendCaptureRow, "exDate" | "buyPrice" | "afterTaxDividend" | "breakevenPrice" | "profitPct" | "recoveryDate" | "recoveryTradingDays" | "recoveryCalendarDays" | "result">;
 
@@ -48,7 +56,56 @@ const dividendColumns: Array<{ key: DividendSortKey; label: string; type: SortCo
   { key: "recoveryCalendarDays", label: "소요 기간(달력)", type: "number" },
 ];
 
-function DividendTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: DividendCaptureRow }> }) {
+
+const SIX_MONTHS = 6;
+
+function monthStartUtc(ms: number): Date {
+  const date = new Date(ms);
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
+}
+
+function addUtcMonths(date: Date, months: number): Date {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + months, 1));
+}
+
+function nearestDividendCaptureTick(candidateMs: number, rows: DividendCaptureChartRow[]): number {
+  return rows.reduce((nearest, row) => {
+    const currentDistance = Math.abs(row.exDateMs - candidateMs);
+    const nearestDistance = Math.abs(nearest - candidateMs);
+    return currentDistance < nearestDistance ? row.exDateMs : nearest;
+  }, rows[0]?.exDateMs ?? candidateMs);
+}
+
+function buildDividendCaptureAxisTicks(rows: DividendCaptureChartRow[]): number[] | undefined {
+  if (rows.length === 0) return undefined;
+
+  const start = rows[0].exDateMs;
+  const end = rows.at(-1)?.exDateMs ?? start;
+  if (start === end) return [start];
+
+  const ticks = new Set<number>([start, end]);
+  const firstMonth = monthStartUtc(start);
+  const startMonth = firstMonth.getUTCMonth();
+  const nextHalfYearMonth = startMonth <= 5 ? 5 : 11;
+  let cursor = new Date(Date.UTC(firstMonth.getUTCFullYear(), nextHalfYearMonth, 1));
+  if (cursor.getTime() < start) cursor = addUtcMonths(cursor, SIX_MONTHS);
+
+  while (cursor.getTime() <= end) {
+    ticks.add(nearestDividendCaptureTick(cursor.getTime(), rows));
+    cursor = addUtcMonths(cursor, SIX_MONTHS);
+  }
+
+  return Array.from(ticks).sort((a, b) => a - b);
+}
+
+function formatDividendCaptureAxisTick(value: number | string): string {
+  const numericValue = typeof value === "number" ? value : Number(value);
+  const date = new Date(numericValue);
+  if (Number.isNaN(date.getTime())) return "";
+  return `${String(date.getUTCFullYear()).slice(2)}.${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+function DividendTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: DividendCaptureChartRow }> }) {
   if (!active || !payload?.length) return null;
   const row = payload[0].payload;
   return (
@@ -62,9 +119,18 @@ function DividendTooltip({ active, payload }: { active?: boolean; payload?: Arra
   );
 }
 
+function getDividendCaptureLookbackPeriod(input: Pick<DividendCaptureInput, "recent5yOnly" | "lookbackPeriod">): DividendCaptureLookbackPeriod {
+  if (input.lookbackPeriod === "recent5y" || input.lookbackPeriod === "all") return input.lookbackPeriod;
+  return input.recent5yOnly ? "recent5y" : "all";
+}
+
+function withDividendCaptureLookback(input: DividendCaptureInput, lookbackPeriod: DividendCaptureLookbackPeriod): DividendCaptureInput {
+  return { ...input, lookbackPeriod, recent5yOnly: lookbackPeriod === "recent5y" };
+}
+
 function toQuoteRequest(input: DividendCaptureInput) {
   const { end } = resolveDividendCaptureDates(input);
-  if (input.recent5yOnly) return { ticker: input.ticker, range: "5y", end };
+  if (getDividendCaptureLookbackPeriod(input) === "recent5y") return { ticker: input.ticker, range: "5y", end };
   // Streamlit 원본의 yfinance history(period="max")와 맞추기 위해 full-history는
   // start를 강제로 보내지 않고 서버가 Yahoo range=max를 그대로 사용하게 한다.
   return { ticker: input.ticker, range: "max", end };
@@ -85,30 +151,21 @@ export default function DividendCaptureSimulator({ input, onChange }: { input: D
 
       try {
         const request = toQuoteRequest(submitted);
-        const [historyResponse, dividendsResponse] = await Promise.all([
-          fetchQuoteHistory(request),
-          fetchQuoteDividends(request),
-        ]);
+        const response = await fetch(`/api/calculator/dividend-capture-data?ticker=${encodeURIComponent(request.ticker)}&recent5yOnly=${getDividendCaptureLookbackPeriod(submitted) === "recent5y" ? "true" : "false"}`, { cache: "no-store" });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data?.error || `HTTP ${response.status}`);
         if (cancelled) return;
 
         setQuoteState({
-          prices: historyResponse.prices.map((point) => ({
-            date: point.date,
-            open: point.open,
-            high: point.high,
-            low: point.low,
-            close: point.close,
-          })),
-          dividends: dividendsResponse.dividends.map((point) => ({ date: point.date, amount: point.amount })),
-          source: combineSource(historyResponse.source, dividendsResponse.source),
-          warnings: [
-            ...historyResponse.warnings.map((w) => `${historyResponse.normalizedTicker} history: ${w}`),
-            ...dividendsResponse.warnings.map((w) => `${dividendsResponse.normalizedTicker} dividends: ${w}`),
-            ...(historyResponse.source !== dividendsResponse.source
-              ? [`Mixed quote sources: history=${historyResponse.source}, dividends=${dividendsResponse.source}.`]
-              : []),
-          ],
-          updatedAt: latestUpdatedAt([historyResponse.updatedAt, dividendsResponse.updatedAt]),
+          prices: data.prices,
+          dividends: data.dividends,
+          source: data.source,
+          warnings: data.warnings ?? [],
+          updatedAt: data.updatedAt,
+          diagnostics: data.diagnostics,
+          exchangeTimezoneName: data.exchangeTimezoneName,
+          dividendDateNormalization: data.dividendDateNormalization,
+          priceDateNormalization: data.priceDateNormalization,
           error: null,
         });
       } catch (error) {
@@ -139,13 +196,25 @@ export default function DividendCaptureSimulator({ input, onChange }: { input: D
     [quoteState.dividends, quoteState.prices, quoteState.source, quoteState.updatedAt, quoteState.warnings, submitted],
   );
   const update = <K extends keyof DividendCaptureInput>(key: K, value: DividendCaptureInput[K]) => onChange({ ...input, [key]: value });
+  const lookbackPeriod = getDividendCaptureLookbackPeriod(input);
   const dividendSortType = detailSort ? dividendColumns.find((column) => column.key === detailSort.key)?.type ?? "string" : "string";
+  const chartRows = useMemo(
+    () =>
+      [...result.rows]
+        .sort((a, b) => a.exDate.localeCompare(b.exDate))
+        .map((row) => ({ ...row, exDateMs: new Date(`${row.exDate}T00:00:00Z`).getTime() })),
+    [result.rows],
+  );
+  const successChartRows = useMemo(() => chartRows.filter((row) => row.result === "성공"), [chartRows]);
+  const failureChartRows = useMemo(() => chartRows.filter((row) => row.result === "실패"), [chartRows]);
+  const chartTicks = useMemo(() => buildDividendCaptureAxisTicks(chartRows), [chartRows]);
   const sortedRows = useMemo(() => sortRows(result.rows, detailSort?.key, detailSort?.direction ?? "asc", dividendSortType, (row, key) => row[key]), [detailSort, dividendSortType, result.rows]);
+  const today = new Date().toISOString().slice(0, 10);
 
   return (
     <div className="space-y-4">
       {/* Input form */}
-      <form className={panel} onSubmit={(event) => { event.preventDefault(); setSubmitted(input); }}>
+      <form className={panel} onSubmit={(event) => { event.preventDefault(); setSubmitted(withDividendCaptureLookback(input, lookbackPeriod)); }}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-[15px] font-bold text-white">입력값</h2>
@@ -153,7 +222,7 @@ export default function DividendCaptureSimulator({ input, onChange }: { input: D
               source={result.source}
               loading={loading}
               updatedAt={result.updatedAt}
-              loadingText="loading history/dividends"
+              loadingText="loading Yahoo chart OHLC/dividends"
               extra={`${result.usedStartDate} ~ ${result.usedEndDate}`}
             />
           </div>
@@ -174,17 +243,17 @@ export default function DividendCaptureSimulator({ input, onChange }: { input: D
           </SelectInput>
           <NumberInput label="매도허용기간 (N거래일)" value={input.sellWindow} onChange={(v) => update("sellWindow", v)} />
           <NumberInput label="배당소득세율 (%)" value={input.taxRate} onChange={(v) => update("taxRate", v)} />
-          <SelectInput label="최근 5년 데이터만 보기" value={input.recent5yOnly ? "true" : "false"} onChange={(v) => update("recent5yOnly", v === "true")}>
-            <option value="false">아니오</option>
-            <option value="true">예</option>
+          <SelectInput label="조회 기간" value={lookbackPeriod} onChange={(v) => onChange(withDividendCaptureLookback(input, v === "recent5y" ? "recent5y" : "all"))}>
+            <option value="all">전체기간</option>
+            <option value="recent5y">최근5년</option>
           </SelectInput>
         </div>
       </form>
 
       {result.rows.length > 0 && (
-        <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/10 p-4 text-[13px] text-emerald-100">
+        <div className="rounded-2xl border border-emerald-500/25 bg-emerald-100 p-4 text-[13px] text-slate-900 dark:bg-emerald-500/10 dark:text-emerald-50">
           <p className="font-bold">총 {result.rows.length}회의 과거 배당 이벤트 분석 완료! (적용 세율: {submitted.taxRate}%)</p>
-          <p className="mt-1 text-emerald-200/90">📅 백테스트 기간: {result.rows[0]?.exDate} ~ {result.rows.at(-1)?.exDate}</p>
+          <p className="mt-1 font-bold text-slate-900 dark:text-emerald-50">📅 백테스트 기간: {result.rows[0]?.exDate} ~ {result.rows.at(-1)?.exDate}</p>
         </div>
       )}
 
@@ -208,25 +277,29 @@ export default function DividendCaptureSimulator({ input, onChange }: { input: D
           <ResponsiveContainer width="100%" height="100%">
             <ScatterChart margin={{ top: 12, right: 16, bottom: 8, left: 0 }}>
               <CartesianGrid stroke="#2a3336" strokeDasharray="3 3" />
-              <XAxis dataKey="exDate" name="배당락일" stroke="#94a3b8" tick={{ fontSize: 11 }} minTickGap={24} angle={-30} textAnchor="end" height={54} />
+              <XAxis type="number" dataKey="exDateMs" name="배당락일" domain={["dataMin", "dataMax"]} ticks={chartTicks} scale="time" tickFormatter={formatDividendCaptureAxisTick} stroke="#94a3b8" tick={{ fontSize: 11 }} minTickGap={16} interval={0} angle={-30} textAnchor="end" height={54} />
               <YAxis dataKey="profitPct" name="수익률" unit="%" stroke="#94a3b8" tick={{ fontSize: 11 }} />
               <Tooltip cursor={{ strokeDasharray: "3 3" }} content={<DividendTooltip />} />
               <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Scatter data={result.rows.filter((row) => row.result === "성공")} name="성공" fill="#3b82f6">
-                {result.rows.filter((row) => row.result === "성공").map((entry) => <Cell key={entry.exDate} fill="#3b82f6" />)}
+              <Scatter data={successChartRows} name="성공" fill="#3b82f6">
+                {successChartRows.map((entry) => <Cell key={entry.exDate} fill="#3b82f6" />)}
               </Scatter>
-              <Scatter data={result.rows.filter((row) => row.result === "실패")} name="실패" fill="#93c5fd">
-                {result.rows.filter((row) => row.result === "실패").map((entry) => <Cell key={entry.exDate} fill="#93c5fd" />)}
+              <Scatter data={failureChartRows} name="실패" fill="#93c5fd">
+                {failureChartRows.map((entry) => <Cell key={entry.exDate} fill="#93c5fd" />)}
               </Scatter>
             </ScatterChart>
           </ResponsiveContainer>
         </div>
         {result.warning && <p className="mt-3 text-[12px] text-slate-500">{result.warning}</p>}
+        {quoteState.diagnostics && <p className="mt-1 text-[11px] text-slate-500">Yahoo chart 단일소스: 배당 {quoteState.diagnostics.dividendEventsLength}건 / 가격 {quoteState.diagnostics.priceRowsLength}행 / 매칭 {quoteState.diagnostics.matchedEvents}건 / 제외 {quoteState.diagnostics.skippedEvents}건</p>}
       </div>
 
       {/* Detail table */}
       <div className={panel}>
-        <h2 className="mb-4 text-[15px] font-bold text-white">회차별 상세 결과</h2>
+        <div className="mb-4 flex items-center justify-between gap-2">
+          <h2 className="text-[15px] font-bold text-white">회차별 상세 결과</h2>
+          <TableCsvMenu filename={`dividend-capture-results-${submitted.ticker}-${today}.csv`} rows={sortedRows} columns={dividendColumns.map((column) => ({ header: column.label, value: (row: DividendCaptureRow) => row[column.key] }))} />
+        </div>
         <div className="-mx-5 max-h-[520px] min-w-0 overflow-auto px-5">
           <table className="w-full min-w-[920px] text-left text-[12px]">
             <thead className="text-slate-500">

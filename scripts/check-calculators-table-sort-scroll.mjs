@@ -19,7 +19,7 @@ function assert(condition, message) {
 }
 
 assert(!files.dividend.includes('dataKey="recoveryDays" name="회복일" unit="일"'), 'dividend distribution chart no longer uses recoveryDays with day unit on x-axis');
-assert(files.dividend.includes('dataKey="exDate"') && files.dividend.includes('name="배당락일"'), 'dividend distribution chart uses ex-date x values');
+assert(files.dividend.includes('dataKey="exDateMs"') && files.dividend.includes('name="배당락일"'), 'dividend distribution chart uses ex-date x values');
 assert(files.dividend.includes('name="성공"') && files.dividend.includes('name="실패"') && files.dividend.includes('<Legend'), 'dividend distribution chart has success/failure legend');
 assert(files.dividend.includes('function DividendTooltip') && files.dividend.includes('원금 회복'), 'dividend distribution tooltip shows ex-date/profit/result/recovery details');
 

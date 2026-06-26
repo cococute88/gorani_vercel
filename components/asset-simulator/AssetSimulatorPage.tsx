@@ -23,7 +23,6 @@ import {
 } from "@/lib/asset-simulator-persistence";
 import SimulatorInputPanel from "./SimulatorInputPanel";
 import SimulatorMetricCards from "./SimulatorMetricCards";
-import SimulatorPreviewNotice from "./SimulatorPreviewNotice";
 import YearPlanTable from "./YearPlanTable";
 import SimulatorResultTabs from "./SimulatorResultTabs";
 import ExitSummaryModal from "./ExitSummaryModal";
@@ -35,6 +34,10 @@ export default function AssetSimulatorPage() {
   const { user, configured } = useFirebaseAuth();
   const [inputs, setInputs] = useState<SimulatorInputs>(DEFAULT_SIMULATOR_INPUTS);
   const [yearPlans, setYearPlans] = useState<YearPlanRow[]>(DEFAULT_YEAR_PLANS);
+  // "지금 EXIT?" 모드는 로컬 UI 상태로만 관리한다. Firebase/로컬 저장 금지, 새로고침 시 초기화.
+  const [exitMode, setExitMode] = useState(false);
+  // 연도별 투자 계획표 펼침/접힘 상태. 일반 모드 기본값은 열림.
+  const [planTableOpen, setPlanTableOpen] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -109,9 +112,24 @@ export default function AssetSimulatorPage() {
   }, [user]);
 
   const projection = useMemo(
-    () => calculateAssetSimulatorPreview(inputs, yearPlans),
+    () => calculateAssetSimulatorPreview(inputs, yearPlans, exitMode),
+    [inputs, yearPlans, exitMode],
+  );
+
+  // 연도별 투자 계획표는 EXIT 모드 여부와 무관하게 사용자가 입력한 실제 계획표를 표시한다.
+  // (EXIT 모드는 계산에서만 무시할 뿐, 입력 데이터를 시각적으로 지우지 않는다.)
+  const tablePlans = useMemo(
+    () => normalizeYearPlans(normalizeInputs(inputs), yearPlans),
     [inputs, yearPlans],
   );
+
+  // "지금 EXIT?" 토글 시 계획표를 자동으로 접고/펼친다.
+  // ON → 계산에 쓰이지 않으므로 즉시 접기, OFF → 기본 상태(열림) 복원.
+  // 토글 사이에는 사용자가 직접 펼치기/접기 버튼으로 제어할 수 있다.
+  const handleExitModeChange = (next: boolean) => {
+    setExitMode(next);
+    setPlanTableOpen(!next);
+  };
 
   const handleInputsChange = (nextInputs: SimulatorInputs) => {
     const normalizedInputs = normalizeInputs(nextInputs);
@@ -197,14 +215,13 @@ export default function AssetSimulatorPage() {
             <StorageModeBadge />
           </div>
           <p className="mt-2 max-w-3xl text-[13.5px] leading-6 text-slate-500 dark:text-slate-400">
-            기존 Streamlit 자산 시뮬레이터의 계산 흐름과 결과 구성을 현재 Vercel 다크 UI에 맞춰 재구현했습니다.
+            장기 투자·인출 계획을 계산합니다.
           </p>
         </div>
 
         <div className="space-y-5">
-          <SimulatorPreviewNotice />
-          <SimulatorInputPanel inputs={inputs} onChange={handleInputsChange} onReset={handleReset} onSave={handleSave} saving={saving} saveMessage={saveMessage} saveError={saveError} />
-          <YearPlanTable plans={projection.yearPlans} onChange={setYearPlans} />
+          <SimulatorInputPanel inputs={inputs} onChange={handleInputsChange} onReset={handleReset} onSave={handleSave} saving={saving} saveMessage={saveMessage} saveError={saveError} exitMode={exitMode} onExitModeChange={handleExitModeChange} />
+          <YearPlanTable plans={tablePlans} onChange={setYearPlans} open={planTableOpen} onToggleOpen={() => setPlanTableOpen((prev) => !prev)} exitMode={exitMode} />
           <SimulatorMetricCards summary={projection.summary} />
           <SimulatorResultTabs projection={projection} />
           <p className="rounded-2xl border border-[#273032] bg-[#171d1e] px-4 py-3 text-[13px] text-slate-400">

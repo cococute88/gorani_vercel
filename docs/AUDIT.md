@@ -135,7 +135,7 @@ Observed `original/` top-level structure:
 ## Config Summary
 
 - `package.json`
-  - App name: `pftool-dashboard`
+  - App name: `gorani-finance`
   - Framework/runtime: Next.js `14.2.5`, React `18.3.1`
   - Key dependencies: `recharts`, `lucide-react`, `xlsx`, `firebase`
   - Scripts after this step: `dev`, `build`, `start`, `lint`, `typecheck`
@@ -513,3 +513,34 @@ DIVIDENDS-PERFORMANCE-GROUP-BACKCAST-FOLLOWUP-3: /dividends 위탁/절세 성과
 
 DIVIDEND-CAPTURE-STREAMLIT-PARITY-FIX-2: 배당치기 시뮬레이터 ARCC 전체/최근5년 결과가 원본 Streamlit과 맞지 않던 성공판정·실패손실·손익비·그래프 색상 회귀를 수정하고 parity 검증 추가
 - DIVIDENDS-PERFORMANCE-BENCHMARK-AXIS-FIX-4: /dividends 위탁/절세/전체 성과 그래프의 S&P500/KOSPI benchmark line과 카드 값을 복구하고, 성과 그래프 domain 및 월별 손익 chart 만원 단위/이중축을 보정
+- ROUTE-NAMING-LEGACY-AUDIT-1: 배당캘린더의 legacy /watchlist route/name 잔재를 점검하고 canonical /calendar route, nav href, redirect/alias, metadata/test를 정리
+
+DIVIDEND-CAPTURE-STREAMLIT-ROW-PARITY-3: 배당치기 시뮬레이터가 원본 Streamlit과 수치가 다르던 문제를 BCSF 2020-03-30 등 행 단위로 전수조사하고, OHLC/dividend/date matching/성공판정/KPI/그래프 정렬 parity를 보정
+
+DIVIDEND-CAPTURE-YFINANCE-PARITY-RESET-4: 배당치기 시뮬레이터가 배당 이벤트와 가격 source mismatch로 ARCC 대부분을 skip하고 승률 100%를 만들던 문제를 Yahoo chart 단일소스 OHLC+dividend adapter와 원본 Streamlit row 계산식으로 재구현
+- AUTH-MOBILE-LOGIN-AND-DIVCAP-AXIS-FIX-1: 모바일 Google 로그인 후 auth state가 반영되지 않던 회귀와 배당치기 시뮬레이터 수익률 그래프 x축 날짜 순서가 깨지던 문제를 수정
+
+- DIVIDEND-CAPTURE-PERIOD-AXIS-UX-FIX-1: 배당치기 시뮬레이터 수익률 분포 그래프 x축이 최신 날짜까지 표시되도록 수정하고, 최근 5년 데이터만 보기 UI를 조회 기간(전체기간/최근5년) 선택으로 정리
+
+TABLE-CSV-DOWNLOAD-MENU-1: 앱 주요 데이터 표에 공통 CSV 다운로드 메뉴를 추가하고, UTF-8 BOM/CSV escaping/정렬·필터 결과 다운로드 정책을 문서화
+
+TABLE-CSV-DOWNLOAD-MENU-1-FOLLOWUP: 자산 시뮬레이터/포트폴리오 부가 데이터 표와 월별 일정 미리보기 표까지 CSV 메뉴 적용 범위를 확장
+TABLE-CSV-DOWNLOAD-MENU-1-FOLLOWUP: 자산 시뮬레이터/포트폴리오 부가 데이터 표와 월별 일정 미리보기 표까지 CSV 메뉴 적용 범위를 확장
+
+CALENDAR-PORTFOLIO-PROFILE-NAMESPACE-1: 사용자 커스텀 표시명을 Firestore에 저장해 Google 실명 노출을 피하고, 배당캘린더 티커/cache/custom/meta를 캘린더 포트폴리오별 namespace로 분리하며, 포트폴리오 관리/종목 관리 UI를 분리.
+
+SMALL-UI-LABEL-MARKET-PORTFOLIO-FIX-1: 상단 메뉴명을 짧게 정리하고, 포트폴리오 시장지표에 Dow Jones/SCHD/GLD를 추가했으며, 포트폴리오 섹션 라벨/위탁계좌 카드 배치/공포탐욕 tooltip 구간명을 보정
+
+MARKET-SHEET-EMBED-LINK-UPDATE-1: /market 시장온도 참고 시트 iframe/embed 링크를 새 Google Sheets pubhtml 링크로 교체하고, 새 탭 열기 링크를 원본 Google Sheet 링크로 갱신.
+
+NAV-FAVORITES-CALCULATOR-MENU-UX-1: 상단 계산기 메뉴에 배당치기/매도전환/MDD submenu를 추가하고, 클라우드 동기화 왼쪽에 Firestore 동기화 즐겨찾기 메뉴/편집 모달을 추가했으며, 계산기·자산시뮬레이터의 개발자용 상단 안내문구를 정리.
+
+- SCHD-ATTRACTIVENESS-PORT-1: /dividends에 배당현황/SCHD 매력도 탭을 추가하고, original/pages_app/8_attractiveness_score.py의 SCHD TTM 배당률·5년 평균·목표가 표·Seeking Alpha 링크 로직을 Vercel에 이식했으며, 상단 배당 nav submenu를 추가.
+
+- SCHD-ATTRACTIVENESS-DENSE-DATA-FIX-1: SCHD 매력도 그래프가 월 1회 수준으로만 표시되던 데이터 샘플링 문제를 수정하고, 1M/6M/1Y는 daily price 기반 TTM 배당률 시계열로 표시되도록 보정. See `docs/SCHD_ATTRACTIVENESS_DENSE_DATA_FIX1.md`.
+
+- SMALL-UI-FAVICON-MODAL-CHART-FIX-1: 표시명 변경 모달의 light mode input 가독성을 보정하고, 배당치기 수익률 분포 그래프 x축 tick을 반기 수준으로 촘촘하게 표시하며, public/gorani-logo.png를 Gorafi favicon/metadata icon으로 연결.
+- DIVIDEND-SUMMARY-MOBILE-BUTTON-LABEL-FIX-1: `/dividends` 배당현황 요약 토글의 모바일 줄바꿈을 줄이기 위해 `일괄 3.5% 인출률 적용`을 `일괄3.5%인출률`, `절세합산`을 `절세합`으로 축약.
+
+- CALENDAR-PORTFOLIO-MODAL-LIGHT-INPUT-FIX-1: 캘린더 포트폴리오 관리 모달의 input/select가 light mode에서 어두운 배경으로 표시되던 문제를 수정하고, light/dark mode 입력창 대비를 정리.
+- CALCULATOR-DENSE-DAILY-HISTORY-FIX-1: 계산기 페이지의 매도전환/MDD 그래프 데이터 밀도 회귀를 수정했다. 원인은 `lib/conversion-calculator.ts`의 `sampleRows()`가 공통 거래일 전환비를 약 18개 점으로 강제 축소했고, sample fallback 경로(`lib/calculator-data-provider.ts`, `lib/server/quote-fetchers.ts`)가 긴 기간을 3일/7일 간격으로 생성해 라이브 실패 시 주간 수준으로 희석되던 점이었다. 매도전환은 `ratioPoints` 전체를 `rows`로 전달하도록 변경했고, MDD는 기존 daily live series 경로를 유지하면서 fallback history도 daily로 맞췄다. 검증은 `npm run check:calculator-dense-history`로 수행했으며 fixture 기준 데이터 수는 3개월 67개, 1년 262개, 5년 1,305개, 10년 2,609개, 최대 2,871개(매도전환/MDD 동일), fallback 5년 1,827개였다. 변경 파일: `lib/conversion-calculator.ts`, `lib/calculator-data-provider.ts`, `lib/server/quote-fetchers.ts`, `scripts/check-calculator-dense-history.mjs`, `package.json`.

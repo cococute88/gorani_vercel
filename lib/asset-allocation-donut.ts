@@ -20,6 +20,7 @@
 
 import type { Slice } from "./mockData";
 import type { FinanceAsset, Holding } from "./portfolio-types";
+import { isAllocationChartAmountVisible } from "./allocation-chart-filter";
 
 export type AssetTypeKey =
   | "dollar"
@@ -193,7 +194,7 @@ export interface AssetAllocationResult {
 }
 
 function isValidValue(value: unknown): value is number {
-  return typeof value === "number" && Number.isFinite(value) && value > 0;
+  return isAllocationChartAmountVisible(value);
 }
 
 // 자산군 도넛 슬라이스를 만든다.

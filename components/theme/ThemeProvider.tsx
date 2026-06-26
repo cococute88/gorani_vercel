@@ -25,19 +25,19 @@ type ThemeContextValue = {
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 function systemTheme(): ResolvedTheme {
-  if (typeof window === "undefined") return "dark";
+  if (typeof window === "undefined") return "light";
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
 function readStoredPreference(): ThemePreference {
-  if (typeof window === "undefined") return "dark";
+  if (typeof window === "undefined") return "light";
   try {
     const raw = window.localStorage.getItem(THEME_STORAGE_KEY);
     if (raw === "light" || raw === "dark" || raw === "system") return raw;
   } catch {
     /* ignore storage access errors (private mode, etc.) */
   }
-  return "dark";
+  return "light";
 }
 
 function applyTheme(theme: ResolvedTheme) {
@@ -50,14 +50,14 @@ function applyTheme(theme: ResolvedTheme) {
 
 /**
  * App-wide theme provider. SSR and the first client render both default to
- * "dark" (the app's existing look) so hydration markup matches; the stored
+ * "light" for new users so hydration markup matches; the stored
  * preference is applied in an effect right after mount. The inline script in
  * the root layout has already set the correct <html> class before paint, so
- * default-dark users see no flash and light users see at most one frame.
+ * new light-mode users see no flash while explicit dark users keep their stored choice.
  */
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [preference, setPreferenceState] = useState<ThemePreference>("dark");
-  const [theme, setTheme] = useState<ResolvedTheme>("dark");
+  const [preference, setPreferenceState] = useState<ThemePreference>("light");
+  const [theme, setTheme] = useState<ResolvedTheme>("light");
 
   useEffect(() => {
     const stored = readStoredPreference();
@@ -103,7 +103,7 @@ export function useTheme(): ThemeContextValue {
   const ctx = useContext(ThemeContext);
   if (!ctx) {
     // Safe fallback if a component renders outside the provider.
-    return { preference: "dark", theme: "dark", setPreference: () => {} };
+    return { preference: "light", theme: "light", setPreference: () => {} };
   }
   return ctx;
 }
