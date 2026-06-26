@@ -56,7 +56,23 @@ const {
   validateDocumentVersion,
 } = require("../lib/firestore-portfolio-contract.ts");
 const { adaptContractDocuments } = require("../lib/firestore-portfolio-adapter.ts");
+const { validateContractDocument } = require("../lib/firestore-portfolio-validate.ts");
+const { summaryOf, replaceSnapshots, getSnapshots, clearSnapshots } = require("../lib/portfolio-store.ts");
 const { MOCK_LATEST_SNAPSHOT } = require("../lib/mock-portfolio-data.ts");
+
+// In-memory window/localStorage shim so the localStorage-backed portfolio-store
+// behaves as it does in the browser (read() returns EMPTY when window is absent).
+if (typeof globalThis.window === "undefined") {
+  const store = new Map();
+  const localStorage = {
+    getItem: (k) => (store.has(k) ? store.get(k) : null),
+    setItem: (k, v) => store.set(k, String(v)),
+    removeItem: (k) => store.delete(k),
+    clear: () => store.clear(),
+  };
+  globalThis.window = { localStorage };
+  globalThis.localStorage = localStorage;
+}
 
 // ---- Build a contract document from a PortfolioSnapshot --------------------
 
@@ -251,7 +267,119 @@ function assertAdapterSkipsBadDocs() {
   assert.equal(result.snapshots.length, 1);
   assert.equal(result.skipped.length, 1);
   assert.equal(result.skipped[0].id, "bad-version");
+  assert.equal(result.outcome, "ok");
+  assert.equal(result.documentCount, 2);
   return { case: "adapter skips invalid docs", skipped: result.skipped.length };
+}
+
+// ---- Phase F: non-destructive loading + authoritative protection -----------
+
+function assertEmptyContractOutcome() {
+  const result = adaptContractDocuments([]);
+  assert.equal(result.outcome, "empty-collection");
+  assert.equal(result.documentCount, 0);
+  assert.equal(result.snapshots.length, 0);
+  return { case: "empty contract -> empty-collection", outcome: result.outcome };
+}
+
+function assertInvalidContractOutcome() {
+  const result = adaptContractDocuments([
+    { id: "bad1", data: { document_version: "9.9.9" } },
+    { id: "bad2", data: { document_version: "1.1.0" } },
+  ]);
+  assert.equal(result.outcome, "all-skipped");
+  assert.equal(result.documentCount, 2);
+  assert.equal(result.snapshots.length, 0);
+  assert.equal(result.skipped.length, 2);
+  return { case: "all-invalid contract -> all-skipped", outcome: result.outcome };
+}
+
+function applyContractToStoreSafely(adapted) {
+  if (adapted.outcome === "ok") {
+    replaceSnapshots(adapted.snapshots);
+    return "replaced";
+  }
+  return "preserved-local";
+}
+
+function assertNonDestructiveStore() {
+  clearSnapshots();
+  replaceSnapshots([MOCK_LATEST_SNAPSHOT]);
+  assert.equal(getSnapshots().length, 1);
+
+  const empty = adaptContractDocuments([]);
+  assert.equal(applyContractToStoreSafely(empty), "preserved-local");
+  assert.equal(getSnapshots().length, 1, "empty contract must not erase local snapshots");
+
+  const invalid = adaptContractDocuments([{ id: "bad", data: { document_version: "9.9.9" } }]);
+  assert.equal(applyContractToStoreSafely(invalid), "preserved-local");
+  assert.equal(getSnapshots().length, 1, "all-invalid contract must not erase local snapshots");
+
+  const ok = adaptContractDocuments([{ id: "d", data: snapshotToContractDocument(MOCK_LATEST_SNAPSHOT, "1.1.0") }]);
+  assert.equal(applyContractToStoreSafely(ok), "replaced");
+  assert.equal(getSnapshots().length, 1);
+  clearSnapshots();
+  return { case: "non-destructive store (no data loss)", result: "local preserved on empty/invalid" };
+}
+
+function assertAuthoritativeTotalsProtected() {
+  const doc = snapshotToContractDocument(MOCK_LATEST_SNAPSHOT, "1.1.0");
+  const mapped = mapContractToSnapshot(doc, { docId: "auth" }).snapshot;
+  const withAggregateRow = {
+    ...mapped,
+    holdings: [
+      ...mapped.holdings,
+      { id: "agg", broker: "", assetType: "기타", productName: "총 43개", ticker: "", principalKRW: 0, valueKRW: 0, needsReview: true },
+    ],
+  };
+
+  const summary = summaryOf(withAggregateRow);
+  assert.equal(summary.investmentValueKRW, doc.totals.total_investments_krw);
+  assert.equal(summary.investmentPrincipalKRW, doc.totals.investment_principal_krw);
+  assert.equal(summary.returnAmountKRW, doc.totals.return_amount_krw);
+  assert.equal(summary.totalAssetKRW, doc.totals.total_assets_krw);
+  assert.equal(summary.netAssetKRW, doc.totals.net_worth_krw);
+
+  clearSnapshots();
+  replaceSnapshots([withAggregateRow]);
+  const stored = getSnapshots()[0];
+  assert.equal(stored.investmentValueKRW, doc.totals.total_investments_krw, "sanitize must not overwrite authoritative totals");
+  assert.equal(stored.returnAmountKRW, doc.totals.return_amount_krw);
+  assert.ok(stored.holdings.every((h) => h.id !== "agg"), "aggregate row should be filtered for display");
+  clearSnapshots();
+  return { case: "authoritativeTotals protected from sanitize/recalc", result: "totals preserved, row filtered" };
+}
+
+// ---- Phase F: developer-only validator -------------------------------------
+
+function assertValidatorAcceptsConsistentDoc() {
+  const doc = snapshotToContractDocument(MOCK_LATEST_SNAPSHOT, "1.1.0");
+  const report = validateContractDocument(doc, { documentId: "consistent" });
+  assert.equal(report.ok, true);
+  assert.equal(report.issues.length, 0, JSON.stringify(report.issues));
+  return { case: "validator accepts consistent doc", ok: report.ok };
+}
+
+function assertValidatorFlagsDivergence() {
+  const doc = snapshotToContractDocument(MOCK_LATEST_SNAPSHOT, "1.1.0");
+  doc.totals.return_amount_krw += 1_000_000;
+  doc.totals.net_worth_krw += 5_000;
+  const report = validateContractDocument(doc, { documentId: "divergent" });
+  assert.equal(report.ok, true, "divergence is warning-severity, not a hard error");
+  assert.ok(report.issues.some((i) => i.code === "return_amount_divergence"));
+  assert.ok(report.issues.some((i) => i.code === "net_worth_divergence"));
+  return { case: "validator flags total divergence", issues: report.issues.length };
+}
+
+function assertValidatorRejectsMissing() {
+  const missingVersion = validateContractDocument({ snapshot_date: "2026-01-01", totals: {} });
+  assert.equal(missingVersion.ok, false);
+  assert.ok(missingVersion.issues.some((i) => i.code === "document_version_invalid"));
+
+  const missingTotals = validateContractDocument({ document_version: "1.1.0", snapshot_date: "2026-01-01" });
+  assert.equal(missingTotals.ok, false);
+  assert.ok(missingTotals.issues.some((i) => i.code === "totals_missing"));
+  return { case: "validator rejects missing version/totals", result: "errors reported" };
 }
 
 function assertContractTotalsFlowThroughPipeline() {
@@ -299,6 +427,13 @@ function main() {
     assertAdapterSkipsBadDocs(),
     assertContractTotalsFlowThroughPipeline(),
     assertOfflineFallbackStillRecomputes(),
+    assertEmptyContractOutcome(),
+    assertInvalidContractOutcome(),
+    assertNonDestructiveStore(),
+    assertAuthoritativeTotalsProtected(),
+    assertValidatorAcceptsConsistentDoc(),
+    assertValidatorFlagsDivergence(),
+    assertValidatorRejectsMissing(),
   ];
 
   const compatibility = [runCompatibility("1.0.0"), runCompatibility("1.1.0")];

@@ -77,7 +77,8 @@
     "check:schd-attractiveness-dense-data": "node scripts/check-schd-attractiveness-dense-data.mjs",
     "check:small-ui-favicon-modal-chart-fix": "node scripts/check-small-ui-favicon-modal-chart-fix.mjs",
     "check:calculator-dense-history": "node scripts/check-calculator-dense-history.mjs",
-    "check:firestore-portfolio-adapter": "node scripts/check-firestore-portfolio-adapter.mjs"
+    "check:firestore-portfolio-adapter": "node scripts/check-firestore-portfolio-adapter.mjs",
+    "validate:firestore-contract": "node scripts/validate-firestore-contract.mjs"
   },
   "dependencies": {
     "firebase": "^11.0.0",
