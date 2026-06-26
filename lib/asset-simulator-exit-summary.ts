@@ -85,9 +85,10 @@ export function buildExitSummary(
   //     · 인출 시작 시점까지 기존 CAGR 로 성장 → 추가 잔고
   //     · 기존 인출률 = 기존 첫 월 인출(명목) ÷ 인출 시작 시 절세계좌 잔고(명목) (실효 인출률)
   //     · 월 증가분(명목) = 기존 인출률 × 추가 잔고
-  // 카드3: 1년 더 근무 — "현재 연도(시뮬레이터 시작연도)에 1년 동안 추가로 적립하는 금액"이
-  //   절세계좌 자산을 늘렸을 때, 기존 인출률을 그대로 적용하면 월 얼마 증가하는가를 보여준다.
+  // 카드3: 1년 더 근무 — "현재 연도(시뮬레이터 시작연도)에 1년 더 일해서 추가로 모은 적립금"만
+  //   기준으로, 기존 인출률을 그대로 적용하면 월 얼마 증가하는가를 보여준다.
   //   ※ 은퇴연도가 아니라 "현재 연도" 기준 추가 적립금을 사용한다(예: 2026→280, 2027→290 ...).
+  //   ※ 추가 적립금은 성장(CAGR)시키지 않고 "원금 그대로" 사용한다(1년 더 모은 돈만 반영).
   //   재시뮬레이션을 하지 않으므로 은퇴시점·CAGR·배당·인출구간·할인기준 등 다른 변수는 일절 변하지 않는다.
   const plan = projection.withdrawPlan;
   let oneMoreYearMonthlyDeltaNominal = 0;
@@ -109,12 +110,10 @@ export function buildExitSummary(
     const baselineMonthlyNominal = firstWithdrawRow.monthlyNominal;
 
     if (balanceAtStart > 0) {
-      const cagr = inputs.annualReturnRate / 100;
-      // 추가 적립은 현재 연도에 이뤄지고, 인출 시작 시점까지 기존 CAGR 로 성장한다.
-      const growthYears = Math.max(0, plan.actualStartYear - currentYear);
-      const addedBalanceAtStart = additionalMonthly * 12 * Math.pow(1 + cagr, growthYears);
+      // 추가 적립 "원금 그대로" 사용 — 성장(CAGR) 시키지 않는다(1년 더 모은 돈만 반영).
+      const addedPrincipal = additionalMonthly * 12;
       const effectiveMonthlyRate = baselineMonthlyNominal / balanceAtStart;
-      oneMoreYearMonthlyDeltaNominal = Math.max(0, effectiveMonthlyRate * addedBalanceAtStart);
+      oneMoreYearMonthlyDeltaNominal = Math.max(0, effectiveMonthlyRate * addedPrincipal);
     }
   }
 
