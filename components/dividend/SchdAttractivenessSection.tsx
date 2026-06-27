@@ -275,8 +275,8 @@ export default function SchdAttractivenessSection() {
   const targetSummary = metrics?.targetRows.slice(0, 3).map((row) => `${row.targetYield} ${fmtCurrency(row.ttmBuyPrice)}`).join(" · ");
 
   // SCHD Dividend Yield (TTM) as a full daily line series — the SAME source as
-  // the main chart above. Fed into the detail modal's "Dividend" tab and reused
-  // by the "Spread" tab so no extra dividend data is fetched.
+  // the main chart above. Reused by the detail modal's "Spread" tab so no extra
+  // dividend data is fetched.
   const dividendYieldSeries = useMemo<DetailLinePoint[]>(
     () =>
       metrics
@@ -286,7 +286,7 @@ export default function SchdAttractivenessSection() {
         : [],
     [metrics],
   );
-  // Extensible line-metric tabs (Dividend / US10Y / Spread). Memoized so the
+  // Extensible line-metric tabs (Compare / US10Y / Spread). Memoized so the
   // modal doesn't re-resolve on every render. Append more tabs here later
   // (Real Yield / MOVE / VIX …) without touching the modal.
   const detailLineTabs = useMemo(() => buildSchdDetailLineTabs(dividendYieldSeries), [dividendYieldSeries]);

@@ -25,6 +25,7 @@ import {
   formatUsd,
   movingAverage,
   type DetailLinePoint,
+  type DetailLineSeries,
   type DetailLineTab,
   type IndexCandle,
   type IndexDef,
@@ -148,6 +149,27 @@ function filterLineByRange(points: DetailLinePoint[], range: string): DetailLine
   return points.filter((point) => parseIsoMs(point.date) >= startMs);
 }
 
+// A multi-series view: each series range-filtered and (optionally) re-based to
+// 100 at its first in-range point so the Compare lines share a 100 start.
+type ViewSeries = { key: string; label: string; color: string; points: DetailLinePoint[] };
+
+function filterAndNormalizeMulti(series: DetailLineSeries[], range: string, normalize: boolean): ViewSeries[] {
+  return series.map((s) => {
+    const filtered = filterLineByRange(s.points, range);
+    if (!normalize || filtered.length === 0) {
+      return { key: s.key, label: s.label, color: s.color, points: filtered };
+    }
+    const base = filtered[0].value;
+    const factor = base ? 100 / base : 1;
+    return {
+      key: s.key,
+      label: s.label,
+      color: s.color,
+      points: filtered.map((p) => ({ date: p.date, value: Number((p.value * factor).toFixed(4)) })),
+    };
+  });
+}
+
 function formatMetricValue(value: number | null | undefined, digits: number, unit: string): string {
   if (value == null || !Number.isFinite(value)) return "—";
   return `${value.toFixed(digits)}${unit}`;
@@ -244,14 +266,19 @@ export default function IndexDetailModal({ def, initialRange, onClose, lineTabs,
     () => (isPriceTab ? null : lineTabs?.find((t) => t.key === activeTab) ?? null),
     [activeTab, isPriceTab, lineTabs],
   );
+  const isMultiTab = !!activeLineTab?.resolveMulti;
 
   // Line-metric data: full daily history per tab (range-filtered at render).
   const lineCacheRef = useRef<Record<string, DetailLinePoint[]>>({});
+  const multiCacheRef = useRef<Record<string, DetailLineSeries[]>>({});
   const [lineData, setLineData] = useState<DetailLinePoint[] | null>(null);
+  const [multiData, setMultiData] = useState<DetailLineSeries[] | null>(null);
   const [lineLoading, setLineLoading] = useState(false);
   const [lineError, setLineError] = useState(false);
-  // Crosshair-synced value for the active line metric (null = use latest).
+  // Crosshair-synced value for the active single-line metric (null = use latest).
   const [hoverLineValue, setHoverLineValue] = useState<number | null>(null);
+  // Crosshair-synced values per series for multi-line (Compare) tabs.
+  const [hoverMulti, setHoverMulti] = useState<Record<string, number> | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -259,6 +286,11 @@ export default function IndexDetailModal({ def, initialRange, onClose, lineTabs,
   const volumeRef = useRef<ISeriesApi<"Histogram"> | null>(null);
   const maRefs = useRef<Partial<Record<MaPeriod, ISeriesApi<"Line">>>>({});
   const lineRef = useRef<ISeriesApi<"Line"> | null>(null);
+  // Reusable pool of line series for multi-line (Compare) tabs.
+  const multiRefs = useRef<ISeriesApi<"Line">[]>([]);
+  // Currently-bound multi series (key + api) so the crosshair handler can read
+  // per-series hovered values without rebuilding the chart.
+  const activeMultiRef = useRef<Array<{ key: string; series: ISeriesApi<"Line"> }>>([]);
   const zeroLineRef = useRef<IPriceLine | null>(null);
   // Latest candles kept in a ref so the crosshair handler (bound once) can resolve
   // the hovered bar's previous close without rebuilding the chart on every fetch.
@@ -278,6 +310,7 @@ export default function IndexDetailModal({ def, initialRange, onClose, lineTabs,
     setRange(initialRange || DEFAULT_DETAIL_RANGE);
     setActiveTab(PRICE_TAB_KEY);
     lineCacheRef.current = {};
+    multiCacheRef.current = {};
   }, [def.symbol, initialRange]);
 
   // Fetch daily price data. Non-intraday ranges share a single "5y" request
@@ -313,15 +346,53 @@ export default function IndexDetailModal({ def, initialRange, onClose, lineTabs,
   useEffect(() => {
     if (!activeLineTab) return;
     const key = activeLineTab.key;
+
+    // Multi-line (Compare) tab.
+    if (activeLineTab.resolveMulti) {
+      const cached = multiCacheRef.current[key];
+      if (cached) {
+        setMultiData(cached);
+        setLineData(null);
+        setLineLoading(false);
+        setLineError(false);
+        return;
+      }
+      let active = true;
+      setMultiData(null);
+      setLineData(null);
+      setLineLoading(true);
+      setLineError(false);
+      activeLineTab
+        .resolveMulti()
+        .then((data) => {
+          if (!active) return;
+          multiCacheRef.current[key] = data;
+          setMultiData(data);
+          setLineLoading(false);
+        })
+        .catch(() => {
+          if (!active) return;
+          setLineError(true);
+          setLineLoading(false);
+        });
+      return () => {
+        active = false;
+      };
+    }
+
+    // Single-line metric tab.
+    if (!activeLineTab.resolve) return;
     const cached = lineCacheRef.current[key];
     if (cached) {
       setLineData(cached);
+      setMultiData(null);
       setLineLoading(false);
       setLineError(false);
       return;
     }
     let active = true;
     setLineData(null);
+    setMultiData(null);
     setLineLoading(true);
     setLineError(false);
     activeLineTab
@@ -341,6 +412,13 @@ export default function IndexDetailModal({ def, initialRange, onClose, lineTabs,
       active = false;
     };
   }, [activeLineTab]);
+
+  // Range-filtered + normalized multi-series view (Compare). Shared by the
+  // chart render and the header/info legend so both stay in sync.
+  const viewMulti = useMemo<ViewSeries[]>(() => {
+    if (!isMultiTab || !multiData) return [];
+    return filterAndNormalizeMulti(multiData, range, !!activeLineTab?.normalizeToStart);
+  }, [isMultiTab, multiData, range, activeLineTab]);
 
   // Build the chart (re-created when the theme changes).
   useEffect(() => {
@@ -385,8 +463,8 @@ export default function IndexDetailModal({ def, initialRange, onClose, lineTabs,
       });
     });
 
-    // Single reusable line series for the optional line-metric tabs. Hidden
-    // until a line tab is active; its color/data are set per active tab.
+    // Single reusable line series for single-metric line tabs. Hidden until a
+    // line tab is active; its color/data are set per active tab.
     const line = chart.addLineSeries({
       color: "#f2994a",
       lineWidth: 2,
@@ -395,19 +473,49 @@ export default function IndexDetailModal({ def, initialRange, onClose, lineTabs,
       visible: false,
     });
 
+    // Reusable pool of line series for multi-line (Compare) tabs. Hidden until
+    // a multi tab is active; color/data/visibility set per active series.
+    const MAX_MULTI_LINES = 4;
+    const multiSeries: ISeriesApi<"Line">[] = [];
+    for (let i = 0; i < MAX_MULTI_LINES; i += 1) {
+      multiSeries.push(
+        chart.addLineSeries({
+          color: "#3b82f6",
+          lineWidth: 2,
+          priceLineVisible: false,
+          lastValueVisible: true,
+          crosshairMarkerVisible: true,
+          visible: false,
+        }),
+      );
+    }
+
     chartRef.current = chart;
     candleRef.current = candle;
     volumeRef.current = volume;
     maRefs.current = maSeries;
     lineRef.current = line;
+    multiRefs.current = multiSeries;
 
     // Sync the top OHLC row with the hovered candle and the line metric value
     // with the hovered point; fall back to the latest bar when the pointer
     // leaves the chart.
     chart.subscribeCrosshairMove((param) => {
-      // Line metric hover value.
+      // Single line metric hover value.
       const lineBar = param.time !== undefined ? (param.seriesData.get(line) as { value?: number } | undefined) : undefined;
       setHoverLineValue(lineBar && typeof lineBar.value === "number" ? lineBar.value : null);
+
+      // Multi-line (Compare) hover values, keyed by series.
+      if (activeMultiRef.current.length) {
+        const map: Record<string, number> = {};
+        for (const { key, series } of activeMultiRef.current) {
+          const bar = param.time !== undefined ? (param.seriesData.get(series) as { value?: number } | undefined) : undefined;
+          if (bar && typeof bar.value === "number") map[key] = bar.value;
+        }
+        setHoverMulti(Object.keys(map).length ? map : null);
+      } else {
+        setHoverMulti(null);
+      }
 
       const candles = candlesRef.current;
       if (candles.length === 0) return;
@@ -440,6 +548,8 @@ export default function IndexDetailModal({ def, initialRange, onClose, lineTabs,
       volumeRef.current = null;
       maRefs.current = {};
       lineRef.current = null;
+      multiRefs.current = [];
+      activeMultiRef.current = [];
       zeroLineRef.current = null;
     };
   }, [dark]);
@@ -488,6 +598,7 @@ export default function IndexDetailModal({ def, initialRange, onClose, lineTabs,
   // Push line-metric data into the chart (filtered by the shared range).
   useEffect(() => {
     const line = lineRef.current;
+    const multi = multiRefs.current;
     const chart = chartRef.current;
     if (!line || !chart) return;
 
@@ -497,11 +608,52 @@ export default function IndexDetailModal({ def, initialRange, onClose, lineTabs,
       zeroLineRef.current = null;
     }
 
+    // Drive the visible time range from the line's OWN [first,last] dates so
+    // the selected period fills the X-axis. fitContent() would also include
+    // the hidden candlestick series' wider span and squeeze the line to the
+    // right edge (the reported "data clustered on the right" bug).
+    const setLineVisibleRange = (firstDate?: string, lastDate?: string) => {
+      if (firstDate && lastDate && firstDate < lastDate) {
+        chart.timeScale().setVisibleRange({ from: firstDate as never, to: lastDate as never });
+      } else {
+        chart.timeScale().fitContent();
+      }
+    };
+
+    chart.applyOptions({ timeScale: { timeVisible: false, secondsVisible: false } });
+
+    // Multi-line (Compare) tab: render each normalized series on the pool.
+    if (isMultiTab) {
+      line.setData([]);
+      activeMultiRef.current = [];
+      const span: { first?: string; last?: string } = {};
+      multi.forEach((series, i) => {
+        const view = viewMulti[i];
+        if (view && view.points.length) {
+          series.applyOptions({ color: view.color, visible: true });
+          series.setData(view.points.map((p) => ({ time: p.date as never, value: p.value })));
+          activeMultiRef.current.push({ key: view.key, series });
+          if (!span.first) span.first = view.points[0].date;
+          span.last = view.points[view.points.length - 1].date;
+        } else {
+          series.setData([]);
+          series.applyOptions({ visible: false });
+        }
+      });
+      setLineVisibleRange(span.first, span.last);
+      return;
+    }
+
+    // Single-line metric tab.
+    activeMultiRef.current = [];
+    multi.forEach((s) => {
+      s.setData([]);
+      s.applyOptions({ visible: false });
+    });
     if (!activeLineTab || !lineData) {
       line.setData([]);
       return;
     }
-
     line.applyOptions({ color: activeLineTab.color });
     const filtered = filterLineByRange(lineData, range);
     line.setData(filtered.map((p) => ({ time: p.date as never, value: p.value })));
@@ -517,11 +669,8 @@ export default function IndexDetailModal({ def, initialRange, onClose, lineTabs,
       });
     }
 
-    // Line metrics are daily; never show an intraday time axis. Fit the
-    // filtered window so the selected period fills the chart.
-    chart.applyOptions({ timeScale: { timeVisible: false, secondsVisible: false } });
-    chart.timeScale().fitContent();
-  }, [activeLineTab, lineData, range, dark]);
+    setLineVisibleRange(filtered[0]?.date, filtered[filtered.length - 1]?.date);
+  }, [activeLineTab, isMultiTab, lineData, viewMulti, range, dark]);
 
   // Toggle series visibility per active tab (and MA toggles on the Price tab).
   useEffect(() => {
@@ -530,20 +679,37 @@ export default function IndexDetailModal({ def, initialRange, onClose, lineTabs,
     MA_PERIODS.forEach((period) => {
       maRefs.current[period]?.applyOptions({ visible: isPriceTab && visibleMa[period] });
     });
-    lineRef.current?.applyOptions({ visible: !isPriceTab });
-  }, [isPriceTab, visibleMa, quote, lineData]);
+    // Single line only on single-metric tabs; the multi pool is driven by the
+    // line-render effect but force-hidden on the Price tab.
+    lineRef.current?.applyOptions({ visible: !isPriceTab && !isMultiTab });
+    if (isPriceTab || !isMultiTab) {
+      multiRefs.current.forEach((s) => s.applyOptions({ visible: false }));
+    }
+  }, [isPriceTab, isMultiTab, visibleMa, quote, lineData, viewMulti]);
 
   const toggleMa = useCallback((period: MaPeriod) => {
     setVisibleMa((prev) => ({ ...prev, [period]: !prev[period] }));
   }, []);
 
-  // Header figures: Price tab uses the live quote; line tabs use the metric's
-  // latest value with a day-over-day change.
+  // Header figures: Price tab uses the live quote; single-line tabs use the
+  // metric's latest value; multi-line (Compare) tabs show a per-series legend.
   const lineLatest = lineData && lineData.length ? lineData[lineData.length - 1] : null;
   const linePrev = lineData && lineData.length >= 2 ? lineData[lineData.length - 2] : null;
   const lineDigits = activeLineTab?.digits ?? 2;
   const lineUnit = activeLineTab?.unit ?? "%";
   const lineChange = lineLatest && linePrev ? lineLatest.value - linePrev.value : null;
+
+  // Normalized latest value per Compare series (100 = start of range).
+  const multiLatest = useMemo(
+    () =>
+      viewMulti.map((s) => ({
+        key: s.key,
+        label: s.label,
+        color: s.color,
+        value: s.points.length ? s.points[s.points.length - 1].value : null,
+      })),
+    [viewMulti],
+  );
 
   const priceUp = (quote?.change ?? 0) >= 0;
   const lineUp = (lineChange ?? 0) >= 0;
@@ -553,7 +719,19 @@ export default function IndexDetailModal({ def, initialRange, onClose, lineTabs,
 
   const showLoading = isPriceTab ? loading : lineLoading;
   const showError = isPriceTab ? error : lineError;
-  const emptyLine = !isPriceTab && !lineLoading && !lineError && (lineData?.length ?? 0) === 0;
+  const emptyLine =
+    !isPriceTab &&
+    !lineLoading &&
+    !lineError &&
+    (isMultiTab ? viewMulti.every((s) => s.points.length === 0) : (lineData?.length ?? 0) === 0);
+
+  // "100 → 142.3" growth, signed, for the Compare legend.
+  const fmtGrowth = (value: number | null | undefined): string => {
+    if (value == null || !Number.isFinite(value)) return "—";
+    const g = value - 100;
+    const sign = g > 0 ? "+" : g < 0 ? "−" : "";
+    return `${sign}${Math.abs(g).toFixed(1)}%`;
+  };
 
   return (
     <div
@@ -583,6 +761,27 @@ export default function IndexDetailModal({ def, initialRange, onClose, lineTabs,
                     {quote ? `${formatSignedUsd(quote.change)} (${formatSignedPct(quote.changePct)})` : ""}
                   </span>
                 </>
+              ) : isMultiTab ? (
+                <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                  {multiLatest.map((s) => (
+                    <span key={s.key} className="inline-flex items-baseline gap-1.5">
+                      <span className="inline-block h-2 w-2 self-center rounded-full" style={{ backgroundColor: s.color }} />
+                      <span className="text-[13px] font-bold text-slate-700 dark:text-slate-200">{s.label}</span>
+                      <span className="num text-[18px] font-extrabold text-slate-900 dark:text-white">
+                        {s.value != null ? s.value.toFixed(1) : "—"}
+                      </span>
+                      <span
+                        className={`num text-[12px] font-semibold ${
+                          s.value != null && s.value >= 100
+                            ? "text-green-600 dark:text-green-400"
+                            : "text-red-600 dark:text-red-400"
+                        }`}
+                      >
+                        {fmtGrowth(s.value)}
+                      </span>
+                    </span>
+                  ))}
+                </div>
               ) : (
                 <>
                   <span className="num text-[22px] font-extrabold text-slate-900 dark:text-white">
@@ -596,11 +795,13 @@ export default function IndexDetailModal({ def, initialRange, onClose, lineTabs,
               )}
             </div>
             <p className="mt-0.5 text-[11px] text-slate-400">
-              {quote?.source === "sample"
-                ? "샘플 데이터 (실시간 조회 불가)"
-                : quote
-                  ? `Yahoo Finance · ${formatUpdatedAt(quote.updatedAt)}`
-                  : ""}
+              {isMultiTab
+                ? "세후(미국 배당세 15%) 배당 재투자 Total Return · 선택 기간 시작 = 100"
+                : quote?.source === "sample"
+                  ? "샘플 데이터 (실시간 조회 불가)"
+                  : quote
+                    ? `Yahoo Finance · ${formatUpdatedAt(quote.updatedAt)}`
+                    : ""}
             </p>
           </div>
           <button
@@ -612,7 +813,7 @@ export default function IndexDetailModal({ def, initialRange, onClose, lineTabs,
           </button>
         </div>
 
-        {/* Metric tabs (Price | Dividend | US10Y | Spread …). Only rendered when
+        {/* Metric tabs (Price | Compare | US10Y | Spread …). Only rendered when
             line tabs are supplied; otherwise the modal stays Price-only. */}
         {hasTabs && (
           <div className="flex flex-wrap items-center gap-1 border-b border-slate-200 px-4 py-2 dark:border-[#2a3336] sm:px-5">
@@ -704,6 +905,27 @@ export default function IndexDetailModal({ def, initialRange, onClose, lineTabs,
             ) : (
               <span className="text-[12px] text-slate-400">—</span>
             )
+          ) : isMultiTab ? (
+            <div className="flex items-center gap-4">
+              {multiLatest.map((s) => {
+                const shown = (hoverMulti && hoverMulti[s.key] != null ? hoverMulti[s.key] : s.value) ?? null;
+                return (
+                  <span key={s.key} className="inline-flex shrink-0 items-baseline gap-1.5">
+                    <span className="inline-block h-1.5 w-1.5 self-center rounded-full" style={{ backgroundColor: s.color }} />
+                    <span className="font-bold text-slate-500 dark:text-slate-400">{s.label}</span>
+                    <span className="num font-semibold text-slate-900 dark:text-white">
+                      {shown != null ? shown.toFixed(1) : "—"}
+                    </span>
+                    <span
+                      className="num text-[11px] font-semibold"
+                      style={{ color: shown != null && shown < 100 ? "#dc2626" : "#16a34a" }}
+                    >
+                      ({fmtGrowth(shown)})
+                    </span>
+                  </span>
+                );
+              })}
+            </div>
           ) : (
             <span className="inline-flex shrink-0 items-baseline gap-1.5">
               <span className="font-bold text-slate-500 dark:text-slate-400">{activeLineTab?.label}</span>

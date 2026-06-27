@@ -104,6 +104,20 @@ export const DETAIL_RANGES: Array<{ label: string; key: string }> = [
 // expressed in the metric's own unit (percent for yields/spread).
 export type DetailLinePoint = { date: string; value: number };
 
+// A named line within a multi-series tab (e.g. SPY vs SCHD on the Compare tab).
+// Each carries its own color + full daily history; the modal range-filters and
+// (optionally) re-normalizes them together so they share one chart/axis.
+export type DetailLineSeries = {
+  /** Stable series key, e.g. "spy" | "schd". */
+  key: string;
+  /** Legend label. */
+  label: string;
+  /** Line color. */
+  color: string;
+  /** Full daily history (ascending by date). */
+  points: DetailLinePoint[];
+};
+
 export type DetailLineTab = {
   /** Stable tab key, e.g. "dividend" | "us10y" | "spread". */
   key: string;
@@ -118,11 +132,24 @@ export type DetailLineTab = {
   /** Draw a zero baseline (useful for signed metrics like Spread). */
   zeroBaseline?: boolean;
   /**
-   * Resolves the full daily history for this metric. Should reuse
-   * already-fetched data / fetchIndexQuote's cache to avoid duplicate
-   * network calls. Called once per modal session (result is cached).
+   * Re-base every series to 100 at the first point inside the selected range
+   * (used by the Compare tab so both lines share an identical 100 start point
+   * and the chart shows relative growth, not absolute levels).
    */
-  resolve: () => Promise<DetailLinePoint[]>;
+  normalizeToStart?: boolean;
+  /**
+   * Resolves the full daily history for a SINGLE-line metric. Should reuse
+   * already-fetched data / caches to avoid duplicate network calls. Called
+   * once per modal session (result is cached). Mutually exclusive with
+   * resolveMulti.
+   */
+  resolve?: () => Promise<DetailLinePoint[]>;
+  /**
+   * Resolves MULTIPLE named line series rendered on one chart (e.g. Compare:
+   * SPY + SCHD). Called once per modal session (result is cached). When set it
+   * takes precedence over resolve.
+   */
+  resolveMulti?: () => Promise<DetailLineSeries[]>;
 };
 
 export const MA_PERIODS = [20, 60, 120, 200] as const;
