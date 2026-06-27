@@ -23,6 +23,26 @@ export type SchdTargetPriceRow = {
   drawdownPct: number | null;
 };
 
+// One row per dividend event for the "최근 배당금 히스토리" table.
+export type SchdDividendHistoryRow = {
+  date: string;        // ex-dividend date (YYYY-MM-DD)
+  year: number;
+  quarter: number;     // 1-4 calendar quarter
+  amount: number;      // actual paid dividend amount
+  yoyPct: number | null; // vs same quarter previous year ("-" when no base)
+};
+
+// One row per calendar year for the "배당성장률 히스토리" table.
+export type SchdDividendGrowthRow = {
+  year: number;
+  payout: number;          // sum of dividends paid in the year
+  count: number;           // number of dividend events in the year
+  complete: boolean;       // whether the year has a full set of payments
+  yearEndYield: number | null;   // payout / year-end close * 100
+  annualGrowthPct: number | null; // YoY growth vs previous calendar year
+  cagrPct: number | null;        // compound annual growth rate from base year
+};
+
 export type SchdAttractivenessMetrics = {
   points: SchdYieldPoint[];
   latestDate: string;
@@ -32,8 +52,11 @@ export type SchdAttractivenessMetrics = {
   drawdownFrom52wHighPct: number | null;
   fiveYearAverageYield: number | null;
   latestFourDividend: number;
+  latestFourDividends: number[]; // individual amounts, oldest → newest
   recentQuarterDividend: number | null;
   targetRows: SchdTargetPriceRow[];
+  dividendHistory: SchdDividendHistoryRow[];     // latest first
+  dividendGrowthHistory: SchdDividendGrowthRow[]; // latest first
   fetchedAt?: string;
   warnings: string[];
 };
@@ -49,6 +72,103 @@ function isFinitePositive(value: unknown): value is number {
 
 function normalizeDate(date: string) {
   return date.slice(0, 10);
+}
+
+function getYearQuarter(date: string): { year: number; quarter: number } | null {
+  const d = new Date(`${normalizeDate(date)}T00:00:00Z`);
+  const ms = d.getTime();
+  if (!Number.isFinite(ms)) return null;
+  return { year: d.getUTCFullYear(), quarter: Math.floor(d.getUTCMonth() / 3) + 1 };
+}
+
+// Most frequent value in a list (used to infer the typical payments-per-year).
+function mostFrequent(values: number[], fallback: number): number {
+  if (!values.length) return fallback;
+  const counts = new Map<number, number>();
+  for (const value of values) counts.set(value, (counts.get(value) ?? 0) + 1);
+  let best = fallback;
+  let bestCount = -1;
+  Array.from(counts.entries()).forEach(([value, count]) => {
+    if (count > bestCount || (count === bestCount && value > best)) {
+      best = value;
+      bestCount = count;
+    }
+  });
+  return best;
+}
+
+// Builds the per-event dividend history with YoY (vs same calendar quarter of
+// the previous year) and the per-year dividend growth history (payout, year-end
+// yield, annual growth, and compound annual growth rate from the first full year).
+export function buildSchdDividendHistories(
+  dividends: Array<{ date: string; amount: number }>,
+  prices: Array<{ date: string; price: number }>,
+): { history: SchdDividendHistoryRow[]; growth: SchdDividendGrowthRow[] } {
+  // Sum per (year, quarter) so the YoY base is robust to occasional special payments.
+  const quarterSum = new Map<string, number>();
+  for (const dividend of dividends) {
+    const yq = getYearQuarter(dividend.date);
+    if (!yq) continue;
+    const key = `${yq.year}-${yq.quarter}`;
+    quarterSum.set(key, (quarterSum.get(key) ?? 0) + dividend.amount);
+  }
+
+  const historyAsc: SchdDividendHistoryRow[] = [];
+  for (const dividend of dividends) {
+    const yq = getYearQuarter(dividend.date);
+    if (!yq) continue;
+    const prior = quarterSum.get(`${yq.year - 1}-${yq.quarter}`);
+    const yoyPct = isFinitePositive(prior) ? (dividend.amount / prior - 1) * 100 : null;
+    historyAsc.push({ date: dividend.date, year: yq.year, quarter: yq.quarter, amount: dividend.amount, yoyPct });
+  }
+
+  // Year-end close: prices are ascending, so the last entry per year wins.
+  const yearEndClose = new Map<number, number>();
+  for (const price of prices) {
+    const year = getYearQuarter(price.date)?.year;
+    if (year != null && isFinitePositive(price.price)) yearEndClose.set(year, price.price);
+  }
+
+  // Aggregate payout + payment count per calendar year.
+  const yearAgg = new Map<number, { payout: number; count: number }>();
+  for (const dividend of dividends) {
+    const year = getYearQuarter(dividend.date)?.year;
+    if (year == null) continue;
+    const current = yearAgg.get(year) ?? { payout: 0, count: 0 };
+    current.payout += dividend.amount;
+    current.count += 1;
+    yearAgg.set(year, current);
+  }
+
+  const typicalCount = mostFrequent(Array.from(yearAgg.values()).map((entry) => entry.count), 4);
+  const yearsAsc = Array.from(yearAgg.keys()).sort((a, b) => a - b);
+
+  const growthAsc: SchdDividendGrowthRow[] = yearsAsc.map((year) => {
+    const agg = yearAgg.get(year)!;
+    const complete = agg.count >= typicalCount;
+    const yearEnd = yearEndClose.get(year);
+    const yearEndYield = complete && isFinitePositive(yearEnd) ? (agg.payout / yearEnd) * 100 : null;
+    return { year, payout: agg.payout, count: agg.count, complete, yearEndYield, annualGrowthPct: null, cagrPct: null };
+  });
+
+  const baseRow = growthAsc.find((row) => row.complete);
+  const byYear = new Map(growthAsc.map((row) => [row.year, row]));
+  for (const row of growthAsc) {
+    if (!row.complete) continue;
+    const prev = byYear.get(row.year - 1);
+    if (prev && prev.complete && isFinitePositive(prev.payout)) {
+      row.annualGrowthPct = (row.payout / prev.payout - 1) * 100;
+    }
+    if (baseRow && baseRow.year < row.year && isFinitePositive(baseRow.payout)) {
+      const span = row.year - baseRow.year;
+      row.cagrPct = (Math.pow(row.payout / baseRow.payout, 1 / span) - 1) * 100;
+    }
+  }
+
+  return {
+    history: historyAsc.reverse(),
+    growth: growthAsc.reverse(),
+  };
 }
 
 // Port of original/pages_app/8_attractiveness_score.py:
@@ -134,6 +254,8 @@ export function calculateSchdAttractiveness(
   const fiveYearYields = valid.map((point) => ({ ms: parseDateMs(point.date), value: point.ttmYield })).filter((point) => point.ms >= fiveYearAgoMs && Number.isFinite(point.value ?? NaN));
   const fiveYearAverageYield = fiveYearYields.length ? fiveYearYields.reduce((sum, point) => sum + (point.value ?? 0), 0) / fiveYearYields.length : null;
   const recentQuarterDividend = dividends.length ? dividends[dividends.length - 1].amount : null;
+  const latestFourDividends = dividends.slice(-4).map((dividend) => dividend.amount);
+  const { history: dividendHistory, growth: dividendGrowthHistory } = buildSchdDividendHistories(dividends, prices);
 
   const targetRows = SCHD_TARGET_YIELDS.map((targetYield) => {
     const ttmBuyPrice = latest.ttmDividend && latest.ttmDividend > 0 ? latest.ttmDividend / targetYield : null;
@@ -155,8 +277,11 @@ export function calculateSchdAttractiveness(
     drawdownFrom52wHighPct,
     fiveYearAverageYield,
     latestFourDividend: latest.ttmDividend ?? NaN,
+    latestFourDividends,
     recentQuarterDividend,
     targetRows,
+    dividendHistory,
+    dividendGrowthHistory,
     fetchedAt: history.updatedAt || dividendsResponse.updatedAt || last?.updatedAt,
     warnings: [...(history.warnings ?? []), ...(dividendsResponse.warnings ?? []), ...(last?.warnings ?? [])],
   };
