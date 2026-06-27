@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { quoteDividendsPath, quoteHistoryPath, quoteLastPath } from "@/lib/quote-client";
+import { quoteDividendsPath, quoteDividendsPrecisePath, quoteHistoryPath, quoteLastPath } from "@/lib/quote-client";
 import { DEFAULT_DETAIL_RANGE, INDEX_DEFS, fetchIndexQuote, type IndexDef, type IndexQuote } from "@/lib/market-index";
 import type { QuoteDividendsResponse, QuoteHistoryResponse, QuoteLastResponse } from "@/lib/quote-types";
 const IndexSparkline = dynamic(() => import("@/components/market/IndexSparkline"), { ssr: false });
@@ -39,8 +39,10 @@ async function fetchJson<T>(path: string): Promise<T> {
 function fmtCurrency(value: number | null | undefined) {
   return Number.isFinite(value ?? NaN) ? `$${(value as number).toFixed(2)}` : "조회 불가";
 }
-function fmtCurrency4(value: number | null | undefined) {
-  return Number.isFinite(value ?? NaN) ? `$${(value as number).toFixed(4)}` : "조회 불가";
+// Exact dividend amount as provided by the source (no rounding / zero padding).
+function fmtRawAmount(value: number | null | undefined) {
+  if (!Number.isFinite(value ?? NaN)) return "조회 불가";
+  return `$${Number((value as number).toFixed(6))}`;
 }
 function fmtPercent(value: number | null | undefined, digits = 2) {
   return Number.isFinite(value ?? NaN) ? `${(value as number).toFixed(digits)}%` : "조회 불가";
@@ -180,7 +182,7 @@ function DividendHistoryTable({ rows }: { rows: SchdDividendHistoryRow[] }) {
             <tr key={`${row.date}-${row.amount}`}>
               <td className="px-2 py-2 font-bold text-slate-900 dark:text-white">{row.year}</td>
               <td className="px-2 py-2 text-slate-600 dark:text-slate-300">{row.date}</td>
-              <td className="px-2 py-2 text-right tabular-nums text-slate-900 dark:text-white">${row.amount.toFixed(4)}</td>
+              <td className="px-2 py-2 text-right tabular-nums text-slate-900 dark:text-white">{fmtRawAmount(row.amount)}</td>
               <td className={`px-2 py-2 text-right font-bold tabular-nums ${changeToneClass(row.yoyPct)}`}>{fmtSignedPercent(row.yoyPct)}</td>
             </tr>
           ))}
@@ -200,8 +202,8 @@ function DividendGrowthTable({ rows }: { rows: SchdDividendGrowthRow[] }) {
             <th className="px-2 py-2 font-extrabold">Year</th>
             <th className="px-2 py-2 text-right font-extrabold">Payout Amount</th>
             <th className="px-2 py-2 text-right font-extrabold">Year End Yield</th>
-            <th className="px-2 py-2 text-right font-extrabold">Annual Payout Growth</th>
-            <th className="px-2 py-2 text-right font-extrabold">CAGR</th>
+            <th className="px-2 py-2 text-right font-extrabold">전년대비 배당성장률</th>
+            <th className="px-2 py-2 text-right font-extrabold">TR</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100 dark:divide-white/10">
@@ -214,7 +216,7 @@ function DividendGrowthTable({ rows }: { rows: SchdDividendGrowthRow[] }) {
               <td className="px-2 py-2 text-right tabular-nums text-slate-900 dark:text-white">${row.payout.toFixed(4)}</td>
               <td className="px-2 py-2 text-right tabular-nums text-slate-600 dark:text-slate-300">{row.yearEndYield == null ? "-" : `${row.yearEndYield.toFixed(2)}%`}</td>
               <td className={`px-2 py-2 text-right font-bold tabular-nums ${changeToneClass(row.annualGrowthPct)}`}>{fmtSignedPercent(row.annualGrowthPct)}</td>
-              <td className={`px-2 py-2 text-right font-bold tabular-nums ${changeToneClass(row.cagrPct)}`}>{fmtSignedPercent(row.cagrPct)}</td>
+              <td className={`px-2 py-2 text-right font-bold tabular-nums ${changeToneClass(row.totalReturnPct)}`}>{fmtSignedPercent(row.totalReturnPct)}</td>
             </tr>
           ))}
         </tbody>
@@ -244,7 +246,11 @@ export default function SchdAttractivenessSection() {
           fetchJson<QuoteDividendsResponse>(quoteDividendsPath({ ticker: "SCHD", start: historyWindow.start, end: historyWindow.end })),
           fetchJson<QuoteLastResponse>(quoteLastPath({ ticker: "SCHD" })),
         ]);
-        const next = calculateSchdAttractiveness(history, dividends, last);
+        // Precise declared dividend amounts for display only; non-fatal if it fails.
+        const precise = await fetchJson<QuoteDividendsResponse>(
+          quoteDividendsPrecisePath({ ticker: "SCHD", start: historyWindow.start, end: historyWindow.end }),
+        ).catch(() => null);
+        const next = calculateSchdAttractiveness(history, dividends, last, precise);
         if (!active) return;
         if (!next) {
           setMetrics(null);
@@ -293,7 +299,7 @@ export default function SchdAttractivenessSection() {
             )
           }
         />
-        <MetricCard label="최근 분기 배당금" value={fmtCurrency4(metrics.recentQuarterDividend)} subtext="가장 최근 1회 배당" />
+        <MetricCard label="최근 분기 배당금" value={fmtRawAmount(metrics.recentQuarterDividendDisplay)} subtext="가장 최근 1회 배당 (실제 지급액)" />
       </div>
 
       <div>
@@ -348,11 +354,11 @@ export default function SchdAttractivenessSection() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <CollapsibleHistory title="최근 배당금 히스토리" open={historyOpen} onToggle={() => setHistoryOpen((v) => !v)}>
           <DividendHistoryTable rows={metrics.dividendHistory.slice(0, 20)} />
-          <p className="mt-2 text-[10px] font-bold text-slate-400 dark:text-slate-500">YoY는 전년 동일 분기 대비 증감률입니다. (Amount는 실제 지급 배당금)</p>
+          <p className="mt-2 text-[10px] font-bold text-slate-400 dark:text-slate-500">Amount는 실제 지급 배당금(원본값) 그대로이며, YoY는 전년 동일 분기 대비 증감률입니다.</p>
         </CollapsibleHistory>
         <CollapsibleHistory title="배당성장률 히스토리" open={growthOpen} onToggle={() => setGrowthOpen((v) => !v)}>
           <DividendGrowthTable rows={metrics.dividendGrowthHistory} />
-          <p className="mt-2 text-[10px] font-bold text-slate-400 dark:text-slate-500">CAGR은 최초 정상 연도 대비 연평균 복리 성장률입니다.</p>
+          <p className="mt-2 text-[10px] font-bold text-slate-400 dark:text-slate-500">TR(Total Return)은 배당 재투자를 포함한 해당 연도 총수익률입니다. (주가수익률 + 배당수익률)</p>
         </CollapsibleHistory>
       </div>
 

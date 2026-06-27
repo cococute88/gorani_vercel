@@ -62,6 +62,14 @@ export function quoteDividendsPath(input: QuoteDividendsRequest) {
   })}`;
 }
 
+export function quoteDividendsPrecisePath(input: QuoteDividendsRequest) {
+  return `/api/quote/dividends-precise?${createQuery({
+    ticker: input.ticker,
+    start: input.start,
+    end: input.end,
+  })}`;
+}
+
 export function quoteLastPath(input: QuoteLastRequest) {
   return `/api/quote/last?${createQuery({ ticker: input.ticker })}`;
 }

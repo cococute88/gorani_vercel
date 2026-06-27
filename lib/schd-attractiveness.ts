@@ -40,7 +40,7 @@ export type SchdDividendGrowthRow = {
   complete: boolean;       // whether the year has a full set of payments
   yearEndYield: number | null;   // payout / year-end close * 100
   annualGrowthPct: number | null; // YoY growth vs previous calendar year
-  cagrPct: number | null;        // compound annual growth rate from base year
+  totalReturnPct: number | null;  // dividend-reinvested total return for the year
 };
 
 export type SchdAttractivenessMetrics = {
@@ -52,11 +52,13 @@ export type SchdAttractivenessMetrics = {
   drawdownFrom52wHighPct: number | null;
   fiveYearAverageYield: number | null;
   latestFourDividend: number;
-  latestFourDividends: number[]; // individual amounts, oldest → newest
-  recentQuarterDividend: number | null;
+  latestFourDividends: number[]; // individual display amounts, oldest → newest
+  recentQuarterDividend: number | null;        // Yahoo-based, used for target-price math
+  recentQuarterDividendDisplay: number | null; // precise amount for display
   targetRows: SchdTargetPriceRow[];
   dividendHistory: SchdDividendHistoryRow[];     // latest first
   dividendGrowthHistory: SchdDividendGrowthRow[]; // latest first
+  dividendAmountSource: "precise" | "yahoo";     // source of displayed dividend amounts
   fetchedAt?: string;
   warnings: string[];
 };
@@ -99,11 +101,25 @@ function mostFrequent(values: number[], fallback: number): number {
 
 // Builds the per-event dividend history with YoY (vs same calendar quarter of
 // the previous year) and the per-year dividend growth history (payout, year-end
-// yield, annual growth, and compound annual growth rate from the first full year).
+// yield, annual growth, and dividend-reinvested total return for the year).
 export function buildSchdDividendHistories(
   dividends: Array<{ date: string; amount: number }>,
   prices: Array<{ date: string; price: number }>,
 ): { history: SchdDividendHistoryRow[]; growth: SchdDividendGrowthRow[] } {
+  // Sorted (ascending) price lookup for total-return reinvestment math.
+  const priceSeries = prices
+    .map((price) => ({ ms: parseDateMs(price.date), price: price.price }))
+    .filter((entry) => Number.isFinite(entry.ms) && isFinitePositive(entry.price))
+    .sort((a, b) => a.ms - b.ms);
+  const closeOnOrBefore = (dateMs: number): number | null => {
+    let result: number | null = null;
+    for (const entry of priceSeries) {
+      if (entry.ms <= dateMs) result = entry.price;
+      else break;
+    }
+    return result;
+  };
+
   // Sum per (year, quarter) so the YoY base is robust to occasional special payments.
   const quarterSum = new Map<string, number>();
   for (const dividend of dividends) {
@@ -129,39 +145,52 @@ export function buildSchdDividendHistories(
     if (year != null && isFinitePositive(price.price)) yearEndClose.set(year, price.price);
   }
 
-  // Aggregate payout + payment count per calendar year.
-  const yearAgg = new Map<number, { payout: number; count: number }>();
+  // Aggregate payout + payment count (and keep the events) per calendar year.
+  const yearAgg = new Map<number, { payout: number; count: number; events: Array<{ ms: number; amount: number }> }>();
   for (const dividend of dividends) {
-    const year = getYearQuarter(dividend.date)?.year;
-    if (year == null) continue;
-    const current = yearAgg.get(year) ?? { payout: 0, count: 0 };
+    const yq = getYearQuarter(dividend.date);
+    if (yq == null) continue;
+    const current = yearAgg.get(yq.year) ?? { payout: 0, count: 0, events: [] };
     current.payout += dividend.amount;
     current.count += 1;
-    yearAgg.set(year, current);
+    current.events.push({ ms: parseDateMs(dividend.date), amount: dividend.amount });
+    yearAgg.set(yq.year, current);
   }
 
   const typicalCount = mostFrequent(Array.from(yearAgg.values()).map((entry) => entry.count), 4);
   const yearsAsc = Array.from(yearAgg.keys()).sort((a, b) => a - b);
+
+  // Dividend-reinvested total return for a complete year:
+  // start with 1 share at the prior year-end close, reinvest each dividend at
+  // the close on/before its ex-date, then value the shares at the year-end close.
+  const totalReturnFor = (year: number, events: Array<{ ms: number; amount: number }>): number | null => {
+    const startClose = yearEndClose.get(year - 1);
+    const endClose = yearEndClose.get(year);
+    if (!isFinitePositive(startClose) || !isFinitePositive(endClose)) return null;
+    let shares = 1;
+    for (const event of events.slice().sort((a, b) => a.ms - b.ms)) {
+      if (!isFinitePositive(event.amount)) continue;
+      const exClose = Number.isFinite(event.ms) ? closeOnOrBefore(event.ms) : null;
+      if (isFinitePositive(exClose)) shares += (shares * event.amount) / exClose;
+    }
+    return ((shares * endClose) / startClose - 1) * 100;
+  };
 
   const growthAsc: SchdDividendGrowthRow[] = yearsAsc.map((year) => {
     const agg = yearAgg.get(year)!;
     const complete = agg.count >= typicalCount;
     const yearEnd = yearEndClose.get(year);
     const yearEndYield = complete && isFinitePositive(yearEnd) ? (agg.payout / yearEnd) * 100 : null;
-    return { year, payout: agg.payout, count: agg.count, complete, yearEndYield, annualGrowthPct: null, cagrPct: null };
+    const totalReturnPct = complete ? totalReturnFor(year, agg.events) : null;
+    return { year, payout: agg.payout, count: agg.count, complete, yearEndYield, annualGrowthPct: null, totalReturnPct };
   });
 
-  const baseRow = growthAsc.find((row) => row.complete);
   const byYear = new Map(growthAsc.map((row) => [row.year, row]));
   for (const row of growthAsc) {
     if (!row.complete) continue;
     const prev = byYear.get(row.year - 1);
     if (prev && prev.complete && isFinitePositive(prev.payout)) {
       row.annualGrowthPct = (row.payout / prev.payout - 1) * 100;
-    }
-    if (baseRow && baseRow.year < row.year && isFinitePositive(baseRow.payout)) {
-      const span = row.year - baseRow.year;
-      row.cagrPct = (Math.pow(row.payout / baseRow.payout, 1 / span) - 1) * 100;
     }
   }
 
@@ -214,6 +243,7 @@ export function calculateSchdAttractiveness(
   history: QuoteHistoryResponse,
   dividendsResponse: QuoteDividendsResponse,
   last?: QuoteLastResponse,
+  preciseDividendsResponse?: QuoteDividendsResponse | null,
 ): SchdAttractivenessMetrics | null {
   if (history.source === "sample" || dividendsResponse.source === "sample" || last?.source === "sample") return null;
 
@@ -254,8 +284,24 @@ export function calculateSchdAttractiveness(
   const fiveYearYields = valid.map((point) => ({ ms: parseDateMs(point.date), value: point.ttmYield })).filter((point) => point.ms >= fiveYearAgoMs && Number.isFinite(point.value ?? NaN));
   const fiveYearAverageYield = fiveYearYields.length ? fiveYearYields.reduce((sum, point) => sum + (point.value ?? 0), 0) / fiveYearYields.length : null;
   const recentQuarterDividend = dividends.length ? dividends[dividends.length - 1].amount : null;
-  const latestFourDividends = dividends.slice(-4).map((dividend) => dividend.amount);
-  const { history: dividendHistory, growth: dividendGrowthHistory } = buildSchdDividendHistories(dividends, prices);
+
+  // Precise dividend amounts (e.g. declared values) are used for DISPLAY only:
+  // the history/growth tables and the recent-dividend cards. All analytical
+  // figures (Yield TTM, target prices, 52w, 5yr avg, the latest-four sum) stay
+  // on the Yahoo series above so existing KPIs do not change. Falls back to the
+  // Yahoo series when a precise source is unavailable.
+  const preciseDividends = (preciseDividendsResponse && preciseDividendsResponse.source !== "sample"
+    ? preciseDividendsResponse.dividends
+        .map((dividend) => ({ date: normalizeDate(dividend.date), amount: Number(dividend.amount) }))
+        .filter((dividend) => Number.isFinite(parseDateMs(dividend.date)) && isFinitePositive(dividend.amount))
+        .sort((a, b) => parseDateMs(a.date) - parseDateMs(b.date))
+    : []);
+  const usePrecise = preciseDividends.length >= 4;
+  const displayDividends = usePrecise ? preciseDividends : dividends;
+
+  const recentQuarterDividendDisplay = displayDividends.length ? displayDividends[displayDividends.length - 1].amount : null;
+  const latestFourDividends = displayDividends.slice(-4).map((dividend) => dividend.amount);
+  const { history: dividendHistory, growth: dividendGrowthHistory } = buildSchdDividendHistories(displayDividends, prices);
 
   const targetRows = SCHD_TARGET_YIELDS.map((targetYield) => {
     const ttmBuyPrice = latest.ttmDividend && latest.ttmDividend > 0 ? latest.ttmDividend / targetYield : null;
@@ -279,9 +325,11 @@ export function calculateSchdAttractiveness(
     latestFourDividend: latest.ttmDividend ?? NaN,
     latestFourDividends,
     recentQuarterDividend,
+    recentQuarterDividendDisplay,
     targetRows,
     dividendHistory,
     dividendGrowthHistory,
+    dividendAmountSource: usePrecise ? "precise" : "yahoo",
     fetchedAt: history.updatedAt || dividendsResponse.updatedAt || last?.updatedAt,
     warnings: [...(history.warnings ?? []), ...(dividendsResponse.warnings ?? []), ...(last?.warnings ?? [])],
   };
