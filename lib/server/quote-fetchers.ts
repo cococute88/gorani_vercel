@@ -442,6 +442,66 @@ export async function getQuoteDividends(input: {
   };
 }
 
+type StockAnalysisDividendPayload = {
+  status?: number;
+  data?: { history?: Array<{ dt?: string; amt?: string }> };
+};
+
+function parseDollarAmount(value: string | undefined): number | null {
+  if (!value) return null;
+  const cleaned = Number(value.replace(/[^0-9.\-]/g, ""));
+  return Number.isFinite(cleaned) && cleaned > 0 ? cleaned : null;
+}
+
+/**
+ * Precise declared dividend amounts (e.g. $0.2525) from stockanalysis.com.
+ * Yahoo's chart events round recent dividends to 3 decimals (0.253), so this
+ * is used for DISPLAY of exact amounts in the SCHD dividend-history tables and
+ * cards only. All analytical figures keep using the Yahoo series. The caller
+ * treats a failure here as non-fatal and falls back to Yahoo amounts.
+ */
+export async function getPreciseDividends(input: {
+  ticker: string;
+  start?: string | null;
+  end?: string | null;
+}): Promise<QuoteDividendsResponse> {
+  const ticker = input.ticker || "";
+  const normalizedTicker = normalizeTicker(ticker) || "SCHD";
+  const warnings: string[] = [];
+  const symbol = normalizedTicker.toLowerCase();
+  const startMs = input.start ? new Date(`${input.start}T00:00:00Z`).getTime() : Number.NEGATIVE_INFINITY;
+  const endMs = input.end ? new Date(`${input.end}T23:59:59Z`).getTime() : Number.POSITIVE_INFINITY;
+
+  // ETF endpoint first (SCHD), then equity endpoint as a fallback.
+  for (const url of [
+    `https://stockanalysis.com/api/symbol/e/${encodeURIComponent(symbol)}/dividend`,
+    `https://stockanalysis.com/api/symbol/s/${encodeURIComponent(symbol)}/dividend`,
+  ]) {
+    try {
+      const payload = (await (await fetchWithTimeout(url)).json()) as StockAnalysisDividendPayload;
+      const history = payload?.data?.history;
+      if (!Array.isArray(history) || history.length === 0) continue;
+      const dividends = history
+        .flatMap((row) => {
+          const amount = parseDollarAmount(row.amt);
+          if (amount === null || !row.dt) return [];
+          const date = toIsoDate(row.dt);
+          const ms = new Date(`${date}T00:00:00Z`).getTime();
+          if (!Number.isFinite(ms) || ms < startMs || ms > endMs) return [];
+          return [{ date, amount }];
+        })
+        .sort((a, b) => a.date.localeCompare(b.date));
+      if (dividends.length === 0) continue;
+      return { ticker, normalizedTicker, source: "yahoo", updatedAt: nowIso(), warnings, dividends };
+    } catch (error) {
+      warnings.push(createWarning("Precise dividends fetch failed:", error instanceof Error ? error.message : String(error)));
+    }
+  }
+
+  warnings.push(createWarning("No precise dividend source available for", normalizedTicker));
+  return { ticker, normalizedTicker, source: "sample", updatedAt: nowIso(), warnings, dividends: [] };
+}
+
 export async function getQuoteLast(input: { ticker: string }): Promise<QuoteLastResponse> {
   const history = await getQuoteHistory({ ticker: input.ticker, range: "1m" });
   const latest = history.prices.at(-1);
