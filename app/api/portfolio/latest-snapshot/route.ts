@@ -22,7 +22,9 @@ import { NextResponse } from "next/server";
 
 import {
   getLatestPortfolioSnapshot,
-  isFirestoreReadError,
+  classifyAdminError,
+  describeError,
+  logOriginalError,
 } from "@/lib/firestore";
 import { mapPortfolioSnapshotRecordToViewModel } from "@/lib/firestore/snapshot-viewmodel";
 import type { PortfolioSnapshot } from "@/lib/portfolio-types";
@@ -31,19 +33,39 @@ import type { PortfolioSnapshot } from "@/lib/portfolio-types";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+const isDev = process.env.NODE_ENV !== "production";
+
 type LatestSnapshotResponse =
   | { source: "firestore"; snapshotDate: string; snapshot: PortfolioSnapshot }
   | { source: "empty"; snapshot: null }
-  | { source: "error"; snapshot: null; code: string };
+  | {
+      source: "error";
+      snapshot: null;
+      code: string;
+      // Diagnostics are only populated in development (requirement 1). In
+      // production the response stays minimal so no internals leak.
+      message?: string;
+      errorName?: string;
+      stack?: string;
+    };
 
 /**
- * Dev-only log of the resolved snapshot date (requirement 6). Silent in
- * production so no snapshot data or timing leaks into production logs.
+ * Dev-only log of the resolved snapshot before responding (requirements 6 & 8):
+ * document id, snapshot date and document_version. Silent in production so no
+ * snapshot data or timing leaks into production logs.
  */
-function logSnapshotDateInDev(snapshotDate: string): void {
-  if (process.env.NODE_ENV === "production") return;
+function logResolvedSnapshotInDev(
+  documentId: string,
+  snapshotDate: string,
+  documentVersion: string | undefined,
+): void {
+  if (!isDev) return;
   // eslint-disable-next-line no-console
-  console.info(`[portfolio:latest-snapshot] using Firestore snapshot ${snapshotDate}`);
+  console.info("[portfolio:latest-snapshot] using Firestore snapshot", {
+    documentId,
+    snapshotDate,
+    documentVersion,
+  });
 }
 
 export async function GET(): Promise<NextResponse<LatestSnapshotResponse>> {
@@ -52,11 +74,16 @@ export async function GET(): Promise<NextResponse<LatestSnapshotResponse>> {
 
     if (!record) {
       // No snapshot persisted yet -> let the client fall back to legacy data.
+      // This is "empty", NEVER "error" (requirement 6).
       return NextResponse.json({ source: "empty", snapshot: null });
     }
 
     const snapshot = mapPortfolioSnapshotRecordToViewModel(record);
-    logSnapshotDateInDev(snapshot.snapshotDate);
+    logResolvedSnapshotInDev(
+      record.id,
+      snapshot.snapshotDate,
+      record.data.document_version,
+    );
 
     return NextResponse.json({
       source: "firestore",
@@ -64,13 +91,34 @@ export async function GET(): Promise<NextResponse<LatestSnapshotResponse>> {
       snapshot,
     });
   } catch (error) {
-    // Config-missing / permission-denied / unknown all degrade gracefully:
-    // the page must never break (requirement 5).
-    const code = isFirestoreReadError(error) ? error.code : "unknown";
-    if (process.env.NODE_ENV !== "production") {
+    // Config-missing / permission-denied / admin-init-failed / query failures
+    // all degrade gracefully: the page must never break (requirement 5). But we
+    // must NOT collapse everything into "unknown" — classify and, in dev,
+    // surface the real cause.
+    logOriginalError("latest-snapshot", error);
+    const classified = classifyAdminError(error, "firestore-query-failed");
+    const info = describeError(error);
+
+    if (isDev) {
       // eslint-disable-next-line no-console
-      console.info(`[portfolio:latest-snapshot] falling back to legacy data (${code})`);
+      console.info("[portfolio:latest-snapshot] falling back to legacy data", {
+        code: classified.code,
+        errorName: info.errorName,
+        message: info.message,
+        grpcCode: info.grpcCode,
+      });
+      return NextResponse.json({
+        source: "error",
+        snapshot: null,
+        code: classified.code,
+        message: info.message,
+        errorName: info.errorName,
+        // stack is dev-only (requirement 1).
+        stack: info.stack,
+      });
     }
-    return NextResponse.json({ source: "error", snapshot: null, code });
+
+    // Production: keep the response minimal, no internals.
+    return NextResponse.json({ source: "error", snapshot: null, code: classified.code });
   }
 }
