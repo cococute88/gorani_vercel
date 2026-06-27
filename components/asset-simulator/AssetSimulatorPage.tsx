@@ -227,13 +227,20 @@ export default function AssetSimulatorPage() {
             title="🚪 당장탈출 — 지금 바로 은퇴할 경우의 요약 보기"
             className="group relative mt-0.5 aspect-square w-24 shrink-0 self-start overflow-hidden rounded-lg border border-slate-200/90 shadow-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.03] hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-400 active:translate-y-0 active:scale-100 dark:border-white/10 sm:w-28"
           >
+            {/*
+              원본 exit.webp는 캐릭터가 캔버스 가로 약 46%·세로 76%만 차지하고
+              주변(좌우 흐린 배경/위 건물/아래 단상)이 비어 보인다. 정사각 이미지를
+              정사각 버튼에 object-cover로 넣으면 잘림 없이 전체가 그대로 보여
+              캐릭터가 작게(여백 있게) 보인다. 캐릭터 중심(약 52% 40%)을 기준으로
+              1.35배 확대해 버튼을 채우고, 넘치는 배경은 버튼의 overflow-hidden이 잘라낸다.
+            */}
             <Image
               src="/exit.webp"
               alt=""
               width={1254}
               height={1254}
               sizes="(max-width: 640px) 96px, 112px"
-              className="h-full w-full object-cover"
+              className="h-full w-full origin-[52%_40%] scale-[1.35] object-cover object-center"
             />
           </button>
         </div>
