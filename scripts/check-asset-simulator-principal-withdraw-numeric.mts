@@ -151,4 +151,46 @@ console.log("=== 시나리오 4: 55세 이후(2051~) 과세 로직 유지 확인
   console.log("  2051~ 행수 =", after.length, ", 과세율/net 계산 기존 로직 유지 OK");
 }
 
+console.log("=== 시나리오 5: 2050→2051 전환 연속성(평가잔고 carry) 확인 ===");
+{
+  // startYear 2045, EXIT, delay 1 → actualStart 2046, ~2050 = 2046..2050, 2051~ 과세
+  const returnRate = 0.08;
+  const wr = 0.04;
+  const { plan } = runWithdraw({
+    startYear: 2045,
+    years: 15,
+    initialPension: 6000,
+    initialIsa: 8000,
+    reserveCash: 0,
+    initialTaxableDividend: 0,
+    annualReturnRate: 8,
+    inflationRate: 3,
+    withdrawalRate: 4,
+    withdrawalGrowthRate: 1,
+    withdrawalDelayYears: 1,
+  });
+  const byYear = new Map(plan.rows.map((r) => [r.year, r]));
+  const y2050 = byYear.get(2050)!;
+  const y2051 = byYear.get(2051)!;
+
+  // 2050말 원금 정확 소진(잔여 인출원금 0)
+  assert.ok(Math.abs(y2050.isaRemainingLimit ?? -1) < 1e-6, "2050말 ISA 원금 0 소진 실패");
+  assert.ok(Math.abs(y2050.pensionRemainingLimit ?? -1) < 1e-6, "2050말 연금 원금 0 소진 실패");
+  // 2050 비과세 → 2051 과세 전환
+  assert.equal(y2050.isaTaxRate, 0, "2050 ISA 비과세");
+  assert.equal(y2051.isaTaxRate, 0.099, "2051 ISA 과세율 9.9%");
+  assert.equal(y2051.pensionTaxRate, 0.055, "2051 연금 과세율 5.5%");
+  // 평가잔고 연속성: 2051초 잔고 = 2050말 잔고 ×(1+수익률) (추가납입 없음)
+  const isaStart2051 = y2050.isaBalanceNominal * (1 + returnRate);
+  const penStart2051 = y2050.pensionBalanceNominal * (1 + returnRate);
+  // 2051 첫 과세 인출 gross = 2051초 평가잔고 × 인출률 (기존 2051~ 로직 그대로)
+  assert.ok(Math.abs(y2051.isaGross - isaStart2051 * wr) < 1e-4, "2051 ISA 과세인출 = 시작잔고×인출률 불일치");
+  assert.ok(Math.abs(y2051.pensionGross - penStart2051 * wr) < 1e-4, "2051 연금 과세인출 = 시작잔고×인출률 불일치");
+  // 잔고 복원: 2051말 + 2051 gross = 2051초 잔고
+  assert.ok(Math.abs((y2051.isaBalanceNominal + y2051.isaGross) - isaStart2051) < 1e-4, "ISA 잔고 연속성 불일치");
+  console.log("  2050말 ISA평가 =", round(y2050.isaBalanceNominal, 2), "→ 2051초 =", round(isaStart2051, 2),
+    ", 2051 ISA과세인출 =", round(y2051.isaGross, 2), "(=시작잔고×4%) OK");
+  console.log("  2050말 원금 0 소진 후, 2051초 평가잔고는 전액 운용수익 → 2051~ 시작 잔고로 연속 carry 확인 OK");
+}
+
 console.log("\nALL SCENARIOS PASSED ✅");
