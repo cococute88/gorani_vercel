@@ -88,6 +88,43 @@ export const DETAIL_RANGES: Array<{ label: string; key: string }> = [
   { label: "MAX", key: "max" },
 ];
 
+// -------------------------------------------------------------
+// Detail-modal line metrics (extensible tabs).
+// The IndexDetailModal can render, in addition to the existing
+// candlestick "Price" view, one or more line-based metric tabs
+// (e.g. Dividend Yield, US 10Y Treasury, Dividend Spread). Each
+// tab supplies its own full-history daily series; the modal
+// filters it by the shared range selection. New indicators
+// (Real Yield / MOVE / VIX …) can be added by appending another
+// DetailLineTab, without touching the modal or chart internals.
+// -------------------------------------------------------------
+
+// A single daily point for a line metric. `date` is "YYYY-MM-DD"
+// (matching lightweight-charts business-day time) and `value` is
+// expressed in the metric's own unit (percent for yields/spread).
+export type DetailLinePoint = { date: string; value: number };
+
+export type DetailLineTab = {
+  /** Stable tab key, e.g. "dividend" | "us10y" | "spread". */
+  key: string;
+  /** Tab label shown in the modal header tab bar. */
+  label: string;
+  /** Line color (prefer existing project color tokens). */
+  color: string;
+  /** Value-axis unit suffix. Defaults to "%". */
+  unit?: string;
+  /** Decimal places for value formatting. Defaults to 2. */
+  digits?: number;
+  /** Draw a zero baseline (useful for signed metrics like Spread). */
+  zeroBaseline?: boolean;
+  /**
+   * Resolves the full daily history for this metric. Should reuse
+   * already-fetched data / fetchIndexQuote's cache to avoid duplicate
+   * network calls. Called once per modal session (result is cached).
+   */
+  resolve: () => Promise<DetailLinePoint[]>;
+};
+
 export const MA_PERIODS = [20, 60, 120, 200] as const;
 export type MaPeriod = (typeof MA_PERIODS)[number];
 

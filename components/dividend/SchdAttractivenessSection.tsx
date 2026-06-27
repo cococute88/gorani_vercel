@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { quoteDividendsPath, quoteDividendsPrecisePath, quoteHistoryPath, quoteLastPath } from "@/lib/quote-client";
-import { DEFAULT_DETAIL_RANGE, INDEX_DEFS, fetchIndexQuote, type IndexDef, type IndexQuote } from "@/lib/market-index";
+import { DEFAULT_DETAIL_RANGE, INDEX_DEFS, fetchIndexQuote, type DetailLinePoint, type IndexDef, type IndexQuote } from "@/lib/market-index";
+import { buildSchdDetailLineTabs } from "@/lib/schd-detail-tabs";
 import type { QuoteDividendsResponse, QuoteHistoryResponse, QuoteLastResponse } from "@/lib/quote-types";
 const IndexSparkline = dynamic(() => import("@/components/market/IndexSparkline"), { ssr: false });
 // Reuse the exact market detail chart (lightweight-charts); load client-only when opened.
@@ -273,6 +274,23 @@ export default function SchdAttractivenessSection() {
   const assessment = getSchdAssessment(metrics?.currentTtmYield);
   const targetSummary = metrics?.targetRows.slice(0, 3).map((row) => `${row.targetYield} ${fmtCurrency(row.ttmBuyPrice)}`).join(" · ");
 
+  // SCHD Dividend Yield (TTM) as a full daily line series — the SAME source as
+  // the main chart above. Fed into the detail modal's "Dividend" tab and reused
+  // by the "Spread" tab so no extra dividend data is fetched.
+  const dividendYieldSeries = useMemo<DetailLinePoint[]>(
+    () =>
+      metrics
+        ? metrics.points
+            .filter((p) => Number.isFinite(p.ttmYield ?? NaN))
+            .map((p) => ({ date: p.date, value: p.ttmYield as number }))
+        : [],
+    [metrics],
+  );
+  // Extensible line-metric tabs (Dividend / US10Y / Spread). Memoized so the
+  // modal doesn't re-resolve on every render. Append more tabs here later
+  // (Real Yield / MOVE / VIX …) without touching the modal.
+  const detailLineTabs = useMemo(() => buildSchdDetailLineTabs(dividendYieldSeries), [dividendYieldSeries]);
+
   if (loading) return <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm font-bold text-slate-500 dark:border-[#2a3336] dark:bg-[#191f20]">SCHD 배당률 데이터를 불러오는 중입니다…</div>;
 
   if (error || !metrics) {
@@ -363,7 +381,7 @@ export default function SchdAttractivenessSection() {
       </div>
 
       {detailOpen && (
-        <IndexDetailModal def={SCHD_INDEX_DEF} initialRange={DEFAULT_DETAIL_RANGE} onClose={() => setDetailOpen(false)} />
+        <IndexDetailModal def={SCHD_INDEX_DEF} initialRange={DEFAULT_DETAIL_RANGE} onClose={() => setDetailOpen(false)} lineTabs={detailLineTabs} priceLabel="Price" />
       )}
     </section>
   );
