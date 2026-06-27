@@ -62,6 +62,32 @@ export const INDEX_DETAIL_DEFS: Record<string, IndexDef> = {
   vix: { symbol: "^VIX", name: "VIX", ticker: "VIX", description: "CBOE Volatility Index" },
 };
 
+// -------------------------------------------------------------
+// Detail-chart Compare (Overlay) feature.
+// The candlestick detail modal can overlay up to MAX_COMPARE extra
+// tickers on the base symbol so relative performance is visible at a
+// glance (TradingView-style "Compare"). Candidates are intentionally
+// data-driven: append a new IndexDef to COMPARE_CANDIDATES (or pass a
+// custom list to IndexDetailModal) and it becomes selectable — no
+// changes to the modal/chart internals required.
+// -------------------------------------------------------------
+
+// Default selectable comparison tickers. Reuses the existing market
+// index defs so SPY / QQQ / SCHD are available out of the box.
+export const COMPARE_CANDIDATES: IndexDef[] = INDEX_DEFS;
+
+// Maximum number of comparison tickers (base symbol excluded). With the
+// base line this yields up to 4 lines on the chart.
+export const MAX_COMPARE = 3;
+
+// Distinct overlay line colors (light/dark safe) assigned by selection
+// order. Chosen to stay clear of the MA palette (amber/blue/purple/red).
+export const COMPARE_LINE_COLORS = ["#14b8a6", "#ec4899", "#6366f1"]; // teal / pink / indigo
+
+// Comparison axis modes. "return" normalizes every line to a shared start
+// (relative performance); "price" keeps absolute prices.
+export type CompareMode = "return" | "price";
+
 // Card sparkline ranges (label -> api range key).
 export const CARD_RANGES: Array<{ label: string; key: string }> = [
   { label: "1M", key: "1m" },

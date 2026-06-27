@@ -1,11 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { X } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import {
   ColorType,
   CrosshairMode,
   LineStyle,
+  PriceScaleMode,
   createChart,
   type IChartApi,
   type IPriceLine,
@@ -14,16 +15,20 @@ import {
 } from "lightweight-charts";
 import { useResolvedTheme } from "@/components/theme/ThemeProvider";
 import {
+  COMPARE_CANDIDATES,
+  COMPARE_LINE_COLORS,
   DEFAULT_DETAIL_RANGE,
   DETAIL_RANGES,
   MA_COLORS,
   MA_PERIODS,
+  MAX_COMPARE,
   fetchIndexQuote,
   formatSignedPct,
   formatSignedUsd,
   formatUpdatedAt,
   formatUsd,
   movingAverage,
+  type CompareMode,
   type DetailLinePoint,
   type DetailLineSeries,
   type DetailLineTab,
@@ -47,6 +52,12 @@ interface Props {
   lineTabs?: DetailLineTab[];
   /** Label for the candlestick tab. Defaults to "Price". */
   priceLabel?: string;
+  /**
+   * Selectable tickers for the Compare (overlay) feature on the Price tab.
+   * Defaults to COMPARE_CANDIDATES (SPY/QQQ/SCHD). The base symbol is
+   * filtered out automatically. Pass a custom list to extend the choices.
+   */
+  compareCandidates?: IndexDef[];
 }
 
 const PRICE_TAB_KEY = "price";
@@ -54,6 +65,13 @@ const PRICE_TAB_KEY = "price";
 const UP = "#16a34a";
 const DOWN = "#dc2626";
 const FLAT = "#6b7280";
+
+// Compare (overlay) legend swatch for the base symbol. The base is drawn as
+// candlesticks (green/red), so a neutral dot represents it in the legend.
+const BASE_LEGEND_COLOR = "#64748b";
+// Hover map key for the base candlestick close (kept stable so the
+// crosshair handler doesn't depend on the current symbol).
+const BASE_HOVER_KEY = "__base__";
 
 // 상단 OHLC 등락 색상: 양수 녹색 / 음수 적색 / 0·미산정 회색.
 function pctColor(pct: number | null): string {
@@ -200,38 +218,66 @@ function applyVisibleRange(chart: IChartApi, quote: IndexQuote, range: string) {
     return;
   }
 
-  const fromDate = (() => {
-    switch (range) {
-      case "1d":
-        return addMonths(lastDate, -0.05);
-      case "5d": {
-        const d = new Date(lastDate);
-        d.setUTCDate(d.getUTCDate() - 7);
-        return d;
-      }
-      case "1m":
-        return addMonths(lastDate, -1);
-      case "3m":
-        return addMonths(lastDate, -3);
-      case "6m":
-        return addMonths(lastDate, -6);
-      case "ytd":
-        return new Date(Date.UTC(lastDate.getUTCFullYear(), 0, 1));
-      case "1y":
-        return addMonths(lastDate, -12);
-      case "3y":
-        return addMonths(lastDate, -36);
-      case "5y":
-        return addMonths(lastDate, -60);
-      default:
-        return addMonths(lastDate, -6);
-    }
-  })();
+  const fromDate = visibleFromDate(lastDate, range);
 
   chart.timeScale().setVisibleRange({
     from: dateToBusinessDayString(fromDate) as never,
     to: last as never,
   });
+}
+
+// The X-axis "from" date used by the candlestick visible range for a given UI
+// range. Shared with the Compare legend so the normalized "first in range"
+// base it reports matches the chart's IndexedTo100 normalization origin.
+function visibleFromDate(lastDate: Date, range: string): Date {
+  switch (range) {
+    case "1d":
+      return addMonths(lastDate, -0.05);
+    case "5d": {
+      const d = new Date(lastDate);
+      d.setUTCDate(d.getUTCDate() - 7);
+      return d;
+    }
+    case "1m":
+      return addMonths(lastDate, -1);
+    case "3m":
+      return addMonths(lastDate, -3);
+    case "6m":
+      return addMonths(lastDate, -6);
+    case "ytd":
+      return new Date(Date.UTC(lastDate.getUTCFullYear(), 0, 1));
+    case "1y":
+      return addMonths(lastDate, -12);
+    case "3y":
+      return addMonths(lastDate, -36);
+    case "5y":
+      return addMonths(lastDate, -60);
+    default:
+      return addMonths(lastDate, -6);
+  }
+}
+
+// lightweight-charts candle time -> UTC ms. Daily candles use a "YYYY-MM-DD"
+// string; intraday candles use unix seconds.
+function candleTimeToMs(time: string | number): number {
+  return typeof time === "number" ? time * 1000 : new Date(`${time}T00:00:00Z`).getTime();
+}
+
+// Close of the first candle inside the selected range — the normalization base
+// for the Compare "return" mode legend. Mirrors applyVisibleRange so it equals
+// the chart's IndexedTo100 origin (intraday / MAX show all candles -> first).
+function rangeBaseClose(candles: IndexCandle[], range: string): number | null {
+  if (candles.length === 0) return null;
+  const lastTime = candles[candles.length - 1].time;
+  if (typeof lastTime === "number" || range === "max") return candles[0].close;
+  const lastDate = new Date(`${lastTime}T00:00:00Z`);
+  if (Number.isNaN(lastDate.getTime())) return candles[0].close;
+  const fromMs = visibleFromDate(lastDate, range).getTime();
+  for (const c of candles) {
+    const t = candleTimeToMs(c.time);
+    if (Number.isFinite(t) && t >= fromMs) return c.close;
+  }
+  return candles[0].close;
 }
 
 function palette(dark: boolean): Palette {
@@ -244,7 +290,14 @@ function palette(dark: boolean): Palette {
 // with selectable ranges. Optional line-metric tabs (Dividend / US10Y /
 // Spread …) reuse the same chart and range selection. Rendered client-only
 // (lightweight-charts).
-export default function IndexDetailModal({ def, initialRange, onClose, lineTabs, priceLabel = "Price" }: Props) {
+export default function IndexDetailModal({
+  def,
+  initialRange,
+  onClose,
+  lineTabs,
+  priceLabel = "Price",
+  compareCandidates = COMPARE_CANDIDATES,
+}: Props) {
   const dark = useResolvedTheme() === "dark";
   const [range, setRange] = useState(initialRange || DEFAULT_DETAIL_RANGE);
   const [quote, setQuote] = useState<IndexQuote | null>(null);
@@ -280,6 +333,21 @@ export default function IndexDetailModal({ def, initialRange, onClose, lineTabs,
   // Crosshair-synced values per series for multi-line (Compare) tabs.
   const [hoverMulti, setHoverMulti] = useState<Record<string, number> | null>(null);
 
+  // -----------------------------------------------------------------
+  // Compare (overlay) feature — Price tab only. Overlays up to MAX_COMPARE
+  // extra tickers on the base candlestick so relative performance is visible
+  // at a glance (TradingView "Compare"). The base symbol always stays.
+  // -----------------------------------------------------------------
+  const [compareSymbols, setCompareSymbols] = useState<string[]>([]);
+  const [compareMode, setCompareMode] = useState<CompareMode>("return");
+  const [compareData, setCompareData] = useState<Record<string, IndexQuote>>({});
+  const [compareLoading, setCompareLoading] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  // Crosshair-synced close values keyed by symbol (+ BASE_HOVER_KEY for the
+  // base candle). null = show the latest value in the legend.
+  const [hoverCompare, setHoverCompare] = useState<Record<string, number> | null>(null);
+  const pickerRef = useRef<HTMLDivElement>(null);
+
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const candleRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
@@ -292,6 +360,11 @@ export default function IndexDetailModal({ def, initialRange, onClose, lineTabs,
   // per-series hovered values without rebuilding the chart.
   const activeMultiRef = useRef<Array<{ key: string; series: ISeriesApi<"Line"> }>>([]);
   const zeroLineRef = useRef<IPriceLine | null>(null);
+  // Dedicated reusable pool of line series for the Price-tab Compare overlay
+  // (kept separate from the line-tab multi pool so existing tab logic is
+  // untouched). Bound to the currently-selected compare symbols below.
+  const compareRefs = useRef<ISeriesApi<"Line">[]>([]);
+  const compareActiveRef = useRef<Array<{ key: string; series: ISeriesApi<"Line"> }>>([]);
   // Latest candles kept in a ref so the crosshair handler (bound once) can resolve
   // the hovered bar's previous close without rebuilding the chart on every fetch.
   const candlesRef = useRef<IndexCandle[]>([]);
@@ -311,6 +384,11 @@ export default function IndexDetailModal({ def, initialRange, onClose, lineTabs,
     setActiveTab(PRICE_TAB_KEY);
     lineCacheRef.current = {};
     multiCacheRef.current = {};
+    // Reset Compare overlay state for the new symbol.
+    setCompareSymbols([]);
+    setCompareData({});
+    setPickerOpen(false);
+    setHoverCompare(null);
   }, [def.symbol, initialRange]);
 
   // Fetch daily price data. Non-intraday ranges share a single "5y" request
@@ -420,6 +498,19 @@ export default function IndexDetailModal({ def, initialRange, onClose, lineTabs,
     return filterAndNormalizeMulti(multiData, range, !!activeLineTab?.normalizeToStart);
   }, [isMultiTab, multiData, range, activeLineTab]);
 
+  // Compare overlay is active only on the Price tab with ≥1 selected ticker.
+  const compareActive = isPriceTab && compareSymbols.length > 0;
+  // "return" mode normalizes the right price scale (base candle + overlays)
+  // to a shared start; "price" keeps absolute prices.
+  const normalizing = compareActive && compareMode === "return";
+
+  // Candidate tickers still available to add (exclude base + already selected).
+  const availableCompare = useMemo(
+    () => compareCandidates.filter((c) => c.symbol !== def.symbol && !compareSymbols.includes(c.symbol)),
+    [compareCandidates, def.symbol, compareSymbols],
+  );
+  const canAddCompare = compareSymbols.length < MAX_COMPARE && availableCompare.length > 0;
+
   // Build the chart (re-created when the theme changes).
   useEffect(() => {
     const container = containerRef.current;
@@ -497,6 +588,25 @@ export default function IndexDetailModal({ def, initialRange, onClose, lineTabs,
     lineRef.current = line;
     multiRefs.current = multiSeries;
 
+    // Dedicated pool for the Price-tab Compare overlay (price lines only; no
+    // MA). Hidden until compare symbols are selected. Lives on the default
+    // right price scale so IndexedTo100 ("return" mode) normalizes them
+    // together with the base candle.
+    const compareSeriesPool: ISeriesApi<"Line">[] = [];
+    for (let i = 0; i < MAX_COMPARE; i += 1) {
+      compareSeriesPool.push(
+        chart.addLineSeries({
+          color: COMPARE_LINE_COLORS[i % COMPARE_LINE_COLORS.length],
+          lineWidth: 2,
+          priceLineVisible: false,
+          lastValueVisible: true,
+          crosshairMarkerVisible: true,
+          visible: false,
+        }),
+      );
+    }
+    compareRefs.current = compareSeriesPool;
+
     // Sync the top OHLC row with the hovered candle and the line metric value
     // with the hovered point; fall back to the latest bar when the pointer
     // leaves the chart.
@@ -515,6 +625,24 @@ export default function IndexDetailModal({ def, initialRange, onClose, lineTabs,
         setHoverMulti(Object.keys(map).length ? map : null);
       } else {
         setHoverMulti(null);
+      }
+
+      // Price-tab Compare overlay hover values: base candle close + each
+      // overlaid ticker's line value, keyed by symbol.
+      if (compareActiveRef.current.length) {
+        const map: Record<string, number> = {};
+        const baseBar =
+          param.time !== undefined
+            ? (param.seriesData.get(candle) as { close?: number } | undefined)
+            : undefined;
+        if (baseBar && typeof baseBar.close === "number") map[BASE_HOVER_KEY] = baseBar.close;
+        for (const { key, series } of compareActiveRef.current) {
+          const bar = param.time !== undefined ? (param.seriesData.get(series) as { value?: number } | undefined) : undefined;
+          if (bar && typeof bar.value === "number") map[key] = bar.value;
+        }
+        setHoverCompare(Object.keys(map).length ? map : null);
+      } else {
+        setHoverCompare(null);
       }
 
       const candles = candlesRef.current;
@@ -551,6 +679,8 @@ export default function IndexDetailModal({ def, initialRange, onClose, lineTabs,
       multiRefs.current = [];
       activeMultiRef.current = [];
       zeroLineRef.current = null;
+      compareRefs.current = [];
+      compareActiveRef.current = [];
     };
   }, [dark]);
 
@@ -687,6 +817,97 @@ export default function IndexDetailModal({ def, initialRange, onClose, lineTabs,
     }
   }, [isPriceTab, isMultiTab, visibleMa, quote, lineData, viewMulti]);
 
+  // --- Compare overlay: fetch each selected ticker's quote for the active
+  // range (same /api/market/index-quote route + range mapping as the base, so
+  // periods always stay in sync and no API changes are required). -----------
+  useEffect(() => {
+    if (compareSymbols.length === 0) {
+      setCompareData({});
+      setCompareLoading(false);
+      return;
+    }
+    let active = true;
+    setCompareLoading(true);
+    Promise.all(
+      compareSymbols.map((sym) =>
+        fetchIndexQuote(sym, fetchRange)
+          .then((q) => [sym, q] as const)
+          .catch(() => [sym, null] as const),
+      ),
+    ).then((entries) => {
+      if (!active) return;
+      const map: Record<string, IndexQuote> = {};
+      for (const [sym, q] of entries) if (q) map[sym] = q;
+      setCompareData(map);
+      setCompareLoading(false);
+    });
+    return () => {
+      active = false;
+    };
+  }, [compareSymbols, fetchRange]);
+
+  // --- Compare overlay: push each selected ticker's close line onto the pool
+  // (price line only, no MA). Hidden when not on the Price tab. The base candle
+  // drives the visible range, so overlays just align by time. ---------------
+  useEffect(() => {
+    const chart = chartRef.current;
+    const pool = compareRefs.current;
+    if (!chart || pool.length === 0) return;
+
+    if (!isPriceTab) {
+      pool.forEach((s) => {
+        s.setData([]);
+        s.applyOptions({ visible: false });
+      });
+      compareActiveRef.current = [];
+      return;
+    }
+
+    compareActiveRef.current = [];
+    pool.forEach((series, i) => {
+      const sym = compareSymbols[i];
+      const q = sym ? compareData[sym] : undefined;
+      if (sym && q && q.candles.length) {
+        series.applyOptions({ color: COMPARE_LINE_COLORS[i % COMPARE_LINE_COLORS.length], visible: true });
+        series.setData(q.candles.map((c) => ({ time: c.time as never, value: c.close })));
+        compareActiveRef.current.push({ key: sym, series });
+      } else {
+        series.setData([]);
+        series.applyOptions({ visible: false });
+      }
+    });
+  }, [isPriceTab, compareSymbols, compareData, quote, dark]);
+
+  // --- Compare overlay: normalize the right price scale to a shared start in
+  // "return" mode (IndexedTo100 re-bases the base candle + every overlay to the
+  // first visible bar = 100). "price" mode / no overlays keep absolute prices.
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart) return;
+    chart.priceScale("right").applyOptions({
+      mode: normalizing ? PriceScaleMode.IndexedTo100 : PriceScaleMode.Normal,
+    });
+  }, [normalizing, dark, quote]);
+
+  // Close the compare ticker picker on outside click.
+  useEffect(() => {
+    if (!pickerOpen) return;
+    const onDown = (event: MouseEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(event.target as Node)) setPickerOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [pickerOpen]);
+
+  const addCompare = useCallback((sym: string) => {
+    setCompareSymbols((prev) => (prev.includes(sym) || prev.length >= MAX_COMPARE ? prev : [...prev, sym]));
+    setPickerOpen(false);
+  }, []);
+
+  const removeCompare = useCallback((sym: string) => {
+    setCompareSymbols((prev) => prev.filter((s) => s !== sym));
+  }, []);
+
   const toggleMa = useCallback((period: MaPeriod) => {
     setVisibleMa((prev) => ({ ...prev, [period]: !prev[period] }));
   }, []);
@@ -716,6 +937,36 @@ export default function IndexDetailModal({ def, initialRange, onClose, lineTabs,
   const changeColor = (isPriceTab ? priceUp : lineUp)
     ? "text-green-600 dark:text-green-400"
     : "text-red-600 dark:text-red-400";
+
+  // Compare overlay legend: base symbol first, then each overlaid ticker.
+  // baseClose = first in-range close (return-mode normalization origin),
+  // lastClose = latest close. Hover values override lastClose when present.
+  const compareLegend = useMemo(() => {
+    if (!compareActive || !quote) return [];
+    const baseEntry = {
+      key: BASE_HOVER_KEY,
+      label: def.ticker,
+      color: BASE_LEGEND_COLOR,
+      isBase: true,
+      symbol: def.symbol,
+      baseClose: rangeBaseClose(quote.candles, range),
+      lastClose: quote.candles.length ? quote.candles[quote.candles.length - 1].close : null,
+    };
+    const comps = compareSymbols.map((sym, i) => {
+      const cand = compareData[sym]?.candles ?? [];
+      const label = compareCandidates.find((c) => c.symbol === sym)?.ticker ?? sym;
+      return {
+        key: sym,
+        label,
+        color: COMPARE_LINE_COLORS[i % COMPARE_LINE_COLORS.length],
+        isBase: false,
+        symbol: sym,
+        baseClose: rangeBaseClose(cand, range),
+        lastClose: cand.length ? cand[cand.length - 1].close : null,
+      };
+    });
+    return [baseEntry, ...comps];
+  }, [compareActive, quote, compareSymbols, compareData, range, def.ticker, def.symbol, compareCandidates]);
 
   const showLoading = isPriceTab ? loading : lineLoading;
   const showError = isPriceTab ? error : lineError;
@@ -872,9 +1123,116 @@ export default function IndexDetailModal({ def, initialRange, onClose, lineTabs,
                   MA{period}
                 </button>
               ))}
+
+              {/* Compare (overlay) ticker picker. */}
+              <div ref={pickerRef} className="relative">
+                <button
+                  onClick={() => setPickerOpen((v) => !v)}
+                  disabled={!canAddCompare}
+                  aria-haspopup="menu"
+                  aria-expanded={pickerOpen}
+                  className="flex items-center gap-1 rounded-md border border-slate-200 px-2 py-1 text-[11px] font-semibold text-slate-600 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-[#2a3336] dark:text-slate-300 dark:hover:bg-white/10"
+                >
+                  <Plus size={12} />
+                  비교 추가
+                  {compareSymbols.length > 0 && (
+                    <span className="text-slate-400">
+                      ({compareSymbols.length}/{MAX_COMPARE})
+                    </span>
+                  )}
+                </button>
+                {pickerOpen && availableCompare.length > 0 && (
+                  <div
+                    role="menu"
+                    className="absolute right-0 top-full z-20 mt-1 min-w-[150px] overflow-hidden rounded-lg border border-slate-200 bg-white py-1 shadow-xl dark:border-[#2a3336] dark:bg-[#191f20]"
+                  >
+                    {availableCompare.map((c) => (
+                      <button
+                        key={c.symbol}
+                        role="menuitem"
+                        onClick={() => addCompare(c.symbol)}
+                        className="flex w-full items-center justify-between gap-3 px-3 py-1.5 text-left text-[12px] font-semibold text-slate-700 transition-colors hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-white/10"
+                      >
+                        <span>{c.ticker}</span>
+                        <span className="text-[10px] font-normal text-slate-400">{c.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
+
+        {/* Compare (overlay) controls: mode toggle + legend with remove. Shown
+            only on the Price tab when ≥1 comparison ticker is selected; the
+            modal is otherwise pixel-identical to before. */}
+        {compareActive && (
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-slate-200 px-4 py-2 dark:border-[#2a3336] sm:px-5">
+            <div className="inline-flex shrink-0 items-center rounded-md border border-slate-200 p-0.5 dark:border-[#2a3336]">
+              {([
+                ["return", "수익률 비교"],
+                ["price", "실제 가격"],
+              ] as const).map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => setCompareMode(key)}
+                  aria-pressed={compareMode === key}
+                  className={`rounded px-2 py-0.5 text-[11px] font-semibold transition-colors ${
+                    compareMode === key
+                      ? "bg-blue-600 text-white"
+                      : "text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/10"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              {compareLoading && (
+                <span className="text-[10.5px] font-medium text-slate-400">불러오는 중…</span>
+              )}
+              {compareLegend.map((entry) => {
+                const shownClose =
+                  hoverCompare && hoverCompare[entry.key] != null ? hoverCompare[entry.key] : entry.lastClose;
+                let valueText = "—";
+                let valueColor = "text-slate-500 dark:text-slate-400";
+                if (compareMode === "price") {
+                  valueText = shownClose != null ? formatUsd(shownClose) : "—";
+                } else {
+                  const ret =
+                    shownClose != null && entry.baseClose != null && entry.baseClose !== 0
+                      ? (shownClose / entry.baseClose - 1) * 100
+                      : null;
+                  valueText = ret != null ? formatSignedPct(ret) : "—";
+                  valueColor =
+                    (ret ?? 0) >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400";
+                }
+                return (
+                  <span key={entry.key} className="inline-flex items-center gap-1.5">
+                    <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: entry.color }} />
+                    <span className="text-[11.5px] font-bold text-slate-700 dark:text-slate-200">{entry.label}</span>
+                    <span className={`num text-[11.5px] font-semibold ${valueColor}`}>{valueText}</span>
+                    {entry.isBase ? (
+                      <span className="rounded bg-slate-100 px-1 py-px text-[9.5px] font-bold text-slate-400 dark:bg-white/10">
+                        기준
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => removeCompare(entry.symbol)}
+                        aria-label={`${entry.label} 비교 제거`}
+                        className="rounded p-0.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-white/10 dark:hover:text-slate-200"
+                      >
+                        <X size={11} />
+                      </button>
+                    )}
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Info row. Price tab: TradingView-style OHLC (시작/고가/저가/종가 + 직전
             종가 대비 등락%). Line tabs: metric label + current/hovered value.
