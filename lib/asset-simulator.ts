@@ -366,48 +366,18 @@ export function _calc_first_by_limit(totalLimit: number, years: number, effRate:
   return totalLimit / factor;
 }
 
-export function _find_optimal(
-  initialBalance: number,
-  returnRate: number,
-  effRate: number,
-  years: number,
-  limit: number,
-  additionalDeposits: number[] = [],
-): number {
-  if (years <= 0) return 0;
-  let high = _calc_first_by_limit(limit, years, effRate);
-  let low = 0;
-  let optimal = 0;
-
-  for (let iter = 0; iter < 50; iter += 1) {
-    const mid = (low + high) / 2;
-    let balance = initialBalance;
-    let totalWithdraw = 0;
-    let prevWithdraw = 0;
-    let valid = true;
-
-    for (let y = 0; y < years; y += 1) {
-      balance *= 1 + returnRate;
-      if (y < additionalDeposits.length) balance += additionalDeposits[y];
-      let withdraw = mid * Math.pow(1 + effRate, y);
-      if (totalWithdraw + withdraw > limit) withdraw = Math.max(0, limit - totalWithdraw);
-      if (withdraw > balance || withdraw < prevWithdraw - 0.001) {
-        valid = false;
-        break;
-      }
-      balance -= withdraw;
-      totalWithdraw += withdraw;
-      prevWithdraw = withdraw;
-    }
-
-    if (valid) {
-      optimal = mid;
-      low = mid;
-    } else {
-      high = mid;
-    }
-  }
-  return optimal;
+// 55세 이전(~2050) 절세계좌 인출 "첫해 인출액" 산정.
+//
+// 기존 _find_optimal() 은 평가금액(원금+운용수익)을 기준으로 이분탐색하여 인출액을 역산했다.
+// 신규 기획 의도("55세 이전에는 납입한 원금만 인출, 수익은 계속 운용")에 따라
+// 평가금액 역산 방식을 제거하고, "누적 납입원금"을 목표기간 동안 실질가치 일정하게
+// 소진하는 등비수열 합 공식(_calc_first_by_limit 재사용)으로 단순화한다.
+//   firstWithdraw = principal / Σ_{k=0}^{N-1} (1+effRate)^k
+//   effRate = (1+인출증가율)(1+물가) - 1
+//     · 인출증가율 = 0  → 명목 인출금이 물가만큼 증가 → 실질 구매력 일정
+//     · 인출증가율 > 0  → 명목 인출금이 물가보다 빠르게 증가 → 실질 구매력 점증(허용)
+function _calc_principal_first_withdraw(principal: number, years: number, effRate: number): number {
+  return _calc_first_by_limit(Math.max(0, principal), years, effRate);
 }
 
 export function simulate_tax_account_withdraw(cfg: SimConfig, results: YearResult[], retireIdx: number): WithdrawPlan | null {
@@ -418,42 +388,54 @@ export function simulate_tax_account_withdraw(cfg: SimConfig, results: YearResul
 
   const retireYear = results[retireIdx].year;
   const actualStartYear = results[actualStartIdx].year;
-  let isaAtStart = results[retireIdx].isaNominal || results[retireIdx].isaBalance;
-  let pensionAtStart = results[retireIdx].pensionNominal || results[retireIdx].pensionBalance;
   const returnRate = pct(cfg.annualReturnRate);
   const inflationRate = pct(cfg.inflationRate);
   const withdrawalRate = pct(cfg.withdrawalRate);
   const withdrawalGrowthRate = pct(cfg.withdrawalGrowthRate);
 
-  for (let d = retireIdx + 1; d <= retireIdx + delay; d += 1) {
-    if (d < results.length) {
-      isaAtStart *= 1 + returnRate;
-      pensionAtStart *= 1 + returnRate;
-      isaAtStart += results[d].isaContribution;
-    }
+  // ── 55세 이전(~2050) 인출 구간 식별 ─────────────────────────────────────
+  // actualStartIdx 부터 연도가 2050 이하인 마지막 인덱스를 찾는다.
+  let lastPre2050Idx = -1;
+  for (let i = actualStartIdx; i < results.length; i += 1) {
+    if (results[i].year <= 2050) lastPre2050Idx = i;
+    else break;
   }
+  // 실제 인출 연수(목표기간 N). 시뮬레이션이 2050 이전에 끝나도 안전하도록 실제 행 수로 계산한다.
+  const yearsUntil2050 = lastPre2050Idx >= actualStartIdx ? lastPre2050Idx - actualStartIdx + 1 : 0;
 
-  const pensionDepositLimit = cfg.initialPension + results[retireIdx].totalPensionDeposit;
-  const yearsUntil2050 = Math.max(0, 2050 - actualStartYear + 1);
-  const isaEffRate = (1 + withdrawalGrowthRate) * (1 + inflationRate) - 1;
-  const pensionEffRate = withdrawalGrowthRate;
-  const isaAdditional = results.slice(actualStartIdx).filter((row) => row.year <= 2050).map((row) => row.isaContribution);
-  const isaFirst = _find_optimal(isaAtStart, returnRate, isaEffRate, yearsUntil2050, ISA_LIMIT_UNTIL_2050, isaAdditional);
-  const pensionFirst = _find_optimal(pensionAtStart, returnRate, pensionEffRate, yearsUntil2050, pensionDepositLimit);
-  const isaFirstByLimit = _calc_first_by_limit(ISA_LIMIT_UNTIL_2050, yearsUntil2050, isaEffRate);
-  const pensionFirstByLimit = _calc_first_by_limit(pensionDepositLimit, yearsUntil2050, pensionEffRate);
+  // ── 누적 납입원금 풀(평가금액 아님) ─────────────────────────────────────
+  // simulate_deposits 단계의 isaBalance/pensionBalance 는 "운용수익이 미반영된" 납입원금 누계이며
+  // ISA→연금 이전(transfer)도 반영되어 있다. 55세 이전 인출은 이 납입원금만을 대상으로 하고,
+  // 운용수익(평가금액-원금)은 인출하지 않고 계속 운용되는 것으로 가정한다.
+  // 풀 = 2050년까지 절세계좌에 쌓인 누적 납입원금(대기/인출 기간 추가 납입 포함, FIFO 미관리).
+  const principalSourceIdx = lastPre2050Idx >= actualStartIdx ? lastPre2050Idx : retireIdx;
+  const isaPrincipalRaw = results[principalSourceIdx]?.isaBalance ?? results[retireIdx].isaBalance;
+  const pensionPrincipalRaw = results[principalSourceIdx]?.pensionBalance ?? results[retireIdx].pensionBalance;
+  // ISA 는 2050년까지 비과세 인출 한도(1억) 범위 내에서만 원금 인출. 초과분은 잔고에 남아 2051~ 과세구간에서 처리.
+  const isaPrincipalPool = Math.min(isaPrincipalRaw, ISA_LIMIT_UNTIL_2050);
+  const pensionPrincipalPool = pensionPrincipalRaw;
+
+  // 명목 인출 증가율: 실질 구매력 유지(물가) + 인출증가율. ISA·연금에 동일하게 적용한다.
+  //   인출증가율 0  → 명목이 물가만큼 증가 → 실질 일정
+  //   인출증가율 >0 → 명목이 물가보다 빠르게 증가 → 실질 점증(허용)
+  const effRate = (1 + withdrawalGrowthRate) * (1 + inflationRate) - 1;
+
+  // 첫해 인출액 = 납입원금을 목표기간 N 동안 등비수열로 정확히 소진하도록 역산.
+  const isaFirst = _calc_principal_first_withdraw(isaPrincipalPool, yearsUntil2050, effRate);
+  const pensionFirst = _calc_principal_first_withdraw(pensionPrincipalPool, yearsUntil2050, effRate);
 
   const plan: WithdrawPlan = {
     retireYear,
     actualStartYear,
     yearsUntil2050,
-    isaBalanceAtStart: isaAtStart,
-    pensionBalanceAtStart: pensionAtStart,
+    // BalanceAtStart 는 이제 "55세 이전에 인출 가능한 납입원금"을 의미한다(평가금액 아님).
+    isaBalanceAtStart: isaPrincipalPool,
+    pensionBalanceAtStart: pensionPrincipalPool,
     isaFirstWithdraw: isaFirst,
     pensionFirstWithdraw: pensionFirst,
-    isaConstraint: isaFirst < isaFirstByLimit * 0.99 ? "잔고제약" : "한도기준",
-    pensionConstraint: pensionFirst < pensionFirstByLimit * 0.99 ? "잔고제약" : "한도기준",
-    pensionDepositLimit,
+    isaConstraint: "원금소진",
+    pensionConstraint: "원금소진",
+    pensionDepositLimit: pensionPrincipalPool,
     isaLimitUntil2050: ISA_LIMIT_UNTIL_2050,
     rows: [],
     totalGrossIsa: 0,
@@ -464,14 +446,16 @@ export function simulate_tax_account_withdraw(cfg: SimConfig, results: YearResul
     finalPensionBalance: 0,
   };
 
+  // 평가금액 잔고(운용수익 포함): 55세 이후(2051~) 인출은 기존대로 이 잔고 기준으로 계산한다.
   let pensionBalance = results[retireIdx].pensionNominal || results[retireIdx].pensionBalance;
   let isaBalance = results[retireIdx].isaNominal || results[retireIdx].isaBalance;
+  // 55세 이전 인출 대상인 "남은 납입원금". 매년 인출분만큼 감소하며 마지막 해에 0 이 된다.
+  let remainingIsaPrincipal = isaPrincipalPool;
+  let remainingPensionPrincipal = pensionPrincipalPool;
   let totalWithdrawIsa = 0;
   let totalWithdrawPension = 0;
   let isa2051Base = 0;
   let pension2051Base = 0;
-  let prevIsaWithdraw = 0;
-  let prevPensionWithdraw = 0;
   let cumulativeInflation = 1;
   for (let i = 0; i <= retireIdx; i += 1) cumulativeInflation *= 1 + inflationRate;
 
@@ -498,20 +482,30 @@ export function simulate_tax_account_withdraw(cfg: SimConfig, results: YearResul
     } else if (row.year <= 2050) {
       category = "~2050";
       const yearsFromStart = i - actualStartIdx;
-      isaGross = isaFirst * Math.pow(1 + isaEffRate, yearsFromStart);
-      if (totalWithdrawIsa + isaGross > ISA_LIMIT_UNTIL_2050) isaGross = Math.max(0, ISA_LIMIT_UNTIL_2050 - totalWithdrawIsa);
-      if (isaGross < prevIsaWithdraw && prevIsaWithdraw > 0) isaGross = prevIsaWithdraw;
-      isaGross = Math.min(isaGross, isaBalance * withdrawalRate, isaBalance);
+      const isLastPre2050 = i === lastPre2050Idx;
 
-      pensionGross = pensionFirst * Math.pow(1 + pensionEffRate, yearsFromStart);
-      if (totalWithdrawPension + pensionGross > pensionDepositLimit) pensionGross = Math.max(0, pensionDepositLimit - totalWithdrawPension);
-      if (pensionGross < prevPensionWithdraw && prevPensionWithdraw > 0) pensionGross = prevPensionWithdraw;
-      pensionGross = Math.min(pensionGross, pensionBalance * withdrawalRate, pensionBalance);
+      // ISA: 납입원금 등비 인출. 마지막 해에는 잔여 원금을 전액 인출하여 정확히 0 으로 소진한다.
+      // 평가금액(isaNominal)은 인출액 계산에 사용하지 않는다(운용수익은 계속 운용).
+      isaGross = isLastPre2050
+        ? remainingIsaPrincipal
+        : Math.min(isaFirst * Math.pow(1 + effRate, yearsFromStart), remainingIsaPrincipal);
+      // 안전장치: 평가잔고를 초과해 인출하지 않는다(정상적으로 평가잔고 ≥ 원금 이므로 비구속).
+      isaGross = Math.min(isaGross, isaBalance);
+      remainingIsaPrincipal = Math.max(0, remainingIsaPrincipal - isaGross);
 
+      // 연금: 동일 방식(누적 납입원금 등비 소진).
+      pensionGross = isLastPre2050
+        ? remainingPensionPrincipal
+        : Math.min(pensionFirst * Math.pow(1 + effRate, yearsFromStart), remainingPensionPrincipal);
+      pensionGross = Math.min(pensionGross, pensionBalance);
+      remainingPensionPrincipal = Math.max(0, remainingPensionPrincipal - pensionGross);
+
+      // 55세 이전은 납입원금 인출이므로 비과세(net = gross).
       isaNet = isaGross;
       pensionNet = pensionGross;
-      isaRemainingLimit = Math.max(0, ISA_LIMIT_UNTIL_2050 - totalWithdrawIsa - isaGross);
-      pensionRemainingLimit = Math.max(0, pensionDepositLimit - totalWithdrawPension - pensionGross);
+      // 잔여 인출 가능 원금(표기용).
+      isaRemainingLimit = remainingIsaPrincipal;
+      pensionRemainingLimit = remainingPensionPrincipal;
     } else {
       category = "2051~";
       isaTaxRate = ISA_TAX_RATE_AFTER_2051;
@@ -530,11 +524,6 @@ export function simulate_tax_account_withdraw(cfg: SimConfig, results: YearResul
       pensionGross = Math.min(pensionGross, pensionBalance);
       isaNet = isaGross * (1 - isaTaxRate);
       pensionNet = pensionGross * (1 - pensionTaxRate);
-    }
-
-    if (!isDelay) {
-      prevIsaWithdraw = isaGross;
-      prevPensionWithdraw = pensionGross;
     }
 
     isaBalance = Math.max(0, isaBalance - isaGross);
