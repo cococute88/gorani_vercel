@@ -8,12 +8,16 @@ import AssetAccountCards from "@/components/AssetAccountCards";
 import AssetClassDonut from "@/components/portfolio/AssetClassDonut";
 import PortfolioMarketIndicatorStrip from "@/components/portfolio/PortfolioMarketIndicatorStrip";
 import { usePortfolioView } from "@/lib/use-portfolio-view";
+import { usePortfolioFirestoreSnapshot } from "@/lib/portfolio-firestore-snapshot-sync";
 import { buildAssetClassAllocation } from "@/lib/asset-class-allocation";
 import { useResolvedTheme } from "@/components/theme/ThemeProvider";
 import { useMemo } from "react";
 
 // 스크린샷 4: 다크모드 포트폴리오 현황 + 자산군 도넛
 export default function PortfolioPage() {
+  // 페이지 진입 시 Firestore 최신 portfolio_snapshot 을 데이터 공급원으로 사용한다.
+  // (스냅샷 없음/오류 시 기존 로컬 데이터로 자동 fallback. UI/계산은 변경하지 않는다.)
+  usePortfolioFirestoreSnapshot();
   const portfolioView = usePortfolioView();
   const theme = useResolvedTheme();
 
