@@ -13,12 +13,18 @@ export {
 export {
   getAdminFirestore,
   isAdminFirestoreConfigured,
+  getAdminAccountDiagnostics,
+  type AdminAccountDiagnostics,
 } from "./firebase-admin";
 
 export {
   FirestoreReadError,
   isFirestoreReadError,
+  classifyAdminError,
+  describeError,
+  logOriginalError,
   type FirestoreErrorCode,
+  type ErrorDiagnostics,
 } from "./errors";
 
 export {

@@ -84,13 +84,35 @@ function loadServiceAccount(): ServiceAccount {
   const privateKey = parsed.private_key?.replace(/\\n/g, "\n");
 
   if (!projectId || !clientEmail || !privateKey) {
+    // JSON parsed fine but is not a usable service account.
     throw new FirestoreReadError(
-      "service-account-json-invalid",
+      "invalid-service-account",
       `${SERVICE_ACCOUNT_ENV} is missing required fields (project_id, client_email, private_key).`,
     );
   }
 
   return { projectId, clientEmail, privateKey };
+}
+
+/**
+ * The non-sensitive identity of the service account the Admin SDK was
+ * initialized with. NEVER contains `private_key`. Exposed for diagnostics so a
+ * caller (e.g. the API route / read layer) can log which account was used.
+ */
+export interface AdminAccountDiagnostics {
+  projectId: string;
+  clientEmail: string;
+}
+
+let adminAccountDiagnostics: AdminAccountDiagnostics | null = null;
+
+/**
+ * Return the non-sensitive identity (projectId, client_email) of the service
+ * account the Admin SDK initialized with, or `null` if it has not been
+ * initialized yet. Safe to log — contains no credentials.
+ */
+export function getAdminAccountDiagnostics(): AdminAccountDiagnostics | null {
+  return adminAccountDiagnostics;
 }
 
 /**
@@ -103,14 +125,40 @@ function getAdminApp(): App {
   if (existing) return existing;
 
   const serviceAccount = loadServiceAccount();
-  const app = initializeApp(
-    {
-      credential: cert(serviceAccount),
-      projectId: serviceAccount.projectId,
-    },
-    ADMIN_APP_NAME,
-  );
-  devLog("admin", "Initialized Firebase Admin app", { projectId: serviceAccount.projectId });
+
+  // Record the non-sensitive identity for diagnostics. NEVER store private_key.
+  adminAccountDiagnostics = {
+    projectId: serviceAccount.projectId ?? "",
+    clientEmail: serviceAccount.clientEmail ?? "",
+  };
+  // Requirement 4: confirm which service account is in use (no private_key).
+  devLog("admin", "Resolved service account", {
+    projectId: adminAccountDiagnostics.projectId,
+    clientEmail: adminAccountDiagnostics.clientEmail,
+  });
+
+  let app: App;
+  try {
+    app = initializeApp(
+      {
+        credential: cert(serviceAccount),
+        projectId: serviceAccount.projectId,
+      },
+      ADMIN_APP_NAME,
+    );
+  } catch (error) {
+    // initializeApp / cert can throw on a malformed credential.
+    throw new FirestoreReadError(
+      "admin-init-failed",
+      "Firebase Admin SDK failed to initialize with the provided service account.",
+      error,
+    );
+  }
+
+  devLog("admin", "Initialized Firebase Admin app", {
+    projectId: serviceAccount.projectId,
+    initialized: true,
+  });
   return app;
 }
 
@@ -126,7 +174,18 @@ export function getAdminFirestore(): Firestore {
   const app = getApps().some((a) => a.name === ADMIN_APP_NAME)
     ? getApp(ADMIN_APP_NAME)
     : getAdminApp();
-  firestoreSingleton = getFirestore(app);
+  try {
+    firestoreSingleton = getFirestore(app);
+  } catch (error) {
+    // A FirestoreReadError from getAdminApp() flows through unchanged; only a
+    // raw getFirestore() failure is wrapped as an init failure here.
+    if (error instanceof FirestoreReadError) throw error;
+    throw new FirestoreReadError(
+      "admin-init-failed",
+      "Failed to obtain the Admin Firestore instance.",
+      error,
+    );
+  }
   return firestoreSingleton;
 }
 

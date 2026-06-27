@@ -24,7 +24,7 @@ import "server-only";
 
 import { FieldPath, type Firestore } from "firebase-admin/firestore";
 
-import { getAdminFirestore } from "./firebase-admin";
+import { getAdminFirestore, getAdminAccountDiagnostics } from "./firebase-admin";
 import { FirestoreReadError, classifyAdminError, devLog } from "./errors";
 import {
   PORTFOLIO_SNAPSHOTS_COLLECTION,
@@ -54,8 +54,17 @@ function snapshotsCollection(db: Firestore) {
  * permission failures.
  */
 export async function getLatestPortfolioSnapshot(): Promise<PortfolioSnapshotRecord | null> {
-  // getAdminFirestore() throws FirestoreReadError for config/JSON problems.
+  // getAdminFirestore() throws FirestoreReadError for config/JSON/init problems.
   const db = getAdminFirestore();
+
+  // Requirement 2: log the access context BEFORE touching Firestore.
+  const account = getAdminAccountDiagnostics();
+  devLog("portfolio", "Querying latest snapshot", {
+    projectId: account?.projectId,
+    clientEmail: account?.clientEmail,
+    collection: PORTFOLIO_SNAPSHOTS_COLLECTION,
+    queryMethod: "orderBy(documentId,desc).limit(1)",
+  });
 
   try {
     const query = snapshotsCollection(db)
@@ -65,15 +74,29 @@ export async function getLatestPortfolioSnapshot(): Promise<PortfolioSnapshotRec
     const result = await query.get();
 
     if (result.empty) {
-      devLog("portfolio", "No snapshots found", { code: "collection-not-found" });
+      // Distinct from an error: the collection simply has no documents yet.
+      devLog("portfolio", "Collection is empty", {
+        collection: PORTFOLIO_SNAPSHOTS_COLLECTION,
+        empty: true,
+        code: "collection-empty",
+      });
       return null;
     }
 
     const doc = result.docs[0];
-    devLog("portfolio", "Loaded latest snapshot", { id: doc.id });
-    return toRecord(doc.id, doc.data() as PortfolioSnapshotDocument);
+    const data = doc.data() as PortfolioSnapshotDocument;
+    // Requirement 5: log post-query facts (no monetary payload is logged).
+    devLog("portfolio", "Loaded latest snapshot", {
+      exists: doc.exists,
+      id: doc.id,
+      fieldCount: Object.keys(data ?? {}).length,
+      documentVersion: data?.document_version,
+    });
+    return toRecord(doc.id, data);
   } catch (error) {
-    const classified = classifyAdminError(error);
+    // Wrap query failures as "firestore-query-failed" (never "unknown"); the
+    // original error is logged inside classifyAdminError.
+    const classified = classifyAdminError(error, "firestore-query-failed");
     devLog("portfolio", "getLatestPortfolioSnapshot failed", { code: classified.code });
     throw classified;
   }
@@ -97,6 +120,14 @@ export async function getPortfolioSnapshot(
 
   const db = getAdminFirestore();
 
+  const account = getAdminAccountDiagnostics();
+  devLog("portfolio", "Querying snapshot by id", {
+    projectId: account?.projectId,
+    clientEmail: account?.clientEmail,
+    collection: PORTFOLIO_SNAPSHOTS_COLLECTION,
+    queryMethod: `doc("${snapshotDate}").get()`,
+  });
+
   try {
     const doc = await snapshotsCollection(db).doc(snapshotDate).get();
 
@@ -105,10 +136,16 @@ export async function getPortfolioSnapshot(
       return null;
     }
 
-    devLog("portfolio", "Loaded snapshot", { id: snapshotDate });
-    return toRecord(doc.id, doc.data() as PortfolioSnapshotDocument);
+    const data = doc.data() as PortfolioSnapshotDocument;
+    devLog("portfolio", "Loaded snapshot", {
+      exists: doc.exists,
+      id: doc.id,
+      fieldCount: Object.keys(data ?? {}).length,
+      documentVersion: data?.document_version,
+    });
+    return toRecord(doc.id, data);
   } catch (error) {
-    const classified = classifyAdminError(error);
+    const classified = classifyAdminError(error, "firestore-query-failed");
     devLog("portfolio", "getPortfolioSnapshot failed", { code: classified.code });
     throw classified;
   }
