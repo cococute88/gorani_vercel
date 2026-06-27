@@ -1,0 +1,115 @@
+// =============================================================
+// Server-side portfolio snapshot read layer.
+//
+// Public API (server only):
+//   - getLatestPortfolioSnapshot(): newest snapshot in `portfolio_snapshots`.
+//   - getPortfolioSnapshot(snapshotDate): a specific snapshot by date.
+//
+// Because the Firestore document ID IS the snapshot date (YYYY-MM-DD), and that
+// format sorts lexicographically in chronological order, "latest" is found by
+// ordering on the document ID descending and taking the first result.
+//
+// READ ONLY. No writes, no monetary recomputation. The producer
+// (bs-report-auto) owns the data; this layer only fetches and types it.
+//
+// Error handling (each case is handled distinctly — see ./errors):
+//   - missing service account env  -> throws FirestoreReadError("config-missing")
+//   - malformed service account    -> throws FirestoreReadError("service-account-json-invalid")
+//   - permission / IAM / rules     -> throws FirestoreReadError("permission-denied")
+//   - empty collection             -> returns null (logged as "collection-not-found")
+//   - missing document             -> returns null (logged as "document-not-found")
+// =============================================================
+
+import "server-only";
+
+import { FieldPath, type Firestore } from "firebase-admin/firestore";
+
+import { getAdminFirestore } from "./firebase-admin";
+import { FirestoreReadError, classifyAdminError, devLog } from "./errors";
+import {
+  PORTFOLIO_SNAPSHOTS_COLLECTION,
+  type PortfolioSnapshotDocument,
+  type PortfolioSnapshotRecord,
+  type SnapshotDate,
+} from "./types";
+
+/** Strict YYYY-MM-DD validation for the snapshot date / document ID. */
+const SNAPSHOT_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+function isValidSnapshotDate(value: string): value is SnapshotDate {
+  return SNAPSHOT_DATE_PATTERN.test(value);
+}
+
+function toRecord(id: string, data: PortfolioSnapshotDocument): PortfolioSnapshotRecord {
+  return { id, data };
+}
+
+function snapshotsCollection(db: Firestore) {
+  return db.collection(PORTFOLIO_SNAPSHOTS_COLLECTION);
+}
+
+/**
+ * Return the most recent portfolio snapshot, or `null` when the collection has
+ * no documents yet. Throws a typed FirestoreReadError for configuration or
+ * permission failures.
+ */
+export async function getLatestPortfolioSnapshot(): Promise<PortfolioSnapshotRecord | null> {
+  // getAdminFirestore() throws FirestoreReadError for config/JSON problems.
+  const db = getAdminFirestore();
+
+  try {
+    const query = snapshotsCollection(db)
+      // Document ID == YYYY-MM-DD, so ordering by ID desc yields newest first.
+      .orderBy(FieldPath.documentId(), "desc")
+      .limit(1);
+    const result = await query.get();
+
+    if (result.empty) {
+      devLog("portfolio", "No snapshots found", { code: "collection-not-found" });
+      return null;
+    }
+
+    const doc = result.docs[0];
+    devLog("portfolio", "Loaded latest snapshot", { id: doc.id });
+    return toRecord(doc.id, doc.data() as PortfolioSnapshotDocument);
+  } catch (error) {
+    const classified = classifyAdminError(error);
+    devLog("portfolio", "getLatestPortfolioSnapshot failed", { code: classified.code });
+    throw classified;
+  }
+}
+
+/**
+ * Return the snapshot stored under `snapshotDate` (YYYY-MM-DD), or `null` when
+ * no such document exists. Throws a typed FirestoreReadError for an invalid date
+ * argument, or for configuration / permission failures.
+ */
+export async function getPortfolioSnapshot(
+  snapshotDate: string,
+): Promise<PortfolioSnapshotRecord | null> {
+  if (typeof snapshotDate !== "string" || !isValidSnapshotDate(snapshotDate)) {
+    // Surface bad input distinctly from "not found".
+    throw new FirestoreReadError(
+      "document-not-found",
+      `Invalid snapshot date "${String(snapshotDate)}". Expected YYYY-MM-DD.`,
+    );
+  }
+
+  const db = getAdminFirestore();
+
+  try {
+    const doc = await snapshotsCollection(db).doc(snapshotDate).get();
+
+    if (!doc.exists) {
+      devLog("portfolio", "Snapshot not found", { id: snapshotDate, code: "document-not-found" });
+      return null;
+    }
+
+    devLog("portfolio", "Loaded snapshot", { id: snapshotDate });
+    return toRecord(doc.id, doc.data() as PortfolioSnapshotDocument);
+  } catch (error) {
+    const classified = classifyAdminError(error);
+    devLog("portfolio", "getPortfolioSnapshot failed", { code: classified.code });
+    throw classified;
+  }
+}
