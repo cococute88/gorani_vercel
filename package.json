@@ -77,6 +77,7 @@
     "check:small-ui-label-market-portfolio-fix": "node scripts/check-small-ui-label-market-portfolio-fix.mjs",
     "check:schd-attractiveness-port": "node scripts/check-schd-attractiveness-port.mjs",
     "check:schd-attractiveness-dense-data": "node scripts/check-schd-attractiveness-dense-data.mjs",
+    "check:schd-detail-chart-tabs": "node scripts/check-schd-detail-chart-tabs.mjs",
     "check:small-ui-favicon-modal-chart-fix": "node scripts/check-small-ui-favicon-modal-chart-fix.mjs",
     "check:calculator-dense-history": "node scripts/check-calculator-dense-history.mjs",
     "check:firestore-portfolio-adapter": "node scripts/check-firestore-portfolio-adapter.mjs",
