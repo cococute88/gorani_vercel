@@ -34,7 +34,7 @@
 //   legacy data; the page never breaks.
 // =============================================================
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { PortfolioSnapshot } from "./portfolio-types";
 
 const ENDPOINT = "/api/portfolio/latest-snapshot";
@@ -63,17 +63,34 @@ type LatestSnapshotResponse =
 // legacy localStorage store.
 // -------------------------------------------------------------
 let firestoreSnapshot: PortfolioSnapshot | null = null;
+// Date of the snapshot currently published in this store. Tracked separately so
+// (a) the manual "최신화" refresh can detect an unchanged snapshot WITHOUT
+// touching the store (requirement: no needless re-render on the same snapshot),
+// and (b) the "최근 동기화" label can read the active Firestore date directly.
+let firestoreSnapshotDate: string | null = null;
 const listeners = new Set<() => void>();
 
 function emit(): void {
   listeners.forEach((listener) => listener());
 }
 
-/** Publish the Firestore snapshot as the single source (or clear it with null). */
-function setFirestoreSnapshot(snapshot: PortfolioSnapshot | null): void {
-  if (firestoreSnapshot === snapshot) return;
+/**
+ * Publish a Firestore snapshot together with its date as the single source (or
+ * clear it with `(null, null)`). Returns `true` only when the store actually
+ * changed, so callers can distinguish an applied-new snapshot from an unchanged
+ * one and avoid emitting a needless re-render.
+ */
+function setFirestoreSnapshot(
+  snapshot: PortfolioSnapshot | null,
+  snapshotDate: string | null,
+): boolean {
+  if (firestoreSnapshot === snapshot && firestoreSnapshotDate === snapshotDate) {
+    return false;
+  }
   firestoreSnapshot = snapshot;
+  firestoreSnapshotDate = snapshotDate;
   emit();
+  return true;
 }
 
 function subscribe(callback: () => void): () => void {
@@ -90,6 +107,10 @@ function getFirestoreSnapshotRef(): PortfolioSnapshot | null {
 // SSR: never resolve a Firestore snapshot on the server; always start as null.
 function getFirestoreSnapshotServer(): PortfolioSnapshot | null {
   return null;
+}
+
+function getFirestoreSnapshotDateRef(): string | null {
+  return firestoreSnapshotDate;
 }
 
 /**
@@ -110,9 +131,54 @@ export function getFirestoreSnapshot(): PortfolioSnapshot | null {
   return firestoreSnapshot;
 }
 
+/**
+ * Subscribe to the date of the snapshot currently driving the Portfolio screen.
+ * Returns the active Firestore `snapshotDate` (e.g. "2026-06-19") or `null` when
+ * no Firestore snapshot is active (loading / empty / fallback to localStorage).
+ * Used by the "최근 동기화" label.
+ */
+export function usePortfolioFirestoreSnapshotDate(): string | null {
+  return useSyncExternalStore(
+    subscribe,
+    getFirestoreSnapshotDateRef,
+    () => null,
+  );
+}
+
 // Only attempt the live read once per loaded module instance (page session),
 // mirroring the existing cloud-sync's single-attempt guard.
 let attempted = false;
+
+// -------------------------------------------------------------
+// Shared fetch core. Reads /api/portfolio/latest-snapshot once and normalises
+// the discriminated response into a simple result. NEVER throws — a network /
+// parse failure degrades to `{ kind: "error" }` so callers can decide how to
+// react (the page never breaks).
+// -------------------------------------------------------------
+type FetchedSnapshot =
+  | { kind: "firestore"; snapshotDate: string; snapshot: PortfolioSnapshot }
+  | { kind: "empty" }
+  | { kind: "error" };
+
+async function fetchLatestSnapshot(): Promise<FetchedSnapshot> {
+  try {
+    const res = await fetch(ENDPOINT, { cache: "no-store" });
+    if (!res.ok) return { kind: "error" };
+
+    const body = (await res.json()) as LatestSnapshotResponse;
+    if (body.source === "firestore" && body.snapshot) {
+      return {
+        kind: "firestore",
+        snapshotDate: body.snapshotDate,
+        snapshot: body.snapshot,
+      };
+    }
+    if (body.source === "empty") return { kind: "empty" };
+    return { kind: "error" };
+  } catch {
+    return { kind: "error" };
+  }
+}
 
 /**
  * On first mount, read the latest Firestore snapshot through the API route and
@@ -134,47 +200,29 @@ export function usePortfolioFirestoreSnapshot(): FirestoreSnapshotSyncState {
     setState({ status: "loading", snapshotDate: null });
 
     (async () => {
-      try {
-        const res = await fetch(ENDPOINT, { cache: "no-store" });
-        if (!res.ok) {
-          // Treat any non-2xx as a graceful fallback to legacy data.
-          if (!cancelled) {
-            setFirestoreSnapshot(null);
-            setState({ status: "fallback", snapshotDate: null });
-          }
-          attempted = false; // allow a later retry (e.g. remount)
-          return;
-        }
+      const result = await fetchLatestSnapshot();
+      if (cancelled) return;
 
-        const body = (await res.json()) as LatestSnapshotResponse;
-        if (cancelled) return;
-
-        if (body.source === "firestore" && body.snapshot) {
-          // Single source: the Firestore snapshot fully drives the Portfolio
-          // view. We do NOT merge with — or write to — localStorage.
-          setFirestoreSnapshot(body.snapshot);
-          setState({ status: "applied", snapshotDate: body.snapshotDate });
-          return;
-        }
-
-        if (body.source === "empty") {
-          // No Firestore document -> fall back to legacy localStorage data.
-          setFirestoreSnapshot(null);
-          setState({ status: "empty", snapshotDate: null });
-          return;
-        }
-
-        // source === "error": keep/restore legacy data as the fallback.
-        setFirestoreSnapshot(null);
-        setState({ status: "fallback", snapshotDate: null });
-      } catch {
-        // Network / JSON failure -> keep legacy data, allow a later retry.
-        if (!cancelled) {
-          setFirestoreSnapshot(null);
-          setState({ status: "fallback", snapshotDate: null });
-        }
-        attempted = false;
+      if (result.kind === "firestore") {
+        // Single source: the Firestore snapshot fully drives the Portfolio
+        // view. We do NOT merge with — or write to — localStorage.
+        setFirestoreSnapshot(result.snapshot, result.snapshotDate);
+        setState({ status: "applied", snapshotDate: result.snapshotDate });
+        return;
       }
+
+      if (result.kind === "empty") {
+        // No Firestore document -> fall back to legacy localStorage data.
+        setFirestoreSnapshot(null, null);
+        setState({ status: "empty", snapshotDate: null });
+        return;
+      }
+
+      // result.kind === "error": keep/restore legacy data as the fallback and
+      // allow a later retry (e.g. remount).
+      setFirestoreSnapshot(null, null);
+      setState({ status: "fallback", snapshotDate: null });
+      attempted = false;
     })();
 
     return () => {
@@ -183,4 +231,69 @@ export function usePortfolioFirestoreSnapshot(): FirestoreSnapshotSyncState {
   }, []);
 
   return state;
+}
+
+// =============================================================
+// Manual "최신화" (refresh) — re-read the latest Firestore snapshot ON DEMAND.
+//
+// Unlike the on-mount hook above, this NEVER clears the active snapshot on a
+// failed read: if the fetch fails (or returns empty), the screen keeps the data
+// it is already showing (requirement: "조회 실패 시 현재 화면 데이터를 그대로 유지").
+// There is no polling — the fetch only runs when the user clicks the button.
+// =============================================================
+export type PortfolioRefreshOutcome =
+  | "updated" // a newer snapshot was fetched and applied -> screen updated
+  | "unchanged" // the latest snapshot equals the active one -> nothing changed
+  | "error"; // fetch failed / no snapshot available -> current data kept
+
+export interface PortfolioRefreshController {
+  /** True while a refresh request is in flight (drives the disabled/spinner UI). */
+  isRefreshing: boolean;
+  /** Trigger a manual refresh. Concurrent calls are ignored while one is running. */
+  refresh: () => Promise<PortfolioRefreshOutcome>;
+}
+
+/**
+ * Provides the manual refresh action for the Portfolio screen. The returned
+ * `refresh()` re-fetches the latest Firestore snapshot and, only when it differs
+ * from the currently active one, publishes it so every Portfolio component
+ * re-renders immediately (no browser F5 needed). An identical snapshot is a
+ * no-op (no store change, no re-render).
+ */
+export function usePortfolioRefresh(): PortfolioRefreshController {
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  // Ref guard so rapid double-clicks can't launch overlapping fetches even
+  // before the `isRefreshing` state has committed.
+  const inFlight = useRef(false);
+
+  const refresh = useCallback(async (): Promise<PortfolioRefreshOutcome> => {
+    if (inFlight.current) return "unchanged";
+    inFlight.current = true;
+    setIsRefreshing(true);
+
+    try {
+      const result = await fetchLatestSnapshot();
+
+      if (result.kind === "firestore") {
+        const sameAsActive =
+          firestoreSnapshot !== null &&
+          firestoreSnapshotDate === result.snapshotDate;
+        if (sameAsActive) {
+          // Identical snapshot: do NOT touch the store (no re-render).
+          return "unchanged";
+        }
+        // New snapshot: publish it as the single source -> immediate update.
+        setFirestoreSnapshot(result.snapshot, result.snapshotDate);
+        return "updated";
+      }
+
+      // "empty" or "error": never clear what the user is currently seeing.
+      return "error";
+    } finally {
+      inFlight.current = false;
+      setIsRefreshing(false);
+    }
+  }, []);
+
+  return { isRefreshing, refresh };
 }

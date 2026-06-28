@@ -7,6 +7,7 @@ import AssetAllocationDonut from "@/components/portfolio/AssetAllocationDonut";
 import AssetAccountCards from "@/components/AssetAccountCards";
 import AssetClassDonut from "@/components/portfolio/AssetClassDonut";
 import PortfolioMarketIndicatorStrip from "@/components/portfolio/PortfolioMarketIndicatorStrip";
+import PortfolioSyncControl from "@/components/portfolio/PortfolioSyncControl";
 import { usePortfolioView } from "@/lib/use-portfolio-view";
 import { usePortfolioFirestoreSnapshot } from "@/lib/portfolio-firestore-snapshot-sync";
 import { buildAssetClassAllocation } from "@/lib/asset-class-allocation";
@@ -37,7 +38,7 @@ export default function PortfolioPage() {
     <div className="min-h-screen overflow-x-hidden bg-[#f8fafc] text-slate-800 dark:bg-[#111516] dark:text-slate-200">
       <TopNav theme={theme} />
       <main className="mx-auto min-w-0 max-w-[1640px] overflow-x-hidden px-4 py-6 sm:px-6 lg:px-8">
-        {/* 제목줄: 제목 + 스냅샷 기준일만 유지. 상단 마켓 strip / 계좌·종목 카운트 / 비동작 버튼은 제거했다. */}
+        {/* 제목줄: 제목 + 스냅샷 기준일 + 최근 동기화/최신화. 상단 마켓 strip / 계좌·종목 카운트 / 비동작 버튼은 제거했다. */}
         <div className="mb-4 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5">
           <h1 className="text-[20px] font-extrabold text-slate-900 dark:text-white">
             포트폴리오 현황
@@ -47,6 +48,13 @@ export default function PortfolioPage() {
               ? `${portfolioView.snapshot.snapshotDate} 스냅샷 기준`
               : "저장된 스냅샷 없음"}
           </span>
+          {/* 최근 동기화 날짜 + 수동 최신화 버튼 (자동 폴링 없음). 우측 정렬. */}
+          <div className="ml-auto">
+            <PortfolioSyncControl
+              snapshotDate={portfolioView.snapshot?.snapshotDate ?? null}
+              theme={theme}
+            />
+          </div>
         </div>
 
         {/* 상단 compact 시장지표 strip: /api/market live briefing 재사용 (mock 미사용) */}
