@@ -52,6 +52,14 @@ export const COMPARE_PERIODS: ComparePeriod[] = [
 
 export const DEFAULT_COMPARE_PERIOD = "1y";
 
+// 위험지표 카드 전용 기간 선택지(1Y / 3Y / 5Y / MAX). 성과 그래프 기간과 독립적으로
+// 동작하여, 사용자가 위로 스크롤하지 않고 위험지표 기간만 바로 바꿀 수 있다.
+export const RISK_METRIC_PERIODS: ComparePeriod[] = COMPARE_PERIODS.filter((p) =>
+  ["1y", "3y", "5y", "max"].includes(p.key),
+);
+
+export const DEFAULT_RISK_PERIOD = "max" as const;
+
 // 부호 포함 % 포맷. 예: 12.53 → "+12.53%".
 export function formatSignedPct(value: number | null | undefined, digits = 2): string {
   if (value == null || !Number.isFinite(value)) return "—";
@@ -82,7 +90,7 @@ export const METRIC_DEFS: MetricDef[] = [
   {
     key: "cagr",
     label: "CAGR",
-    defaultOn: false,
+    defaultOn: true,
     higherIsBetter: true,
     format: (m) => formatSignedPct(m.cagrPct),
     pick: (m) => m.cagrPct,
@@ -90,7 +98,7 @@ export const METRIC_DEFS: MetricDef[] = [
   {
     key: "mdd",
     label: "MDD",
-    defaultOn: false,
+    defaultOn: true,
     higherIsBetter: true, // 0 에 가까울수록 좋음(값이 클수록 = 낙폭 작음).
     format: (m) => formatPlainPct(m.mddPct),
     pick: (m) => m.mddPct,
@@ -98,7 +106,7 @@ export const METRIC_DEFS: MetricDef[] = [
   {
     key: "sharpe",
     label: "Sharpe",
-    defaultOn: false,
+    defaultOn: true,
     higherIsBetter: true,
     format: (m) => formatRatio(m.sharpe),
     pick: (m) => m.sharpe,
@@ -106,7 +114,7 @@ export const METRIC_DEFS: MetricDef[] = [
   {
     key: "sortino",
     label: "Sortino",
-    defaultOn: false,
+    defaultOn: true,
     higherIsBetter: true,
     format: (m) => formatRatio(m.sortino),
     pick: (m) => m.sortino,
@@ -114,7 +122,7 @@ export const METRIC_DEFS: MetricDef[] = [
   {
     key: "calmar",
     label: "Calmar",
-    defaultOn: false,
+    defaultOn: true,
     higherIsBetter: true,
     format: (m) => formatRatio(m.calmar),
     pick: (m) => m.calmar,
