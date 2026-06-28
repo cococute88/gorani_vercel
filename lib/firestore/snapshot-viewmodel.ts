@@ -41,6 +41,7 @@ import {
   decorateFinanceAssetWithTags,
   decorateHoldingWithTags,
 } from "../portfolio-tags";
+import { canonicalizeAccountGroupLabel } from "../account-status-group";
 
 type RawRecord = Record<string, unknown>;
 
@@ -203,7 +204,18 @@ function mapHolding(raw: RawRecord, index: number): Holding {
     purposeGroup: firstString(s, ["purpose_group", "purposeGroup"]),
     statusGroup: firstString(s, ["status_group", "statusGroup"]),
   };
-  return decorateHoldingWithTags(mapped);
+  // Decorate with `①②③④` tags (same as the legacy xlsx path), THEN normalize
+  // the account group label so pension/IRP accounts that the producer exports
+  // under their raw account name (e.g. "한투개인형IRP", "개인형IRP") collapse
+  // into the single "연금" card, and ISA variants into "ISA" — exactly as the
+  // legacy `②연금` / `②ISA` tags grouped them. Taxable groups (위탁/달러/원) are
+  // left untouched. This only changes WHICH card a holding lands in; no total
+  // or calculation is recomputed.
+  const decorated = decorateHoldingWithTags(mapped);
+  return {
+    ...decorated,
+    accountGroup: canonicalizeAccountGroupLabel(decorated.accountGroup),
+  };
 }
 
 function mapCashAsset(raw: RawRecord, index: number): FinanceAsset {
@@ -225,8 +237,14 @@ function mapCashAsset(raw: RawRecord, index: number): FinanceAsset {
   // Same tag decoration as holdings (see mapHolding): populate the account /
   // purpose / status / symbol groups from the `①②③④` tags carried in
   // `product_name`, matching the legacy path so finance assets bucket into the
-  // same account cards. Non-destructive to enriched (1.1.0) documents.
-  return decorateFinanceAssetWithTags(mapped);
+  // same account cards. Non-destructive to enriched (1.1.0) documents. The
+  // account group is then normalized so pension/ISA cash buckets merge into the
+  // same "연금" / "ISA" cards as the legacy path.
+  const decorated = decorateFinanceAssetWithTags(mapped);
+  return {
+    ...decorated,
+    accountGroup: canonicalizeAccountGroupLabel(decorated.accountGroup),
+  };
 }
 
 /**

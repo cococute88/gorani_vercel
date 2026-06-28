@@ -26,6 +26,7 @@ import {
   decorateFinanceAssetWithTags,
   decorateHoldingWithTags,
 } from "./portfolio-tags";
+import { canonicalizeAccountGroupLabel } from "./account-status-group";
 
 // ---- Supported contract versions -----------------------------------------
 
@@ -186,7 +187,9 @@ function mapHolding(
   // `①②③④` tags carried in `product_name` (same as the legacy path) so the
   // account/purpose/status/symbol groups are populated and holdings bucket into
   // account-level cards. Explicit 1.1.0 `*_group` fields are still honoured.
-  return decorateHoldingWithTags({
+  // Then normalize the account group so pension/IRP/ISA accounts collapse into
+  // the same "연금" / "ISA" cards the legacy path produced.
+  const decorated = decorateHoldingWithTags({
     id: optionalString(raw.id) ?? `fs-holding-${index}`,
     broker: optionalString(raw.broker) ?? "",
     accountName: optionalString(raw.account_name),
@@ -208,6 +211,10 @@ function mapHolding(
     purposeGroup: optionalString(raw.purpose_group),
     statusGroup: optionalString(raw.status_group),
   });
+  return {
+    ...decorated,
+    accountGroup: canonicalizeAccountGroupLabel(decorated.accountGroup),
+  };
 }
 
 function mapCashAsset(
@@ -215,8 +222,9 @@ function mapCashAsset(
   index: number,
 ): FinanceAsset {
   // Same tag decoration as holdings so finance assets bucket into the same
-  // account cards. Non-destructive to enriched (1.1.0) documents.
-  return decorateFinanceAssetWithTags({
+  // account cards, then normalize the account group label. Non-destructive to
+  // enriched (1.1.0) documents.
+  const decorated = decorateFinanceAssetWithTags({
     id: optionalString(raw.id) ?? `fs-cash-${index}`,
     groupName: optionalString(raw.group_name) ?? "",
     productName: optionalString(raw.product_name) ?? "",
@@ -230,6 +238,10 @@ function mapCashAsset(
     purposeGroup: optionalString(raw.purpose_group),
     statusGroup: optionalString(raw.status_group),
   });
+  return {
+    ...decorated,
+    accountGroup: canonicalizeAccountGroupLabel(decorated.accountGroup),
+  };
 }
 
 /**
