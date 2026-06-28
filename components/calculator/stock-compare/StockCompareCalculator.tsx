@@ -6,7 +6,7 @@ import { AlertTriangle, Info } from "lucide-react";
 import { useResolvedTheme } from "@/components/theme/ThemeProvider";
 import { fetchCompareData, type CompareData } from "@/lib/stock-compare/service";
 import { buildCompareSeries, toTrLevels, type TrLevels } from "@/lib/stock-compare/total-return";
-import { computeRollingPoints, computeSeriesMetrics } from "@/lib/stock-compare/metrics";
+import { computeRollingPointsMulti, computeSeriesMetrics } from "@/lib/stock-compare/metrics";
 import { computeContribution } from "@/lib/stock-compare/contribution";
 import {
   COMPARE_PERIODS,
@@ -36,6 +36,11 @@ const PerformanceChart = dynamic(() => import("./PerformanceChart"), {
 
 const panel = "rounded-2xl border border-slate-200 bg-white p-5 dark:border-[#2a3336] dark:bg-[#191f20]";
 const cardTitle = "text-[15px] font-bold text-slate-900 dark:text-white";
+
+// Rolling 1Y TR Heatmap 비활성화 플래그.
+// 활용도가 낮아 Rolling 3Y TR Scatter 로 대체했으나, 컴포넌트(RollingHeatmap)는
+// 향후 재사용을 위해 보존한다. true 로 바꾸면 Heatmap 섹션이 다시 렌더된다.
+const SHOW_ROLLING_HEATMAP = false;
 
 export default function StockCompareCalculator() {
   const theme = useResolvedTheme();
@@ -124,7 +129,11 @@ export default function StockCompareCalculator() {
     const metricsByKey: Record<string, SeriesMetrics> = {};
     for (const s of series) metricsByKey[s.key] = computeSeriesMetrics(s);
 
-    const rolling = computeRollingPoints(series);
+    // Rolling TR: 1Y(12개월)·3Y(36개월)를 한 번에 계산.
+    // 월말 곡선은 시리즈당 한 번만 계산되어 두 기간이 공유한다(중복 연산 제거).
+    const rollingByWindow = computeRollingPointsMulti(series, [12, 36]);
+    const rolling1Y = rollingByWindow[12] ?? [];
+    const rolling3Y = rollingByWindow[36] ?? [];
 
     const contributionA = computeContribution({
       trPct: metricsByKey.a?.trPct ?? null,
@@ -154,7 +163,7 @@ export default function StockCompareCalculator() {
     const riskMetricsByKey: Record<string, SeriesMetrics> = {};
     for (const s of riskSeries) riskMetricsByKey[s.key] = computeSeriesMetrics(s);
 
-    return { series, metricsByKey, rolling, contributionA, contributionB, riskSeries, riskMetricsByKey };
+    return { series, metricsByKey, rolling1Y, rolling3Y, contributionA, contributionB, riskSeries, riskMetricsByKey };
   }, [data, options, period, metricsPeriod]);
 
   const series: CompareSeries[] = computed?.series ?? [];
@@ -208,7 +217,34 @@ export default function StockCompareCalculator() {
           {/* 성과 카드 */}
           <PerformanceCards series={series} metricsByKey={computed.metricsByKey} periodLabel={periodLabel} />
 
-          {/* TradingView 스타일 메인 그래프 */}
+          {/* ① Rolling 1Y TR — Scatter / ② Rolling 3Y TR (동일 컴포넌트·스타일, 기간만 다름) */}
+          <section className={panel}>
+            <h2 className={`${cardTitle} mb-1`}>Rolling 1Y TR — Scatter</h2>
+            <p className="mb-3 text-[12px] text-slate-400">월말 기준 직전 1년 누적 수익률</p>
+            <div className="h-[300px] w-full">
+              <RollingScatterChart points={computed.rolling1Y} series={series} hidden={hidden} dark={dark} />
+            </div>
+          </section>
+          <section className={panel}>
+            <h2 className={`${cardTitle} mb-1`}>Rolling 3Y TR</h2>
+            <p className="mb-3 text-[12px] text-slate-400">월말 기준 직전 3년 누적 수익률(TR)</p>
+            <div className="h-[300px] w-full">
+              <RollingScatterChart points={computed.rolling3Y} series={series} hidden={hidden} dark={dark} />
+            </div>
+          </section>
+          {/* (비활성) Rolling 1Y TR — Heatmap. 활용도가 낮아 숨김 처리했으나
+              컴포넌트는 보존한다. SHOW_ROLLING_HEATMAP=true 로 즉시 복구 가능. */}
+          {SHOW_ROLLING_HEATMAP && (
+            <section className={panel}>
+              <h2 className={`${cardTitle} mb-1`}>Rolling 1Y TR — Heatmap</h2>
+              <p className="mb-3 text-[12px] text-slate-400">월 단위 Rolling TR 색상 강도(초록=양 / 빨강=음)</p>
+              <div className="h-[300px] w-full">
+                <RollingHeatmap points={computed.rolling1Y} series={series} hidden={hidden} />
+              </div>
+            </section>
+          )}
+
+          {/* ③ TradingView 스타일 메인 그래프 */}
           <section className={panel}>
             <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
               <h2 className={cardTitle}>성과 비교 (Total Return)</h2>
@@ -262,22 +298,6 @@ export default function StockCompareCalculator() {
 
           {/* 구성종목 중복 분석 */}
           <OverlapSummary tickerA={data!.tickerA} tickerB={data!.tickerB} overlap={data!.overlap} />
-
-          {/* Rolling 1Y TR — Scatter / Heatmap (동일 데이터셋, 표현만 다름) */}
-          <section className={panel}>
-            <h2 className={`${cardTitle} mb-1`}>Rolling 1Y TR — Scatter</h2>
-            <p className="mb-3 text-[12px] text-slate-400">월말 기준 직전 1년 누적 수익률</p>
-            <div className="h-[300px] w-full">
-              <RollingScatterChart points={computed.rolling} series={series} hidden={hidden} dark={dark} />
-            </div>
-          </section>
-          <section className={panel}>
-            <h2 className={`${cardTitle} mb-1`}>Rolling 1Y TR — Heatmap</h2>
-            <p className="mb-3 text-[12px] text-slate-400">월 단위 Rolling TR 색상 강도(초록=양 / 빨강=음)</p>
-            <div className="h-[300px] w-full">
-              <RollingHeatmap points={computed.rolling} series={series} hidden={hidden} />
-            </div>
-          </section>
 
           {/* 상위 구성종목 비교 */}
           <HoldingsComparisonTable tickerA={data!.tickerA} tickerB={data!.tickerB} overlap={data!.overlap} />
