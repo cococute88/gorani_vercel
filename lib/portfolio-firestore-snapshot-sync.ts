@@ -1,49 +1,50 @@
 "use client";
 
 // =============================================================
-// Client data-supply hook: feed the LATEST Firestore portfolio snapshot into
-// the existing portfolio store on first page entry.
+// Client data-supply hook: make the LATEST Firestore portfolio snapshot the
+// SINGLE data source for the 자산관리(Portfolio) screen on first page entry.
 //
-//   /api/portfolio/latest-snapshot  ->  this hook  ->  portfolio-store
-//                                                       (existing UI reads here)
+//   /api/portfolio/latest-snapshot  ->  this hook  ->  Firestore snapshot store
+//                                                       (usePortfolioView reads here)
 //
-// Why a hook + the existing store (and not new props):
-//   Every consumer on the 자산관리 page (PortfolioSummary, AssetAccountCards,
-//   the donut charts) reads through `usePortfolioView()` -> the store. Injecting
-//   the Firestore snapshot into the same store means the data source is swapped
-//   with ZERO changes to UI, charts, or calculations. The UI never imports
-//   anything Firestore-specific — it only ever sees the `PortfolioSnapshot`
-//   view model.
+// Why a dedicated store (and not the localStorage portfolio-store):
+//   The localStorage-backed `portfolio-store` can hold legacy localStorage data
+//   AND report_input-derived data at the same time. Merging the Firestore
+//   snapshot into it (the previous behaviour) meant Firestore + localStorage +
+//   report_input data could all coexist on the Portfolio screen.
 //
-// Fallback behaviour (requirements 4 & 5):
-//   - source "firestore" : merge the snapshot into the store (authoritative for
-//                          its date) and keep any existing snapshot history.
-//   - source "empty"     : no Firestore document -> keep legacy local data.
-//   - source "error"     : Firestore/config failure -> keep legacy local data.
+//   To guarantee a single source of truth we keep the Firestore snapshot in its
+//   OWN store and have `usePortfolioView` read from it. The localStorage store
+//   is left completely untouched, so:
+//     - When Firestore succeeds, the Portfolio screen renders ONLY the Firestore
+//       snapshot — localStorage is not read and not written (requirement: no
+//       merge; "Firestore 성공 시 localStorage 미사용").
+//     - When Firestore fails/has no document, this store stays null and
+//       `usePortfolioView` falls back to the existing localStorage data.
+//
+// Non-destructive: because we never call replaceSnapshots/mergePortfolioSnapshots
+// here, the localStorage history used by other views (performance / MDD) and by
+// the Portfolio manager is preserved exactly as before.
+//
+// Fallback behaviour:
+//   - source "firestore" : publish the snapshot as the single source.
+//   - source "empty"     : no Firestore document -> clear store -> legacy data.
+//   - source "error"     : Firestore/config failure -> clear store -> legacy data.
 //   The fetch itself is wrapped so a network/parse failure also degrades to the
 //   legacy data; the page never breaks.
-//
-// Non-destructive: we MERGE rather than replace, so the snapshot history used
-// by other views (performance / MDD) is preserved. The latest Firestore
-// snapshot wins for its own date.
 // =============================================================
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import type { PortfolioSnapshot } from "./portfolio-types";
-import {
-  getSnapshots,
-  mergePortfolioSnapshots,
-  replaceSnapshots,
-} from "./portfolio-store";
 
 const ENDPOINT = "/api/portfolio/latest-snapshot";
 
 export type FirestoreSnapshotSyncStatus =
   | "idle"
   | "loading"
-  | "applied" // a Firestore snapshot was merged into the store
-  | "empty" // no Firestore snapshot yet -> legacy data kept
-  | "fallback"; // Firestore/fetch error -> legacy data kept
+  | "applied" // a Firestore snapshot is the active single source
+  | "empty" // no Firestore snapshot yet -> legacy data used as fallback
+  | "fallback"; // Firestore/fetch error -> legacy data used as fallback
 
 export interface FirestoreSnapshotSyncState {
   status: FirestoreSnapshotSyncStatus;
@@ -55,14 +56,69 @@ type LatestSnapshotResponse =
   | { source: "empty"; snapshot: null }
   | { source: "error"; snapshot: null; code?: string };
 
+// -------------------------------------------------------------
+// Dedicated Firestore-snapshot store (separate from the localStorage store).
+// Holds the single authoritative snapshot once Firestore resolves successfully.
+// `null` means "no Firestore snapshot active" -> consumers fall back to the
+// legacy localStorage store.
+// -------------------------------------------------------------
+let firestoreSnapshot: PortfolioSnapshot | null = null;
+const listeners = new Set<() => void>();
+
+function emit(): void {
+  listeners.forEach((listener) => listener());
+}
+
+/** Publish the Firestore snapshot as the single source (or clear it with null). */
+function setFirestoreSnapshot(snapshot: PortfolioSnapshot | null): void {
+  if (firestoreSnapshot === snapshot) return;
+  firestoreSnapshot = snapshot;
+  emit();
+}
+
+function subscribe(callback: () => void): () => void {
+  listeners.add(callback);
+  return () => {
+    listeners.delete(callback);
+  };
+}
+
+function getFirestoreSnapshotRef(): PortfolioSnapshot | null {
+  return firestoreSnapshot;
+}
+
+// SSR: never resolve a Firestore snapshot on the server; always start as null.
+function getFirestoreSnapshotServer(): PortfolioSnapshot | null {
+  return null;
+}
+
+/**
+ * Subscribe to the active Firestore snapshot. Returns the snapshot when
+ * Firestore resolved successfully, or `null` while loading / on empty / on
+ * error — in which case the Portfolio view falls back to localStorage data.
+ */
+export function usePortfolioFirestoreSnapshotData(): PortfolioSnapshot | null {
+  return useSyncExternalStore(
+    subscribe,
+    getFirestoreSnapshotRef,
+    getFirestoreSnapshotServer,
+  );
+}
+
+/** Non-hook accessor (mirrors the localStorage store's getSnapshots()). */
+export function getFirestoreSnapshot(): PortfolioSnapshot | null {
+  return firestoreSnapshot;
+}
+
 // Only attempt the live read once per loaded module instance (page session),
 // mirroring the existing cloud-sync's single-attempt guard.
 let attempted = false;
 
 /**
  * On first mount, read the latest Firestore snapshot through the API route and
- * merge it into the portfolio store. Safe to call from a client page; on any
- * failure it leaves the existing (legacy) store data untouched.
+ * publish it as the single data source for the Portfolio screen. Safe to call
+ * from a client page; on any failure it clears the Firestore store so the view
+ * falls back to the existing (legacy) localStorage data.
  */
 export function usePortfolioFirestoreSnapshot(): FirestoreSnapshotSyncState {
   const [state, setState] = useState<FirestoreSnapshotSyncState>({
@@ -82,7 +138,10 @@ export function usePortfolioFirestoreSnapshot(): FirestoreSnapshotSyncState {
         const res = await fetch(ENDPOINT, { cache: "no-store" });
         if (!res.ok) {
           // Treat any non-2xx as a graceful fallback to legacy data.
-          if (!cancelled) setState({ status: "fallback", snapshotDate: null });
+          if (!cancelled) {
+            setFirestoreSnapshot(null);
+            setState({ status: "fallback", snapshotDate: null });
+          }
           attempted = false; // allow a later retry (e.g. remount)
           return;
         }
@@ -91,23 +150,29 @@ export function usePortfolioFirestoreSnapshot(): FirestoreSnapshotSyncState {
         if (cancelled) return;
 
         if (body.source === "firestore" && body.snapshot) {
-          // Merge: keep existing history, let the Firestore snapshot win for its date.
-          const merged = mergePortfolioSnapshots(getSnapshots(), [body.snapshot]);
-          replaceSnapshots(merged);
+          // Single source: the Firestore snapshot fully drives the Portfolio
+          // view. We do NOT merge with — or write to — localStorage.
+          setFirestoreSnapshot(body.snapshot);
           setState({ status: "applied", snapshotDate: body.snapshotDate });
           return;
         }
 
         if (body.source === "empty") {
+          // No Firestore document -> fall back to legacy localStorage data.
+          setFirestoreSnapshot(null);
           setState({ status: "empty", snapshotDate: null });
           return;
         }
 
-        // source === "error": keep legacy data.
+        // source === "error": keep/restore legacy data as the fallback.
+        setFirestoreSnapshot(null);
         setState({ status: "fallback", snapshotDate: null });
       } catch {
         // Network / JSON failure -> keep legacy data, allow a later retry.
-        if (!cancelled) setState({ status: "fallback", snapshotDate: null });
+        if (!cancelled) {
+          setFirestoreSnapshot(null);
+          setState({ status: "fallback", snapshotDate: null });
+        }
         attempted = false;
       }
     })();
