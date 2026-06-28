@@ -8,6 +8,7 @@ import { useAnchoredMenu } from "./useAnchoredMenu";
 // searchParams 를 읽어 해당 탭을 연다.
 const CALC_SUBITEMS = [
   { label: "티커MDD 계산기", tab: "mdd" },
+  { label: "종목 성과 비교", tab: "compare" },
   { label: "배당치기 시뮬", tab: "dividend-capture" },
   { label: "매도전환 계산기", tab: "conversion" },
 ] as const;

@@ -7,6 +7,7 @@ import StorageModeBadge from "@/components/common/StorageModeBadge";
 import DividendCaptureSimulator from "./DividendCaptureSimulator";
 import ConversionCalculator from "./ConversionCalculator";
 import MddCalculator from "./MddCalculator";
+import StockCompareCalculator from "./stock-compare/StockCompareCalculator";
 import { defaultConversionInput } from "@/lib/conversion-calculator";
 import { defaultDividendCaptureInput } from "@/lib/dividend-capture-calculator";
 import { defaultMddInput } from "@/lib/mdd-calculator";
@@ -17,6 +18,7 @@ import { useResolvedTheme } from "@/components/theme/ThemeProvider";
 // 프리셋 저장/선택/불러오기 UI는 메인 화면에서 제거했다.
 const tabs = [
   { key: "mdd", label: "티커MDD 계산기" },
+  { key: "compare", label: "종목 성과 비교" },
   { key: "capture", label: "배당치기 시뮬" },
   { key: "conversion", label: "매도전환 계산기" },
 ] as const;
@@ -30,6 +32,7 @@ const TAB_PARAM_MAP: Record<string, TabKey> = {
   capture: "capture",
   conversion: "conversion",
   mdd: "mdd",
+  compare: "compare",
 };
 
 export default function CalculatorPage() {
@@ -82,6 +85,7 @@ export default function CalculatorPage() {
         {activeTab === "capture" && <DividendCaptureSimulator input={captureInput} onChange={setCaptureInput} />}
         {activeTab === "conversion" && <ConversionCalculator input={conversionInput} onChange={setConversionInput} />}
         {activeTab === "mdd" && <MddCalculator input={mddInput} onChange={setMddInput} />}
+        {activeTab === "compare" && <StockCompareCalculator />}
       </main>
     </div>
   );
