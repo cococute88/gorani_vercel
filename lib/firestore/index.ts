@@ -12,6 +12,7 @@ export {
 
 export {
   getAdminFirestore,
+  verifyAdminCredential,
   isAdminFirestoreConfigured,
   getAdminAccountDiagnostics,
   type AdminAccountDiagnostics,
