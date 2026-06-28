@@ -120,6 +120,23 @@ function firstArray(source: RawRecord, keys: string[]): RawRecord[] {
   return [];
 }
 
+/**
+ * Like {@link firstArray} but probes several source objects in priority order
+ * (e.g. the nested `snapshot` container first, then the document root). Returns
+ * the first non-empty array found, or `[]` when nothing matches.
+ */
+function firstArrayFrom(
+  sources: Array<RawRecord | undefined>,
+  keys: string[],
+): RawRecord[] {
+  for (const source of sources) {
+    if (!source) continue;
+    const found = firstArray(source, keys);
+    if (found.length > 0) return found;
+  }
+  return [];
+}
+
 // ---- single-row mappers -----------------------------------------------------
 
 function mapHolding(raw: RawRecord, index: number): Holding {
@@ -174,7 +191,7 @@ function mapCashAsset(raw: RawRecord, index: number): FinanceAsset {
 export interface SnapshotDocumentShape {
   topLevelKeys: string[];
   totalsKeys: string[] | null;
-  resolvedTotalsSource: "nested-totals" | "document-root" | "none";
+  resolvedTotalsSource: "current_snapshot" | "nested-totals" | "document-root" | "none";
   holdingsKey: string | null;
   holdingsCount: number;
   holdingsSampleKeys: string[];
@@ -183,8 +200,28 @@ export interface SnapshotDocumentShape {
   cashSampleKeys: string[];
 }
 
-const HOLDINGS_KEYS = ["holdings", "investments", "positions", "holding_rows", "holdingRows", "stocks"];
+// The current bs-report-auto document nests the live snapshot under a top-level
+// `snapshot` object. The eight canonical totals live in
+// `snapshot.current_snapshot`, holdings in `snapshot.investment_status`, and
+// finance assets in `snapshot.financial_status`. We probe these FIRST, then
+// keep the older flat/`totals` aliases as backward-compatible fallbacks so a
+// legacy document still maps (and so the 0/[] fallback is only ever hit when a
+// value is genuinely absent).
+const SNAPSHOT_CONTAINER_KEYS = ["snapshot", "snapshotData", "snapshot_data"];
+const CURRENT_SNAPSHOT_KEYS = ["current_snapshot", "currentSnapshot"];
+const HOLDINGS_KEYS = [
+  "investment_status",
+  "investmentStatus",
+  "holdings",
+  "investments",
+  "positions",
+  "holding_rows",
+  "holdingRows",
+  "stocks",
+];
 const CASH_KEYS = [
+  "financial_status",
+  "financialStatus",
   "cash_assets",
   "cashAssets",
   "finance_assets",
@@ -195,30 +232,73 @@ const CASH_KEYS = [
 ];
 const TOTAL_ASSETS_KEYS = ["total_assets_krw", "totalAssetsKRW", "total_asset_krw", "totalAssetKRW"];
 
+/** Resolve the nested `snapshot` container (if present) from a raw document. */
+function resolveSnapshotContainer(data: RawRecord): RawRecord | undefined {
+  for (const key of SNAPSHOT_CONTAINER_KEYS) {
+    const candidate = asRecord(data[key]);
+    if (candidate) return candidate;
+  }
+  return undefined;
+}
+
+/** Resolve `snapshot.current_snapshot` (the primary totals source). */
+function resolveCurrentSnapshot(container: RawRecord | undefined): RawRecord | undefined {
+  if (!container) return undefined;
+  for (const key of CURRENT_SNAPSHOT_KEYS) {
+    const candidate = asRecord(container[key]);
+    if (candidate) return candidate;
+  }
+  return undefined;
+}
+
 /**
  * Inspect a raw document and report WHERE each logical field resolves from.
  * Used by the API route to expose the real document structure for debugging
  * the "connected but empty" symptom.
  */
 export function describeSnapshotDocumentShape(data: RawRecord): SnapshotDocumentShape {
+  const container = resolveSnapshotContainer(data);
+  const currentSnapshot = resolveCurrentSnapshot(container);
   const totals = asRecord(data.totals);
-  const holdingsKey = HOLDINGS_KEYS.find((k) => Array.isArray(data[k])) ?? null;
-  const cashKey = CASH_KEYS.find((k) => Array.isArray(data[k])) ?? null;
-  const holdings = holdingsKey ? (data[holdingsKey] as unknown[]) : [];
-  const cash = cashKey ? (data[cashKey] as unknown[]) : [];
 
+  // Probe arrays in priority order: nested `snapshot` container first (the new
+  // layout), then the document root (legacy flat layout).
+  const arraySources: Array<RawRecord | undefined> = [container, data];
+  const holdingsKey =
+    arraySources.reduce<string | null>((acc, src) => {
+      if (acc || !src) return acc;
+      return HOLDINGS_KEYS.find((k) => Array.isArray(src[k])) ?? null;
+    }, null) ?? null;
+  const cashKey =
+    arraySources.reduce<string | null>((acc, src) => {
+      if (acc || !src) return acc;
+      return CASH_KEYS.find((k) => Array.isArray(src[k])) ?? null;
+    }, null) ?? null;
+
+  const holdings = firstArrayFrom(arraySources, HOLDINGS_KEYS);
+  const cash = firstArrayFrom(arraySources, CASH_KEYS);
+
+  const currentHasValue =
+    currentSnapshot !== undefined &&
+    TOTAL_ASSETS_KEYS.some((k) => toFiniteNumber(currentSnapshot[k]) !== undefined);
   const totalsHasValue =
     totals !== undefined && TOTAL_ASSETS_KEYS.some((k) => toFiniteNumber(totals[k]) !== undefined);
   const rootHasValue = TOTAL_ASSETS_KEYS.some((k) => toFiniteNumber(data[k]) !== undefined);
 
   return {
     topLevelKeys: Object.keys(data),
-    totalsKeys: totals ? Object.keys(totals) : null,
-    resolvedTotalsSource: totalsHasValue
-      ? "nested-totals"
-      : rootHasValue
-        ? "document-root"
-        : "none",
+    totalsKeys: currentSnapshot
+      ? Object.keys(currentSnapshot)
+      : totals
+        ? Object.keys(totals)
+        : null,
+    resolvedTotalsSource: currentHasValue
+      ? "current_snapshot"
+      : totalsHasValue
+        ? "nested-totals"
+        : rootHasValue
+          ? "document-root"
+          : "none",
     holdingsKey,
     holdingsCount: holdings.length,
     holdingsSampleKeys: asRecord(holdings[0]) ? Object.keys(holdings[0] as RawRecord) : [],
@@ -244,15 +324,37 @@ export function mapPortfolioSnapshotRecordToViewModel(
   // raw bag here so the resilient pickers can probe every known alias.
   const data = (record.data ?? {}) as RawRecord;
 
-  const snapshotDate = firstString([data], ["snapshot_date", "snapshotDate", "date"]) ?? id;
+  // Resolve the new nested layout. The live snapshot lives under a top-level
+  // `snapshot` object: totals in `current_snapshot`, holdings in
+  // `investment_status`, finance assets in `financial_status`.
+  const snapshotContainer = resolveSnapshotContainer(data);
+  const currentSnapshot = resolveCurrentSnapshot(snapshotContainer);
+  const metadata = asRecord(data.metadata) ?? asRecord(snapshotContainer?.metadata);
 
-  const holdings = firstArray(data, HOLDINGS_KEYS).map(mapHolding);
-  const financeAssets = firstArray(data, CASH_KEYS).map(mapCashAsset);
+  const snapshotDate =
+    firstString(
+      [currentSnapshot, snapshotContainer, metadata, data],
+      ["snapshot_date", "snapshotDate", "date", "as_of", "asOf"],
+    ) ?? id;
 
-  // Totals may be nested under `totals` OR flat at the document root, and may
-  // use snake_case or camelCase. Probe nested first, then root, for each field.
+  // Holdings / finance assets: probe the nested `snapshot` container first
+  // (investment_status / financial_status), then fall back to legacy root-level
+  // array names so older documents still map.
+  const arraySources: Array<RawRecord | undefined> = [snapshotContainer, data];
+  const holdings = firstArrayFrom(arraySources, HOLDINGS_KEYS).map(mapHolding);
+  const financeAssets = firstArrayFrom(arraySources, CASH_KEYS).map(mapCashAsset);
+
+  // Totals: `snapshot.current_snapshot` is the PRIMARY source. We still probe
+  // the legacy nested `totals` object and the document root afterwards so a
+  // legacy document continues to map; the 0 fallback is only reached when a
+  // value is genuinely absent from every source.
   const totals = asRecord(data.totals);
-  const totalsSources: Array<RawRecord | undefined> = [totals, data];
+  const totalsSources: Array<RawRecord | undefined> = [
+    currentSnapshot,
+    totals,
+    snapshotContainer,
+    data,
+  ];
 
   const totalAssetsKRW = firstNumber(totalsSources, TOTAL_ASSETS_KEYS);
   const totalInvestmentsKRW = firstNumber(totalsSources, [
@@ -285,10 +387,11 @@ export function mapPortfolioSnapshotRecordToViewModel(
     firstString([data], ["document_version", "documentVersion"]) ?? "unknown";
 
   // Stamp authoritative totals whenever the document actually carried totals
-  // (nested object OR any resolvable canonical total). This keeps the
-  // "consume verbatim, never recompute" guarantee while letting the legacy
-  // reconcile path handle a (rare) totals-less document.
+  // (a `current_snapshot` / nested `totals` object OR any resolvable canonical
+  // total). This keeps the "consume verbatim, never recompute" guarantee while
+  // letting the legacy reconcile path handle a (rare) totals-less document.
   const hasTotals =
+    currentSnapshot !== undefined ||
     totals !== undefined ||
     totalAssetsKRW !== 0 ||
     totalInvestmentsKRW !== 0 ||
@@ -309,13 +412,16 @@ export function mapPortfolioSnapshotRecordToViewModel(
       }
     : undefined;
 
-  const metadata = asRecord(data.metadata);
+  const metadataSources: Array<RawRecord | undefined> = [metadata, snapshotContainer, data];
 
   return {
     id,
     snapshotDate,
     sourceFileName:
-      firstString([data], ["source_file_name", "sourceFileName"]) ?? "firestore-snapshot",
+      firstString(
+        [currentSnapshot, snapshotContainer, metadata, data],
+        ["source_file_name", "sourceFileName"],
+      ) ?? "firestore-snapshot",
     // canonical totals, verbatim
     totalAssetKRW: totalAssetsKRW,
     totalDebtKRW,
@@ -327,20 +433,22 @@ export function mapPortfolioSnapshotRecordToViewModel(
     holdings,
     financeAssets,
     createdAt:
-      firstString([data], ["generated_at", "generatedAt", "created_at", "createdAt"]) ??
-      new Date(0).toISOString(),
+      firstString(
+        [currentSnapshot, snapshotContainer, metadata, data],
+        ["generated_at", "generatedAt", "created_at", "createdAt"],
+      ) ?? new Date(0).toISOString(),
     authoritativeTotals,
     metadata: {
       parserVersion:
-        firstString([metadata], ["parser_version", "parserVersion"]) ??
+        firstString(metadataSources, ["parser_version", "parserVersion"]) ??
         `firestore-snapshot-${documentVersion}`,
-      excludedSmallCount: firstNumber([metadata], ["excluded_small_count", "excludedSmallCount"]),
+      excludedSmallCount: firstNumber(metadataSources, ["excluded_small_count", "excludedSmallCount"]),
       excludedBelowMinimumCount: firstNumber(
-        [metadata],
+        metadataSources,
         ["excluded_below_minimum_count", "excludedBelowMinimumCount"],
       ),
       excludedHoldingValueKRW: firstNumber(
-        [metadata],
+        metadataSources,
         ["excluded_holding_value_krw", "excludedHoldingValueKRW"],
       ),
       liveViewVersion: `firestore-snapshot-${documentVersion}`,
