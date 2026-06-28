@@ -35,15 +35,27 @@ export const revalidate = 0;
 
 const isDev = process.env.NODE_ENV !== "production";
 
-// Requirement 1 & 6: full diagnostics are surfaced in the JSON response in
-// development. Because this bug only reproduces on Vercel (NODE_ENV=production),
-// we ALSO honour an explicit opt-in flag so the operator can capture the real
-// Firestore/gRPC exception in the deployed runtime, then turn it back off.
-// Set `FIRESTORE_DEBUG=1` (or `true`) in the Vercel project env to enable.
-const debugDiagnosticsEnabled =
-  isDev ||
-  process.env.FIRESTORE_DEBUG === "1" ||
-  process.env.FIRESTORE_DEBUG === "true";
+/**
+ * Whether to surface the full Firestore/gRPC diagnostics in the JSON response.
+ *
+ * IMPORTANT: this is evaluated PER REQUEST (not memoized at module load) so the
+ * deployed runtime always reflects the current `FIRESTORE_DEBUG` value on
+ * Vercel — a module-level const is captured at cold start and was the reason
+ * the flag appeared to have no effect in production.
+ *
+ * Gating rules (requirements 2 & 3):
+ *   - `FIRESTORE_DEBUG=1` / `FIRESTORE_DEBUG=true`  -> ALWAYS return diagnostics,
+ *     regardless of NODE_ENV (this is the production capture switch).
+ *   - otherwise, when running in development we still return diagnostics for
+ *     local DX.
+ *   - only when the flag is false AND we are in production do we keep the
+ *     minimal response with no internals.
+ */
+function isDebugDiagnosticsEnabled(): boolean {
+  const flag = process.env.FIRESTORE_DEBUG;
+  if (flag === "1" || flag === "true") return true;
+  return isDev;
+}
 
 type ErrorDiagnosticsPayload = {
   /** error.message of the ORIGINAL Firestore/gRPC error. */
@@ -122,11 +134,31 @@ export async function GET(): Promise<NextResponse<LatestSnapshotResponse>> {
     // all degrade gracefully: the page must never break (requirement 5). But we
     // must NOT collapse everything into "unknown" — classify and surface the
     // real cause whenever diagnostics are enabled.
+    // Always emit the ORIGINAL error to the runtime logs via console.error so
+    // it is visible on Vercel too (logOriginalError is a no-op in production).
     logOriginalError("latest-snapshot", error);
     const classified = classifyAdminError(error, "firestore-query-failed");
+    // describeError walks the `cause` chain, so `info` carries the ORIGINAL
+    // Firestore/gRPC error fields verbatim — never the wrapper's text
+    // (requirement 5: the original Error.message is preserved, not overwritten).
     const info = describeError(error);
 
-    if (debugDiagnosticsEnabled) {
+    // eslint-disable-next-line no-console
+    console.error("[portfolio:latest-snapshot] Firestore read failed", {
+      code: classified.code,
+      message: info.message,
+      errorName: info.errorName,
+      rawCode: info.code,
+      grpcCode: info.grpcCode,
+      grpcStatusName: info.grpcStatusName,
+      details: info.details,
+      metadata: info.metadata,
+      stack: info.stack,
+    });
+
+    if (isDebugDiagnosticsEnabled()) {
+      // Requirement 1: surface EVERY field of describeError() verbatim in the
+      // JSON response so the real cause is never hidden behind a generic code.
       const diagnostics: ErrorDiagnosticsPayload = {
         message: info.message,
         errorName: info.errorName,
@@ -135,25 +167,20 @@ export async function GET(): Promise<NextResponse<LatestSnapshotResponse>> {
         grpcStatusName: info.grpcStatusName,
         details: info.details,
         metadata: info.metadata,
-        // stack is only included when diagnostics are explicitly enabled.
         stack: info.stack,
       };
-      // eslint-disable-next-line no-console
-      console.info("[portfolio:latest-snapshot] falling back to legacy data", {
-        code: classified.code,
-        ...diagnostics,
-      });
       return NextResponse.json({
         source: "error",
         snapshot: null,
         // The typed classification (never "unknown" for a recognised gRPC
-        // status) plus the ORIGINAL error content, untouched (requirement 4).
+        // status) plus the ORIGINAL error content, untouched (requirement 1).
         code: classified.code,
         diagnostics,
       });
     }
 
-    // Production (debug disabled): keep the response minimal, no internals.
+    // Requirement 3: only when FIRESTORE_DEBUG is false (in production) do we
+    // keep the minimal response with no internals leaked.
     return NextResponse.json({ source: "error", snapshot: null, code: classified.code });
   }
 }

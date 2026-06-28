@@ -22,7 +22,11 @@
 
 import "server-only";
 
-import { FieldPath, type Firestore } from "firebase-admin/firestore";
+import {
+  FieldPath,
+  type Firestore,
+  type QuerySnapshot,
+} from "firebase-admin/firestore";
 
 import { getAdminFirestore, getAdminAccountDiagnostics, verifyAdminCredential } from "./firebase-admin";
 import { FirestoreReadError, classifyAdminError, devLog } from "./errors";
@@ -101,7 +105,39 @@ export async function getLatestPortfolioSnapshot(): Promise<PortfolioSnapshotRec
       // Document ID == YYYY-MM-DD, so ordering by ID desc yields newest first.
       .orderBy(FieldPath.documentId(), "desc")
       .limit(limit);
-    const result = await query.get();
+
+    // Requirement 4: emit a marker right BEFORE query.get() via console.error
+    // (not devLog, which is silenced in production) so the deployed runtime log
+    // shows exactly where execution reached before any Firestore exception.
+    // eslint-disable-next-line no-console
+    console.error("[firestore:portfolio] before query.get()", {
+      collection: PORTFOLIO_SNAPSHOTS_COLLECTION,
+      orderBy,
+      limit,
+    });
+
+    let result: QuerySnapshot;
+    try {
+      result = await query.get();
+    } catch (getError) {
+      // Requirement 4: print the ORIGINAL Error.message right AFTER the failed
+      // query.get() via console.error so it is visible on Vercel. We re-throw
+      // the UNTOUCHED original error — it is wrapped (with its message preserved
+      // as the cause) by the outer catch, never overwritten (requirement 5).
+      // eslint-disable-next-line no-console
+      console.error(
+        "[firestore:portfolio] query.get() threw",
+        getError instanceof Error ? getError.message : String(getError),
+      );
+      throw getError;
+    }
+
+    // Requirement 4: confirm a successful return right AFTER query.get().
+    // eslint-disable-next-line no-console
+    console.error("[firestore:portfolio] after query.get()", {
+      empty: result.empty,
+      size: result.size,
+    });
 
     // Requirement 3: log the raw query-result shape immediately after get().
     devLog("portfolio", "Query returned", {
