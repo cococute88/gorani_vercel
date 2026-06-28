@@ -49,6 +49,24 @@ function snapshotsCollection(db: Firestore) {
 }
 
 /**
+ * Best-effort resolution of the database id the Admin Firestore handle targets,
+ * for diagnostics only. The id is not part of the stable public type, so we
+ * probe a few known internal shapes and fall back to the configured env / the
+ * Firestore default "(default)" database. Never throws.
+ */
+function resolveDatabaseId(db: Firestore): string {
+  const probe = db as unknown as {
+    databaseId?: { database?: string } | string;
+    _databaseId?: { database?: string };
+  };
+  const fromGetter =
+    typeof probe.databaseId === "string"
+      ? probe.databaseId
+      : probe.databaseId?.database ?? probe._databaseId?.database;
+  return fromGetter || process.env.FIRESTORE_DATABASE_ID || "(default)";
+}
+
+/**
  * Return the most recent portfolio snapshot, or `null` when the collection has
  * no documents yet. Throws a typed FirestoreReadError for configuration or
  * permission failures.
@@ -57,13 +75,19 @@ export async function getLatestPortfolioSnapshot(): Promise<PortfolioSnapshotRec
   // getAdminFirestore() throws FirestoreReadError for config/JSON/init problems.
   const db = getAdminFirestore();
 
-  // Requirement 2: log the access context BEFORE touching Firestore.
+  // Requirement 2: log the FULL access + query context BEFORE touching
+  // Firestore — projectId, databaseId, collection, orderBy and limit.
   const account = getAdminAccountDiagnostics();
+  const databaseId = resolveDatabaseId(db);
+  const orderBy = "__name__ (documentId) desc";
+  const limit = 1;
   devLog("portfolio", "Querying latest snapshot", {
     projectId: account?.projectId,
     clientEmail: account?.clientEmail,
+    databaseId,
     collection: PORTFOLIO_SNAPSHOTS_COLLECTION,
-    queryMethod: "orderBy(documentId,desc).limit(1)",
+    orderBy,
+    limit,
   });
 
   try {
@@ -76,8 +100,16 @@ export async function getLatestPortfolioSnapshot(): Promise<PortfolioSnapshotRec
     const query = snapshotsCollection(db)
       // Document ID == YYYY-MM-DD, so ordering by ID desc yields newest first.
       .orderBy(FieldPath.documentId(), "desc")
-      .limit(1);
+      .limit(limit);
     const result = await query.get();
+
+    // Requirement 3: log the raw query-result shape immediately after get().
+    devLog("portfolio", "Query returned", {
+      collection: PORTFOLIO_SNAPSHOTS_COLLECTION,
+      empty: result.empty,
+      size: result.size,
+      docsLength: result.docs.length,
+    });
 
     if (result.empty) {
       // Distinct from an error: the collection simply has no documents yet.
