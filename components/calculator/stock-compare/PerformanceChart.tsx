@@ -13,12 +13,21 @@ import {
 } from "lightweight-charts";
 import type { CompareSeries } from "@/lib/stock-compare/types";
 import { formatSignedPct } from "@/lib/stock-compare/constants";
+import { rebaseCompareSeries, resolveAnchorDate } from "@/lib/stock-compare/rebase";
 
 // =============================================================
 // TradingView 스타일 성과 비교 그래프(lightweight-charts).
 // market/ReturnCompareChart 패턴을 4개 시리즈 + On/Off 범례로 일반화했다.
 // - 휠 확대 / 드래그 패닝 / Crosshair / Hover Tooltip / fitContent
 // - 범례 클릭으로 시리즈 On/Off, 부드러운 애니메이션(lightweight-charts 기본).
+//
+// TradingView Compare 스타일 기준점(0%) 재설정 (표시 레이어 전용)
+//   - 사용자가 Zoom/Pan/Navigator/기간 변경으로 "보이는 첫 날짜"를 바꾸면,
+//     그 날짜를 기준(0%)으로 모든 시리즈를 다시 계산해 표시한다.
+//   - 원본 시리즈(props.series)는 변경하지 않고, lib/stock-compare/rebase 의
+//     순수 함수로 "표시 데이터"만 선형 재기준화한다(추가 API 호출 없음).
+//   - 보이는 영역의 왼쪽 끝 날짜를 anchor 로 잡으며, 확대를 해제(전체로 복귀)하면
+//     anchor 가 다시 기간 시작점으로 돌아가 기간 기준 0% 로 정상 표시된다.
 // =============================================================
 
 interface Props {
@@ -56,17 +65,27 @@ export default function PerformanceChart({ series, dark, hidden }: Props) {
   latestRef.current = series;
   const hiddenRef = useRef<Record<string, boolean>>(hidden);
   hiddenRef.current = hidden;
+  // 현재 표시 기준점(0%) 날짜. null = 기간 시작점(원본) 기준.
+  const anchorRef = useRef<string | null>(null);
+  // 보이는 영역 변경 → 재기준화 처리 중 재진입(setData가 유발하는 추가 이벤트) 방지.
+  const rebasingRef = useRef(false);
+  const rafRef = useRef<number | null>(null);
 
   const [hover, setHover] = useState<HoverState>(null);
 
+  // anchorDate 를 0% 로 재계산한 표시 데이터를 차트에 반영한다.
+  //   fit=true  → 기간/옵션 변경·초기 진입 시 전체 화면에 맞춤(fitContent).
+  //   fit=false → Zoom/Pan 중 재기준화: 보이는 시간 범위(x축)는 유지하고 값(y축)만 갱신.
   const applyData = useCallback(
-    (data: CompareSeries[], hiddenMap: Record<string, boolean>) => {
+    (data: CompareSeries[], hiddenMap: Record<string, boolean>, anchorDate: string | null, fit: boolean) => {
       const chart = chartRef.current;
       if (!chart) return;
+      const display = rebaseCompareSeries(data, anchorDate);
+
       let zeroAnchor: ISeriesApi<"Line"> | null = null;
       let hasData = false;
       seriesApiRef.current.forEach(({ key, api }) => {
-        const s = data.find((d) => d.key === key);
+        const s = display.find((d) => d.key === key);
         const isHidden = hiddenMap[key];
         const points = !isHidden && s ? s.points : [];
         api.applyOptions({ color: s?.color ?? "#3b82f6", visible: !isHidden });
@@ -95,10 +114,42 @@ export default function PerformanceChart({ series, dark, hidden }: Props) {
           title: "0%",
         });
       }
-      if (hasData) chart.timeScale().fitContent();
+      if (fit && hasData) chart.timeScale().fitContent();
     },
     [dark],
   );
+
+  // 보이는 영역(왼쪽 끝 날짜)이 바뀌면 그 날짜를 기준점으로 재계산한다.
+  const handleVisibleRangeChange = useCallback(() => {
+    if (rebasingRef.current) return;
+    const chart = chartRef.current;
+    if (!chart) return;
+    const range = chart.timeScale().getVisibleRange();
+    if (!range) return;
+    const fromDate = timeToLabel(range.from);
+    if (!fromDate) return;
+    const nextAnchor = resolveAnchorDate(latestRef.current, fromDate);
+    if (nextAnchor === anchorRef.current) return; // 기준점 변화 없음 → 재계산 생략.
+    anchorRef.current = nextAnchor;
+    rebasingRef.current = true;
+    try {
+      // 시간 범위(x축)는 유지하고 표시값(y축)만 anchor 기준으로 갱신.
+      applyData(latestRef.current, hiddenRef.current, nextAnchor, false);
+    } finally {
+      rebasingRef.current = false;
+    }
+    setHover(null);
+  }, [applyData]);
+
+  // 이벤트 폭주(드래그/휠) 시 rAF 로 합쳐 한 프레임에 한 번만 재계산.
+  const scheduleVisibleRangeCheck = useCallback(() => {
+    if (rebasingRef.current) return;
+    if (rafRef.current != null) return;
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = null;
+      handleVisibleRangeChange();
+    });
+  }, [handleVisibleRangeChange]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -142,6 +193,7 @@ export default function PerformanceChart({ series, dark, hidden }: Props) {
     chartRef.current = chart;
     seriesApiRef.current = apis;
     zeroLineRef.current = null;
+    anchorRef.current = null;
 
     chart.subscribeCrosshairMove((param) => {
       if (param.time === undefined || !param.point) {
@@ -167,27 +219,47 @@ export default function PerformanceChart({ series, dark, hidden }: Props) {
       setHover({ x: param.point.x, y: param.point.y, date: timeToLabel(param.time), rows });
     });
 
+    // Zoom/Pan/Navigator 등으로 보이는 영역이 바뀌면 기준점 재계산을 예약.
+    chart.timeScale().subscribeVisibleLogicalRangeChange(scheduleVisibleRangeCheck);
+
     const observer = new ResizeObserver((entries) => {
       const rect = entries[0]?.contentRect;
       if (rect) chart.applyOptions({ width: Math.floor(rect.width), height: Math.floor(rect.height) });
     });
     observer.observe(container);
 
-    applyData(latestRef.current, hiddenRef.current);
+    applyData(latestRef.current, hiddenRef.current, null, true);
 
     return () => {
+      if (rafRef.current != null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+      chart.timeScale().unsubscribeVisibleLogicalRangeChange(scheduleVisibleRangeCheck);
       observer.disconnect();
       chart.remove();
       chartRef.current = null;
       seriesApiRef.current = [];
       zeroLineRef.current = null;
     };
-  }, [dark, applyData]);
+  }, [dark, applyData, scheduleVisibleRangeCheck]);
 
+  // 기간/옵션 변경(series) 시:
+  //   기준점을 기간 시작점으로 되돌리고(anchor=null) 전체 화면에 맞춘다.
+  //   이후 fitContent 가 유발하는 보이는 영역 변경 콜백이 anchor 를
+  //   "보이는 첫 날짜(=기간 시작)"로 확정하여 항상 0% 에서 시작하게 한다.
   useEffect(() => {
-    applyData(series, hidden);
+    anchorRef.current = null;
+    applyData(series, hiddenRef.current, null, true);
     setHover(null);
-  }, [series, hidden, applyData]);
+  }, [series, applyData]);
+
+  // 범례 On/Off(hidden) 시: 현재 확대 상태와 기준점(anchor)을 유지한 채
+  //   표시 여부만 갱신한다(zoom/0% 기준이 초기화되지 않도록 fit=false).
+  useEffect(() => {
+    applyData(latestRef.current, hidden, anchorRef.current, false);
+    setHover(null);
+  }, [hidden, applyData]);
 
   const containerWidth = containerRef.current?.clientWidth ?? 0;
   const tooltipOnLeft = hover ? hover.x > containerWidth * 0.6 : false;
