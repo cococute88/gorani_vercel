@@ -85,6 +85,18 @@ export type ReturnCompareSeries = {
   points: ReturnPoint[];
 };
 
+// 차트에 공급하는 한 종목의 "원본 종가" 시계열(기간 슬라이스 적용).
+// 차트는 이 종가를 받아 현재 화면 좌측 시작점을 기준으로 % 를 즉석에서
+// 재계산한다(TradingView 비교 차트 방식). 이렇게 하면 확대/축소/드래그 시
+// 추가 API 호출 없이 기준점만 다시 잡을 수 있다.
+export type ReturnPricePoint = { date: string; close: number };
+export type ReturnComparePriceSeries = {
+  key: string;
+  label: string;
+  color: string;
+  prices: ReturnPricePoint[];
+};
+
 function parseIsoMs(date: string): number {
   return new Date(`${date}T00:00:00Z`).getTime();
 }
@@ -126,18 +138,18 @@ export async function fetchReturnCompareRaw(): Promise<ReturnCompareRaw> {
   return { byKey, source, warnings };
 }
 
-// 원본 일별 종가를 선택 기간 기준 누적 수익률(%)로 환산한다.
+// 선택 기간에 맞춰 각 종목의 일별 종가를 슬라이스한다(공통 시작일 정렬 포함).
 //  1) 전 종목 통틀어 가장 최근 거래일(lastMs)을 구하고 cutoff = lastMs - days.
 //  2) 각 종목을 cutoff 이후로 필터한다.
 //  3) 세 종목이 모두 데이터를 가지는 "공통 시작일" = 각 필터 결과 첫 날짜 중
 //     가장 늦은 날짜로 정렬한다(동일 기준 0% 보장).
-//  4) 공통 시작일 종가를 base 로 (close/base - 1) * 100 을 계산한다.
-export function computeReturnCompareSeries(
+// 반환값은 종목별 일별 종가 배열이며, 어떤 점도 누락하지 않는다(6M 포함 전체
+// 거래일이 그대로 유지된다).
+function sliceByPeriod(
   raw: ReturnCompareRaw | null,
   periodDays: number,
-): ReturnCompareSeries[] {
-  const empty = RETURN_COMPARE_TICKERS.map((t) => ({ ...t, points: [] as ReturnPoint[] }));
-  if (!raw) return empty;
+): Record<string, LongSeriesPoint[]> | null {
+  if (!raw) return null;
 
   let lastMs = -Infinity;
   for (const t of RETURN_COMPARE_TICKERS) {
@@ -147,7 +159,7 @@ export function computeReturnCompareSeries(
       if (Number.isFinite(ms) && ms > lastMs) lastMs = ms;
     }
   }
-  if (!Number.isFinite(lastMs)) return empty;
+  if (!Number.isFinite(lastMs)) return null;
 
   const cutoffMs = Number.isFinite(periodDays) ? lastMs - periodDays * DAY_MS : -Infinity;
 
@@ -168,15 +180,64 @@ export function computeReturnCompareSeries(
     }
   }
 
-  return RETURN_COMPARE_TICKERS.map((t) => {
-    const f = (filtered[t.key] ?? []).filter((p) => p.date >= commonStart);
-    const base = f.length ? f[0].close : null;
-    const points: ReturnPoint[] =
-      base && base > 0
-        ? f.map((p) => ({ date: p.date, value: Number(((p.close / base - 1) * 100).toFixed(4)) }))
-        : [];
-    return { key: t.key, label: t.label, color: t.color, points };
-  });
+  const out: Record<string, LongSeriesPoint[]> = {};
+  for (const t of RETURN_COMPARE_TICKERS) {
+    out[t.key] = (filtered[t.key] ?? []).filter((p) => p.date >= commonStart);
+  }
+  return out;
+}
+
+// 선택 기간의 일별 종가 시계열을 종목별로 반환한다(차트가 직접 % 재계산).
+// 누적 수익률(%) 환산은 하지 않는다 → 차트가 현재 화면 좌측 시작점을 기준으로
+// 그때그때 0% 를 다시 잡는다.
+export function buildReturnComparePriceSeries(
+  raw: ReturnCompareRaw | null,
+  periodDays: number,
+): ReturnComparePriceSeries[] {
+  const sliced = sliceByPeriod(raw, periodDays);
+  return RETURN_COMPARE_TICKERS.map((t) => ({
+    key: t.key,
+    label: t.label,
+    color: t.color,
+    prices: (sliced?.[t.key] ?? []).map((p) => ({ date: p.date, close: p.close })),
+  }));
+}
+
+// 종가 시계열을 "기준일(anchorDate) = 0%" 로 환산한다.
+//  - base = anchorDate 이상의 첫 거래일 종가(화면 좌측 첫 봉). 없으면 첫 종가.
+//  - 각 점은 (close / base - 1) * 100.
+// 확대/축소/드래그로 기준일이 바뀔 때마다 차트가 이 함수를 호출해 즉시 재계산한다.
+export function rebasePricesToAnchor(
+  prices: ReturnPricePoint[],
+  anchorDate: string | null,
+): ReturnPoint[] {
+  if (!prices.length) return [];
+  let baseIdx = 0;
+  if (anchorDate) {
+    const idx = prices.findIndex((p) => p.date >= anchorDate);
+    baseIdx = idx >= 0 ? idx : 0;
+  }
+  const base = prices[baseIdx]?.close ?? null;
+  if (!base || base <= 0) return [];
+  return prices.map((p) => ({
+    date: p.date,
+    value: Number(((p.close / base - 1) * 100).toFixed(4)),
+  }));
+}
+
+// 원본 일별 종가를 선택 기간 기준 누적 수익률(%)로 환산한다(기간 시작 = 0%).
+// 차트 외부(범례 폴백, 기존 호출부 호환)에서 기간 시작 기준 수치가 필요할 때
+// 사용한다. 내부적으로 sliceByPeriod + rebasePricesToAnchor 를 재사용한다.
+export function computeReturnCompareSeries(
+  raw: ReturnCompareRaw | null,
+  periodDays: number,
+): ReturnCompareSeries[] {
+  return buildReturnComparePriceSeries(raw, periodDays).map((s) => ({
+    key: s.key,
+    label: s.label,
+    color: s.color,
+    points: rebasePricesToAnchor(s.prices, s.prices[0]?.date ?? null),
+  }));
 }
 
 // 수익률 % 포맷(부호 포함). 예: 12.53 → "+12.53%", -3.1 → "−3.10%".

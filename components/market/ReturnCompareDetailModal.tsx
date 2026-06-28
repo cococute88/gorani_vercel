@@ -5,12 +5,12 @@ import { X } from "lucide-react";
 import {
   DEFAULT_RETURN_PERIOD,
   RETURN_PERIODS,
-  computeReturnCompareSeries,
+  buildReturnComparePriceSeries,
   formatReturnPct,
   periodDaysOf,
   type ReturnCompareRaw,
 } from "@/lib/market-return-compare";
-import ReturnCompareChart from "./ReturnCompareChart";
+import ReturnCompareChart, { type ActiveReturns } from "./ReturnCompareChart";
 
 interface Props {
   raw: ReturnCompareRaw | null;
@@ -31,6 +31,7 @@ export default function ReturnCompareDetailModal({
   onClose,
 }: Props) {
   const [period, setPeriod] = useState(initialPeriod);
+  const [active, setActive] = useState<ActiveReturns | null>(null);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -40,8 +41,27 @@ export default function ReturnCompareDetailModal({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const series = useMemo(() => computeReturnCompareSeries(raw, periodDaysOf(period)), [raw, period]);
-  const empty = !loading && series.every((s) => s.points.length === 0);
+  // 기간이 바뀌면 화면 기준 수익률을 초기화(차트가 새 기준으로 다시 통지).
+  useEffect(() => {
+    setActive(null);
+  }, [period]);
+
+  const series = useMemo(
+    () => buildReturnComparePriceSeries(raw, periodDaysOf(period)),
+    [raw, period],
+  );
+  const empty = !loading && series.every((s) => s.prices.length === 0);
+
+  // 범례 표시값: 차트가 통지한 화면 기준값 우선, 없으면 기간 시작 기준 폴백.
+  const returnFor = (key: string, prices: { close: number }[]): number | null => {
+    const fromChart = active?.byKey[key];
+    if (fromChart !== undefined) return fromChart;
+    if (prices.length < 1) return null;
+    const base = prices[0].close;
+    const last = prices[prices.length - 1].close;
+    if (!base || base <= 0) return null;
+    return Number(((last / base - 1) * 100).toFixed(4));
+  };
 
   return (
     <div
@@ -91,7 +111,7 @@ export default function ReturnCompareDetailModal({
           </div>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             {series.map((s) => {
-              const latest = s.points.length ? s.points[s.points.length - 1].value : null;
+              const latest = returnFor(s.key, s.prices);
               return (
                 <span key={s.key} className="inline-flex items-center gap-1.5">
                   <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: s.color }} />
@@ -110,7 +130,7 @@ export default function ReturnCompareDetailModal({
 
         {/* Chart */}
         <div className="relative min-h-0 flex-1 px-2 py-2 sm:px-3">
-          <ReturnCompareChart series={series} dark={dark} />
+          <ReturnCompareChart series={series} dark={dark} onActiveReturns={setActive} />
           {loading && (
             <div className="absolute inset-0 flex items-center justify-center text-[13px] text-slate-500 dark:text-slate-400">
               차트 데이터를 불러오는 중…

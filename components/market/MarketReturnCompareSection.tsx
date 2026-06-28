@@ -7,12 +7,13 @@ import { useResolvedTheme } from "@/components/theme/ThemeProvider";
 import {
   DEFAULT_RETURN_PERIOD,
   RETURN_PERIODS,
-  computeReturnCompareSeries,
+  buildReturnComparePriceSeries,
   fetchReturnCompareRaw,
   formatReturnPct,
   periodDaysOf,
   type ReturnCompareRaw,
 } from "@/lib/market-return-compare";
+import type { ActiveReturns } from "./ReturnCompareChart";
 
 // lightweight-charts 는 DOM 에 직접 접근하므로 client-only 로 로드한다.
 const ReturnCompareChart = dynamic(() => import("./ReturnCompareChart"), { ssr: false });
@@ -30,6 +31,8 @@ export default function MarketReturnCompareSection() {
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState(DEFAULT_RETURN_PERIOD);
   const [open, setOpen] = useState(false);
+  // 차트가 통지하는 "현재 화면 기준" 수익률(확대/축소/드래그 시 갱신).
+  const [active, setActive] = useState<ActiveReturns | null>(null);
 
   // 전체 일별 히스토리를 한 번만 받는다(심볼별 캐시 공유).
   useEffect(() => {
@@ -51,10 +54,29 @@ export default function MarketReturnCompareSection() {
     };
   }, []);
 
-  // 선택 기간 기준 누적 수익률(%) 재계산(메모이제이션).
-  const series = useMemo(() => computeReturnCompareSeries(raw, periodDaysOf(period)), [raw, period]);
-  const hasData = series.some((s) => s.points.length > 0);
+  // 선택 기간의 일별 종가 시계열(메모이제이션). 차트가 화면 기준으로 % 재계산.
+  const series = useMemo(
+    () => buildReturnComparePriceSeries(raw, periodDaysOf(period)),
+    [raw, period],
+  );
+  const hasData = series.some((s) => s.prices.length > 0);
   const unavailable = !loading && !hasData;
+
+  // 기간이 바뀌면 화면 기준 수익률을 초기화(차트가 새 기준으로 다시 통지).
+  useEffect(() => {
+    setActive(null);
+  }, [period]);
+
+  // 범례 표시값: 차트가 통지한 화면 기준값 우선, 없으면 기간 시작 기준 폴백.
+  const returnFor = (key: string, prices: { close: number }[]): number | null => {
+    const fromChart = active?.byKey[key];
+    if (fromChart !== undefined) return fromChart;
+    if (prices.length < 1) return null;
+    const base = prices[0].close;
+    const last = prices[prices.length - 1].close;
+    if (!base || base <= 0) return null;
+    return Number(((last / base - 1) * 100).toFixed(4));
+  };
 
   return (
     <section className="mb-6">
@@ -99,7 +121,7 @@ export default function MarketReturnCompareSection() {
           </div>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             {series.map((s) => {
-              const latest = s.points.length ? s.points[s.points.length - 1].value : null;
+              const latest = returnFor(s.key, s.prices);
               return (
                 <span key={s.key} className="inline-flex items-center gap-1.5">
                   <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: s.color }} />
@@ -127,7 +149,12 @@ export default function MarketReturnCompareSection() {
               수익률 비교 데이터를 조회할 수 없습니다.
             </div>
           ) : (
-            <ReturnCompareChart series={series} dark={dark} onClick={() => setOpen(true)} />
+            <ReturnCompareChart
+              series={series}
+              dark={dark}
+              onClick={() => setOpen(true)}
+              onActiveReturns={setActive}
+            />
           )}
         </div>
       </div>
