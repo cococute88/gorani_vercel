@@ -26,7 +26,6 @@ import PerformanceCards from "./PerformanceCards";
 import MetricsTable from "./MetricsTable";
 import ContributionCard from "./ContributionCard";
 import RollingScatterChart from "./RollingScatterChart";
-import RollingHeatmap from "./RollingHeatmap";
 
 // lightweight-charts 는 브라우저 전용 → SSR 비활성 동적 로드.
 const PerformanceChart = dynamic(() => import("./PerformanceChart"), {
@@ -37,10 +36,16 @@ const PerformanceChart = dynamic(() => import("./PerformanceChart"), {
 const panel = "rounded-2xl border border-slate-200 bg-white p-5 dark:border-[#2a3336] dark:bg-[#191f20]";
 const cardTitle = "text-[15px] font-bold text-slate-900 dark:text-white";
 
-// Rolling 1Y TR Heatmap 비활성화 플래그.
-// 활용도가 낮아 Rolling 3Y TR Scatter 로 대체했으나, 컴포넌트(RollingHeatmap)는
-// 향후 재사용을 위해 보존한다. true 로 바꾸면 Heatmap 섹션이 다시 렌더된다.
-const SHOW_ROLLING_HEATMAP = false;
+// Rolling TR 기간 탭 정의. 단일 RollingScatterChart 를 재사용하며 "월말 곡선에서
+// 직전 N개월 누적 TR" 의 N(monthsBack)만 바꾼다(1Y=12, 3Y=36, 5Y=60).
+// 세 기간의 포인트는 computed 단계에서 한 번에(중복 연산 없이) 미리 계산해 두므로,
+// 탭 전환은 추가 API 호출/재계산 없이 미리 계산된 배열을 선택만 한다.
+const ROLLING_TABS: ReadonlyArray<{ key: number; label: string; sub: string }> = [
+  { key: 12, label: "1Y", sub: "월말 기준 직전 1년 누적 수익률(TR)" },
+  { key: 36, label: "3Y", sub: "월말 기준 직전 3년 누적 수익률(TR)" },
+  { key: 60, label: "5Y", sub: "월말 기준 직전 5년 누적 수익률(TR)" },
+];
+const ROLLING_WINDOWS = ROLLING_TABS.map((t) => t.key);
 
 export default function StockCompareCalculator() {
   const theme = useResolvedTheme();
@@ -52,6 +57,8 @@ export default function StockCompareCalculator() {
   const [period, setPeriod] = useState<ComparePeriodKey>(DEFAULT_COMPARE_PERIOD);
   // 위험지표 전용 기간(성과 그래프 기간과 독립). API 재호출 없이 클라이언트 재계산만.
   const [metricsPeriod, setMetricsPeriod] = useState<ComparePeriodKey>(DEFAULT_RISK_PERIOD);
+  // Rolling TR 기간 탭(1Y=12 / 3Y=36 / 5Y=60). 탭 전환은 미리 계산된 배열 선택만 한다.
+  const [rollingWindow, setRollingWindow] = useState<number>(12);
   const [hidden, setHidden] = useState<Record<string, boolean>>({});
 
   const [data, setData] = useState<CompareData | null>(null);
@@ -129,11 +136,10 @@ export default function StockCompareCalculator() {
     const metricsByKey: Record<string, SeriesMetrics> = {};
     for (const s of series) metricsByKey[s.key] = computeSeriesMetrics(s);
 
-    // Rolling TR: 1Y(12개월)·3Y(36개월)를 한 번에 계산.
-    // 월말 곡선은 시리즈당 한 번만 계산되어 두 기간이 공유한다(중복 연산 제거).
-    const rollingByWindow = computeRollingPointsMulti(series, [12, 36]);
-    const rolling1Y = rollingByWindow[12] ?? [];
-    const rolling3Y = rollingByWindow[36] ?? [];
+    // Rolling TR: 1Y(12개월)·3Y(36개월)·5Y(60개월)를 한 번에 계산.
+    // 월말 곡선은 시리즈당 한 번만 계산되어 세 기간이 공유한다(중복 연산 제거).
+    // 탭 전환은 이 맵에서 해당 기간 배열만 선택하므로 추가 계산이 없다.
+    const rollingByWindow = computeRollingPointsMulti(series, ROLLING_WINDOWS);
 
     const contributionA = computeContribution({
       trPct: metricsByKey.a?.trPct ?? null,
@@ -163,11 +169,15 @@ export default function StockCompareCalculator() {
     const riskMetricsByKey: Record<string, SeriesMetrics> = {};
     for (const s of riskSeries) riskMetricsByKey[s.key] = computeSeriesMetrics(s);
 
-    return { series, metricsByKey, rolling1Y, rolling3Y, contributionA, contributionB, riskSeries, riskMetricsByKey };
+    return { series, metricsByKey, rollingByWindow, contributionA, contributionB, riskSeries, riskMetricsByKey };
   }, [data, options, period, metricsPeriod]);
 
   const series: CompareSeries[] = computed?.series ?? [];
   const periodLabel = COMPARE_PERIODS.find((p) => p.key === period)?.label ?? "";
+
+  // 현재 선택된 Rolling 탭의 미리 계산된 포인트(없으면 빈 배열) + 부제 텍스트.
+  const rollingPoints = computed?.rollingByWindow[rollingWindow] ?? [];
+  const activeRollingTab = ROLLING_TABS.find((t) => t.key === rollingWindow) ?? ROLLING_TABS[0];
 
   const toggleHidden = (key: string) => setHidden((prev) => ({ ...prev, [key]: !prev[key] }));
 
@@ -217,34 +227,7 @@ export default function StockCompareCalculator() {
           {/* 성과 카드 */}
           <PerformanceCards series={series} metricsByKey={computed.metricsByKey} periodLabel={periodLabel} />
 
-          {/* ① Rolling 1Y TR — Scatter / ② Rolling 3Y TR (동일 컴포넌트·스타일, 기간만 다름) */}
-          <section className={panel}>
-            <h2 className={`${cardTitle} mb-1`}>Rolling 1Y TR — Scatter</h2>
-            <p className="mb-3 text-[12px] text-slate-400">월말 기준 직전 1년 누적 수익률</p>
-            <div className="h-[300px] w-full">
-              <RollingScatterChart points={computed.rolling1Y} series={series} hidden={hidden} dark={dark} />
-            </div>
-          </section>
-          <section className={panel}>
-            <h2 className={`${cardTitle} mb-1`}>Rolling 3Y TR</h2>
-            <p className="mb-3 text-[12px] text-slate-400">월말 기준 직전 3년 누적 수익률(TR)</p>
-            <div className="h-[300px] w-full">
-              <RollingScatterChart points={computed.rolling3Y} series={series} hidden={hidden} dark={dark} />
-            </div>
-          </section>
-          {/* (비활성) Rolling 1Y TR — Heatmap. 활용도가 낮아 숨김 처리했으나
-              컴포넌트는 보존한다. SHOW_ROLLING_HEATMAP=true 로 즉시 복구 가능. */}
-          {SHOW_ROLLING_HEATMAP && (
-            <section className={panel}>
-              <h2 className={`${cardTitle} mb-1`}>Rolling 1Y TR — Heatmap</h2>
-              <p className="mb-3 text-[12px] text-slate-400">월 단위 Rolling TR 색상 강도(초록=양 / 빨강=음)</p>
-              <div className="h-[300px] w-full">
-                <RollingHeatmap points={computed.rolling1Y} series={series} hidden={hidden} />
-              </div>
-            </section>
-          )}
-
-          {/* ③ TradingView 스타일 메인 그래프 */}
+          {/* ① TradingView 스타일 성과 비교 메인 그래프 (성과 카드 바로 아래 = 원래 위치) */}
           <section className={panel}>
             <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
               <h2 className={cardTitle}>성과 비교 (Total Return)</h2>
@@ -293,6 +276,37 @@ export default function StockCompareCalculator() {
 
             <div className="h-[340px] w-full sm:h-[420px]">
               <PerformanceChart series={series} dark={dark} hidden={hidden} />
+            </div>
+          </section>
+
+          {/* ② Rolling TR — Scatter (1Y / 3Y / 5Y 탭). 단일 RollingScatterChart 를
+              재사용하고 탭으로 Rolling 기간(monthsBack)만 바꾼다. 세 기간 포인트는
+              computed 에서 미리 계산되어 탭 전환 시 추가 API 호출/재계산이 없다. */}
+          <section className={panel}>
+            <div className="mb-1 flex flex-wrap items-center justify-between gap-3">
+              <h2 className={cardTitle}>Rolling TR — Scatter</h2>
+              <div className="flex gap-1" role="tablist" aria-label="Rolling TR 기간">
+                {ROLLING_TABS.map((t) => (
+                  <button
+                    key={t.key}
+                    type="button"
+                    role="tab"
+                    aria-selected={rollingWindow === t.key}
+                    onClick={() => setRollingWindow(t.key)}
+                    className={`rounded-lg px-2.5 py-1 text-[12px] font-bold transition-colors ${
+                      rollingWindow === t.key
+                        ? "bg-blue-600 text-white"
+                        : "text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/5"
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <p className="mb-3 text-[12px] text-slate-400">{activeRollingTab.sub}</p>
+            <div className="h-[300px] w-full">
+              <RollingScatterChart points={rollingPoints} series={series} hidden={hidden} dark={dark} />
             </div>
           </section>
 
