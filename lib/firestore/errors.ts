@@ -8,7 +8,12 @@
 //   - service-account-json-invalid : env var present but not valid JSON / base64
 //   - invalid-service-account      : JSON parsed but missing required fields
 //   - admin-init-failed            : Firebase Admin SDK failed to initialize
-//   - permission-denied            : Firestore rejected the read (IAM / rules)
+//   - unauthenticated              : Google REJECTED the credential (gRPC 16 /
+//                                    invalid_grant). The key is valid in shape
+//                                    but not accepted (rotated/deleted/wrong
+//                                    project). DISTINCT from permission-denied.
+//   - permission-denied            : Firestore accepted the identity but IAM /
+//                                    security rules denied the read (gRPC 7)
 //   - firestore-query-failed       : the query/get call itself failed
 //   - collection-empty             : the portfolio_snapshots collection is empty
 //   - collection-not-found         : alias kept for backwards compatibility
@@ -25,6 +30,7 @@ export type FirestoreErrorCode =
   | "service-account-json-invalid"
   | "invalid-service-account"
   | "admin-init-failed"
+  | "unauthenticated"
   | "permission-denied"
   | "firestore-query-failed"
   | "collection-empty"
@@ -125,10 +131,13 @@ export function logOriginalError(scope: string, error: unknown): void {
 
 /**
  * Map a low-level error thrown by the Firebase Admin SDK to a typed
- * FirestoreReadError. Notably detects permission/IAM failures so the caller can
- * distinguish them from "no data". Anything else is classified with the
- * provided `fallbackCode` (defaults to "firestore-query-failed") instead of the
- * opaque "unknown", and the original error is preserved as `cause` and logged.
+ * FirestoreReadError. Detects two authentication/authorization failures that
+ * look similar but are completely different problems:
+ *   - gRPC 16 UNAUTHENTICATED / invalid_grant -> "unauthenticated" (bad key)
+ *   - gRPC 7 PERMISSION_DENIED                -> "permission-denied" (IAM/rules)
+ * Anything else is classified with the provided `fallbackCode` (defaults to
+ * "firestore-query-failed") instead of the opaque "unknown", and the original
+ * error is preserved as `cause` and logged.
  */
 export function classifyAdminError(
   error: unknown,
@@ -139,14 +148,43 @@ export function classifyAdminError(
   // Always surface the raw error in dev before wrapping it.
   logOriginalError("classify", error);
 
-  // Firestore/gRPC permission errors surface either as code 7 (PERMISSION_DENIED)
-  // or as a message mentioning permission. Detect both without leaking details.
   const code = (error as { code?: unknown } | null)?.code;
   const message = error instanceof Error ? error.message : String(error);
+
+  // 1) UNAUTHENTICATED (gRPC code 16) means Google REJECTED the credential
+  // itself: the service account key is valid in shape (it parsed & signed a
+  // JWT) but is not accepted by Google's token endpoint — typically because the
+  // key was rotated/deleted, the service account no longer exists, or the key
+  // belongs to a different project. The Admin SDK also reports this during a
+  // token preflight as `app/invalid-credential` with an `invalid_grant` body.
+  // This is fundamentally an AUTHENTICATION problem and must NOT be confused
+  // with permission-denied (an IAM / security-rules AUTHORIZATION problem),
+  // because the two have completely different remediations.
+  const isUnauthenticated =
+    code === 16 ||
+    code === "app/invalid-credential" ||
+    code === "unauthenticated" ||
+    code === "UNAUTHENTICATED" ||
+    /unauthenticated|invalid_grant|invalid authentication credentials|account not found|Could not refresh access token/i.test(
+      message,
+    );
+
+  if (isUnauthenticated) {
+    return new FirestoreReadError(
+      "unauthenticated",
+      "Google rejected the service account credential (gRPC 16 UNAUTHENTICATED / invalid_grant). " +
+        "The key is well-formed but not accepted — it is most likely rotated, deleted, or issued for a " +
+        "different project. Replace FIREBASE_SERVICE_ACCOUNT_KEY with a current key for the target project.",
+      error,
+    );
+  }
+
+  // 2) PERMISSION_DENIED (gRPC code 7) means the identity authenticated fine but
+  // IAM roles / Firestore security rules denied this specific read.
   const isPermission =
     code === 7 ||
     code === "permission-denied" ||
-    /permission|PERMISSION_DENIED|insufficient|unauthenticated|UNAUTHENTICATED/i.test(message);
+    /permission|PERMISSION_DENIED|insufficient/i.test(message);
 
   if (isPermission) {
     return new FirestoreReadError(

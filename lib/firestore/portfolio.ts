@@ -24,7 +24,7 @@ import "server-only";
 
 import { FieldPath, type Firestore } from "firebase-admin/firestore";
 
-import { getAdminFirestore, getAdminAccountDiagnostics } from "./firebase-admin";
+import { getAdminFirestore, getAdminAccountDiagnostics, verifyAdminCredential } from "./firebase-admin";
 import { FirestoreReadError, classifyAdminError, devLog } from "./errors";
 import {
   PORTFOLIO_SNAPSHOTS_COLLECTION,
@@ -67,6 +67,12 @@ export async function getLatestPortfolioSnapshot(): Promise<PortfolioSnapshotRec
   });
 
   try {
+    // Preflight the credential so a rejected key (gRPC 16 / invalid_grant) is
+    // reported as "unauthenticated" with the real reason, instead of surfacing
+    // as an opaque UNAUTHENTICATED deep inside query.get(). Cached: at most one
+    // network round-trip per runtime.
+    await verifyAdminCredential();
+
     const query = snapshotsCollection(db)
       // Document ID == YYYY-MM-DD, so ordering by ID desc yields newest first.
       .orderBy(FieldPath.documentId(), "desc")
@@ -129,6 +135,8 @@ export async function getPortfolioSnapshot(
   });
 
   try {
+    await verifyAdminCredential();
+
     const doc = await snapshotsCollection(db).doc(snapshotDate).get();
 
     if (!doc.exists) {

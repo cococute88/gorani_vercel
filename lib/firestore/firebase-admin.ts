@@ -26,7 +26,7 @@ import {
 } from "firebase-admin/app";
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
 
-import { FirestoreReadError, devLog } from "./errors";
+import { FirestoreReadError, classifyAdminError, describeError, devLog } from "./errors";
 
 /** Env var holding the service account JSON (raw or base64-encoded). */
 const SERVICE_ACCOUNT_ENV = "FIREBASE_SERVICE_ACCOUNT_KEY";
@@ -196,4 +196,70 @@ export function getAdminFirestore(): Firestore {
 export function isAdminFirestoreConfigured(): boolean {
   const raw = process.env[SERVICE_ACCOUNT_ENV];
   return Boolean(raw && raw.trim() !== "");
+}
+
+// ---------------------------------------------------------------------------
+// Credential preflight.
+//
+// WHY THIS EXISTS: when the service account JSON is well-formed and the private
+// key can sign a JWT, `initializeApp()` and `getFirestore()` BOTH succeed even
+// if Google ultimately rejects the credential. The failure only surfaces deep
+// inside the first Firestore RPC as an opaque `16 UNAUTHENTICATED` gRPC error.
+//
+// Forcing an OAuth2 access-token fetch up front converts that into the precise,
+// actionable cause — e.g. `invalid_grant (Invalid grant: account not found)`,
+// reported by the Admin SDK as `app/invalid-credential` — so logs point at the
+// credential (rotated/deleted/wrong project) instead of misleading the operator
+// toward IAM roles or security rules.
+//
+// The token itself is NEVER logged. The result is cached as a promise so the
+// network round-trip happens at most once per server runtime (a valid key is
+// verified once; subsequent reads reuse the SDK's own token cache).
+// ---------------------------------------------------------------------------
+
+let credentialPreflight: Promise<void> | null = null;
+
+/**
+ * Force the Admin SDK to obtain an access token once, surfacing credential
+ * rejection (gRPC 16 / invalid_grant) as a typed FirestoreReadError("unauthenticated")
+ * with the real underlying reason. Resolves silently when the credential is
+ * accepted. Cached: only the first call performs network I/O.
+ */
+export async function verifyAdminCredential(): Promise<void> {
+  if (credentialPreflight) return credentialPreflight;
+
+  credentialPreflight = (async () => {
+    const app = getApps().some((a) => a.name === ADMIN_APP_NAME)
+      ? getApp(ADMIN_APP_NAME)
+      : getAdminApp();
+    try {
+      // getAccessToken() performs the JWT->OAuth2 exchange against Google. A
+      // bad/rotated/wrong-project key fails here with `app/invalid-credential`.
+      await app.options.credential!.getAccessToken();
+      // Requirement: confirm Google ACCEPTED the credential. No token logged.
+      devLog("admin", "Service account credential accepted by Google", {
+        projectId: adminAccountDiagnostics?.projectId,
+        clientEmail: adminAccountDiagnostics?.clientEmail,
+        tokenAcquired: true,
+      });
+    } catch (error) {
+      // Reset so a later attempt (e.g. after the env var is fixed) can retry.
+      credentialPreflight = null;
+      const info = describeError(error);
+      devLog("admin", "Service account credential REJECTED by Google", {
+        projectId: adminAccountDiagnostics?.projectId,
+        clientEmail: adminAccountDiagnostics?.clientEmail,
+        tokenAcquired: false,
+        errorName: info.errorName,
+        code: info.code,
+        // message is safe: the Admin SDK reports invalid_grant text, no secrets.
+        message: info.message,
+      });
+      // classifyAdminError maps gRPC 16 / invalid_grant / app/invalid-credential
+      // to the typed "unauthenticated" code with an actionable message.
+      throw classifyAdminError(error, "unauthenticated");
+    }
+  })();
+
+  return credentialPreflight;
 }
