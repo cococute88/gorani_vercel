@@ -50,6 +50,27 @@ const SP500_CONSTITUENTS: AssetMapEtfConstituent[] = [
   { ticker: "MA", name: "Mastercard Inc", sector: "금융", weightPct: 0.9 },
 ];
 
+// Invesco S&P 500 Momentum ETF(SPMO) 상위 보유 비중표.
+// S&P 500 중 모멘텀 스코어 상위 종목을 담아 SPY/QQQ 와 부분적으로 겹친다.
+// 출처: 공개 보유 비중 스냅샷(상위 15종목, 전체 102종목 중). 전체 목록이 아니다.
+const SPMO_CONSTITUENTS: AssetMapEtfConstituent[] = [
+  { ticker: "MU", name: "Micron Technology Inc", sector: "기술", weightPct: 12.6 },
+  { ticker: "NVDA", name: "NVIDIA Corp", sector: "기술", weightPct: 7.4 },
+  { ticker: "AVGO", name: "Broadcom Inc", sector: "기술", weightPct: 6.1 },
+  { ticker: "LRCX", name: "Lam Research Corp", sector: "기술", weightPct: 4.2 },
+  { ticker: "GOOGL", name: "Alphabet Inc Class A", sector: "커뮤니케이션", weightPct: 4.1 },
+  { ticker: "AMD", name: "Advanced Micro Devices Inc", sector: "기술", weightPct: 4.0 },
+  { ticker: "JNJ", name: "Johnson & Johnson", sector: "헬스케어", weightPct: 3.9 },
+  { ticker: "GOOG", name: "Alphabet Inc Class C", sector: "커뮤니케이션", weightPct: 3.3 },
+  { ticker: "INTC", name: "Intel Corp", sector: "기술", weightPct: 3.2 },
+  { ticker: "SNDK", name: "Sandisk Corp", sector: "기술", weightPct: 3.2 },
+  { ticker: "CAT", name: "Caterpillar Inc", sector: "산업재", weightPct: 3.0 },
+  { ticker: "XOM", name: "Exxon Mobil Corp", sector: "에너지", weightPct: 2.5 },
+  { ticker: "AMAT", name: "Applied Materials Inc", sector: "기술", weightPct: 2.5 },
+  { ticker: "WDC", name: "Western Digital Corp", sector: "기술", weightPct: 2.1 },
+  { ticker: "STX", name: "Seagate Technology Holdings PLC", sector: "기술", weightPct: 2.1 },
+];
+
 const SCHD_CONSTITUENTS: AssetMapEtfConstituent[] = [
   { ticker: "TXN", name: "Texas Instruments Inc", sector: "기술", weightPct: 4.4 },
   { ticker: "AMGN", name: "Amgen Inc", sector: "헬스케어", weightPct: 4.3 },
@@ -117,10 +138,40 @@ export const ASSET_MAP_ETF_CONSTITUENTS: Record<string, AssetMapEtfConstituentFi
     notes: "Deterministic top-holdings fixture. It is intentionally not a full constituent list.",
     constituents: SCHD_CONSTITUENTS,
   },
+  SPMO: {
+    ticker: "SPMO",
+    name: "Invesco S&P 500 Momentum ETF",
+    notes: "Deterministic top-holdings fixture (top 15 of ~102). Momentum tilt of the S&P 500.",
+    constituents: SPMO_CONSTITUENTS,
+  },
 };
+
+// 같은 지수를 추종하거나 사실상 동일한 구성종목을 갖는 ETF 별칭(alias).
+// 직접 fixture 가 없어도 동일 지수의 대표 fixture 로 look-through 하기 위한 매핑이다.
+// 값은 ASSET_MAP_ETF_CONSTITUENTS 의 키(원본 티커)여야 한다.
+export const ASSET_MAP_ETF_ALIASES: Record<string, string> = {
+  // S&P 500 추종(동일 지수, 운용사만 다름).
+  IVV: "SPY", // iShares Core S&P 500
+  SPLG: "SPY", // SPDR Portfolio S&P 500
+  VV: "SPY", // Vanguard Large-Cap (S&P 500 근사)
+  IVW: "SPY", // iShares S&P 500 Growth (S&P 500 상위로 근사)
+  // 미국 전체 시장(대형주 비중이 지배적 → S&P 500 상위 fixture 로 근사).
+  VTI: "SPY", // Vanguard Total Stock Market
+  ITOT: "SPY", // iShares Core S&P Total US Stock Market
+  SCHB: "SPY", // Schwab US Broad Market
+  // Nasdaq-100 추종.
+  QQQM: "QQQ", // Invesco NASDAQ 100 ETF
+};
+
+// 별칭을 원본 fixture 티커로 해석한다(없으면 입력 그대로).
+export function resolveEtfFixtureTicker(ticker: string): string {
+  const upper = ticker.trim().toUpperCase();
+  return ASSET_MAP_ETF_ALIASES[upper] ?? upper;
+}
 
 export const KNOWN_ASSET_MAP_ETF_TICKERS = new Set([
   ...Object.keys(ASSET_MAP_ETF_CONSTITUENTS),
+  ...Object.keys(ASSET_MAP_ETF_ALIASES),
   "JEPI",
   "JEPQ",
   "VTI",
@@ -130,8 +181,17 @@ export const KNOWN_ASSET_MAP_ETF_TICKERS = new Set([
   "IWM",
   "TLT",
   "SHY",
+  "VIG",
+  "DGRO",
+  "SCHG",
+  "SOXX",
+  "SOXL",
 ]);
 
 export function getAssetMapEtfFixture(ticker: string): AssetMapEtfConstituentFixture | null {
-  return ASSET_MAP_ETF_CONSTITUENTS[ticker] ?? null;
+  const direct = ASSET_MAP_ETF_CONSTITUENTS[ticker.trim().toUpperCase()];
+  if (direct) return direct;
+  // 별칭(동일 지수 ETF)은 원본 fixture 로 fallback 한다.
+  const resolved = resolveEtfFixtureTicker(ticker);
+  return ASSET_MAP_ETF_CONSTITUENTS[resolved] ?? null;
 }

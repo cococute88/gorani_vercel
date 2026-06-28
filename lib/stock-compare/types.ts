@@ -48,9 +48,30 @@ export type HoldingComparisonRow = {
   b: HoldingRow | null;
 };
 
+// 한 티커의 구성종목 조회 결과 상태(원인 구분용).
+//  - "ok"          : 직접 fixture 보유.
+//  - "proxy"       : 동일 지수 별칭(alias)을 통해 대표 fixture 로 해석.
+//  - "unsupported" : ETF 로 알려졌으나 구성종목 데이터 미보유(지원 예정/제외).
+//  - "stock"       : 개별 종목이거나 미인식 티커(구성종목 개념이 없는 정상 케이스).
+export type HoldingsStatus = "ok" | "proxy" | "unsupported" | "stock";
+
+export type HoldingsResolution = {
+  ticker: string;
+  holdings: HoldingRow[];
+  status: HoldingsStatus;
+  // proxy 로 해석한 경우 원본 fixture 티커(예: IVV → SPY). 그 외 null.
+  proxyOf: string | null;
+};
+
 export type OverlapResult = {
   // 두 종목 모두 구성종목(holdings) 데이터를 가졌는지.
   hasHoldings: boolean;
+  // 각 티커의 조회 상태(원인 구분 안내용).
+  statusA: HoldingsStatus;
+  statusB: HoldingsStatus;
+  // proxy 해석 시 원본 fixture 티커.
+  proxyOfA: string | null;
+  proxyOfB: string | null;
   // 공통 종목 목록(티커 기준 교집합).
   commonTickers: string[];
   commonCount: number;
