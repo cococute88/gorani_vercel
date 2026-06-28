@@ -16,10 +16,11 @@ import type { CompareSeries, CompareSeriesKey, RollingPoint } from "@/lib/stock-
 import { formatSignedPct } from "@/lib/stock-compare/constants";
 
 // =============================================================
-// Rolling 1Y Total Return — Scatter.
-// x축 = 월말 기준일, y축 = 직전 1년 누적 TR(%). 시리즈별 색상 점.
+// Rolling Total Return — Scatter.
+// x축 = 월말 기준일, y축 = 직전 N개월 누적 TR(%). 시리즈별 색상 점.
 // Hover 시 해당 월의 4개 시리즈 값을 한 번에 표시한다(정보량 최소화).
-// RollingHeatmap 과 완전히 독립된 컴포넌트로, 한쪽만 제거/교체 가능하다.
+// 단일 컴포넌트를 1Y/3Y/5Y 탭에서 그대로 재사용하며, 변하는 것은 입력 points
+// (Rolling 기간만 다른 미리 계산된 배열)뿐이다. Hover/Tooltip/색상/반응형 동일.
 // =============================================================
 
 interface Props {
