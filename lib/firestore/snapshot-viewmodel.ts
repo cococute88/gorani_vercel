@@ -143,15 +143,42 @@ function mapHolding(raw: RawRecord, index: number): Holding {
   const s = [raw];
   return {
     id: firstString(s, ["id", "holding_id", "holdingId"]) ?? `fs-holding-${index}`,
-    broker: firstString(s, ["broker", "institution", "institution_name", "institutionName"]) ?? "",
+    broker:
+      firstString(s, [
+        "broker",
+        "institution",
+        "institution_name",
+        "institutionName",
+        // bs-report-auto `investment_status` rows expose the institution via
+        // `account_type` (e.g. 증권사/연금계좌 등); map it as the broker.
+        "account_type",
+        "accountType",
+      ]) ?? "",
     accountName: firstString(s, ["account_name", "accountName"]),
-    assetType: firstString(s, ["asset_type", "assetType", "type"]) ?? "",
+    assetType:
+      firstString(s, [
+        "asset_type",
+        "assetType",
+        "type",
+        // `investment_status` rows describe the product class via `asset_group`.
+        "asset_group",
+        "assetGroup",
+      ]) ?? "",
     productName: firstString(s, ["product_name", "productName", "name"]) ?? "",
     cleanName: firstString(s, ["clean_name", "cleanName"]),
     ticker: firstString(s, ["ticker", "symbol"]),
     tag: firstString(s, ["tag"]),
     principalKRW: firstNumber(s, ["principal_krw", "principalKRW", "principal"]),
-    valueKRW: firstNumber(s, ["value_krw", "valueKRW", "value", "evaluation_krw", "eval_krw"]),
+    // `investment_status` rows store the evaluated value under `amount_krw`.
+    valueKRW: firstNumber(s, [
+      "value_krw",
+      "valueKRW",
+      "value",
+      "evaluation_krw",
+      "eval_krw",
+      "amount_krw",
+      "amountKRW",
+    ]),
     returnPct: firstOptionalNumber(s, ["return_pct", "returnPct", "return_rate", "returnRate"]),
     quantity: firstOptionalNumber(s, ["quantity", "qty", "shares"]),
     averagePrice: firstOptionalNumber(s, ["average_price", "averagePrice", "avg_price", "avgPrice"]),
