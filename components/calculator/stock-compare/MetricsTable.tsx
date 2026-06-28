@@ -2,21 +2,27 @@
 
 import { useState } from "react";
 import type { CompareSeries, MetricKey, SeriesMetrics } from "@/lib/stock-compare/types";
+import type { ComparePeriod, ComparePeriodKey } from "@/lib/stock-compare/types";
 import { METRIC_DEFS } from "@/lib/stock-compare/constants";
 
 // =============================================================
-// 위험지표 표. 기본 표시 = TR. 추가 선택: CAGR / MDD / Sharpe / Sortino / Calmar.
+// 위험지표 표. 기본적으로 모든 지표(TR/CAGR/MDD/Sharpe/Sortino/Calmar)가
+// 활성화된 상태로 표시된다. 우측 상단 기간 선택(1Y/3Y/5Y/MAX)은 성과 그래프
+// 기간과 독립적으로 위험지표만 다시 계산한다.
 // METRIC_DEFS 레지스트리를 그대로 사용하므로 지표 추가가 쉽다(확장 가능).
 // =============================================================
 
 interface Props {
   series: CompareSeries[];
   metricsByKey: Record<string, SeriesMetrics>;
+  period: ComparePeriodKey;
+  periods: ComparePeriod[];
+  onPeriodChange: (key: ComparePeriodKey) => void;
 }
 
 const panel = "rounded-2xl border border-slate-200 bg-white p-5 dark:border-[#2a3336] dark:bg-[#191f20]";
 
-export default function MetricsTable({ series, metricsByKey }: Props) {
+export default function MetricsTable({ series, metricsByKey, period, periods, onPeriodChange }: Props) {
   const [enabled, setEnabled] = useState<Record<MetricKey, boolean>>(() => {
     const init = {} as Record<MetricKey, boolean>;
     METRIC_DEFS.forEach((d) => {
@@ -48,7 +54,28 @@ export default function MetricsTable({ series, metricsByKey }: Props) {
 
   return (
     <section className={panel}>
-      <h2 className="mb-3 text-[15px] font-bold text-slate-900 dark:text-white">위험지표 비교</h2>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-[15px] font-bold text-slate-900 dark:text-white">위험지표 비교</h2>
+        <div className="flex items-center gap-2">
+          <span className="hidden text-[11.5px] text-slate-400 sm:inline">위험지표 기간</span>
+          <div className="flex gap-1">
+            {periods.map((p) => (
+              <button
+                key={p.key}
+                type="button"
+                onClick={() => onPeriodChange(p.key)}
+                className={`rounded-lg px-2.5 py-1 text-[12px] font-bold transition-colors ${
+                  period === p.key
+                    ? "bg-blue-600 text-white"
+                    : "text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/5"
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
 
       <div className="mb-4 flex flex-wrap gap-1.5">
         {METRIC_DEFS.filter((d) => d.key !== "tr").map((d) => {

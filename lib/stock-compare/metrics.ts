@@ -73,21 +73,24 @@ function monthEndCurve(series: CompareSeries): Array<{ date: string; index: numb
   return Array.from(byMonth.values()).sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
 }
 
-// 월말 인덱스에서 12개월 전 인덱스를 찾아 1Y TR(%) 계산.
+// 월말 인덱스에서 "정확히 12개월 전 같은 달"의 월말 인덱스를 찾아 1Y TR(%) 계산.
+//
+// 과거 구현은 "1년 전(이하) 가장 가까운 월말"을 역방향 탐색했는데, 데이터에
+// 공백이 있으면 1년보다 훨씬 더 과거(예: 2년 전) 월말을 base 로 잡아 비정상적인
+// Rolling 값을 만들 수 있었다. 캘린더(YYYY-MM) 기준으로 정확히 12개월 전 달의
+// 월말을 직접 조회하면 MAX/10Y/5Y/3Y/1Y 모든 기간에서 창(window) 생성 규칙이
+// 완전히 동일해지고, Scatter/Heatmap 이 같은 정의를 공유한다.
 function rollingForCurve(curve: Array<{ date: string; index: number }>): Map<string, number> {
   const out = new Map<string, number>();
-  for (let i = 0; i < curve.length; i += 1) {
-    const cur = curve[i];
-    const targetMs = new Date(`${cur.date}T00:00:00Z`).getTime() - 365 * 86_400_000;
-    // 1년 전(이하) 가장 가까운 월말 인덱스를 역방향 탐색.
-    let base: { date: string; index: number } | null = null;
-    for (let j = i - 1; j >= 0; j -= 1) {
-      if (new Date(`${curve[j].date}T00:00:00Z`).getTime() <= targetMs) {
-        base = curve[j];
-        break;
-      }
-    }
-    // 정확히 1년이 안 되면(초기 구간) 가장 이른 점이라도 ~11개월 이상이면 사용 안 함.
+  // YYYY-MM → 해당 달의 월말 포인트.
+  const byMonth = new Map<string, { date: string; index: number }>();
+  for (const p of curve) byMonth.set(p.date.slice(0, 7), p);
+
+  for (const cur of curve) {
+    const year = Number(cur.date.slice(0, 4));
+    const month = cur.date.slice(5, 7); // "01"~"12"
+    const prevKey = `${year - 1}-${month}`; // 정확히 12개월 전 같은 달.
+    const base = byMonth.get(prevKey);
     if (base && base.index > 0) {
       out.set(cur.date, round((cur.index / base.index - 1) * 100));
     }

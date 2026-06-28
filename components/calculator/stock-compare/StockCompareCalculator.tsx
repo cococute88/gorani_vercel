@@ -13,6 +13,8 @@ import {
   DEFAULT_COMPARE_A,
   DEFAULT_COMPARE_B,
   DEFAULT_COMPARE_PERIOD,
+  DEFAULT_RISK_PERIOD,
+  RISK_METRIC_PERIODS,
   normalizeCompareTicker,
 } from "@/lib/stock-compare/constants";
 import type { ComparePeriodKey, CompareSeries, SeriesMetrics } from "@/lib/stock-compare/types";
@@ -43,6 +45,8 @@ export default function StockCompareCalculator() {
   const [inputB, setInputB] = useState(DEFAULT_COMPARE_B);
   const [options, setOptions] = useState<CompareOptions>(DEFAULT_COMPARE_OPTIONS);
   const [period, setPeriod] = useState<ComparePeriodKey>(DEFAULT_COMPARE_PERIOD);
+  // 위험지표 전용 기간(성과 그래프 기간과 독립). API 재호출 없이 클라이언트 재계산만.
+  const [metricsPeriod, setMetricsPeriod] = useState<ComparePeriodKey>(DEFAULT_RISK_PERIOD);
   const [hidden, setHidden] = useState<Record<string, boolean>>({});
 
   const [data, setData] = useState<CompareData | null>(null);
@@ -103,6 +107,7 @@ export default function StockCompareCalculator() {
     const commonLevels = new Map<string, TrLevels>();
     data.commonPoints.forEach((pts, t) => commonLevels.set(t, toTrLevels(t, pts, useTr)));
 
+    const buildOpts = { removeOverlap: options.removeOverlap, weighted: options.weighted };
     const periodDays = COMPARE_PERIODS.find((p) => p.key === period)?.days ?? 365;
 
     const { series, exMeta } = buildCompareSeries({
@@ -113,7 +118,7 @@ export default function StockCompareCalculator() {
       overlap: data.overlap,
       commonLevels,
       periodDays,
-      options: { removeOverlap: options.removeOverlap, weighted: options.weighted },
+      options: buildOpts,
     });
 
     const metricsByKey: Record<string, SeriesMetrics> = {};
@@ -134,8 +139,23 @@ export default function StockCompareCalculator() {
       available: exMeta.bAvailable,
     });
 
-    return { series, metricsByKey, rolling, contributionA, contributionB };
-  }, [data, options, period]);
+    // 위험지표 전용 시리즈(독립 기간). 같은 입력 데이터로 클라이언트 재계산만 한다.
+    const riskDays = COMPARE_PERIODS.find((p) => p.key === metricsPeriod)?.days ?? Infinity;
+    const { series: riskSeries } = buildCompareSeries({
+      tickerA: data.tickerA,
+      tickerB: data.tickerB,
+      aLevels,
+      bLevels,
+      overlap: data.overlap,
+      commonLevels,
+      periodDays: riskDays,
+      options: buildOpts,
+    });
+    const riskMetricsByKey: Record<string, SeriesMetrics> = {};
+    for (const s of riskSeries) riskMetricsByKey[s.key] = computeSeriesMetrics(s);
+
+    return { series, metricsByKey, rolling, contributionA, contributionB, riskSeries, riskMetricsByKey };
+  }, [data, options, period, metricsPeriod]);
 
   const series: CompareSeries[] = computed?.series ?? [];
   const periodLabel = COMPARE_PERIODS.find((p) => p.key === period)?.label ?? "";
@@ -243,6 +263,22 @@ export default function StockCompareCalculator() {
           {/* 구성종목 중복 분석 */}
           <OverlapSummary tickerA={data!.tickerA} tickerB={data!.tickerB} overlap={data!.overlap} />
 
+          {/* Rolling 1Y TR — Scatter / Heatmap (동일 데이터셋, 표현만 다름) */}
+          <section className={panel}>
+            <h2 className={`${cardTitle} mb-1`}>Rolling 1Y TR — Scatter</h2>
+            <p className="mb-3 text-[12px] text-slate-400">월말 기준 직전 1년 누적 수익률</p>
+            <div className="h-[300px] w-full">
+              <RollingScatterChart points={computed.rolling} series={series} hidden={hidden} dark={dark} />
+            </div>
+          </section>
+          <section className={panel}>
+            <h2 className={`${cardTitle} mb-1`}>Rolling 1Y TR — Heatmap</h2>
+            <p className="mb-3 text-[12px] text-slate-400">월 단위 Rolling TR 색상 강도(초록=양 / 빨강=음)</p>
+            <div className="h-[300px] w-full">
+              <RollingHeatmap points={computed.rolling} series={series} hidden={hidden} />
+            </div>
+          </section>
+
           {/* 상위 구성종목 비교 */}
           <HoldingsComparisonTable tickerA={data!.tickerA} tickerB={data!.tickerB} overlap={data!.overlap} />
 
@@ -254,26 +290,16 @@ export default function StockCompareCalculator() {
             b={computed.contributionB}
           />
 
-          {/* Rolling 1Y TR — Scatter / Heatmap (각각 독립) */}
-          <div className="grid gap-5 xl:grid-cols-2">
-            <section className={panel}>
-              <h2 className={`${cardTitle} mb-1`}>Rolling 1Y TR — Scatter</h2>
-              <p className="mb-3 text-[12px] text-slate-400">월말 기준 직전 1년 누적 수익률</p>
-              <div className="h-[300px] w-full">
-                <RollingScatterChart points={computed.rolling} series={series} hidden={hidden} dark={dark} />
-              </div>
-            </section>
-            <section className={panel}>
-              <h2 className={`${cardTitle} mb-1`}>Rolling 1Y TR — Heatmap</h2>
-              <p className="mb-3 text-[12px] text-slate-400">월 단위 Rolling TR 색상 강도(초록=양 / 빨강=음)</p>
-              <div className="h-[300px] w-full">
-                <RollingHeatmap points={computed.rolling} series={series} hidden={hidden} />
-              </div>
-            </section>
-          </div>
-
-          {/* 위험지표 */}
-          <MetricsTable series={series} metricsByKey={computed.metricsByKey} />
+          {/* 위험지표(독립 기간 선택) */}
+          <MetricsTable
+            series={computed.riskSeries.length > 0 ? computed.riskSeries : series}
+            metricsByKey={
+              computed.riskSeries.length > 0 ? computed.riskMetricsByKey : computed.metricsByKey
+            }
+            period={metricsPeriod}
+            periods={RISK_METRIC_PERIODS}
+            onPeriodChange={setMetricsPeriod}
+          />
 
           {dataSourceNote && <p className="px-1 text-[11.5px] text-slate-400">{dataSourceNote}</p>}
         </>
