@@ -26,7 +26,11 @@ import {
   describeError,
   logOriginalError,
 } from "@/lib/firestore";
-import { mapPortfolioSnapshotRecordToViewModel } from "@/lib/firestore/snapshot-viewmodel";
+import {
+  mapPortfolioSnapshotRecordToViewModel,
+  describeSnapshotDocumentShape,
+  type SnapshotDocumentShape,
+} from "@/lib/firestore/snapshot-viewmodel";
 import type { PortfolioSnapshot } from "@/lib/portfolio-types";
 
 // Always read live; never statically cache the latest snapshot.
@@ -76,8 +80,26 @@ type ErrorDiagnosticsPayload = {
   stack?: string;
 };
 
+/**
+ * Debug payload that exposes WHERE each field resolved from in the raw producer
+ * document, plus (only when explicitly requested via `?raw=1`) the full raw
+ * document. This is what makes the "connected but empty" symptom diagnosable: a
+ * 1:1 comparison between the persisted document and what the mapper reads.
+ */
+type SnapshotDebugPayload = {
+  documentId: string;
+  shape: SnapshotDocumentShape;
+  /** The full raw Firestore document. Only present when `?raw=1` is passed. */
+  rawDocument?: unknown;
+};
+
 type LatestSnapshotResponse =
-  | { source: "firestore"; snapshotDate: string; snapshot: PortfolioSnapshot }
+  | {
+      source: "firestore";
+      snapshotDate: string;
+      snapshot: PortfolioSnapshot;
+      debug?: SnapshotDebugPayload;
+    }
   | { source: "empty"; snapshot: null }
   | {
       source: "error";
@@ -107,7 +129,7 @@ function logResolvedSnapshotInDev(
   });
 }
 
-export async function GET(): Promise<NextResponse<LatestSnapshotResponse>> {
+export async function GET(request: Request): Promise<NextResponse<LatestSnapshotResponse>> {
   try {
     const record = await getLatestPortfolioSnapshot();
 
@@ -117,6 +139,18 @@ export async function GET(): Promise<NextResponse<LatestSnapshotResponse>> {
       return NextResponse.json({ source: "empty", snapshot: null });
     }
 
+    // ALWAYS log the real document structure (top-level keys, totals keys,
+    // array keys + counts) to the runtime log via console.error so it is
+    // visible on Vercel too. This is field NAMES / counts only — no balances —
+    // so it is safe to emit even in production. This directly answers "what does
+    // the persisted document actually look like?" for the empty-mapping bug.
+    const shape = describeSnapshotDocumentShape(record.data as Record<string, unknown>);
+    // eslint-disable-next-line no-console
+    console.error("[portfolio:latest-snapshot] raw document shape", {
+      documentId: record.id,
+      ...shape,
+    });
+
     const snapshot = mapPortfolioSnapshotRecordToViewModel(record);
     logResolvedSnapshotInDev(
       record.id,
@@ -124,10 +158,23 @@ export async function GET(): Promise<NextResponse<LatestSnapshotResponse>> {
       record.data.document_version,
     );
 
+    // Surface the document shape (and, when `?raw=1`, the full raw document) in
+    // the JSON response when diagnostics are enabled. Lets a developer compare
+    // the persisted document against the mapped view model from the browser.
+    const wantRaw = new URL(request.url).searchParams.get("raw") === "1";
+    const debug: SnapshotDebugPayload | undefined = isDebugDiagnosticsEnabled()
+      ? {
+          documentId: record.id,
+          shape,
+          ...(wantRaw ? { rawDocument: record.data } : {}),
+        }
+      : undefined;
+
     return NextResponse.json({
       source: "firestore",
       snapshotDate: snapshot.snapshotDate,
       snapshot,
+      ...(debug ? { debug } : {}),
     });
   } catch (error) {
     // Config-missing / permission-denied / admin-init-failed / query failures
