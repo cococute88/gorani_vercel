@@ -117,6 +117,11 @@ export default function PortfolioPage() {
   const [result, setResult] = useState<ParseResult | null>(null);
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
+  // 사용자가 "미리보기"를 명시적으로 요청한 스냅샷 id.
+  // - null               → 미리보기 요청 없음(최초 진입/미리보기 닫힘). 미리보기 영역을 표시하지 않는다.
+  // - 최신/과거 구분 없이  → 사용자가 직접 고른 스냅샷 id. 최신 스냅샷이라도 null 로 접지 않는다.
+  // "현재 선택된 스냅샷"(하이라이트/드롭다운 표시값)은 아래 selectedSnapshotId/Date 로 따로 파생하며,
+  // 최신 스냅샷으로 기본 폴백한다. 즉 "선택 상태"와 "미리보기 표시 여부"를 분리한다(요구사항 6).
   const [previewSnapshotId, setPreviewSnapshotId] = useState<string | null>(null);
   // 계좌별 종목 비중 카드와 역산 성과 분석이 공유하는 계좌 필터 상태.
   const [accountTab, setAccountTab] = useState<AccountTabKey>("전체");
@@ -361,32 +366,33 @@ export default function PortfolioPage() {
     return Array.from(set).sort((a, b) => (a < b ? 1 : -1));
   }, [activeSnapshotDate, snapshots]);
 
-  // 상단 드롭다운과 하단 히스토리가 공유하는 단일 선택 상태.
-  // - previewSnapshotId === null  → 최신(라이브) 스냅샷 선택 상태.
-  // - previewSnapshotId !== null  → 해당 과거 스냅샷 미리보기 상태.
-  // 두 UI가 항상 동일한 날짜를 가리키도록, 하이라이트/표시값은 모두
-  // "선택된 스냅샷 = previewSnapshot ?? 최신 스냅샷" 기준으로 통일한다.
+  // 상단 드롭다운과 하단 히스토리가 공유하는 "현재 선택된 스냅샷"(하이라이트/표시값) 기준.
+  // 미리보기 요청 여부(previewSnapshotId)와 별개로, 선택 표시는 항상 어떤 스냅샷을 가리킨다:
+  // 명시적으로 고른 스냅샷이 있으면 그것을, 없으면 최신 스냅샷으로 폴백한다.
+  // → 최초 진입 시에도 드롭다운/하이라이트는 최신을 가리키지만, 미리보기 영역은 열리지 않는다.
   const selectedSnapshotId = previewSnapshotId ?? latestSnapshot?.id ?? null;
   const selectedSnapshotDate =
     previewSnapshot?.snapshotDate ?? latestSnapshot?.snapshotDate ?? activeSnapshotDate;
 
-  // 날짜(YYYY-MM-DD) 기반 선택을 공유 상태로 매핑한다.
-  // 최신 스냅샷 날짜를 고르면 라이브(null) 상태로, 그 외에는 미리보기로 전환한다.
+  // 날짜(YYYY-MM-DD) 기반 선택을 미리보기 요청으로 매핑한다.
+  // 최신/과거 구분 없이 사용자가 직접 고른 스냅샷은 그대로 미리보기 대상으로 설정한다.
+  // (예전에는 최신 날짜를 null 로 접어 미리보기를 숨겼지만, 이제는 최신도 동일하게 미리보기를 연다.)
   const handleSelectSnapshotDate = useCallback(
     (date: string) => {
       const target = snapshots.find((snapshot) => snapshot.snapshotDate === date);
       if (!target) return;
-      setPreviewSnapshotId(target.id === latestSnapshot?.id ? null : target.id);
+      setPreviewSnapshotId(target.id);
     },
-    [snapshots, latestSnapshot],
+    [snapshots],
   );
 
   // 하단 히스토리에서 행을 선택할 때도 동일한 매핑을 사용해 두 UI를 동기화한다.
+  // 최신 스냅샷 행을 눌러도 과거 스냅샷과 똑같이 미리보기를 표시한다.
   const handleSelectSnapshot = useCallback(
     (snapshot: PortfolioSnapshot) => {
-      setPreviewSnapshotId(snapshot.id === latestSnapshot?.id ? null : snapshot.id);
+      setPreviewSnapshotId(snapshot.id);
     },
-    [latestSnapshot],
+    [],
   );
 
   // 조치가 필요한 경고(severity: warning)만 노출한다. 투자현황에서 이곳으로 이동한 배너.
