@@ -1,5 +1,6 @@
 import type { FinanceAsset, Holding } from "./portfolio-types";
 import { isAllocationChartAmountVisible } from "./allocation-chart-filter";
+import { selectAllocationFinanceAssets } from "./portfolio-allocation-dedup";
 
 // =============================================================
 // PORTFOLIO-TREEMAP-TO-STREAMLIT-DONUT-1
@@ -121,12 +122,7 @@ export function buildAssetClassAllocation(
     add(classifyAssetClass(holdingClassText(holding)), value, finiteNumber(holding.principalKRW) ?? 0);
   }
 
-  const financeRows = financeAssets.filter((asset) => {
-    if (asset.isDebt === true) return false;
-    // 보유종목이 있으면 투자성 재무현황은 보유종목과 중복되므로 제외한다.
-    if (holdings.length > 0 && asset.category === "투자성") return false;
-    return true;
-  });
+  const financeRows = selectAllocationFinanceAssets(holdings, financeAssets);
   for (const asset of financeRows) {
     const value = isAllocationChartAmountVisible(asset.amountKRW) ? asset.amountKRW : null;
     if (value === null) continue;

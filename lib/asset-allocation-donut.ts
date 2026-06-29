@@ -21,6 +21,7 @@
 import type { Slice } from "./mockData";
 import type { FinanceAsset, Holding } from "./portfolio-types";
 import { isAllocationChartAmountVisible } from "./allocation-chart-filter";
+import { selectAllocationFinanceAssets } from "./portfolio-allocation-dedup";
 
 export type AssetTypeKey =
   | "dollar"
@@ -298,8 +299,8 @@ export function assetAllocationItemsFromFinanceAssets(
 }
 
 // 스냅샷/파싱결과 형태(holdings + financeAssets)에서 자산군 도넛을 만든다.
-// 보유종목이 있을 때 투자성 재무자산은 보유종목과 중복되므로 제외해 이중집계를 막는다.
-// (lib/portfolio-from-snapshots.ts 의 computeAssetPurposeTotals 와 동일한 기준.)
+// 보유종목이 있을 때 투자성/투자 계좌 재무자산은 보유종목과 중복되므로 제외해 이중집계를 막는다.
+// (lib/portfolio-allocation-dedup.ts 의 selectAllocationFinanceAssets 단일 기준을 공유한다.)
 export function buildAssetAllocationFromSnapshotLike(
   input: {
     holdings?: readonly Holding[] | null;
@@ -310,11 +311,7 @@ export function buildAssetAllocationFromSnapshotLike(
   const includeFinance = options.includeFinanceAssets ?? true;
   const holdings = input.holdings ?? [];
   const financeAssets = includeFinance
-    ? (input.financeAssets ?? []).filter((asset) => {
-        if (asset.isDebt === true) return false;
-        if (holdings.length > 0 && asset.category === "투자성") return false;
-        return true;
-      })
+    ? selectAllocationFinanceAssets(holdings, input.financeAssets)
     : [];
 
   return buildAssetAllocationDonut([

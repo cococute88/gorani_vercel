@@ -9,6 +9,7 @@ import { holdingDisplayLabel } from "./holding-display-label";
 import { reconcilePortfolioTotals } from "./portfolio-totals-reconcile";
 import { buildPortfolioAccountReturnRows } from "./portfolio-account-returns";
 import { isAllocationChartAmountVisible } from "./allocation-chart-filter";
+import { selectAllocationFinanceAssets } from "./portfolio-allocation-dedup";
 
 // ASSET-PORTFOLIO-UX-POLISH-1 #3: 트리맵에는 전체 평가금액 대비 2% 이상인 종목만 표시한다.
 // (합계/랭킹/요약 수치는 원본 그대로 유지하고 트리맵 "표시"에서만 작은 종목을 제외한다.)
@@ -484,11 +485,9 @@ function computeAssetPurposeTotals(
   holdings: Holding[],
   financeAssets: FinanceAsset[],
 ): Map<AssetPurposeGroup, number> {
-  const financeRows = financeAssets.filter((asset) => {
-    if (!isNonDebtFinanceAsset(asset)) return false;
-    if (holdings.length > 0 && asset.category === "투자성") return false;
-    return true;
-  });
+  // 보유종목과 중복되는 투자 계좌 잔액을 제외한 현금성 재무자산만 집계한다.
+  // (자산군 도넛/자산군 합산과 동일한 selectAllocationFinanceAssets 단일 기준을 공유한다.)
+  const financeRows = selectAllocationFinanceAssets(holdings, financeAssets);
 
   const totals = new Map<AssetPurposeGroup, number>();
   const add = (group: AssetPurposeGroup, amount: number | null) => {
