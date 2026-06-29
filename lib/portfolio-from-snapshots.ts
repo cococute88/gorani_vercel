@@ -10,6 +10,12 @@ import { reconcilePortfolioTotals } from "./portfolio-totals-reconcile";
 import { buildPortfolioAccountReturnRows } from "./portfolio-account-returns";
 import { isAllocationChartAmountVisible } from "./allocation-chart-filter";
 import { selectAllocationFinanceAssets } from "./portfolio-allocation-dedup";
+import {
+  anchorFinanceAssetsToAuthoritativeTotal,
+  getAuthoritativeTotalAssetsKRW,
+  getAuthoritativeTotalCashKRW,
+  getAuthoritativeTotalInvestmentsKRW,
+} from "./portfolio-authoritative-total";
 
 // ASSET-PORTFOLIO-UX-POLISH-1 #3: 트리맵에는 전체 평가금액 대비 2% 이상인 종목만 표시한다.
 // (합계/랭킹/요약 수치는 원본 그대로 유지하고 트리맵 "표시"에서만 작은 종목을 제외한다.)
@@ -481,17 +487,29 @@ const INVESTMENT_PURPOSE_GROUPS: AssetPurposeGroup[] = ["성장", "배당"];
 // PORTFOLIO-DIVIDEND-UX-FIX-3 #2: 자산 구성과 투자/현금 비중이 동일한 분류 기준에서
 // 파생되도록, 두 화면이 공유하는 그룹별 합계를 한 곳에서 계산한다.
 // 표시용 항목(보유종목 + 비투자성 현금성 잔액)만 집계해 도넛/비중 합계가 어긋나지 않게 한다.
+//
+// PORTFOLIO-TOTAL-CONSISTENCY-FIX-3: authoritativeTotalAssetsKRW(권위 total_assets_krw)가
+// 주어지면 현금성 재무자산을 권위 remainder(= 총자산 − Σ보유종목)에 정확히 anchor 해
+// (성장+배당) + (현금원+현금달러) == 권위 총자산 이 성립하도록 한다. 권위 합계가 없으면
+// 기존 자가합산 동작을 유지한다.
 function computeAssetPurposeTotals(
   holdings: Holding[],
   financeAssets: FinanceAsset[],
   authoritativeCashKRW?: number | null,
+  authoritativeTotalAssetsKRW?: number | null,
 ): Map<AssetPurposeGroup, number> {
   // 보유종목과 중복되는 투자 계좌 잔액을 제외한 현금성 재무자산만 집계한다.
   // (자산군 도넛/자산군 합산과 동일한 selectAllocationFinanceAssets 단일 기준을 공유하며,
   //  권위 현금 합계로 키워드를 빠져나간 투자 잔액까지 reconcile 한다.)
-  const financeRows = selectAllocationFinanceAssets(holdings, financeAssets, {
+  const dedupedFinance = selectAllocationFinanceAssets(holdings, financeAssets, {
     authoritativeCashKRW,
   });
+  // 현금성(비투자) bucket 을 권위 총자산 remainder 에 정확히 맞춰 이중집계 잔차를 제거한다.
+  const financeRows = anchorFinanceAssetsToAuthoritativeTotal(
+    holdings,
+    dedupedFinance,
+    authoritativeTotalAssetsKRW,
+  );
 
   const totals = new Map<AssetPurposeGroup, number>();
   const add = (group: AssetPurposeGroup, amount: number | null) => {
@@ -516,16 +534,30 @@ function buildAssetAllocation(
   holdings: Holding[],
   financeAssets: FinanceAsset[],
   authoritativeCashKRW?: number | null,
+  authoritativeTotalAssetsKRW?: number | null,
 ): PortfolioAllocationSlice[] {
-  const totals = computeAssetPurposeTotals(holdings, financeAssets, authoritativeCashKRW);
-  const total = sumPurposeGroups(totals, ASSET_PURPOSE_ORDER);
-  if (total <= 0) return [];
+  const totals = computeAssetPurposeTotals(
+    holdings,
+    financeAssets,
+    authoritativeCashKRW,
+    authoritativeTotalAssetsKRW,
+  );
+  const sliceTotal = sumPurposeGroups(totals, ASSET_PURPOSE_ORDER);
+  if (sliceTotal <= 0) return [];
+
+  // 비중 분모: 권위 총자산이 있으면 단일 기준으로(차트 간 동일 분모), 없으면 Σ 그룹 합계.
+  const denominator =
+    typeof authoritativeTotalAssetsKRW === "number" &&
+    Number.isFinite(authoritativeTotalAssetsKRW) &&
+    authoritativeTotalAssetsKRW > 0
+      ? authoritativeTotalAssetsKRW
+      : sliceTotal;
 
   return ASSET_PURPOSE_ORDER.filter((group) => (totals.get(group) ?? 0) > 0).map((group) => {
     const amountKRW = Math.round(totals.get(group) ?? 0);
     return {
       name: group,
-      value: percent(amountKRW, total),
+      value: percent(amountKRW, denominator),
       color: ASSET_PURPOSE_COLOR[group],
       amountKRW,
     };
@@ -534,14 +566,38 @@ function buildAssetAllocation(
 
 // 투자/현금 비중을 자산 구성과 동일한 분류에서 파생한다 (#2).
 // 투자 = 성장 + 배당, 현금 = 현금(원) + 현금(달러).
+//
+// PORTFOLIO-TOTAL-CONSISTENCY-FIX-3: 권위 합계(total_investments_krw / total_cash_krw)가
+// 있으면 그 값을 그대로 써서 KPI(투자 평가금액/현금성) 와 100% 동일한 비중을 보장한다.
+// 권위 합계가 없으면 기존 분류 합계에서 파생한다.
 function buildStockCashTargets(
   holdings: Holding[],
   financeAssets: FinanceAsset[],
   authoritativeCashKRW?: number | null,
+  authoritativeTotalAssetsKRW?: number | null,
+  authoritativeTotalInvestmentsKRW?: number | null,
 ): PortfolioSummaryCards["stockCashTargets"] {
-  const totals = computeAssetPurposeTotals(holdings, financeAssets, authoritativeCashKRW);
-  const investValue = sumPurposeGroups(totals, INVESTMENT_PURPOSE_GROUPS);
-  const cashValue = sumPurposeGroups(totals, CASH_PURPOSE_GROUPS);
+  const hasAuthoritative =
+    typeof authoritativeTotalInvestmentsKRW === "number" &&
+    Number.isFinite(authoritativeTotalInvestmentsKRW) &&
+    typeof authoritativeCashKRW === "number" &&
+    Number.isFinite(authoritativeCashKRW);
+
+  let investValue: number;
+  let cashValue: number;
+  if (hasAuthoritative) {
+    investValue = Math.max(0, authoritativeTotalInvestmentsKRW as number);
+    cashValue = Math.max(0, authoritativeCashKRW as number);
+  } else {
+    const totals = computeAssetPurposeTotals(
+      holdings,
+      financeAssets,
+      authoritativeCashKRW,
+      authoritativeTotalAssetsKRW,
+    );
+    investValue = sumPurposeGroups(totals, INVESTMENT_PURPOSE_GROUPS);
+    cashValue = sumPurposeGroups(totals, CASH_PURPOSE_GROUPS);
+  }
   const total = investValue + cashValue;
   if (total <= 0) return [];
   return [
@@ -682,10 +738,16 @@ export function buildPortfolioPageFromSnapshot(
     (row) => holdingDisplayLabel({ name: row.name, ticker: row.ticker }),
     15,
   );
-  // 자산 배분 차트가 공유할 권위 현금 합계(total_cash_krw). 존재하면 키워드를 빠져나간
-  // 투자 계좌 잔액을 이 한도로 reconcile 해 모든 차트의 총자산이 권위 총자산과 일치한다.
-  const authoritativeCashKRW = snapshot.authoritativeTotals?.totalCashKRW ?? null;
-  const assetAllocation = buildAssetAllocation(holdings, financeAssets, authoritativeCashKRW);
+  // 자산 배분 차트가 공유할 권위 합계. 존재하면 모든 차트의 총자산이 권위 총자산과 일치한다.
+  const authoritativeCashKRW = getAuthoritativeTotalCashKRW(snapshot);
+  const authoritativeTotalAssetsKRW = getAuthoritativeTotalAssetsKRW(snapshot);
+  const authoritativeTotalInvestmentsKRW = getAuthoritativeTotalInvestmentsKRW(snapshot);
+  const assetAllocation = buildAssetAllocation(
+    holdings,
+    financeAssets,
+    authoritativeCashKRW,
+    authoritativeTotalAssetsKRW,
+  );
   const purposeAllocation = groupSlices(holdings, (holding) => positiveNumber(holding.valueKRW), holdingPurposeName);
 
   if (assetAllocation.length === 0) {
@@ -721,7 +783,13 @@ export function buildPortfolioPageFromSnapshot(
       holdingCount: holdings.length,
       accountCount: accountRows.length,
       financeAssetCount: financeAssets.filter(isNonDebtFinanceAsset).length,
-      stockCashTargets: buildStockCashTargets(holdings, financeAssets, authoritativeCashKRW),
+      stockCashTargets: buildStockCashTargets(
+        holdings,
+        financeAssets,
+        authoritativeCashKRW,
+        authoritativeTotalAssetsKRW,
+        authoritativeTotalInvestmentsKRW,
+      ),
     },
     accountAllocation,
     stockAllocation,

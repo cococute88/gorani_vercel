@@ -1,6 +1,7 @@
 import type { FinanceAsset, Holding } from "./portfolio-types";
 import { isAllocationChartAmountVisible } from "./allocation-chart-filter";
 import { selectAllocationFinanceAssets } from "./portfolio-allocation-dedup";
+import { anchorFinanceAssetsToAuthoritativeTotal } from "./portfolio-authoritative-total";
 
 // =============================================================
 // PORTFOLIO-TREEMAP-TO-STREAMLIT-DONUT-1
@@ -105,11 +106,16 @@ function financeAssetClassText(asset: FinanceAsset): string {
 // 보유종목 + 비투자성 현금성 잔액을 자산군으로 합산한다.
 // (자산 구성 도넛과 동일하게, 보유종목이 있으면 투자성 재무현황은 중복 집계를 피해 제외한다.)
 // authoritativeCashKRW(스냅샷 권위 현금 합계)를 주면 키워드를 빠져나간 투자 계좌 잔액을
-// 그 한도로 reconcile 해 총자산이 단일 기준(권위 총자산)과 일치한다.
+// 그 한도로 reconcile 한다.
+//
+// PORTFOLIO-TOTAL-CONSISTENCY-FIX-3: authoritativeTotalAssetsKRW(권위 total_assets_krw)가
+// 주어지면 현금성 재무자산을 권위 remainder 에 정확히 anchor 하고, 자산군 비중(weightPct)의
+// 분모를 권위 총자산으로 고정한다. 그래서 Σ(슬라이스) 와 도넛 중앙 총 평가금액이 권위
+// 총자산과 일치한다(100만원 미만 숨김분 제외). 권위 합계가 없으면 기존 자가합산 유지.
 export function buildAssetClassAllocation(
   holdings: Holding[],
   financeAssets: FinanceAsset[],
-  options: { authoritativeCashKRW?: number | null } = {},
+  options: { authoritativeCashKRW?: number | null; authoritativeTotalAssetsKRW?: number | null } = {},
 ): AssetClassSlice[] {
   const totals = new Map<AssetClassName, { value: number; principal: number }>();
   const add = (name: AssetClassName, value: number, principal: number) => {
@@ -125,9 +131,15 @@ export function buildAssetClassAllocation(
     add(classifyAssetClass(holdingClassText(holding)), value, finiteNumber(holding.principalKRW) ?? 0);
   }
 
-  const financeRows = selectAllocationFinanceAssets(holdings, financeAssets, {
+  const dedupedFinance = selectAllocationFinanceAssets(holdings, financeAssets, {
     authoritativeCashKRW: options.authoritativeCashKRW,
   });
+  // 현금성(비투자) bucket 을 권위 총자산 remainder 에 정확히 맞춰 이중집계 잔차를 제거한다.
+  const financeRows = anchorFinanceAssetsToAuthoritativeTotal(
+    holdings,
+    dedupedFinance,
+    options.authoritativeTotalAssetsKRW,
+  );
   for (const asset of financeRows) {
     const value = isAllocationChartAmountVisible(asset.amountKRW) ? asset.amountKRW : null;
     if (value === null) continue;
@@ -135,8 +147,15 @@ export function buildAssetClassAllocation(
     add(classifyAssetClass(financeAssetClassText(asset)), value, 0);
   }
 
-  const total = Array.from(totals.values()).reduce((sum, item) => sum + item.value, 0);
-  if (total <= 0) return [];
+  const visibleTotal = Array.from(totals.values()).reduce((sum, item) => sum + item.value, 0);
+  if (visibleTotal <= 0) return [];
+
+  // 비중 분모: 권위 총자산이 있으면 단일 기준으로 사용(차트 간 동일 분모), 없으면 Σ 가시 슬라이스.
+  const override = options.authoritativeTotalAssetsKRW;
+  const denominator =
+    typeof override === "number" && Number.isFinite(override) && override > 0
+      ? override
+      : visibleTotal;
 
   return Array.from(totals.entries())
     .map(([name, item]) => {
@@ -145,7 +164,7 @@ export function buildAssetClassAllocation(
         name,
         valueKRW: Math.round(item.value),
         principalKRW: Math.round(item.principal),
-        weightPct: Number(((item.value / total) * 100).toFixed(1)),
+        weightPct: Number(((item.value / denominator) * 100).toFixed(1)),
         returnPct: profit !== null && item.principal > 0 ? (profit / item.principal) * 100 : null,
         color: ASSET_CLASS_COLOR[name],
       };

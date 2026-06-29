@@ -10,6 +10,7 @@ import PortfolioMarketIndicatorStrip from "@/components/portfolio/PortfolioMarke
 import { usePortfolioView } from "@/lib/use-portfolio-view";
 import { usePortfolioFirestoreSnapshot } from "@/lib/portfolio-firestore-snapshot-sync";
 import { buildAssetClassAllocation } from "@/lib/asset-class-allocation";
+import { getAuthoritativeTotalAssetsKRW } from "@/lib/portfolio-authoritative-total";
 import { useResolvedTheme } from "@/components/theme/ThemeProvider";
 import { useMemo } from "react";
 
@@ -21,6 +22,9 @@ export default function PortfolioPage() {
   const portfolioView = usePortfolioView();
   const theme = useResolvedTheme();
 
+  // 모든 차트가 공유하는 단일 총자산 기준(권위 total_assets_krw).
+  const authoritativeTotalAssetsKRW = getAuthoritativeTotalAssetsKRW(portfolioView.snapshot);
+
   // 하단 "보유 비중 분석": 보유종목/현금성 잔액을 TQQQ·QLD·QQQ·SPY·SCHD·MSFT·달러·현금·예적금·기타
   // 자산군 단위로 합산해 Streamlit 방식 도넛으로 표시한다 (원본 상품명 단위로 쪼개지 않는다).
   const assetClassSlices = useMemo(
@@ -28,9 +32,12 @@ export default function PortfolioPage() {
       buildAssetClassAllocation(
         portfolioView.mappedHoldings,
         portfolioView.snapshot?.financeAssets ?? [],
-        { authoritativeCashKRW: portfolioView.snapshot?.authoritativeTotals?.totalCashKRW ?? null },
+        {
+          authoritativeCashKRW: portfolioView.snapshot?.authoritativeTotals?.totalCashKRW ?? null,
+          authoritativeTotalAssetsKRW,
+        },
       ),
-    [portfolioView.mappedHoldings, portfolioView.snapshot],
+    [portfolioView.mappedHoldings, portfolioView.snapshot, authoritativeTotalAssetsKRW],
   );
 
   return (
@@ -79,6 +86,7 @@ export default function PortfolioPage() {
             theme={theme}
             emptyMessage="평가금액이 있는 보유종목이 없어 종목별 비중을 표시할 수 없습니다."
             authoritativeCashKRW={portfolioView.snapshot?.authoritativeTotals?.totalCashKRW ?? null}
+            authoritativeTotalAssetsKRW={authoritativeTotalAssetsKRW}
           />
           <DonutChartCard
             title="목적별 비중"
@@ -111,7 +119,11 @@ export default function PortfolioPage() {
               ) : null}
             </div>
             <div className="mx-auto min-w-0 w-full max-w-[560px] xl:mx-0">
-              <AssetClassDonut slices={assetClassSlices} theme={theme} />
+              <AssetClassDonut
+                slices={assetClassSlices}
+                theme={theme}
+                totalOverrideKRW={authoritativeTotalAssetsKRW}
+              />
             </div>
           </section>
         </div>

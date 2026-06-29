@@ -22,6 +22,7 @@ import type { Slice } from "./mockData";
 import type { FinanceAsset, Holding } from "./portfolio-types";
 import { isAllocationChartAmountVisible } from "./allocation-chart-filter";
 import { selectAllocationFinanceAssets } from "./portfolio-allocation-dedup";
+import { anchorFinanceAssetsToAuthoritativeTotal } from "./portfolio-authoritative-total";
 
 export type AssetTypeKey =
   | "dollar"
@@ -204,8 +205,16 @@ function isValidValue(value: unknown): value is number {
 //      (슈퍼그룹 합계, 타입 합계, 카테고리 금액) 내림차순으로 정렬해
 //      유사 자산군이 이웃하도록 배치한다.
 //   3) 자산군별 고정 색을 부여하고, other 는 팔레트를 순환한다.
+export interface BuildAssetAllocationDonutOptions {
+  // 권위 총자산(total_assets_krw). 주면 도넛 중앙 "총 자산" 과 비중 분모로 이 값을
+  // 그대로 쓴다(슬라이스 자가합산이 아니라 단일 기준). 100만원 미만 항목이 슬라이스에서
+  // 숨겨져도 중앙 총자산은 권위 총자산과 100% 일치한다.
+  totalOverrideKRW?: number | null;
+}
+
 export function buildAssetAllocationDonut(
   items: readonly AssetAllocationItem[] | null | undefined,
+  options: BuildAssetAllocationDonutOptions = {},
 ): AssetAllocationResult {
   const byType = new Map<
     AssetTypeKey,
@@ -224,8 +233,15 @@ export function buildAssetAllocationDonut(
     }
   }
   const entries = Array.from(byType.values());
-  const totalKRW = entries.reduce((sum, entry) => sum + entry.value, 0);
-  if (entries.length === 0 || totalKRW <= 0) return { slices: [], totalKRW: 0 };
+  const visibleTotalKRW = entries.reduce((sum, entry) => sum + entry.value, 0);
+  if (entries.length === 0 || visibleTotalKRW <= 0) return { slices: [], totalKRW: 0 };
+
+  // 비중 분모 / 중앙 총자산 기준: 권위 총자산이 주어지면 그것을(단일 기준), 아니면
+  // 표시 가능한 슬라이스 합계(레거시/오프라인 폴백)를 쓴다.
+  const override = options.totalOverrideKRW;
+  const hasOverride = typeof override === "number" && Number.isFinite(override) && override > 0;
+  const denominator = hasOverride ? (override as number) : visibleTotalKRW;
+  const totalKRW = hasOverride ? (override as number) : visibleTotalKRW;
 
   const sgTotals = new Map<AssetSuperGroupKey, number>();
   const typeTotals = new Map<AssetTypeKey, number>();
@@ -256,8 +272,8 @@ export function buildAssetAllocationDonut(
       key: entry.type,
       label: ASSET_TYPE_LABEL[entry.type],
       name: ASSET_TYPE_LABEL[entry.type],
-      value: Number(((entry.value / totalKRW) * 100).toFixed(1)),
-      percent: Number(((entry.value / totalKRW) * 100).toFixed(1)),
+      value: Number(((entry.value / denominator) * 100).toFixed(1)),
+      percent: Number(((entry.value / denominator) * 100).toFixed(1)),
       color,
       amountKRW: Math.round(entry.value),
       valueKRW: Math.round(entry.value),
@@ -301,23 +317,42 @@ export function assetAllocationItemsFromFinanceAssets(
 // 스냅샷/파싱결과 형태(holdings + financeAssets)에서 자산군 도넛을 만든다.
 // 보유종목이 있을 때 투자성/투자 계좌 재무자산은 보유종목과 중복되므로 제외해 이중집계를 막는다.
 // (lib/portfolio-allocation-dedup.ts 의 selectAllocationFinanceAssets 단일 기준을 공유한다.)
+//
+// PORTFOLIO-TOTAL-CONSISTENCY-FIX-3: authoritativeTotalAssetsKRW(권위 total_assets_krw)가
+// 주어지면 현금성 재무자산을 권위 remainder(= 총자산 − Σ보유종목)에 정확히 anchor 하고,
+// 도넛 중앙 총자산/비중 분모를 권위 총자산으로 고정한다. 그래서 동일 스냅샷에서 모든
+// 차트의 총자산이 권위 총자산(예: 6.51억)과 100% 일치한다. 권위 합계가 없는 레거시/
+// 오프라인 스냅샷은 기존 자가합산 동작을 유지한다.
 export function buildAssetAllocationFromSnapshotLike(
   input: {
     holdings?: readonly Holding[] | null;
     financeAssets?: readonly FinanceAsset[] | null;
   },
-  options: { includeFinanceAssets?: boolean; authoritativeCashKRW?: number | null } = {},
+  options: {
+    includeFinanceAssets?: boolean;
+    authoritativeCashKRW?: number | null;
+    authoritativeTotalAssetsKRW?: number | null;
+  } = {},
 ): AssetAllocationResult {
   const includeFinance = options.includeFinanceAssets ?? true;
   const holdings = input.holdings ?? [];
-  const financeAssets = includeFinance
+  const dedupedFinance = includeFinance
     ? selectAllocationFinanceAssets(holdings, input.financeAssets, {
         authoritativeCashKRW: options.authoritativeCashKRW,
       })
     : [];
+  // 현금성(비투자) bucket 을 권위 총자산 remainder 에 정확히 맞춰 이중집계 잔차를 제거한다.
+  const financeAssets = anchorFinanceAssetsToAuthoritativeTotal(
+    holdings,
+    dedupedFinance,
+    options.authoritativeTotalAssetsKRW,
+  );
 
-  return buildAssetAllocationDonut([
-    ...assetAllocationItemsFromHoldings(holdings),
-    ...assetAllocationItemsFromFinanceAssets(financeAssets),
-  ]);
+  return buildAssetAllocationDonut(
+    [
+      ...assetAllocationItemsFromHoldings(holdings),
+      ...assetAllocationItemsFromFinanceAssets(financeAssets),
+    ],
+    { totalOverrideKRW: options.authoritativeTotalAssetsKRW },
+  );
 }

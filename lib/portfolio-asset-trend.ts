@@ -20,6 +20,7 @@ import {
   type AssetTypeKey,
 } from "./asset-allocation-donut";
 import type { PortfolioSnapshot } from "./portfolio-types";
+import { getAuthoritativeTotalAssetsKRW } from "./portfolio-authoritative-total";
 
 // 한 자산군 시리즈(범례 1줄 = 누적 영역 1개).
 export interface AssetTrendSeries {
@@ -97,12 +98,20 @@ export function buildPortfolioAssetTrend(
   }));
 
   // 3) 월별 자산군 합계 (도넛과 동일한 분류·집계). 없는 자산군은 0 (원본 .get(tag, 0)).
+  //    각 월의 현금성 bucket 을 그 달 스냅샷의 권위 총자산 remainder 에 anchor 해,
+  //    월별 누적 높이(합계)가 그 달의 권위 총자산과 일치하도록 한다(도넛 중앙과 동일 기준).
   const points: AssetTrendPoint[] = monthKeys.map((monthKey) => {
     const snap = latestByMonth.get(monthKey)!;
-    const { slices } = buildAssetAllocationFromSnapshotLike({
-      holdings: snap.holdings,
-      financeAssets: snap.financeAssets,
-    }, { authoritativeCashKRW: snap.authoritativeTotals?.totalCashKRW ?? null });
+    const { slices } = buildAssetAllocationFromSnapshotLike(
+      {
+        holdings: snap.holdings,
+        financeAssets: snap.financeAssets,
+      },
+      {
+        authoritativeCashKRW: snap.authoritativeTotals?.totalCashKRW ?? null,
+        authoritativeTotalAssetsKRW: getAuthoritativeTotalAssetsKRW(snap),
+      },
+    );
     const typeTotals = new Map<AssetTypeKey, number>();
     for (const slice of slices) typeTotals.set(slice.assetType, slice.valueKRW);
 

@@ -30,6 +30,7 @@ import {
   upsertKrxTickerMapping,
 } from "@/lib/krx-ticker-name-map";
 import { parseSummaryFromSnapshot } from "@/lib/portfolio-parse-summary";
+import { getAuthoritativeTotalAssetsKRW } from "@/lib/portfolio-authoritative-total";
 import ExcelUploadCard from "./ExcelUploadCard";
 import PortfolioParsePreview from "./PortfolioParsePreview";
 import ParseSummaryCard from "./ParseSummaryCard";
@@ -369,6 +370,8 @@ export default function PortfolioPage() {
       : latestSnapshot?.financeAssets ?? [];
   // 권위 현금 합계(있으면)로 자산군 도넛 총자산을 단일 기준에 reconcile 한다.
   const donutAuthoritativeCashKRW = donutSnapshot?.authoritativeTotals?.totalCashKRW ?? null;
+  // 모든 차트가 공유하는 단일 총자산 기준(권위 total_assets_krw).
+  const donutAuthoritativeTotalAssetsKRW = getAuthoritativeTotalAssetsKRW(donutSnapshot);
   const donutEmptyMessage = result
     ? "평가금액이 있는 항목이 없어 자산군 비중을 표시할 수 없습니다."
     : "엑셀을 업로드하면 자산군 비중이 표시됩니다.";
@@ -488,6 +491,7 @@ export default function PortfolioPage() {
                   title={`자산군 비중 · ${previewSnapshot.snapshotDate} 기준`}
                   emptyMessage="이 스냅샷에는 표시할 자산군 비중이 없습니다."
                   authoritativeCashKRW={previewSnapshot.authoritativeTotals?.totalCashKRW ?? null}
+                  authoritativeTotalAssetsKRW={getAuthoritativeTotalAssetsKRW(previewSnapshot)}
                 />
               </div>
               <div className="w-full min-w-0">
@@ -529,6 +533,7 @@ export default function PortfolioPage() {
 
         {/* 3) 자산맵 — 좌측 컬럼에 "자산군 비중" 도넛(기존 최하단 카드)을 이동 배치한다. */}
         <AssetMapSection
+          holdings={donutHoldings}
           assetClassDonut={
             <AssetAllocationDonut
               holdings={donutHoldings}
@@ -539,6 +544,7 @@ export default function PortfolioPage() {
               size={150}
               className=""
               authoritativeCashKRW={donutAuthoritativeCashKRW}
+              authoritativeTotalAssetsKRW={donutAuthoritativeTotalAssetsKRW}
             />
           }
         />
