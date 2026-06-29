@@ -9,6 +9,8 @@ import {
   query,
   serverTimestamp,
   setDoc,
+  arrayUnion,
+  arrayRemove,
   type DocumentData,
 } from "firebase/firestore";
 import type { PortfolioSnapshot } from "@/lib/portfolio-types";
@@ -189,6 +191,80 @@ export async function loadPortfolioSnapshots(uid: string): Promise<PortfolioSnap
 
 export async function deletePortfolioSnapshot(uid: string, snapshotId: string): Promise<void> {
   await deleteDoc(doc(requireDb(), "users", uid, "portfolioSnapshots", snapshotId));
+}
+
+// =============================================================
+// 스냅샷 관리 상태(숨김/삭제 묘비)의 Firestore 영구 저장.
+//
+// 왜 필요한가: "등록된 스냅샷 히스토리"의 숨기기/삭제는 기존에 localStorage 에만
+// 기록되어, 같은 Google 계정으로 다른 브라우저/기기에서 접속하면 숨김/삭제 상태가
+// 반영되지 않았다(읽기 전용 파이프라인 오버레이 `portfolio_snapshots` 는 클라이언트가
+// 문서를 지울 수 없으므로 묘비가 필수). 이 상태를 사용자 문서 하위
+//   users/{uid}/portfolioSnapshotState/state  → { deletedDates: string[], hiddenDates: string[] }
+// 단일 문서에 저장해, 모든 브라우저/기기에서 동일하게 적용되도록 한다.
+//
+// - 키 기준: snapshotDate(YYYY-MM-DD). localStorage 묘비/병합 로직과 동일 단위.
+// - 추가/제거는 arrayUnion/arrayRemove 로 원자적으로 처리한다.
+// - Firestore 규칙(users/{uid}/**: 본인 read/write 허용) 안에서 동작한다.
+// =============================================================
+export type PortfolioSnapshotManagementState = {
+  deletedDates: string[];
+  hiddenDates: string[];
+};
+
+function portfolioSnapshotStateDoc(uid: string) {
+  return doc(requireDb(), "users", uid, "portfolioSnapshotState", "state");
+}
+
+function toStringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+}
+
+/** 사용자의 스냅샷 숨김/삭제 상태를 읽는다(문서 없으면 빈 상태). */
+export async function loadPortfolioSnapshotState(uid: string): Promise<PortfolioSnapshotManagementState> {
+  const snap = await getDoc(portfolioSnapshotStateDoc(uid));
+  if (!snap.exists()) return { deletedDates: [], hiddenDates: [] };
+  const data = snap.data() as { deletedDates?: unknown; hiddenDates?: unknown };
+  return {
+    deletedDates: toStringArray(data.deletedDates),
+    hiddenDates: toStringArray(data.hiddenDates),
+  };
+}
+
+/** 삭제 묘비에 날짜 추가(영구 삭제 표시). */
+export async function addDeletedSnapshotDateToCloud(uid: string, snapshotDate: string): Promise<void> {
+  await setDoc(
+    portfolioSnapshotStateDoc(uid),
+    { deletedDates: arrayUnion(snapshotDate), updatedAt: serverTimestamp() },
+    { merge: true },
+  );
+}
+
+/** 삭제 묘비에서 날짜 제거(같은 날짜 재등록 시). */
+export async function removeDeletedSnapshotDateFromCloud(uid: string, snapshotDate: string): Promise<void> {
+  await setDoc(
+    portfolioSnapshotStateDoc(uid),
+    { deletedDates: arrayRemove(snapshotDate), updatedAt: serverTimestamp() },
+    { merge: true },
+  );
+}
+
+/** 숨김 목록에 날짜 추가. */
+export async function addHiddenSnapshotDateToCloud(uid: string, snapshotDate: string): Promise<void> {
+  await setDoc(
+    portfolioSnapshotStateDoc(uid),
+    { hiddenDates: arrayUnion(snapshotDate), updatedAt: serverTimestamp() },
+    { merge: true },
+  );
+}
+
+/** 숨김 목록에서 날짜 제거(숨김 해제/재등록 시). */
+export async function removeHiddenSnapshotDateFromCloud(uid: string, snapshotDate: string): Promise<void> {
+  await setDoc(
+    portfolioSnapshotStateDoc(uid),
+    { hiddenDates: arrayRemove(snapshotDate), updatedAt: serverTimestamp() },
+    { merge: true },
+  );
 }
 
 export async function saveCalendarTicker(uid: string, tickerData: CalendarTickerData): Promise<void> {

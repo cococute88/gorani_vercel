@@ -8,6 +8,8 @@ import { formatPercent } from "@/lib/format";
 import {
   clampPerformancePointsToMonths,
   DEFAULT_PERFORMANCE_MONTHS,
+  rebaseToWindowStart,
+  windowReturnPct,
 } from "@/lib/performance-period";
 import PerformancePeriodToggle from "./PerformancePeriodToggle";
 
@@ -41,7 +43,7 @@ function paddedDomain(values: Array<number | null | undefined>, includeZero = fa
 }
 
 function performanceDomain(points: DividendPerformanceResult["points"]): [number | string | ((value: number) => number), number | string | ((value: number) => number)] {
-  const values = points.flatMap((point) => [point.deposit, point.portfolio, point.kospi, point.sp500]).filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+  const values = points.flatMap((point) => [point.deposit, point.portfolio, point.schd, point.sp500]).filter((value): value is number => typeof value === "number" && Number.isFinite(value));
   if (values.length === 0) return ["auto", "auto"];
   const min = Math.min(...values);
   const max = Math.max(...values);
@@ -66,19 +68,46 @@ export default function DividendPerformanceSection({
 }: Props) {
   const [selectedYear, setSelectedYear] = useState<number | null>(result.availableYears.at(-1) ?? null);
   useEffect(() => setSelectedYear(result.availableYears.at(-1) ?? null), [result.availableYears]);
-  // 성과(누적) LineChart 표시 구간. 데이터는 그대로 두고 마지막 N개월만 보여준다.
-  // (월별 수익/손실 추이는 아래 monthlyRows 를 쓰므로 이 구간 선택의 영향을 받지 않는다.)
-  const performancePoints = useMemo(
-    () => clampPerformancePointsToMonths(result.points, periodMonths),
-    [result.points, periodMonths],
-  );
+  // 성과(누적) LineChart 표시 구간 + 상단 KPI 카드가 함께 따르는 "기간 기준" 데이터.
+  // 기간 버튼(MAX/2Y/1Y/6M)을 누르면 그래프와 카드가 모두 동일 구간 기준으로 바뀐다.
+  //  - 윈도우 시작 시점을 기준선(newBase)으로 재설정해, 카드의 누적입금/비교대상/수익률이
+  //    "최근 N개월" 기준으로 계산된다(수익률 계산식은 그대로, 기준 시점만 윈도우 시작으로 이동).
+  //  - MAX(전체 구간)에서는 윈도우 시작 = 데이터 시작이므로 기존 값과 100% 동일하다.
+  const windowed = useMemo(() => {
+    const clamped = clampPerformancePointsToMonths(result.points, periodMonths);
+    if (clamped.length === 0) return { points: [] as DividendPerformanceResult["points"], kpis: result.kpis };
+    const start = clamped[0];
+    const newBase = start.portfolio; // 윈도우 시작 시점 포트폴리오 평가액 = 기간 기준선(누적입금 카드)
+    const points = clamped.map((point) => ({
+      ...point,
+      deposit: newBase,
+      schd: rebaseToWindowStart(point.schd, start.schd, newBase),
+      sp500: rebaseToWindowStart(point.sp500, start.sp500, newBase),
+    }));
+    const last = points[points.length - 1];
+    const kpis = result.kpis
+      ? {
+          ...result.kpis,
+          cumulativeDepositKRW: newBase,
+          portfolioValueKRW: last.portfolio,
+          portfolioReturnPct: windowReturnPct(last.portfolio, newBase),
+          schdValueKRW: last.schd,
+          schdReturnPct: windowReturnPct(last.schd, newBase),
+          sp500ValueKRW: last.sp500,
+          sp500ReturnPct: windowReturnPct(last.sp500, newBase),
+        }
+      : result.kpis;
+    return { points, kpis };
+  }, [result.points, result.kpis, periodMonths]);
+  const performancePoints = windowed.points;
+  const windowedKpis = windowed.kpis;
   const monthlyRows = useMemo(() => {
     if (selectedYear == null) return result.points;
     const byMonth = new Map(result.points.filter((point) => point.year === selectedYear).map((point) => [Number(point.date.slice(5, 7)), point]));
     return Array.from({ length: 12 }, (_, index) => {
       const month = index + 1;
       const found = byMonth.get(month);
-      return found ?? { date: `${selectedYear}-${String(month).padStart(2, "0")}`, deposit: null, portfolio: null, kospi: null, sp500: null, monthlyProfit: null, totalAssets: null, netInvestment: null, year: selectedYear };
+      return found ?? { date: `${selectedYear}-${String(month).padStart(2, "0")}`, deposit: null, portfolio: null, schd: null, sp500: null, monthlyProfit: null, totalAssets: null, netInvestment: null, year: selectedYear };
     });
   }, [result.points, selectedYear]);
   const annualProfit = useMemo(() => monthlyRows.reduce((sum, row) => sum + (typeof row.monthlyProfit === "number" ? row.monthlyProfit : 0), 0), [monthlyRows]);
@@ -103,7 +132,7 @@ export default function DividendPerformanceSection({
         </div>
         <p className="mb-4 text-[12px] text-slate-500">최신 보유종목을 현재 수량으로 고정하고, 과거 가격을 대입해 역산한 참고 성과입니다.</p>
 
-        {!result.available || !result.kpis ? (
+        {!result.available || !result.kpis || !windowedKpis ? (
           <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-[13px] text-slate-500 dark:border-[#334044] dark:bg-[#11181a]">
             <div className="font-semibold text-slate-700 dark:text-slate-300">{result.unavailableReason ?? "성과분석 데이터 부족"}</div>
             <div className="mt-1">과거 가격 데이터를 불러오지 못했습니다. 샘플/가짜 그래프는 표시하지 않습니다.</div>
@@ -111,10 +140,10 @@ export default function DividendPerformanceSection({
         ) : (
           <>
             <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <Kpi label="누적 입금" value={result.kpis.cumulativeDepositKRW} />
-              <Kpi label="내 포트폴리오" value={result.kpis.portfolioValueKRW} rate={result.kpis.portfolioReturnPct} />
-              <Kpi label="KOSPI 투자 시" value={result.kpis.kospiValueKRW} rate={result.kpis.kospiReturnPct} />
-              <Kpi label="S&P 500 투자 시" value={result.kpis.sp500ValueKRW} rate={result.kpis.sp500ReturnPct} />
+              <Kpi label="누적 입금" value={windowedKpis.cumulativeDepositKRW} />
+              <Kpi label="내 포트폴리오" value={windowedKpis.portfolioValueKRW} rate={windowedKpis.portfolioReturnPct} />
+              <Kpi label="SCHD 투자 시" value={windowedKpis.schdValueKRW} rate={windowedKpis.schdReturnPct} />
+              <Kpi label="S&P 500 투자 시" value={windowedKpis.sp500ValueKRW} rate={windowedKpis.sp500ReturnPct} />
             </div>
             <div className="h-[320px] w-full">
               <ResponsiveContainer width="100%" height="100%">
@@ -126,7 +155,7 @@ export default function DividendPerformanceSection({
                   <Legend wrapperStyle={LEGEND_WRAPPER} />
                   <Line type="monotone" dataKey="deposit" name="누적 입금" stroke="#94a3b8" strokeWidth={1.5} dot={false} strokeDasharray="4 4" />
                   <Line type="monotone" dataKey="portfolio" name="내 포트폴리오" stroke="#3b82f6" strokeWidth={2.2} dot={false} />
-                  <Line type="monotone" dataKey="kospi" name="KOSPI 투자 시" stroke="#f59e0b" strokeWidth={1.5} dot={false} connectNulls />
+                  <Line type="monotone" dataKey="schd" name="SCHD 투자 시" stroke="#f59e0b" strokeWidth={1.5} dot={false} connectNulls />
                   <Line type="monotone" dataKey="sp500" name="S&P 500 투자 시" stroke="#10b981" strokeWidth={1.5} dot={false} connectNulls />
                 </LineChart>
               </ResponsiveContainer>

@@ -42,12 +42,12 @@ const withBenchmark = buildDividendPerformanceBackcast({
   holdings,
   priceHistories,
   fxHistory,
-  benchmarkHistories: { kospi: [{ date: "2024-06-28", close: 2500 }, { date: "2026-06-15", close: 3000 }] },
+  benchmarkHistories: { schd: [{ date: "2024-06-28", close: 2500 }, { date: "2026-06-15", close: 3000 }] },
   latestDate: "2026-06-15",
   months: 24,
 });
 assert.equal(withBenchmark.available, true);
-assert.ok(withBenchmark.kpis.kospiValueKRW > 0);
+assert.ok(withBenchmark.kpis.schdValueKRW > 0);
 assert.equal(withBenchmark.kpis.sp500ValueKRW, null);
 assert.equal(buildDividendPerformanceBackcast({ holdings, priceHistories: {}, latestDate: "2026-06-15" }).available, false);
 console.log("dividends performance backcast checks passed");

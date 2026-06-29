@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Trash2 } from "lucide-react";
+import { EyeOff, Trash2 } from "lucide-react";
 import TableCsvMenu from "@/components/ui/TableCsvMenu";
 import { formatWon, formatPercent } from "@/lib/format";
 import type { PortfolioSnapshot } from "@/lib/portfolio-types";
@@ -9,6 +9,7 @@ import type { PortfolioSnapshot } from "@/lib/portfolio-types";
 interface Props {
   snapshots: PortfolioSnapshot[];
   onDelete: (id: string) => void;
+  onHide: (id: string) => void;
   onSelect?: (snapshot: PortfolioSnapshot) => void;
   selectedSnapshotId?: string | null;
   loading?: boolean;
@@ -24,7 +25,7 @@ export const SNAPSHOT_HISTORY_PAGE_SIZE = 10;
 // - 최신 날짜가 항상 가장 위 (요구사항 13)
 // - 기본 최근 10개만 표시, "더보기"로 10개씩 점진적 확장 (요구사항 13~15)
 // - 선택된 스냅샷이 표시 범위 밖이면 자동으로 펼쳐 항상 보이게 한다 (요구사항 16)
-export default function SnapshotHistory({ snapshots, onDelete, onSelect, selectedSnapshotId, loading = false }: Props) {
+export default function SnapshotHistory({ snapshots, onDelete, onHide, onSelect, selectedSnapshotId, loading = false }: Props) {
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const sorted = useMemo(
     () => [...snapshots].sort((a, b) => (a.snapshotDate < b.snapshotDate ? 1 : -1)),
@@ -104,14 +105,33 @@ export default function SnapshotHistory({ snapshots, onDelete, onSelect, selecte
                     {formatPercent(s.returnPct, 1)}
                   </td>
                   <td className="px-3 py-2.5">
-                    <div className="flex justify-end">
+                    {/* 관리: [숨기기][삭제] 두 버튼.
+                        - 숨기기: 데이터는 보존하고 기본 조회에서만 제외(Firestore 동기화).
+                        - 삭제: 확인 후 영구 삭제(Firestore 문서/묘비 반영). */}
+                    <div className="flex items-center justify-end gap-1">
                       <button
                         onClick={(event) => {
                           event.stopPropagation();
+                          onHide(s.id);
+                        }}
+                        className="flex h-7 w-7 items-center justify-center rounded-md text-slate-400 hover:bg-white/10 hover:text-amber-400"
+                        title="숨기기"
+                        aria-label="스냅샷 숨기기"
+                      >
+                        <EyeOff size={13} />
+                      </button>
+                      <button
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          const ok = window.confirm(
+                            "이 스냅샷을 영구 삭제하시겠습니까?\n삭제 후에는 복구할 수 없습니다.",
+                          );
+                          if (!ok) return;
                           onDelete(s.id);
                         }}
                         className="flex h-7 w-7 items-center justify-center rounded-md text-slate-400 hover:bg-white/10 hover:text-red-400"
                         title="삭제"
+                        aria-label="스냅샷 삭제"
                       >
                         <Trash2 size={13} />
                       </button>

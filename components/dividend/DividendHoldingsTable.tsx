@@ -125,7 +125,9 @@ export default function DividendHoldingsTable({ title, rows, totalKRW, loading =
                 </div>
                 <div className="min-w-0">
                   <div className="text-[10.5px] text-slate-500">예상 연배당</div>
-                  <div className="truncate text-[12.5px] text-amber-300">{formatDividendAmount(r)}</div>
+                  {/* 예상 연배당: 라이트 모드 가독성 개선 — 흰 카드 위 노란색(amber)은 대비가 낮아
+                      라이트는 파란색(blue-600), 다크는 기존 노란색(amber-300)을 유지한다. */}
+                  <div className="truncate text-[12.5px] text-blue-600 dark:text-amber-300">{formatDividendAmount(r)}</div>
                 </div>
               </div>
             </div>
@@ -170,7 +172,8 @@ export default function DividendHoldingsTable({ title, rows, totalKRW, loading =
                   <td className="num px-3 py-2.5 text-right text-slate-300">{formatDividendRate(r)}</td>
                   <td className="num px-3 py-2.5 text-right text-slate-300">{formatWeight(r, totalKRW)}</td>
                   <td className="num px-3 py-2.5 text-right text-slate-200">{formatWon(r.valueKRW)}</td>
-                  <td className="px-3 py-2.5 text-right text-amber-300">{formatDividendAmount(r)}</td>
+                  {/* 예상 연배당: 라이트=파란색(blue-600, 흰 카드 대비 확보) / 다크=기존 노란색(amber-300). */}
+                  <td className="px-3 py-2.5 text-right text-blue-600 dark:text-amber-300">{formatDividendAmount(r)}</td>
                 </tr>
               ))}
             </tbody>

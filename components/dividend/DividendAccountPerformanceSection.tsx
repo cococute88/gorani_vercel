@@ -34,6 +34,8 @@ import { formatPercent } from "@/lib/format";
 import {
   clampPerformancePointsToMonths,
   DEFAULT_PERFORMANCE_MONTHS,
+  rebaseToWindowStart,
+  windowReturnPct,
 } from "@/lib/performance-period";
 import PerformancePeriodToggle from "./PerformancePeriodToggle";
 
@@ -49,13 +51,14 @@ interface Props {
 const COLOR_PORTFOLIO = "#2DD4BF"; // 청록 실선
 const COLOR_DEPOSIT = "#CBD5E1"; // 연회색 점선
 const COLOR_SP500 = "#F97316"; // 주황 점선
-const COLOR_KOSPI = "#3B82F6"; // 파랑 점선
+const COLOR_SCHD = "#3B82F6"; // 파랑 점선 (SCHD 비교선 — 색상은 기존 디자인 유지)
 const COLOR_PROFIT = "#EF4444"; // 수익 bar (빨강)
 const COLOR_LOSS = "#3B82F6"; // 손실 bar (파랑)
 
 // 벤치마크 티커: 기존 quote/history API를 재사용한다 (신규 의존성 없음).
+// 비교 대상을 SCHD(미국 ETF, USD)로 통일한다(기존 ^KS11/KOSPI 제거).
 const SP500_TICKER = "SPY";
-const KOSPI_TICKER = "^KS11";
+const SCHD_TICKER = "SCHD";
 const FX_TICKER = "KRW=X";
 
 const card = "rounded-2xl border border-slate-200 bg-white p-5 dark:border-[#2a3336] dark:bg-[#191f20]";
@@ -77,8 +80,13 @@ function tooltipFormatter(value: number, name: string): [string, string] {
   return [won(value), name];
 }
 
+// 행 값(number | string | null)을 안전하게 number|null 로 변환한다(기간 rebase 계산용).
+function asNum(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
 type BenchmarkLine = {
-  key: "sp500" | "kospi";
+  key: "sp500" | "schd";
   name: string;
   color: string;
   available: boolean;
@@ -164,7 +172,7 @@ function monthHistoryStart(latestDate: string, months: number): string {
   return date.toISOString().slice(0, 10);
 }
 function performanceDomain(rows: Array<Record<string, number | string | null>>): [number | string, number | string] {
-  const values = rows.flatMap((row) => [row.deposit, row.portfolio, row.sp500, row.kospi]).filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+  const values = rows.flatMap((row) => [row.deposit, row.portfolio, row.sp500, row.schd]).filter((value): value is number => typeof value === "number" && Number.isFinite(value));
   if (values.length === 0) return ["auto", "auto"];
   const min = Math.min(...values);
   const max = Math.max(...values);
@@ -199,7 +207,11 @@ function GroupBlock({ view, periodMonths }: { view: GroupView; periodMonths: num
     });
   }, [base.points, benchmarks]);
 
-  // 성과(누적) LineChart 에만 적용하는 표시 구간. 데이터는 그대로 두고 마지막 N개월만 보여준다.
+  // 성과(누적) LineChart 에만 적용하는 표시 구간 + 윈도우 기준선 재설정(rebase).
+  // 기간 버튼(MAX/2Y/1Y/6M)을 누르면 그래프와 아래 KPI 카드가 모두 동일 구간을 따른다.
+  //  - 윈도우 시작 시점을 기준선(newBase)으로 재설정 → 누적입금/비교대상/수익률이 "최근 N개월" 기준.
+  //  - 벤치마크는 시작 시점 대비 비율로 환산하므로 수익률 계산식은 불변(기준 시점만 이동).
+  //  - MAX(전체 구간)에서는 윈도우 시작 = 데이터 시작이므로 기존 값과 100% 동일하다(회귀 없음).
   // (월별 수익/손실 추이는 아래 monthlyRows 를 쓰므로 이 구간 선택의 영향을 받지 않는다.)
   const performanceChartData = useMemo(() => {
     const allowedIso = new Set(
@@ -208,8 +220,36 @@ function GroupBlock({ view, periodMonths }: { view: GroupView; periodMonths: num
         periodMonths,
       ).map((row) => row.date),
     );
-    return chartData.filter((row) => allowedIso.has(String(row.isoDate ?? "")));
+    const windowRows = chartData.filter((row) => allowedIso.has(String(row.isoDate ?? "")));
+    if (windowRows.length === 0) return windowRows;
+    const start = windowRows[0];
+    const newBase = asNum(start.portfolio); // 윈도우 시작 시점 평가액 = 기간 기준선(누적입금)
+    if (newBase == null) return windowRows;
+    return windowRows.map((row): Record<string, number | string | null> => ({
+      ...row,
+      deposit: newBase,
+      sp500: rebaseToWindowStart(asNum(row.sp500), asNum(start.sp500), newBase),
+      schd: rebaseToWindowStart(asNum(row.schd), asNum(start.schd), newBase),
+    }));
   }, [chartData, periodMonths]);
+
+  // 윈도우(표시 구간) 기준 KPI. 그래프와 동일한 구간/기준선을 사용해 카드를 함께 갱신한다.
+  const periodKpis = useMemo(() => {
+    const rows = performanceChartData;
+    if (rows.length === 0) return null;
+    const newBase = asNum(rows[0].portfolio);
+    if (newBase == null) return null;
+    const last = rows[rows.length - 1];
+    return {
+      depositKRW: newBase,
+      portfolioKRW: asNum(last.portfolio),
+      portfolioReturnPct: windowReturnPct(asNum(last.portfolio), newBase),
+      sp500Value: asNum(last.sp500),
+      sp500ReturnPct: windowReturnPct(asNum(last.sp500), newBase),
+      schdValue: asNum(last.schd),
+      schdReturnPct: windowReturnPct(asNum(last.schd), newBase),
+    };
+  }, [performanceChartData]);
 
   const [selectedYear, setSelectedYear] = useState<number | null>(base.availableYears.at(-1) ?? null);
   useEffect(() => setSelectedYear(base.availableYears.at(-1) ?? null), [base.availableYears]);
@@ -218,7 +258,7 @@ function GroupBlock({ view, periodMonths }: { view: GroupView; periodMonths: num
     const byMonth = new Map(chartData.filter((row) => row.year === selectedYear).map((row) => [Number(String(row.date).split("/").at(-1)), row]));
     return Array.from({ length: 12 }, (_, index) => {
       const month = index + 1;
-      return byMonth.get(month) ?? { date: `${month}월`, deposit: null, portfolio: null, sp500: null, kospi: null, monthlyProfit: null, totalAssets: null, netInvestment: null, year: selectedYear };
+      return byMonth.get(month) ?? { date: `${month}월`, deposit: null, portfolio: null, sp500: null, schd: null, monthlyProfit: null, totalAssets: null, netInvestment: null, year: selectedYear };
     });
   }, [chartData, selectedYear]);
   const annualProfit = selectedYear == null ? null : monthlyRows.reduce((sum, row) => sum + (typeof row.monthlyProfit === "number" ? row.monthlyProfit : 0), 0);
@@ -226,7 +266,7 @@ function GroupBlock({ view, periodMonths }: { view: GroupView; periodMonths: num
   const assetDomain = useMemo(() => paddedDomain(monthlyRows.map((row) => typeof row.totalAssets === "number" ? row.totalAssets : null), false), [monthlyRows]);
 
   const sp500 = benchmarks.find((benchmark) => benchmark.key === "sp500");
-  const extraBenchmark = benchmarks.find((benchmark) => benchmark.key === "kospi");
+  const extraBenchmark = benchmarks.find((benchmark) => benchmark.key === "schd");
 
   return (
     <div className={card}>
@@ -250,25 +290,25 @@ function GroupBlock({ view, periodMonths }: { view: GroupView; periodMonths: num
             최신 보유종목을 현재 수량으로 고정하고, 과거 가격을 대입해 역산한 참고 성과입니다.
           </p>
           <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <Kpi label="누적 입금" value={base.latest?.depositKRW} accent={COLOR_DEPOSIT} />
+            <Kpi label="누적 입금" value={periodKpis?.depositKRW ?? base.latest?.depositKRW} accent={COLOR_DEPOSIT} />
             <Kpi
               label="내 포트폴리오"
-              value={base.latest?.portfolioKRW}
-              rate={base.latest?.portfolioReturnPct}
+              value={periodKpis?.portfolioKRW ?? base.latest?.portfolioKRW}
+              rate={periodKpis?.portfolioReturnPct ?? base.latest?.portfolioReturnPct}
               accent={COLOR_PORTFOLIO}
             />
             <Kpi
               label="S&P 500 투자 시"
-              value={sp500?.latestValue}
-              rate={sp500?.returnPct}
+              value={periodKpis?.sp500Value ?? sp500?.latestValue}
+              rate={periodKpis?.sp500ReturnPct ?? sp500?.returnPct}
               accent={COLOR_SP500}
               unavailable={!sp500?.available}
             />
             <Kpi
-              label="KOSPI 투자 시"
-              value={extraBenchmark?.latestValue}
-              rate={extraBenchmark?.returnPct}
-              accent={COLOR_KOSPI}
+              label="SCHD 투자 시"
+              value={periodKpis?.schdValue ?? extraBenchmark?.latestValue}
+              rate={periodKpis?.schdReturnPct ?? extraBenchmark?.returnPct}
+              accent={COLOR_SCHD}
               unavailable={!extraBenchmark?.available}
             />
           </div>
@@ -313,9 +353,9 @@ function GroupBlock({ view, periodMonths }: { view: GroupView; periodMonths: num
                 {extraBenchmark?.available && (
                   <Line
                     type="monotone"
-                    dataKey="kospi"
-                    name="KOSPI 투자 시"
-                    stroke={COLOR_KOSPI}
+                    dataKey="schd"
+                    name="SCHD 투자 시"
+                    stroke={COLOR_SCHD}
                     strokeWidth={1.6}
                     strokeDasharray="5 4"
                     dot={false}
@@ -412,29 +452,29 @@ export default function DividendAccountPerformanceSection({
 
   const [histories, setHistories] = useState<{
     sp500: BenchmarkPricePoint[] | null;
-    kospi: BenchmarkPricePoint[] | null;
+    schd: BenchmarkPricePoint[] | null;
     fx: BenchmarkPricePoint[] | null;
     holdingPrices: Record<string, BenchmarkPricePoint[]>;
     loaded: boolean;
-  }>({ sp500: null, kospi: null, fx: null, holdingPrices: {}, loaded: false });
+  }>({ sp500: null, schd: null, fx: null, holdingPrices: {}, loaded: false });
 
   useEffect(() => {
     if (!earliestDate) {
-      setHistories({ sp500: null, kospi: null, fx: null, holdingPrices: {}, loaded: false });
+      setHistories({ sp500: null, schd: null, fx: null, holdingPrices: {}, loaded: false });
       return;
     }
     let active = true;
     async function load(start: string) {
-      const [sp500, kospi, fx, holdingEntries] = await Promise.all([
+      const [sp500, schd, fx, holdingEntries] = await Promise.all([
         fetchHistory(SP500_TICKER, start),
-        fetchHistory(KOSPI_TICKER, start),
+        fetchHistory(SCHD_TICKER, start),
         fetchHistory(FX_TICKER, start),
         Promise.all(accountTickers.map(async (ticker) => [ticker, toPriceSeries(await fetchHistory(ticker, start)) ?? []] as const)),
       ]);
       if (!active) return;
       setHistories({
         sp500: toPriceSeries(sp500),
-        kospi: toPriceSeries(kospi),
+        schd: toPriceSeries(schd),
         fx: toPriceSeries(fx),
         holdingPrices: Object.fromEntries(holdingEntries),
         loaded: true,
@@ -483,7 +523,7 @@ export default function DividendAccountPerformanceSection({
 
       const benchmarks: BenchmarkLine[] = [
         makeLine("sp500", "S&P 500 투자 시", COLOR_SP500, histories.sp500, true),
-        makeLine("kospi", "KOSPI 투자 시", COLOR_KOSPI, histories.kospi, false),
+        makeLine("schd", "SCHD 투자 시", COLOR_SCHD, histories.schd, true),
       ];
 
       return { group: base.group, base, benchmarks };

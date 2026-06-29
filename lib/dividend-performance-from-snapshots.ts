@@ -5,7 +5,7 @@ export type DividendPerformancePoint = {
   date: string;
   deposit: number;
   portfolio: number;
-  kospi: number | null;
+  schd: number | null;
   sp500: number | null;
   monthlyProfit: number | null;
   totalAssets: number | null;
@@ -17,8 +17,8 @@ export type DividendPerformanceKpis = {
   cumulativeDepositKRW: number;
   portfolioValueKRW: number;
   portfolioReturnPct: number | null;
-  kospiValueKRW: number | null;
-  kospiReturnPct: number | null;
+  schdValueKRW: number | null;
+  schdReturnPct: number | null;
   sp500ValueKRW: number | null;
   sp500ReturnPct: number | null;
 };
@@ -56,7 +56,7 @@ export type DividendPerformanceResult = {
 type BuildBackcastInput = {
   holdings: DividendPerformanceHoldingInput[];
   priceHistories: Record<string, BackcastPricePoint[] | null | undefined>;
-  benchmarkHistories?: { kospi?: BackcastPricePoint[] | null; sp500?: BackcastPricePoint[] | null };
+  benchmarkHistories?: { schd?: BackcastPricePoint[] | null; sp500?: BackcastPricePoint[] | null };
   fxHistory?: BackcastPricePoint[] | null;
   latestDate?: string;
   months?: number;
@@ -153,12 +153,14 @@ export function buildDividendPerformanceBackcast(input: BuildBackcastInput): Div
   if (!portfolioValues.some((value) => value > 0)) return unavailable("성과분석 데이터 부족: 과거 가격 데이터를 불러오지 못했습니다.");
 
   const base = portfolioValues[0];
-  const kospiValues = benchmarkLine(input.benchmarkHistories?.kospi, months, base);
+  // 비교 대상은 SCHD(미국 ETF, USD). 동일 baseline 을 SCHD 에 투자했다고 가정하고
+  // 환율(fxHistory)을 적용해 KRW 로 환산한다(sp500 과 동일한 USD 처리).
+  const schdValues = benchmarkLine(input.benchmarkHistories?.schd, months, base, input.fxHistory);
   const sp500Values = benchmarkLine(input.benchmarkHistories?.sp500, months, base, input.fxHistory);
   const points = months.map((date, index) => {
     const portfolio = portfolioValues[index];
     const previous = index === 0 ? portfolio : portfolioValues[index - 1];
-    return { date: monthKey(date), deposit: base, portfolio, kospi: kospiValues[index], sp500: sp500Values[index], monthlyProfit: index === 0 ? 0 : portfolio - previous, totalAssets: portfolio, netInvestment: 0, year: Number(date.slice(0, 4)) };
+    return { date: monthKey(date), deposit: base, portfolio, schd: schdValues[index], sp500: sp500Values[index], monthlyProfit: index === 0 ? 0 : portfolio - previous, totalAssets: portfolio, netInvestment: 0, year: Number(date.slice(0, 4)) };
   });
   const latest = points.at(-1)!;
   const yearlyProfitKRW: Record<number, number> = {};
@@ -167,9 +169,9 @@ export function buildDividendPerformanceBackcast(input: BuildBackcastInput): Div
   const excluded = candidates.filter((row) => !input.priceHistories[row.ticker]?.length).map((row) => row.ticker);
   if (excluded.length > 0) warnings.push(`일부 종목의 과거 가격을 불러오지 못해 제외했습니다: ${Array.from(new Set(excluded)).join(", ")}`);
   if (usable.some((row) => !finite(row.holding.quantity) && row.quantity > 0)) warnings.push("수량 원본값이 없는 종목은 수량(추정) 또는 평가금액/현재가 기준 추정 수량으로 계산했습니다.");
-  if (!kospiValues.some((value) => value != null)) warnings.push("KOSPI 가격 데이터를 불러오지 못해 KOSPI 비교선을 표시하지 않습니다.");
+  if (!schdValues.some((value) => value != null)) warnings.push("SCHD 가격/환율 데이터를 불러오지 못해 SCHD 비교선을 표시하지 않습니다.");
   if (!sp500Values.some((value) => value != null)) warnings.push("S&P 500 가격/환율 데이터를 불러오지 못해 S&P 500 비교선을 표시하지 않습니다.");
-  return { available: true, dataSource: "latest-holdings-backcast", sampleFallbackUsed: false, points, kpis: { cumulativeDepositKRW: base, portfolioValueKRW: latest.portfolio, portfolioReturnPct: pct(latest.portfolio, base), kospiValueKRW: latest.kospi, kospiReturnPct: pct(latest.kospi, base), sp500ValueKRW: latest.sp500, sp500ReturnPct: pct(latest.sp500, base) }, availableYears: Object.keys(yearlyProfitKRW).map(Number).sort((a, b) => a - b), yearlyProfitKRW, warnings };
+  return { available: true, dataSource: "latest-holdings-backcast", sampleFallbackUsed: false, points, kpis: { cumulativeDepositKRW: base, portfolioValueKRW: latest.portfolio, portfolioReturnPct: pct(latest.portfolio, base), schdValueKRW: latest.schd, schdReturnPct: pct(latest.schd, base), sp500ValueKRW: latest.sp500, sp500ReturnPct: pct(latest.sp500, base) }, availableYears: Object.keys(yearlyProfitKRW).map(Number).sort((a, b) => a - b), yearlyProfitKRW, warnings };
 }
 
 function unavailable(reason: string): DividendPerformanceResult {
