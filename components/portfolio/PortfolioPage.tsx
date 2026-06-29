@@ -395,9 +395,6 @@ export default function PortfolioPage() {
     [],
   );
 
-  // 조치가 필요한 경고(severity: warning)만 노출한다. 투자현황에서 이곳으로 이동한 배너.
-  const warningNotices = portfolioView.warnings.filter((w) => w.severity === "warning");
-
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#f8fafc] text-slate-800 dark:bg-[#111516] dark:text-slate-200">
       <TopNav theme={theme} />
@@ -407,7 +404,7 @@ export default function PortfolioPage() {
           <PortfolioCloudSyncStatus />
         </div>
 
-        {/* 데이터 관리 영역: 현재 스냅샷 선택 + 최신화 + 확인이 필요한 항목.
+        {/* 데이터 관리 영역: 현재 스냅샷 선택 + 최신화.
             (투자현황 페이지에서 이곳으로 이동 — 조회/관리 역할 분리) */}
         <div className="mb-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-[#273032] dark:bg-[#171d1e]">
           <PortfolioSyncControl
@@ -416,62 +413,10 @@ export default function PortfolioPage() {
             onSelectSnapshotDate={handleSelectSnapshotDate}
             theme={theme}
           />
-          {warningNotices.length > 0 ? (
-            <details className="mt-3 rounded-xl border border-amber-300/50 bg-amber-50/70 px-4 py-2 text-[12px] text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/[0.07] dark:text-amber-100">
-              <summary className="cursor-pointer list-none font-semibold marker:content-['']">
-                확인이 필요한 항목 {warningNotices.length}건
-              </summary>
-              <ul className="mt-2 space-y-1">
-                {warningNotices.slice(0, 4).map((warning) => (
-                  <li key={warning.code}>· {warning.message}</li>
-                ))}
-              </ul>
-            </details>
-          ) : null}
         </div>
 
-        {portfolioNotice && (
-          <p className="mb-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-[13px] text-slate-500 dark:border-[#273032] dark:bg-[#171d1e] dark:text-slate-400">
-            {portfolioNotice}
-          </p>
-        )}
-
-        {/* 1) 최상단 2열: [계좌별 종목 비중 조회 40%] [월별 자산 추이 60%]
-            데스크톱(lg+)은 2:3(=40:60) 비율, 모바일은 세로 배치. */}
-        <section className="mb-6 grid grid-cols-1 items-stretch gap-5 lg:grid-cols-[2fr_3fr]">
-          <div className="min-w-0">
-            <AccountHoldingWeightCard
-              holdings={accountWeightHoldings}
-              tab={accountTab}
-              onTabChange={setAccountTab}
-            />
-          </div>
-          <div className="min-w-0">
-            <PortfolioAssetTrendChart snapshots={snapshots} />
-          </div>
-        </section>
-
-        {/* 1.5) 2년 역산 성과 분석 — 선택된(없으면 최신) 스냅샷 비중 기준 역산.
-            등록된 스냅샷 히스토리 바로 위에 배치한다. */}
-        <SnapshotBacktestSection
-          snapshots={snapshots}
-          selectedSnapshotId={previewSnapshotId}
-          accountTab={accountTab}
-        />
-
-        {/* 2) 등록된 스냅샷 히스토리 */}
-        <section className="mb-6">
-          <SnapshotHistory
-            snapshots={snapshots}
-            onDelete={handleDeleteSnapshot}
-            onSelect={handleSelectSnapshot}
-            selectedSnapshotId={selectedSnapshotId}
-            loading={authLoading || syncState.status === "syncing"}
-          />
-        </section>
-
-        {/* 2.5) 스냅샷 미리보기 — 히스토리에서 날짜 클릭 시 등록 히스토리와 자산 맵
-            사이에 자산군 비중 도넛 + 파싱 결과 요약을 표시한다. */}
+        {/* 스냅샷 미리보기 — 상단 스냅샷 선택/최신화 바로 아래에 자산군 비중 도넛 +
+            파싱 결과 요약을 표시한다. (현재 스냅샷 선택 → 자산군 비중 → 파싱 결과 요약 흐름) */}
         {previewSnapshot && (
           <section className="mb-6">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-blue-500/20 bg-blue-500/10 px-4 py-3">
@@ -503,6 +448,34 @@ export default function PortfolioPage() {
             </div>
           </section>
         )}
+
+        {portfolioNotice && (
+          <p className="mb-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-[13px] text-slate-500 dark:border-[#273032] dark:bg-[#171d1e] dark:text-slate-400">
+            {portfolioNotice}
+          </p>
+        )}
+
+        {/* 1) 최상단 2열: [계좌별 종목 비중 조회 40%] [월별 자산 추이 60%]
+            데스크톱(lg+)은 2:3(=40:60) 비율, 모바일은 세로 배치. */}
+        <section className="mb-6 grid grid-cols-1 items-stretch gap-5 lg:grid-cols-[2fr_3fr]">
+          <div className="min-w-0">
+            <AccountHoldingWeightCard
+              holdings={accountWeightHoldings}
+              tab={accountTab}
+              onTabChange={setAccountTab}
+            />
+          </div>
+          <div className="min-w-0">
+            <PortfolioAssetTrendChart snapshots={snapshots} />
+          </div>
+        </section>
+
+        {/* 2년 역산 성과 분석 — 선택된(없으면 최신) 스냅샷 비중 기준 역산. */}
+        <SnapshotBacktestSection
+          snapshots={snapshots}
+          selectedSnapshotId={previewSnapshotId}
+          accountTab={accountTab}
+        />
 
         {/* 3) 자산맵 — 좌측 컬럼에 "자산군 비중" 도넛(기존 최하단 카드)을 이동 배치한다. */}
         <AssetMapSection
@@ -542,6 +515,17 @@ export default function PortfolioPage() {
           >
             이 스냅샷 등록
           </button>
+        </section>
+
+        {/* 4.5) 등록된 스냅샷 히스토리 — 엑셀 업로드/파싱 결과 다음, 보유종목 바로 위에 배치. */}
+        <section className="mb-6">
+          <SnapshotHistory
+            snapshots={snapshots}
+            onDelete={handleDeleteSnapshot}
+            onSelect={handleSelectSnapshot}
+            selectedSnapshotId={selectedSnapshotId}
+            loading={authLoading || syncState.status === "syncing"}
+          />
         </section>
 
         {/* 5) 보유 종목 리스트 (기본 접힘) */}
