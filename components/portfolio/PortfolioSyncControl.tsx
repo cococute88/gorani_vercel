@@ -1,11 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, ChevronDown, Loader2, RefreshCw } from "lucide-react";
+import { Check, ChevronDown, ExternalLink, Loader2, RefreshCw } from "lucide-react";
 import {
-  usePortfolioRefresh,
-  type PortfolioRefreshOutcome,
-} from "@/lib/portfolio-firestore-snapshot-sync";
+  usePortfolioPipelineRefresh,
+  type PipelineState,
+} from "@/lib/portfolio-pipeline-refresh";
 
 type Props = {
   /**
@@ -31,18 +31,47 @@ type Tone = "success" | "info" | "error";
 
 type ResultMessage = { tone: Tone; text: string };
 
-// Result text shown to the user after a manual "최신화" (requirement 8).
-const MESSAGES: Record<PortfolioRefreshOutcome, ResultMessage> = {
-  updated: { tone: "success", text: "최신 데이터로 업데이트되었습니다." },
-  unchanged: { tone: "info", text: "이미 최신 데이터입니다." },
-  error: {
-    tone: "error",
-    text: "최신 데이터를 가져오지 못했습니다. 잠시 후 다시 시도해 주세요.",
-  },
-};
+// Map a pipeline phase/outcome to the status message shown to the user
+// (requirements 2, 4, 6, 9, 10). Returns null while idle (no message).
+function pipelineMessage(state: PipelineState): ResultMessage | null {
+  switch (state.phase) {
+    case "dispatching":
+      return { tone: "info", text: "작업을 시작했습니다." };
+    case "queued":
+      return { tone: "info", text: "GitHub Actions 실행 대기 중..." };
+    case "running":
+      return { tone: "info", text: "최신 데이터를 생성하고 있습니다... (약 1~2분 소요)" };
+    case "applying":
+      return {
+        tone: "info",
+        text: "최신 데이터가 생성되었습니다. Firestore에서 최신 정보를 불러오는 중...",
+      };
+    case "done":
+      if (state.outcome === "updated") {
+        return { tone: "success", text: "최신 데이터로 업데이트되었습니다." };
+      }
+      if (state.outcome === "unchanged") {
+        return { tone: "info", text: "이미 최신 데이터입니다." };
+      }
+      // outcome === "error": workflow succeeded but the snapshot read failed.
+      return {
+        tone: "error",
+        text: "최신 데이터를 생성했지만 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.",
+      };
+    case "failed":
+      return { tone: "error", text: "최신 데이터를 생성하지 못했습니다." };
+    case "timeout":
+      return { tone: "error", text: "시간 내에 완료되지 않았습니다." };
+    case "idle":
+    default:
+      return null;
+  }
+}
 
-// How long the result message stays before auto-dismissing.
-const MESSAGE_TIMEOUT_MS = 4000;
+// How long a TERMINAL success/info message stays before auto-dismissing.
+// Error/timeout messages are kept (so the "로그 보기" button stays available)
+// until the next 최신화.
+const MESSAGE_TIMEOUT_MS = 5000;
 
 function messageToneClass(tone: Tone, isLight: boolean): string {
   if (tone === "success") {
@@ -173,8 +202,7 @@ export default function PortfolioSyncControl({
   theme = "light",
 }: Props) {
   const isLight = theme === "light";
-  const { isRefreshing, refresh } = usePortfolioRefresh();
-  const [message, setMessage] = useState<ResultMessage | null>(null);
+  const { state: pipelineState, isBusy, start, reset } = usePortfolioPipelineRefresh();
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Build a year -> month -> days tree from the registered snapshot dates only
@@ -260,19 +288,28 @@ export default function PortfolioSyncControl({
 
   useEffect(() => clearTimer, [clearTimer]);
 
-  const handleClick = useCallback(async () => {
-    if (isRefreshing) return; // double-click guard (UI side; hook guards too)
+  // The message is derived directly from the pipeline phase.
+  const message = useMemo(() => pipelineMessage(pipelineState), [pipelineState]);
+
+  // Auto-dismiss only success/info terminal messages. Error/timeout messages
+  // are kept so the "GitHub Actions 로그 보기" button remains available until the
+  // user starts another 최신화.
+  useEffect(() => {
     clearTimer();
-    setMessage(null);
+    if (pipelineState.phase === "done" && pipelineState.outcome !== "error") {
+      timerRef.current = setTimeout(() => {
+        reset();
+        timerRef.current = null;
+      }, MESSAGE_TIMEOUT_MS);
+    }
+    return clearTimer;
+  }, [pipelineState, clearTimer, reset]);
 
-    const outcome = await refresh();
-    setMessage(MESSAGES[outcome]);
-
-    timerRef.current = setTimeout(() => {
-      setMessage(null);
-      timerRef.current = null;
-    }, MESSAGE_TIMEOUT_MS);
-  }, [isRefreshing, refresh, clearTimer]);
+  const handleClick = useCallback(() => {
+    if (isBusy) return; // double-click guard (UI side; hook guards too)
+    clearTimer();
+    void start();
+  }, [isBusy, start, clearTimer]);
 
   const labelCls = isLight ? "text-slate-400" : "text-slate-500";
 
@@ -324,15 +361,15 @@ export default function PortfolioSyncControl({
       <button
         type="button"
         onClick={handleClick}
-        disabled={isRefreshing}
-        aria-busy={isRefreshing}
-        aria-label="최신 데이터로 최신화"
+        disabled={isBusy}
+        aria-busy={isBusy}
+        aria-label="최신 데이터로 최신화 (전체 파이프라인 실행)"
         className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[12px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${buttonCls}`}
       >
-        {isRefreshing ? (
+        {isBusy ? (
           <>
             <Loader2 size={14} className="animate-spin" aria-hidden />
-            최신화 중...
+            최신 데이터 생성 중...
           </>
         ) : (
           <>
@@ -343,12 +380,32 @@ export default function PortfolioSyncControl({
       </button>
 
       {message ? (
-        <span
-          role="status"
-          aria-live="polite"
-          className={`text-[12px] font-medium ${messageToneClass(message.tone, isLight)}`}
-        >
-          {message.text}
+        <span className="inline-flex items-center gap-2">
+          <span
+            role="status"
+            aria-live="polite"
+            className={`text-[12px] font-medium ${messageToneClass(message.tone, isLight)}`}
+          >
+            {message.text}
+          </span>
+          {/* On failure/timeout, let the user jump straight to the run log
+              (requirement 7) — opens the GitHub Actions run in a new tab. */}
+          {(pipelineState.phase === "failed" || pipelineState.phase === "timeout") &&
+          pipelineState.runUrl ? (
+            <a
+              href={pipelineState.runUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-semibold transition-colors ${
+                isLight
+                  ? "border-rose-200 text-rose-600 hover:bg-rose-50"
+                  : "border-rose-500/30 text-rose-300 hover:bg-rose-500/10"
+              }`}
+            >
+              <ExternalLink size={12} strokeWidth={2.2} aria-hidden />
+              GitHub Actions 로그 보기
+            </a>
+          ) : null}
         </span>
       ) : null}
     </div>

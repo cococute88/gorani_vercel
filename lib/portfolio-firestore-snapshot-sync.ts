@@ -253,6 +253,50 @@ export interface PortfolioRefreshController {
   refresh: () => Promise<PortfolioRefreshOutcome>;
 }
 
+// Module-level guard shared by every caller of the standalone applier below, so
+// overlapping re-fetches (e.g. a manual refresh racing the pipeline's
+// post-success apply) can never publish two snapshots at once.
+let applyInFlight = false;
+
+/**
+ * Standalone, non-hook version of the manual refresh: re-fetch the latest
+ * Firestore snapshot and publish it as the single source ONLY when it differs
+ * from the active one. Returns:
+ *   - "updated"   : a newer snapshot was applied -> screen updates immediately
+ *   - "unchanged" : the latest snapshot equals the active one -> no re-render
+ *   - "error"     : fetch failed / no snapshot -> current screen data is kept
+ *
+ * Reused by both `usePortfolioRefresh` and the GitHub Actions pipeline hook
+ * (which calls this after the workflow succeeds). Like the hook, it NEVER clears
+ * the active snapshot on a failed read (requirement: keep current data on error).
+ */
+export async function applyLatestFirestoreSnapshot(): Promise<PortfolioRefreshOutcome> {
+  if (applyInFlight) return "unchanged";
+  applyInFlight = true;
+
+  try {
+    const result = await fetchLatestSnapshot();
+
+    if (result.kind === "firestore") {
+      const sameAsActive =
+        firestoreSnapshot !== null &&
+        firestoreSnapshotDate === result.snapshotDate;
+      if (sameAsActive) {
+        // Identical snapshot: do NOT touch the store (no re-render).
+        return "unchanged";
+      }
+      // New snapshot: publish it as the single source -> immediate update.
+      setFirestoreSnapshot(result.snapshot, result.snapshotDate);
+      return "updated";
+    }
+
+    // "empty" or "error": never clear what the user is currently seeing.
+    return "error";
+  } finally {
+    applyInFlight = false;
+  }
+}
+
 /**
  * Provides the manual refresh action for the Portfolio screen. The returned
  * `refresh()` re-fetches the latest Firestore snapshot and, only when it differs
@@ -272,23 +316,9 @@ export function usePortfolioRefresh(): PortfolioRefreshController {
     setIsRefreshing(true);
 
     try {
-      const result = await fetchLatestSnapshot();
-
-      if (result.kind === "firestore") {
-        const sameAsActive =
-          firestoreSnapshot !== null &&
-          firestoreSnapshotDate === result.snapshotDate;
-        if (sameAsActive) {
-          // Identical snapshot: do NOT touch the store (no re-render).
-          return "unchanged";
-        }
-        // New snapshot: publish it as the single source -> immediate update.
-        setFirestoreSnapshot(result.snapshot, result.snapshotDate);
-        return "updated";
-      }
-
-      // "empty" or "error": never clear what the user is currently seeing.
-      return "error";
+      // Delegate to the shared applier (single source of the fetch+compare+
+      // publish logic, also used by the GitHub Actions pipeline hook).
+      return await applyLatestFirestoreSnapshot();
     } finally {
       inFlight.current = false;
       setIsRefreshing(false);
