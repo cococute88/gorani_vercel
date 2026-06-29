@@ -26,16 +26,36 @@ export type ActiveReturns = {
 };
 
 interface Props {
-  /** 종목별 일별 종가 시계열(기간 슬라이스 적용). 차트가 화면 기준 0% 로 재계산. */
+  /**
+   * 종목별 "전체(MAX) 일별 레벨" 시계열. 기간 버튼은 데이터를 다시 자르지 않고
+   * 이 MAX 데이터 위에서 보이는 구간(Zoom)만 바꾼다(viewDays). 차트는 화면 좌측
+   * 첫 봉을 0% 기준으로 재계산한다.
+   */
   series: ReturnComparePriceSeries[];
   /** 다크 테마 여부. 변경 시 차트를 재생성한다. */
   dark: boolean;
+  /**
+   * 보이는 기간(일). Infinity → MAX(전체). 기간 버튼 클릭 시 이 값만 바뀌며,
+   * 데이터 재계산 없이 timeScale 의 보이는 범위만 [마지막일 − viewDays, 마지막일]
+   * 로 설정해 확대(Zoom)한다.
+   */
+  viewDays?: number;
   /** 차트 클릭 시(드래그 팬 제외) 호출. 인라인 차트에서 상세 모달을 연다. */
   onClick?: () => void;
   /** 0% 기준선 표시 여부(기본 true). */
   showZeroLine?: boolean;
   /** 확대/축소/드래그로 기준점이 바뀔 때마다 현재 화면 기준 수익률을 통지. */
   onActiveReturns?: (active: ActiveReturns) => void;
+}
+
+const DAY_MS = 86_400_000;
+
+function parseMs(date: string): number {
+  return new Date(`${date}T00:00:00Z`).getTime();
+}
+
+function toDateStr(ms: number): string {
+  return new Date(ms).toISOString().slice(0, 10);
 }
 
 type Palette = { text: string; grid: string; border: string };
@@ -69,6 +89,7 @@ type HoverState = { x: number; y: number; date: string; rows: HoverRow[] } | nul
 export default function ReturnCompareChart({
   series,
   dark,
+  viewDays = Infinity,
   onClick,
   showZeroLine = true,
   onActiveReturns,
@@ -95,6 +116,9 @@ export default function ReturnCompareChart({
   onClickRef.current = onClick;
   const onActiveReturnsRef = useRef<Props["onActiveReturns"]>(onActiveReturns);
   onActiveReturnsRef.current = onActiveReturns;
+  // 현재 보이는 기간(일). Infinity → MAX. setVisibleRange 의 입력으로 사용.
+  const viewDaysRef = useRef<number>(viewDays);
+  viewDaysRef.current = viewDays;
   // 최신 series prop 을 ref 로 보관(차트 재생성 시 즉시 재적용).
   const latestSeriesRef = useRef<ReturnComparePriceSeries[]>(series);
   latestSeriesRef.current = series;
@@ -218,6 +242,41 @@ export default function ReturnCompareChart({
     });
   }, [rebaseToVisible]);
 
+  // 보이는 구간(Zoom)을 viewDays 에 맞춰 설정한다. 데이터는 그대로 두고
+  // timeScale 의 보이는 범위만 [마지막일 − viewDays, 마지막일] 로 바꾼다.
+  //  - Infinity(MAX) 또는 기간이 전체 데이터보다 길면 → fitContent(전체 보기).
+  //  - 그 외 → setVisibleRange 로 최근 구간만 확대. 이때 발생하는 range 변경
+  //    이벤트가 rebaseToVisible 를 호출해 화면 좌측 첫 봉을 0% 로 재계산한다.
+  const applyView = useCallback((days: number) => {
+    const chart = chartRef.current;
+    if (!chart) return;
+    let firstDate: string | null = null;
+    let lastDate: string | null = null;
+    for (const key of Object.keys(pricesRef.current)) {
+      const ps = pricesRef.current[key];
+      if (ps && ps.length) {
+        if (!firstDate || ps[0].date < firstDate) firstDate = ps[0].date;
+        const ld = ps[ps.length - 1].date;
+        if (!lastDate || ld > lastDate) lastDate = ld;
+      }
+    }
+    if (!firstDate || !lastDate) return;
+    if (!Number.isFinite(days)) {
+      chart.timeScale().fitContent();
+      return;
+    }
+    const fromMs = parseMs(lastDate) - days * DAY_MS;
+    if (fromMs <= parseMs(firstDate)) {
+      chart.timeScale().fitContent();
+      return;
+    }
+    try {
+      chart.timeScale().setVisibleRange({ from: toDateStr(fromMs) as Time, to: lastDate as Time });
+    } catch {
+      chart.timeScale().fitContent();
+    }
+  }, []);
+
   // 새 기간 데이터 적용: 종가 저장 → 기간 시작=0% 로 초기 렌더 → 전체 맞춤(fitContent).
   const applyData = useCallback(
     (data: ReturnComparePriceSeries[]) => {
@@ -249,19 +308,20 @@ export default function ReturnCompareChart({
       });
       attachZeroLine(zeroAnchorApi);
 
-      // 기준일은 기간 시작으로 초기화(fitContent 후 좌측 첫 봉과 일치).
+      // 기준일은 현재 Zoom 윈도 좌측 첫 봉으로 확정된다(아래 rebaseToVisible).
       lastAnchorRef.current = globalFirst;
       lastRightRef.current = null;
 
-      if (hasData) chart.timeScale().fitContent();
+      // 데이터 교체 직후 현재 viewDays 만큼 확대(MAX 데이터 위에서 Zoom).
+      if (hasData) applyView(viewDaysRef.current);
 
-      // fitContent 반영 후 우측 범례 동기화 + 가드 해제.
+      // 뷰 반영 후 우측 범례 동기화 + 가드 해제.
       requestAnimationFrame(() => {
         applyingRef.current = false;
         rebaseToVisible();
       });
     },
-    [attachZeroLine, rebaseToVisible],
+    [attachZeroLine, rebaseToVisible, applyView],
   );
 
   // 차트 생성(테마 변경 시 재생성).
@@ -354,7 +414,7 @@ export default function ReturnCompareChart({
         const hasData = seriesApiRef.current.some(
           ({ key }) => (pricesRef.current[key]?.length ?? 0) > 0,
         );
-        if (hasData) chart.timeScale().fitContent();
+        if (hasData) applyView(viewDaysRef.current);
       });
     });
     observer.observe(container);
@@ -371,13 +431,20 @@ export default function ReturnCompareChart({
       seriesApiRef.current = [];
       zeroLineRef.current = null;
     };
-  }, [dark, applyData, scheduleRebase]);
+  }, [dark, applyData, scheduleRebase, applyView]);
 
-  // series prop 변경 시 데이터 갱신(기간 변경 등).
+  // series prop 변경 시 데이터 갱신(TR/PR 전환·종목 변경 등). 데이터 교체 후
+  // applyData 내부에서 현재 viewDays 로 다시 확대한다.
   useEffect(() => {
     applyData(series);
     setHover(null);
   }, [series, applyData]);
+
+  // 기간 버튼(viewDays) 변경 시: 데이터는 그대로 두고 보이는 구간만 확대(Zoom).
+  //   range 변경 이벤트가 rebaseToVisible 를 호출해 0% 기준점을 다시 잡는다.
+  useEffect(() => {
+    applyView(viewDays);
+  }, [viewDays, applyView]);
 
   // tooltip 위치: 커서 오른쪽이 잘리면 왼쪽으로 띄운다.
   const containerWidth = containerRef.current?.clientWidth ?? 0;

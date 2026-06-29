@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { Maximize2 } from "lucide-react";
 import { useResolvedTheme } from "@/components/theme/ThemeProvider";
+import TrPrToggle, { type TrPrMode } from "@/components/common/TrPrToggle";
 import {
   DEFAULT_RETURN_PERIOD,
   RETURN_PERIODS,
@@ -30,6 +31,9 @@ export default function MarketReturnCompareSection() {
   const [raw, setRaw] = useState<ReturnCompareRaw | null>(null);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState(DEFAULT_RETURN_PERIOD);
+  // TR(배당 포함) / PR(배당 제외) 전환. 기본값은 TR. 전환은 레벨(adjClose↔close)만
+  // 바꾸므로 추가 API 호출이 없다.
+  const [trMode, setTrMode] = useState<TrPrMode>("tr");
   const [open, setOpen] = useState(false);
   // 차트가 통지하는 "현재 화면 기준" 수익률(확대/축소/드래그 시 갱신).
   const [active, setActive] = useState<ActiveReturns | null>(null);
@@ -54,18 +58,19 @@ export default function MarketReturnCompareSection() {
     };
   }, []);
 
-  // 선택 기간의 일별 종가 시계열(메모이제이션). 차트가 화면 기준으로 % 재계산.
+  // 전체(MAX) 일별 레벨 시계열. TR/PR 만 입력으로 받고 기간에는 의존하지 않는다
+  // → 기간 버튼은 데이터를 다시 만들지 않고 차트 Zoom 으로만 처리한다.
   const series = useMemo(
-    () => buildReturnComparePriceSeries(raw, periodDaysOf(period)),
-    [raw, period],
+    () => buildReturnComparePriceSeries(raw, Infinity, trMode === "tr"),
+    [raw, trMode],
   );
   const hasData = series.some((s) => s.prices.length > 0);
   const unavailable = !loading && !hasData;
 
-  // 기간이 바뀌면 화면 기준 수익률을 초기화(차트가 새 기준으로 다시 통지).
+  // 기간/기준(TR·PR)이 바뀌면 화면 기준 수익률을 초기화(차트가 새 기준으로 다시 통지).
   useEffect(() => {
     setActive(null);
-  }, [period]);
+  }, [period, trMode]);
 
   // 범례 표시값: 차트가 통지한 화면 기준값 우선, 없으면 기간 시작 기준 폴백.
   const returnFor = (key: string, prices: { close: number }[]): number | null => {
@@ -87,7 +92,7 @@ export default function MarketReturnCompareSection() {
               수익률 비교 (QQQ · SPY · SCHD)
             </h3>
             <p className="mt-0.5 text-[11.5px] text-slate-500 dark:text-slate-500">
-              선택 기간 시작 = 0% 기준 누적 수익률 · 일별 데이터
+              화면 시작 = 0% 기준 누적 수익률 · 일별 데이터 · 기간 버튼은 MAX 데이터를 확대(Zoom)
             </p>
           </div>
           <button
@@ -100,24 +105,27 @@ export default function MarketReturnCompareSection() {
           </button>
         </div>
 
-        {/* 기간 선택 + 현재 수익률 범례 */}
+        {/* 기간 선택 + TR/PR 전환 + 현재 수익률 범례 */}
         <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-          <div className="flex flex-nowrap items-center gap-1 overflow-x-auto rounded-lg border border-slate-200 bg-slate-50 p-1 dark:border-slate-700/60 dark:bg-[#111516]">
-            {RETURN_PERIODS.map((p) => (
-              <button
-                key={p.key}
-                type="button"
-                onClick={() => setPeriod(p.key)}
-                aria-pressed={period === p.key}
-                className={`shrink-0 rounded-md px-2.5 py-1 text-[12.5px] font-medium transition-colors ${
-                  period === p.key
-                    ? "bg-blue-600 text-white"
-                    : "text-slate-500 hover:bg-white/70 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-slate-200"
-                }`}
-              >
-                {p.label}
-              </button>
-            ))}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-nowrap items-center gap-1 overflow-x-auto rounded-lg border border-slate-200 bg-slate-50 p-1 dark:border-slate-700/60 dark:bg-[#111516]">
+              {RETURN_PERIODS.map((p) => (
+                <button
+                  key={p.key}
+                  type="button"
+                  onClick={() => setPeriod(p.key)}
+                  aria-pressed={period === p.key}
+                  className={`shrink-0 rounded-md px-2.5 py-1 text-[12.5px] font-medium transition-colors ${
+                    period === p.key
+                      ? "bg-blue-600 text-white"
+                      : "text-slate-500 hover:bg-white/70 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-slate-200"
+                  }`}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+            <TrPrToggle mode={trMode} onChange={setTrMode} />
           </div>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             {series.map((s) => {
@@ -152,6 +160,7 @@ export default function MarketReturnCompareSection() {
             <ReturnCompareChart
               series={series}
               dark={dark}
+              viewDays={periodDaysOf(period)}
               onClick={() => setOpen(true)}
               onActiveReturns={setActive}
             />
@@ -164,6 +173,7 @@ export default function MarketReturnCompareSection() {
           raw={raw}
           loading={loading}
           initialPeriod={period}
+          initialTrMode={trMode}
           dark={dark}
           onClose={() => setOpen(false)}
         />

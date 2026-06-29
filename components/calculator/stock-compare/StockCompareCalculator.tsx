@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { AlertTriangle, Info } from "lucide-react";
 import { useResolvedTheme } from "@/components/theme/ThemeProvider";
 import { fetchCompareData, type CompareData } from "@/lib/stock-compare/service";
-import { buildCompareSeries, toTrLevels, type TrLevels } from "@/lib/stock-compare/total-return";
+import { buildCompareSeries, toTrLevels, windowCompareSeries, type TrLevels } from "@/lib/stock-compare/total-return";
 import { computeRollingPointsMulti, computeSeriesMetrics } from "@/lib/stock-compare/metrics";
 import { computeContribution } from "@/lib/stock-compare/contribution";
 import {
@@ -20,6 +20,7 @@ import {
 import type { ComparePeriodKey, CompareSeries, SeriesMetrics } from "@/lib/stock-compare/types";
 import TickerSelector from "./TickerSelector";
 import CompareOptionsBar, { DEFAULT_COMPARE_OPTIONS, type CompareOptions } from "./CompareOptionsBar";
+import TrPrToggle, { type TrPrMode } from "@/components/common/TrPrToggle";
 import OverlapSummary from "./OverlapSummary";
 import HoldingsComparisonTable from "./HoldingsComparisonTable";
 import PerformanceCards from "./PerformanceCards";
@@ -110,8 +111,11 @@ export default function StockCompareCalculator() {
     void runCompare(inputB, inputA);
   };
 
-  // ── 파생 계산(기간/옵션 변경 시 재계산만, API 호출 없음) ──
-  const computed = useMemo(() => {
+  // ── 파생 계산 ──
+  // base: MAX(전체) 시리즈 + Rolling 을 한 번만 계산한다. 기간(period)에는
+  // 의존하지 않으므로 기간 버튼을 눌러도 무거운 buildCompareSeries/중복 제거
+  // 인덱스가 다시 계산되지 않는다(데이터/옵션 변경 시에만 재계산).
+  const base = useMemo(() => {
     if (!data) return null;
     const useTr = options.totalReturn;
     const aLevels: TrLevels = toTrLevels(data.tickerA, data.pointsA, useTr);
@@ -120,64 +124,75 @@ export default function StockCompareCalculator() {
     data.commonPoints.forEach((pts, t) => commonLevels.set(t, toTrLevels(t, pts, useTr)));
 
     const buildOpts = { removeOverlap: options.removeOverlap, weighted: options.weighted };
-    const periodDays = COMPARE_PERIODS.find((p) => p.key === period)?.days ?? 365;
 
-    const { series, exMeta } = buildCompareSeries({
+    // MAX(전체) 누적수익률 시리즈. 차트는 이 MAX 를 받아 기간 버튼만큼 Zoom 한다.
+    const { series: maxSeries, exMeta } = buildCompareSeries({
       tickerA: data.tickerA,
       tickerB: data.tickerB,
       aLevels,
       bLevels,
       overlap: data.overlap,
       commonLevels,
-      periodDays,
+      periodDays: Infinity,
       options: buildOpts,
     });
+
+    // Rolling TR(1Y/3Y/5Y): MAX 시리즈에서 계산 → 상단 그래프 기간/Zoom 과 완전히
+    // 독립적이다. 월말 곡선은 시리즈당 한 번만 계산되어 세 기간이 공유한다.
+    const rollingByWindow = computeRollingPointsMulti(maxSeries, ROLLING_WINDOWS);
+
+    return { maxSeries, exMeta, rollingByWindow };
+  }, [data, options]);
+
+  // view: 성과 카드/범례용 "기간 윈도" 시리즈·지표. MAX 시리즈를 잘라 0% 재기준화만
+  // 하므로(가벼운 연산) 기간 변경 시 누적수익률을 다시 만들지 않는다.
+  const view = useMemo(() => {
+    if (!base) return null;
+    const periodDays = COMPARE_PERIODS.find((p) => p.key === period)?.days ?? 365;
+    const series = windowCompareSeries(base.maxSeries, periodDays);
 
     const metricsByKey: Record<string, SeriesMetrics> = {};
     for (const s of series) metricsByKey[s.key] = computeSeriesMetrics(s);
 
-    // Rolling TR: 1Y(12개월)·3Y(36개월)·5Y(60개월)를 한 번에 계산.
-    // 월말 곡선은 시리즈당 한 번만 계산되어 세 기간이 공유한다(중복 연산 제거).
-    // 탭 전환은 이 맵에서 해당 기간 배열만 선택하므로 추가 계산이 없다.
-    const rollingByWindow = computeRollingPointsMulti(series, ROLLING_WINDOWS);
-
     const contributionA = computeContribution({
       trPct: metricsByKey.a?.trPct ?? null,
       trExPct: metricsByKey.aEx?.trPct ?? null,
-      wFund: exMeta.aWFund,
-      available: exMeta.aAvailable,
+      wFund: base.exMeta.aWFund,
+      available: base.exMeta.aAvailable,
     });
     const contributionB = computeContribution({
       trPct: metricsByKey.b?.trPct ?? null,
       trExPct: metricsByKey.bEx?.trPct ?? null,
-      wFund: exMeta.bWFund,
-      available: exMeta.bAvailable,
+      wFund: base.exMeta.bWFund,
+      available: base.exMeta.bAvailable,
     });
 
-    // 위험지표 전용 시리즈(독립 기간). 같은 입력 데이터로 클라이언트 재계산만 한다.
+    return { series, metricsByKey, contributionA, contributionB };
+  }, [base, period]);
+
+  // 위험지표 전용 시리즈(독립 기간). 동일하게 MAX 시리즈를 잘라 재기준화만 한다.
+  const riskView = useMemo(() => {
+    if (!base) return null;
     const riskDays = COMPARE_PERIODS.find((p) => p.key === metricsPeriod)?.days ?? Infinity;
-    const { series: riskSeries } = buildCompareSeries({
-      tickerA: data.tickerA,
-      tickerB: data.tickerB,
-      aLevels,
-      bLevels,
-      overlap: data.overlap,
-      commonLevels,
-      periodDays: riskDays,
-      options: buildOpts,
-    });
+    const riskSeries = windowCompareSeries(base.maxSeries, riskDays);
     const riskMetricsByKey: Record<string, SeriesMetrics> = {};
     for (const s of riskSeries) riskMetricsByKey[s.key] = computeSeriesMetrics(s);
+    return { riskSeries, riskMetricsByKey };
+  }, [base, metricsPeriod]);
 
-    return { series, metricsByKey, rollingByWindow, contributionA, contributionB, riskSeries, riskMetricsByKey };
-  }, [data, options, period, metricsPeriod]);
-
-  const series: CompareSeries[] = computed?.series ?? [];
+  // 성과 그래프(차트)는 MAX 시리즈를 받아 기간만큼 Zoom 한다.
+  const maxSeries: CompareSeries[] = base?.maxSeries ?? [];
+  const series: CompareSeries[] = view?.series ?? [];
   const periodLabel = COMPARE_PERIODS.find((p) => p.key === period)?.label ?? "";
+  const periodDays = COMPARE_PERIODS.find((p) => p.key === period)?.days ?? 365;
 
   // 현재 선택된 Rolling 탭의 미리 계산된 포인트(없으면 빈 배열) + 부제 텍스트.
-  const rollingPoints = computed?.rollingByWindow[rollingWindow] ?? [];
+  const rollingPoints = base?.rollingByWindow[rollingWindow] ?? [];
   const activeRollingTab = ROLLING_TABS.find((t) => t.key === rollingWindow) ?? ROLLING_TABS[0];
+
+  // TR/PR 토글은 옵션의 totalReturn 과 동기화된다(기본 TR).
+  const trMode: TrPrMode = options.totalReturn ? "tr" : "pr";
+  const setTrMode = (mode: TrPrMode) => setOptions((prev) => ({ ...prev, totalReturn: mode === "tr" }));
 
   const toggleHidden = (key: string) => setHidden((prev) => ({ ...prev, [key]: !prev[key] }));
 
@@ -222,30 +237,33 @@ export default function StockCompareCalculator() {
         </div>
       )}
 
-      {computed && series.length > 0 && (
+      {view && series.length > 0 && (
         <>
           {/* 성과 카드 */}
-          <PerformanceCards series={series} metricsByKey={computed.metricsByKey} periodLabel={periodLabel} />
+          <PerformanceCards series={series} metricsByKey={view.metricsByKey} periodLabel={periodLabel} />
 
           {/* ① TradingView 스타일 성과 비교 메인 그래프 (성과 카드 바로 아래 = 원래 위치) */}
           <section className={panel}>
             <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-              <h2 className={cardTitle}>성과 비교 (Total Return)</h2>
-              <div className="flex gap-1">
-                {COMPARE_PERIODS.map((p) => (
-                  <button
-                    key={p.key}
-                    type="button"
-                    onClick={() => setPeriod(p.key)}
-                    className={`rounded-lg px-2.5 py-1 text-[12px] font-bold transition-colors ${
-                      period === p.key
-                        ? "bg-blue-600 text-white"
-                        : "text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/5"
-                    }`}
-                  >
-                    {p.label}
-                  </button>
-                ))}
+              <h2 className={cardTitle}>성과 비교 ({trMode === "tr" ? "Total Return" : "Price Return"})</h2>
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex gap-1">
+                  {COMPARE_PERIODS.map((p) => (
+                    <button
+                      key={p.key}
+                      type="button"
+                      onClick={() => setPeriod(p.key)}
+                      className={`rounded-lg px-2.5 py-1 text-[12px] font-bold transition-colors ${
+                        period === p.key
+                          ? "bg-blue-600 text-white"
+                          : "text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/5"
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+                <TrPrToggle mode={trMode} onChange={setTrMode} disabled={loading} />
               </div>
             </div>
 
@@ -275,13 +293,14 @@ export default function StockCompareCalculator() {
             </div>
 
             <div className="h-[340px] w-full sm:h-[420px]">
-              <PerformanceChart series={series} dark={dark} hidden={hidden} />
+              {/* 차트는 MAX 시리즈를 받고 viewDays(기간)만큼 Zoom 한다. */}
+              <PerformanceChart series={maxSeries} dark={dark} hidden={hidden} viewDays={periodDays} />
             </div>
           </section>
 
           {/* ② Rolling TR — Scatter (1Y / 3Y / 5Y 탭). 단일 RollingScatterChart 를
-              재사용하고 탭으로 Rolling 기간(monthsBack)만 바꾼다. 세 기간 포인트는
-              computed 에서 미리 계산되어 탭 전환 시 추가 API 호출/재계산이 없다. */}
+              재사용하고 탭으로 Rolling 기간(monthsBack)만 바꾼다. 포인트는 MAX
+              시리즈에서 미리 계산되어 상단 그래프의 기간/Zoom 과 완전히 독립적이다. */}
           <section className={panel}>
             <div className="mb-1 flex flex-wrap items-center justify-between gap-3">
               <h2 className={cardTitle}>Rolling TR — Scatter</h2>
@@ -320,15 +339,15 @@ export default function StockCompareCalculator() {
           <ContributionCard
             tickerA={data!.tickerA}
             tickerB={data!.tickerB}
-            a={computed.contributionA}
-            b={computed.contributionB}
+            a={view.contributionA}
+            b={view.contributionB}
           />
 
           {/* 위험지표(독립 기간 선택) */}
           <MetricsTable
-            series={computed.riskSeries.length > 0 ? computed.riskSeries : series}
+            series={riskView && riskView.riskSeries.length > 0 ? riskView.riskSeries : series}
             metricsByKey={
-              computed.riskSeries.length > 0 ? computed.riskMetricsByKey : computed.metricsByKey
+              riskView && riskView.riskSeries.length > 0 ? riskView.riskMetricsByKey : view.metricsByKey
             }
             period={metricsPeriod}
             periods={RISK_METRIC_PERIODS}
@@ -339,7 +358,7 @@ export default function StockCompareCalculator() {
         </>
       )}
 
-      {loading && !computed && (
+      {loading && !view && (
         <div className="flex items-center justify-center rounded-2xl border border-slate-200 bg-white py-16 text-[13px] text-slate-400 dark:border-[#2a3336] dark:bg-[#191f20]">
           데이터를 불러오는 중입니다…
         </div>

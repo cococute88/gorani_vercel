@@ -101,6 +101,20 @@ function parseIsoMs(date: string): number {
   return new Date(`${date}T00:00:00Z`).getTime();
 }
 
+function isPos(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value > 0;
+}
+
+// 한 거래일의 "레벨"을 고른다.
+//  - TR(배당 포함): adjClose(배당+분할 조정 종가, 배당 재투자 대용치). 결측 시 close.
+//  - PR(배당 제외): 단순 종가(close).
+// 차트는 이 레벨을 기준 시점 대비 % 로 환산하므로, TR/PR 전환은 어떤 레벨을
+// 공급하느냐의 차이일 뿐 계산식 자체는 동일하다.
+function levelOf(point: LongSeriesPoint, useTotalReturn: boolean): number {
+  if (useTotalReturn && isPos(point.adjClose)) return point.adjClose;
+  return point.close;
+}
+
 // 세 ETF 의 전체 일별 히스토리를 한 번에 받는다. fetchLongSeries 가 심볼+시작일
 // 단위로 in-memory 캐시하므로, 인라인 차트와 상세 모달이 동일 데이터를 공유하고
 // 재호출이 발생하지 않는다.
@@ -190,16 +204,21 @@ function sliceByPeriod(
 // 선택 기간의 일별 종가 시계열을 종목별로 반환한다(차트가 직접 % 재계산).
 // 누적 수익률(%) 환산은 하지 않는다 → 차트가 현재 화면 좌측 시작점을 기준으로
 // 그때그때 0% 를 다시 잡는다.
+//
+// useTotalReturn(기본 TR=true): true → adjClose(배당 포함, TR), false → close(배당 제외, PR).
+// prices.close 필드에는 선택된 레벨(TR 또는 PR)이 담긴다. 차트는 이 값을
+// "레벨"로만 사용하므로 TR/PR 전환은 데이터 재조회 없이 레벨 교체만으로 끝난다.
 export function buildReturnComparePriceSeries(
   raw: ReturnCompareRaw | null,
   periodDays: number,
+  useTotalReturn = true,
 ): ReturnComparePriceSeries[] {
   const sliced = sliceByPeriod(raw, periodDays);
   return RETURN_COMPARE_TICKERS.map((t) => ({
     key: t.key,
     label: t.label,
     color: t.color,
-    prices: (sliced?.[t.key] ?? []).map((p) => ({ date: p.date, close: p.close })),
+    prices: (sliced?.[t.key] ?? []).map((p) => ({ date: p.date, close: levelOf(p, useTotalReturn) })),
   }));
 }
 
@@ -231,8 +250,9 @@ export function rebasePricesToAnchor(
 export function computeReturnCompareSeries(
   raw: ReturnCompareRaw | null,
   periodDays: number,
+  useTotalReturn = true,
 ): ReturnCompareSeries[] {
-  return buildReturnComparePriceSeries(raw, periodDays).map((s) => ({
+  return buildReturnComparePriceSeries(raw, periodDays, useTotalReturn).map((s) => ({
     key: s.key,
     label: s.label,
     color: s.color,
