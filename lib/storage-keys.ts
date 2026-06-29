@@ -1,5 +1,9 @@
 export const STORAGE_KEYS = {
   portfolioSnapshots: "qld2.portfolio.snapshots.v1",
+  // 사용자가 히스토리에서 삭제한 스냅샷 날짜(YYYY-MM-DD)의 영구 묘비(tombstone).
+  // 읽기 전용 파이프라인 오버레이(/api/portfolio/latest-snapshot)나 계약 어댑터에서
+  // 다시 불러와도 삭제 상태가 새로고침 후에도 유지되도록 한다.
+  deletedPortfolioSnapshotDates: "gorani.portfolio.deleted-snapshot-dates.v1",
   portfolioCloudSyncTime: "gorani.portfolio.cloud-sync-time.v1",
   assetSimulatorConfigs: "gorani.asset-simulator.preview",
   calendarTickers: "gorani.dividend-calendar.tickers.v1",
