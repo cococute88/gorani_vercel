@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Trash2 } from "lucide-react";
 import TableCsvMenu from "@/components/ui/TableCsvMenu";
 import { formatWon, formatPercent } from "@/lib/format";
@@ -16,10 +16,40 @@ interface Props {
 
 const card = "rounded-2xl border border-[#2a3336] bg-[#191f20] p-5";
 
+// 기본 표시 개수. 향후 페이지네이션으로 바꾸기 쉽도록 상수로 관리한다(요구사항 17).
+// "더보기"를 누르면 이 단위만큼 표시 개수가 늘어난다(요구사항 14).
+export const SNAPSHOT_HISTORY_PAGE_SIZE = 10;
+
 // 등록된 스냅샷 히스토리 (날짜/총자산/평가금액/원금/수익률/삭제)
+// - 최신 날짜가 항상 가장 위 (요구사항 13)
+// - 기본 최근 10개만 표시, "더보기"로 10개씩 점진적 확장 (요구사항 13~15)
+// - 선택된 스냅샷이 표시 범위 밖이면 자동으로 펼쳐 항상 보이게 한다 (요구사항 16)
 export default function SnapshotHistory({ snapshots, onDelete, onSelect, selectedSnapshotId, loading = false }: Props) {
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
-  const sorted = [...snapshots].sort((a, b) => (a.snapshotDate < b.snapshotDate ? 1 : -1));
+  const sorted = useMemo(
+    () => [...snapshots].sort((a, b) => (a.snapshotDate < b.snapshotDate ? 1 : -1)),
+    [snapshots],
+  );
+
+  const [visibleCount, setVisibleCount] = useState(SNAPSHOT_HISTORY_PAGE_SIZE);
+
+  // 선택된 스냅샷이 현재 표시 범위 밖이면, 해당 위치까지 자동으로 펼친다(요구사항 16).
+  useEffect(() => {
+    if (!selectedSnapshotId) return;
+    const index = sorted.findIndex((s) => s.id === selectedSnapshotId);
+    if (index < 0) return;
+    setVisibleCount((prev) => {
+      if (index < prev) return prev;
+      // index 를 포함하도록 PAGE_SIZE 단위로 올림.
+      const needed = Math.ceil((index + 1) / SNAPSHOT_HISTORY_PAGE_SIZE) * SNAPSHOT_HISTORY_PAGE_SIZE;
+      return Math.max(prev, needed);
+    });
+  }, [selectedSnapshotId, sorted]);
+
+  const visible = sorted.slice(0, visibleCount);
+  const hasMore = visibleCount < sorted.length;
+  const remaining = sorted.length - visibleCount;
+
   return (
     <div className={card}>
       <div className="mb-4 flex items-center justify-between gap-3">
@@ -55,7 +85,7 @@ export default function SnapshotHistory({ snapshots, onDelete, onSelect, selecte
                 <td colSpan={6} className="px-3 py-6 text-center text-slate-500">등록된 스냅샷이 없습니다.</td>
               </tr>
             )}
-            {sorted.map((s) => {
+            {visible.map((s) => {
               const selected = selectedSnapshotId === s.id;
               return (
                 <tr
@@ -93,6 +123,23 @@ export default function SnapshotHistory({ snapshots, onDelete, onSelect, selecte
           </tbody>
         </table>
       </div>
+
+      {/* 더보기 — 무한스크롤 없이 PAGE_SIZE 단위로 점진적 확장 (요구사항 14~15). */}
+      {hasMore && (
+        <div className="mt-3 flex items-center justify-center">
+          <button
+            type="button"
+            onClick={() =>
+              setVisibleCount((prev) =>
+                Math.min(prev + SNAPSHOT_HISTORY_PAGE_SIZE, sorted.length),
+              )
+            }
+            className="rounded-lg border border-[#2a3336] bg-white/[0.04] px-4 py-1.5 text-[12px] font-semibold text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white"
+          >
+            더보기 ({Math.min(SNAPSHOT_HISTORY_PAGE_SIZE, remaining)}개 더 · 남은 {remaining}개)
+          </button>
+        </div>
+      )}
     </div>
   );
 }
