@@ -11,8 +11,8 @@ const schedule = read("components/watchlist/DividendSchedulePreview.tsx");
 const visuals = read("lib/event-visuals.ts");
 
 assert.match(sortHelper, /getCalendarEventPriority/, "calendar priority helper exists");
-assert.match(sortHelper, /favorite === "💗"[\s\S]*return 0/, "heart events have first priority");
-assert.match(sortHelper, /favorite === "⭐"[\s\S]*return 1/, "star events have second priority");
+assert.match(sortHelper, /favorite === "⭐"[\s\S]*return 0/, "star events have first priority");
+assert.match(sortHelper, /favorite === "💗"[\s\S]*return 1/, "heart events have second priority");
 assert.match(sortHelper, /status === "confirmed"[\s\S]*return 2/, "confirmed events precede other ordinary events");
 assert.match(sortHelper, /TYPE_PRIORITY/, "type priority participates after favorite/status priority");
 assert.match(grid, /sortCalendarEventsByPriority\(eventsByDate\.get\(cell\.isoDate\) \?\? \[\]\)/, "monthly cell chips sort by priority");

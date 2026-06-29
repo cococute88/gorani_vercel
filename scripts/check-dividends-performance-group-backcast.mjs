@@ -21,10 +21,10 @@ const helper = readFileSync("lib/dividend-performance-from-snapshots.ts", "utf8"
 assert.ok(!`${perf}${account}${helper}`.includes("최소 2개 이상의 스냅샷"));
 assert.ok(page.includes("latestBackcastHoldings={accountBackcastHoldings}"));
 assert.ok(account.includes("latestBackcastHoldings"));
-assert.ok(account.includes("performanceDomain(chartData)"));
+assert.ok(account.includes("performanceDomain(performanceChartData)"), "account cumulative chart domain derives from its rendered (period-clamped) data");
 assert.ok(account.includes("monthHistoryStart(latestSnapshot.snapshotDate, 25)"), "account quote history must start before latest snapshot");
 assert.ok(account.includes('yAxisId="profit"') && account.includes('yAxisId="asset"'), "monthly account chart must split profit and asset axes");
-assert.ok(perf.includes("performanceDomain(result.points)"));
+assert.ok(perf.includes("performanceDomain(performancePoints)"), "total cumulative chart domain derives from its rendered (period-clamped) data");
 assert.ok(perf.includes('yAxisId="profit"') && perf.includes('yAxisId="asset"'), "monthly total chart must split profit and asset axes");
 assert.ok(perf.includes("deposit: null") && account.includes("totalAssets: null"), "missing months must stay null, not zero-filled");
 assert.ok(perf.includes("monthlyProfit: null"));

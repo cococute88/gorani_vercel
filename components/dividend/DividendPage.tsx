@@ -29,6 +29,7 @@ import DividendAccountPerformanceSection from "./DividendAccountPerformanceSecti
 import SchdAttractivenessSection from "./SchdAttractivenessSection";
 import { useResolvedTheme } from "@/components/theme/ThemeProvider";
 import { buildDividendPerformanceBackcast, type BackcastPricePoint } from "@/lib/dividend-performance-from-snapshots";
+import { DEFAULT_PERFORMANCE_MONTHS } from "@/lib/performance-period";
 
 const card =
   "rounded-2xl border border-slate-200 bg-white p-5 dark:border-[#2a3336] dark:bg-[#191f20]";
@@ -101,6 +102,8 @@ export default function DividendPage() {
   const activeTab: DividendTabKey = tabParam === "schd-attractiveness" ? "schd-attractiveness" : "overview";
   const snapshots = usePortfolioSnapshots();
   const [afterTax, setAfterTax] = useState(true);
+  // 성과분석 그래프(위탁/절세/전체합산)가 공유하는 표시 기간. 세 그래프가 항상 같은 구간을 유지한다.
+  const [performanceMonths, setPerformanceMonths] = useState<number>(DEFAULT_PERFORMANCE_MONTHS);
   const [includeTaxAdvantagedInSummary, setIncludeTaxAdvantagedInSummary] = useState(false);
   const [chartIncludesTaxable, setChartIncludesTaxable] = useState(true);
   const [chartIncludesTaxAdvantaged, setChartIncludesTaxAdvantaged] = useState(false);
@@ -503,8 +506,17 @@ export default function DividendPage() {
             </div>
           </div>
         </section>
-        <DividendAccountPerformanceSection snapshots={snapshots} latestBackcastHoldings={accountBackcastHoldings} />
-        <DividendPerformanceSection result={dividendPerformance} />
+        <DividendAccountPerformanceSection
+          snapshots={snapshots}
+          latestBackcastHoldings={accountBackcastHoldings}
+          periodMonths={performanceMonths}
+          onPeriodMonthsChange={setPerformanceMonths}
+        />
+        <DividendPerformanceSection
+          result={dividendPerformance}
+          periodMonths={performanceMonths}
+          onPeriodMonthsChange={setPerformanceMonths}
+        />
           </>
         )}
       </main>
