@@ -145,9 +145,14 @@ export function usePortfolioFirestoreSnapshotDate(): string | null {
   );
 }
 
-// Only attempt the live read once per loaded module instance (page session),
-// mirroring the existing cloud-sync's single-attempt guard.
-let attempted = false;
+// On-mount fetch concurrency guard. We deliberately do NOT use a permanent
+// "attempted-once" latch: if an earlier mount resolved to empty/error (e.g. the
+// snapshot did not exist yet, or the very first page the user opened ran before
+// the document was created) the store stays null, and a LATER mount — including
+// navigating to the Portfolio manager — MUST be allowed to re-read so a snapshot
+// that now exists becomes the active source. This flag only prevents two reads
+// from overlapping at the same instant.
+let onMountFetchInFlight = false;
 
 // -------------------------------------------------------------
 // Shared fetch core. Reads /api/portfolio/latest-snapshot once and normalises
@@ -181,10 +186,22 @@ async function fetchLatestSnapshot(): Promise<FetchedSnapshot> {
 }
 
 /**
- * On first mount, read the latest Firestore snapshot through the API route and
- * publish it as the single data source for the Portfolio screen. Safe to call
- * from a client page; on any failure it clears the Firestore store so the view
- * falls back to the existing (legacy) localStorage data.
+ * On mount, ensure the latest Firestore snapshot is the active data source for
+ * the Portfolio screen.
+ *
+ * Behaviour:
+ *   - If the store ALREADY holds a snapshot (populated by an earlier mount on
+ *     this SPA session), reuse it — no refetch.
+ *   - Otherwise read /api/portfolio/latest-snapshot. On a `firestore` result the
+ *     snapshot is published as the single source. On `empty`/`error` the store
+ *     stays null so the view falls back to legacy localStorage data — but, since
+ *     we no longer latch, a subsequent mount can re-read and pick up a snapshot
+ *     created in the meantime.
+ *
+ * The store write on success is intentionally NOT gated on this mount's lifetime
+ * (only the local status state is): even if this component unmounts mid-fetch
+ * (fast navigation / React Strict Mode), the shared store is still populated so
+ * every subscribed component re-renders via useSyncExternalStore.
  */
 export function usePortfolioFirestoreSnapshot(): FirestoreSnapshotSyncState {
   const [state, setState] = useState<FirestoreSnapshotSyncState>({
@@ -193,36 +210,43 @@ export function usePortfolioFirestoreSnapshot(): FirestoreSnapshotSyncState {
   });
 
   useEffect(() => {
-    if (attempted) return;
-    attempted = true;
+    // Already have an active Firestore snapshot from an earlier mount/fetch on
+    // this page session -> reuse it as-is (report applied), no refetch.
+    if (firestoreSnapshot !== null) {
+      setState({ status: "applied", snapshotDate: firestoreSnapshotDate });
+      return;
+    }
+    if (onMountFetchInFlight) return;
+    onMountFetchInFlight = true;
 
     let cancelled = false;
     setState({ status: "loading", snapshotDate: null });
 
     (async () => {
-      const result = await fetchLatestSnapshot();
-      if (cancelled) return;
+      try {
+        const result = await fetchLatestSnapshot();
 
-      if (result.kind === "firestore") {
-        // Single source: the Firestore snapshot fully drives the Portfolio
-        // view. We do NOT merge with — or write to — localStorage.
-        setFirestoreSnapshot(result.snapshot, result.snapshotDate);
-        setState({ status: "applied", snapshotDate: result.snapshotDate });
-        return;
+        if (result.kind === "firestore") {
+          // Publish to the shared store regardless of this mount's lifetime so
+          // subscribers (incl. a remounted page) always see the snapshot.
+          setFirestoreSnapshot(result.snapshot, result.snapshotDate);
+          if (!cancelled) {
+            setState({ status: "applied", snapshotDate: result.snapshotDate });
+          }
+          return;
+        }
+
+        // empty / error: leave the store null (legacy fallback). Do NOT latch —
+        // a later mount may re-read once a document exists.
+        if (!cancelled) {
+          setState({
+            status: result.kind === "empty" ? "empty" : "fallback",
+            snapshotDate: null,
+          });
+        }
+      } finally {
+        onMountFetchInFlight = false;
       }
-
-      if (result.kind === "empty") {
-        // No Firestore document -> fall back to legacy localStorage data.
-        setFirestoreSnapshot(null, null);
-        setState({ status: "empty", snapshotDate: null });
-        return;
-      }
-
-      // result.kind === "error": keep/restore legacy data as the fallback and
-      // allow a later retry (e.g. remount).
-      setFirestoreSnapshot(null, null);
-      setState({ status: "fallback", snapshotDate: null });
-      attempted = false;
     })();
 
     return () => {
