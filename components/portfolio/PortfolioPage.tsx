@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import TopNav from "@/components/TopNav";
 import PortfolioCloudSyncStatus from "./PortfolioCloudSyncStatus";
 import PortfolioSyncControl from "./PortfolioSyncControl";
@@ -348,14 +348,46 @@ export default function PortfolioPage() {
   // 상단 스냅샷 컨트롤용 값.
   // 활성(현재) 스냅샷 날짜는 투자현황과 동일하게 portfolioView 기준으로 잡는다.
   const activeSnapshotDate = portfolioView.snapshot?.snapshotDate ?? null;
-  // 드롭다운 항목: 등록된 모든 스냅샷 날짜(최신 우선). 향후 스냅샷이 누적되면
-  // 이 목록만 늘어나고 UI는 그대로 동작한다(확장 가능 구조).
+  // 드롭다운 항목: 등록된 스냅샷 날짜(최신 우선). 하단 히스토리와 동일한 source(`snapshots`)를
+  // 사용해 두 UI가 항상 같은 날짜 집합을 가리키도록 한다. 스냅샷이 누적되면 이 목록만 늘어나고
+  // UI(스크롤/더보기)는 그대로 동작한다(확장 가능 구조, 하드코딩 없음 — 요구사항 10).
+  // 로컬 히스토리가 비어 있고 Firestore 활성 스냅샷만 있는 경우에만 활성 날짜로 폴백한다.
   const snapshotDates = useMemo(() => {
+    if (snapshots.length === 0) {
+      return activeSnapshotDate ? [activeSnapshotDate] : [];
+    }
     const set = new Set<string>();
-    if (activeSnapshotDate) set.add(activeSnapshotDate);
     snapshots.forEach((snapshot) => set.add(snapshot.snapshotDate));
     return Array.from(set).sort((a, b) => (a < b ? 1 : -1));
   }, [activeSnapshotDate, snapshots]);
+
+  // 상단 드롭다운과 하단 히스토리가 공유하는 단일 선택 상태.
+  // - previewSnapshotId === null  → 최신(라이브) 스냅샷 선택 상태.
+  // - previewSnapshotId !== null  → 해당 과거 스냅샷 미리보기 상태.
+  // 두 UI가 항상 동일한 날짜를 가리키도록, 하이라이트/표시값은 모두
+  // "선택된 스냅샷 = previewSnapshot ?? 최신 스냅샷" 기준으로 통일한다.
+  const selectedSnapshotId = previewSnapshotId ?? latestSnapshot?.id ?? null;
+  const selectedSnapshotDate =
+    previewSnapshot?.snapshotDate ?? latestSnapshot?.snapshotDate ?? activeSnapshotDate;
+
+  // 날짜(YYYY-MM-DD) 기반 선택을 공유 상태로 매핑한다.
+  // 최신 스냅샷 날짜를 고르면 라이브(null) 상태로, 그 외에는 미리보기로 전환한다.
+  const handleSelectSnapshotDate = useCallback(
+    (date: string) => {
+      const target = snapshots.find((snapshot) => snapshot.snapshotDate === date);
+      if (!target) return;
+      setPreviewSnapshotId(target.id === latestSnapshot?.id ? null : target.id);
+    },
+    [snapshots, latestSnapshot],
+  );
+
+  // 하단 히스토리에서 행을 선택할 때도 동일한 매핑을 사용해 두 UI를 동기화한다.
+  const handleSelectSnapshot = useCallback(
+    (snapshot: PortfolioSnapshot) => {
+      setPreviewSnapshotId(snapshot.id === latestSnapshot?.id ? null : snapshot.id);
+    },
+    [latestSnapshot],
+  );
 
   // 조치가 필요한 경고(severity: warning)만 노출한다. 투자현황에서 이곳으로 이동한 배너.
   const warningNotices = portfolioView.warnings.filter((w) => w.severity === "warning");
@@ -374,7 +406,8 @@ export default function PortfolioPage() {
         <div className="mb-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-[#273032] dark:bg-[#171d1e]">
           <PortfolioSyncControl
             snapshotDates={snapshotDates}
-            snapshotDate={activeSnapshotDate}
+            snapshotDate={selectedSnapshotDate}
+            onSelectSnapshotDate={handleSelectSnapshotDate}
             theme={theme}
           />
           {warningNotices.length > 0 ? (
@@ -425,8 +458,8 @@ export default function PortfolioPage() {
           <SnapshotHistory
             snapshots={snapshots}
             onDelete={handleDeleteSnapshot}
-            onSelect={(snapshot) => setPreviewSnapshotId(snapshot.id)}
-            selectedSnapshotId={previewSnapshotId}
+            onSelect={handleSelectSnapshot}
+            selectedSnapshotId={selectedSnapshotId}
             loading={authLoading || syncState.status === "syncing"}
           />
         </section>
