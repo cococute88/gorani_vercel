@@ -10,6 +10,7 @@ import {
 } from "@/lib/account-status-group";
 
 import type { PortfolioAccountRow } from "@/lib/portfolio-from-snapshots";
+import { isVisibleAccountCard } from "@/lib/account-card-visibility";
 
 type Props = { theme?: "dark" | "light"; compact?: boolean };
 
@@ -33,6 +34,8 @@ export default function AssetAccountCards({ theme = "light", compact = false }: 
   const dividerCls = isLight ? "border-slate-200" : "border-[#2a3336]";
 
   // 카드를 위탁 / 절세 / 미확인 그룹으로 분류.
+  // 그룹 합계(계좌 합계)는 받은 행 전체 기준으로 계산해 변하지 않게 유지하고,
+  // 카드 렌더링 단계에서만 100만원 미만 계좌를 숨긴다(표시 전용).
   const groups = new Map<AccountStatusGroup, PortfolioAccountRow[]>();
   for (const card of cards) {
     const group = classifyAccountStatusGroup({
@@ -46,7 +49,9 @@ export default function AssetAccountCards({ theme = "light", compact = false }: 
     groups.set(group, list);
   }
 
-  const hasMissingPrincipal = cards.some((card) => card.principal === null);
+  // 100만원 이상으로 실제 카드가 만들어지는 계좌만 모은다(빈 상태/안내문 판정용).
+  const visibleCards = cards.filter(isVisibleAccountCard);
+  const hasMissingPrincipal = visibleCards.some((card) => card.principal === null);
 
   const renderCard = (a: PortfolioAccountRow) => {
     const profitStyle = { color: (a.profit ?? 0) >= 0 ? "#e5484d" : "#3b82f6" };
@@ -96,6 +101,10 @@ export default function AssetAccountCards({ theme = "light", compact = false }: 
   const renderGroup = (group: AccountStatusGroup) => {
     const list = groups.get(group);
     if (!list || list.length === 0) return null;
+    // 100만원 미만 계좌는 카드를 만들지 않는다(표시 전용 필터, 계좌 그룹핑 이후 단계).
+    const visible = list.filter(isVisibleAccountCard);
+    if (visible.length === 0) return null;
+    // 계좌 합계(평가/수익)는 받은 행 전체(소액 포함) 기준 — 숨김으로 합계가 바뀌지 않게 유지한다.
     const totalValue = list.reduce((sum, a) => sum + a.value, 0);
     const totalProfit = list.reduce((sum, a) => sum + (a.profit ?? 0), 0);
     const profitStyle = { color: totalProfit >= 0 ? "#e5484d" : "#3b82f6" };
@@ -106,7 +115,7 @@ export default function AssetAccountCards({ theme = "light", compact = false }: 
           <h3 className={`text-[14px] font-bold ${sectionTitleCls}`}>
             {ACCOUNT_STATUS_GROUP_LABEL[group]}
             <span className={`ml-2 text-[11.5px] font-medium ${sectionSubCls}`}>
-              {list.length}개 계좌
+              {visible.length}개 계좌
             </span>
           </h3>
           <div className="flex items-baseline gap-2">
@@ -125,7 +134,7 @@ export default function AssetAccountCards({ theme = "light", compact = false }: 
               : "grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
           }
         >
-          {list.map(renderCard)}
+          {visible.map(renderCard)}
         </div>
       </section>
     );
@@ -133,7 +142,7 @@ export default function AssetAccountCards({ theme = "light", compact = false }: 
 
   return (
     <div className="flex flex-col gap-5">
-      {cards.length > 0 ? (
+      {visibleCards.length > 0 ? (
         <>
           {hasMissingPrincipal ? (
             <div className={`rounded-xl border px-3 py-2 text-[12px] leading-relaxed ${hintCls}`}>
