@@ -7,7 +7,6 @@ import AssetAllocationDonut from "@/components/portfolio/AssetAllocationDonut";
 import AssetAccountCards from "@/components/AssetAccountCards";
 import AssetClassDonut from "@/components/portfolio/AssetClassDonut";
 import PortfolioMarketIndicatorStrip from "@/components/portfolio/PortfolioMarketIndicatorStrip";
-import PortfolioSyncControl from "@/components/portfolio/PortfolioSyncControl";
 import { usePortfolioView } from "@/lib/use-portfolio-view";
 import { usePortfolioFirestoreSnapshot } from "@/lib/portfolio-firestore-snapshot-sync";
 import { buildAssetClassAllocation } from "@/lib/asset-class-allocation";
@@ -29,16 +28,12 @@ export default function PortfolioPage() {
     [portfolioView.mappedHoldings, portfolioView.snapshot],
   );
 
-  // 조치가 필요한 경고(severity: warning)만 화면에 남긴다. 단순 안내(info)와
-  // 평상시 경고 카운트는 상단을 어지럽히므로 제거하고, 남은 경고도 기본은
-  // 접힌(<details>) 형태로 두어 화면을 넓게 유지한다.
-  const warningNotices = portfolioView.warnings.filter((w) => w.severity === "warning");
-
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#f8fafc] text-slate-800 dark:bg-[#111516] dark:text-slate-200">
       <TopNav theme={theme} />
       <main className="mx-auto min-w-0 max-w-[1640px] overflow-x-hidden px-4 py-6 sm:px-6 lg:px-8">
-        {/* 제목줄: 제목 + 스냅샷 기준일 + 최근 동기화/최신화. 상단 마켓 strip / 계좌·종목 카운트 / 비동작 버튼은 제거했다. */}
+        {/* 제목줄: 제목 + 스냅샷 기준일. 데이터 관리(최근 동기화/최신화/확인이 필요한 항목)는
+            포트폴리오 관리 페이지로 이동했다. 투자현황은 조회 화면으로 유지한다. */}
         <div className="mb-4 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5">
           <h1 className="text-[20px] font-extrabold text-slate-900 dark:text-white">
             포트폴리오 현황
@@ -48,13 +43,6 @@ export default function PortfolioPage() {
               ? `${portfolioView.snapshot.snapshotDate} 스냅샷 기준`
               : "저장된 스냅샷 없음"}
           </span>
-          {/* 최근 동기화 날짜 + 수동 최신화 버튼 (자동 폴링 없음). 우측 정렬. */}
-          <div className="ml-auto">
-            <PortfolioSyncControl
-              snapshotDate={portfolioView.snapshot?.snapshotDate ?? null}
-              theme={theme}
-            />
-          </div>
         </div>
 
         {/* 상단 compact 시장지표 strip: /api/market live briefing 재사용 (mock 미사용) */}
@@ -64,19 +52,6 @@ export default function PortfolioPage() {
           <div className="mb-4 rounded-xl border border-amber-300/60 bg-amber-50 px-4 py-2.5 text-[12.5px] leading-relaxed text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-100">
             아직 등록된 스냅샷이 없습니다. 포트폴리오 관리에서 엑셀을 등록하면 자산 구성과 보유종목이 여기에 표시됩니다.
           </div>
-        ) : null}
-
-        {warningNotices.length > 0 ? (
-          <details className="mb-4 rounded-xl border border-amber-300/50 bg-amber-50/70 px-4 py-2 text-[12px] text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/[0.07] dark:text-amber-100">
-            <summary className="cursor-pointer list-none font-semibold marker:content-['']">
-              확인이 필요한 항목 {warningNotices.length}건
-            </summary>
-            <ul className="mt-2 space-y-1">
-              {warningNotices.slice(0, 4).map((warning) => (
-                <li key={warning.code}>· {warning.message}</li>
-              ))}
-            </ul>
-          </details>
         ) : null}
 
         {/* 요약 영역 */}

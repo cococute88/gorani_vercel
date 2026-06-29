@@ -3,12 +3,15 @@
 import { useEffect, useMemo, useState } from "react";
 import TopNav from "@/components/TopNav";
 import PortfolioCloudSyncStatus from "./PortfolioCloudSyncStatus";
+import PortfolioSyncControl from "./PortfolioSyncControl";
 import {
   usePortfolioSnapshots,
   saveSnapshot,
   deleteSnapshot,
   hasSnapshotDate,
 } from "@/lib/portfolio-store";
+import { usePortfolioView } from "@/lib/use-portfolio-view";
+import { usePortfolioFirestoreSnapshot } from "@/lib/portfolio-firestore-snapshot-sync";
 import { useFirebaseAuth } from "@/lib/firebase/auth";
 import { deletePortfolioSnapshot, savePortfolioSnapshot, warnFirestoreFallback } from "@/lib/firebase/firestore-repositories";
 import { parseBanksaladFile } from "@/lib/banksalad-parser";
@@ -102,6 +105,12 @@ export default function PortfolioPage() {
   const snapshots = usePortfolioSnapshots();
   const { user, loading: authLoading, configured } = useFirebaseAuth();
   const syncState = usePortfolioCloudSync();
+
+  // 포트폴리오 관리 상단의 "현재 스냅샷 / 최신화 / 확인이 필요한 항목"용 데이터 공급원.
+  // 투자현황 페이지와 동일하게 Firestore 최신 스냅샷을 활성 데이터로 사용한다.
+  // (스냅샷 없음/오류 시 기존 로컬 데이터로 자동 fallback. 계산/뷰모델은 변경하지 않는다.)
+  usePortfolioFirestoreSnapshot();
+  const portfolioView = usePortfolioView();
 
   const [files, setFiles] = useState<File[]>([]);
   const [parsing, setParsing] = useState(false);
@@ -336,6 +345,21 @@ export default function PortfolioPage() {
       ? holdings
       : latestSnapshot?.holdings ?? [];
 
+  // 상단 스냅샷 컨트롤용 값.
+  // 활성(현재) 스냅샷 날짜는 투자현황과 동일하게 portfolioView 기준으로 잡는다.
+  const activeSnapshotDate = portfolioView.snapshot?.snapshotDate ?? null;
+  // 드롭다운 항목: 등록된 모든 스냅샷 날짜(최신 우선). 향후 스냅샷이 누적되면
+  // 이 목록만 늘어나고 UI는 그대로 동작한다(확장 가능 구조).
+  const snapshotDates = useMemo(() => {
+    const set = new Set<string>();
+    if (activeSnapshotDate) set.add(activeSnapshotDate);
+    snapshots.forEach((snapshot) => set.add(snapshot.snapshotDate));
+    return Array.from(set).sort((a, b) => (a < b ? 1 : -1));
+  }, [activeSnapshotDate, snapshots]);
+
+  // 조치가 필요한 경고(severity: warning)만 노출한다. 투자현황에서 이곳으로 이동한 배너.
+  const warningNotices = portfolioView.warnings.filter((w) => w.severity === "warning");
+
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#f8fafc] text-slate-800 dark:bg-[#111516] dark:text-slate-200">
       <TopNav theme={theme} />
@@ -344,6 +368,29 @@ export default function PortfolioPage() {
           <h1 className="text-[20px] font-extrabold text-slate-900 dark:text-white">포트폴리오 관리</h1>
           <PortfolioCloudSyncStatus />
         </div>
+
+        {/* 데이터 관리 영역: 현재 스냅샷 선택 + 최신화 + 확인이 필요한 항목.
+            (투자현황 페이지에서 이곳으로 이동 — 조회/관리 역할 분리) */}
+        <div className="mb-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-[#273032] dark:bg-[#171d1e]">
+          <PortfolioSyncControl
+            snapshotDates={snapshotDates}
+            snapshotDate={activeSnapshotDate}
+            theme={theme}
+          />
+          {warningNotices.length > 0 ? (
+            <details className="mt-3 rounded-xl border border-amber-300/50 bg-amber-50/70 px-4 py-2 text-[12px] text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/[0.07] dark:text-amber-100">
+              <summary className="cursor-pointer list-none font-semibold marker:content-['']">
+                확인이 필요한 항목 {warningNotices.length}건
+              </summary>
+              <ul className="mt-2 space-y-1">
+                {warningNotices.slice(0, 4).map((warning) => (
+                  <li key={warning.code}>· {warning.message}</li>
+                ))}
+              </ul>
+            </details>
+          ) : null}
+        </div>
+
         {portfolioNotice && (
           <p className="mb-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-[13px] text-slate-500 dark:border-[#273032] dark:bg-[#171d1e] dark:text-slate-400">
             {portfolioNotice}

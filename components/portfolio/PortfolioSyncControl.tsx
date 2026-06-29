@@ -1,15 +1,28 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Loader2, RefreshCw } from "lucide-react";
+import { Check, ChevronDown, Loader2, RefreshCw } from "lucide-react";
 import {
   usePortfolioRefresh,
   type PortfolioRefreshOutcome,
 } from "@/lib/portfolio-firestore-snapshot-sync";
 
 type Props = {
+  /**
+   * All snapshot dates available for selection (YYYY-MM-DD), newest first.
+   * Today there is typically a single date, but the dropdown is intentionally
+   * built to scale: as more Firestore snapshots accumulate, callers only need
+   * to feed a longer list here — no UI change required.
+   */
+  snapshotDates?: string[];
   /** Active snapshot date currently driving the Portfolio screen (YYYY-MM-DD). */
   snapshotDate: string | null;
+  /**
+   * Optional handler invoked when the user picks a different snapshot date.
+   * Selection wiring is not required yet (only one snapshot exists today); the
+   * dropdown keeps its own selected state so the UI is ready for the future.
+   */
+  onSelectSnapshotDate?: (date: string) => void;
   theme?: "dark" | "light";
 };
 
@@ -40,13 +53,55 @@ function messageToneClass(tone: Tone, isLight: boolean): string {
   return isLight ? "text-slate-500" : "text-slate-400";
 }
 
-// 포트폴리오 상단 "최근 동기화" 표시 + 수동 "최신화" 버튼.
+// 포트폴리오 관리 상단 "현재 스냅샷" 선택 드롭다운 + 수동 "최신화" 버튼.
 // 자동 폴링 없이 사용자가 버튼을 눌렀을 때만 Firestore 최신 스냅샷을 다시 조회한다.
-export default function PortfolioSyncControl({ snapshotDate, theme = "light" }: Props) {
+export default function PortfolioSyncControl({
+  snapshotDates,
+  snapshotDate,
+  onSelectSnapshotDate,
+  theme = "light",
+}: Props) {
   const isLight = theme === "light";
   const { isRefreshing, refresh } = usePortfolioRefresh();
   const [message, setMessage] = useState<ResultMessage | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Dropdown options: always include the active date so the control renders a
+  // valid selection even before any history list is supplied.
+  const options = (() => {
+    const list = snapshotDates && snapshotDates.length > 0 ? [...snapshotDates] : [];
+    if (snapshotDate && !list.includes(snapshotDate)) list.unshift(snapshotDate);
+    return list;
+  })();
+
+  // Locally tracked selection. Defaults to the active snapshot date and follows
+  // it whenever the active snapshot changes (e.g. after a successful 최신화).
+  const [selectedDate, setSelectedDate] = useState<string | null>(snapshotDate);
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    setSelectedDate(snapshotDate);
+  }, [snapshotDate]);
+
+  // Close the dropdown on outside click / Escape.
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
 
   const clearTimer = useCallback(() => {
     if (timerRef.current) {
@@ -56,6 +111,15 @@ export default function PortfolioSyncControl({ snapshotDate, theme = "light" }: 
   }, []);
 
   useEffect(() => clearTimer, [clearTimer]);
+
+  const handleSelect = useCallback(
+    (date: string) => {
+      setSelectedDate(date);
+      setOpen(false);
+      onSelectSnapshotDate?.(date);
+    },
+    [onSelectSnapshotDate],
+  );
 
   const handleClick = useCallback(async () => {
     if (isRefreshing) return; // double-click guard (UI side; hook guards too)
@@ -72,19 +136,73 @@ export default function PortfolioSyncControl({ snapshotDate, theme = "light" }: 
   }, [isRefreshing, refresh, clearTimer]);
 
   const labelCls = isLight ? "text-slate-400" : "text-slate-500";
-  const dateCls = isLight ? "text-slate-600" : "text-slate-300";
+
+  const triggerCls = isLight
+    ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+    : "border-[#2a3336] bg-white/[0.04] text-slate-200 hover:bg-white/[0.08]";
+
+  const menuCls = isLight
+    ? "border-slate-200 bg-white text-slate-700 shadow-lg"
+    : "border-[#2a3336] bg-[#171d1e] text-slate-200 shadow-2xl";
+
+  const optionHoverCls = isLight ? "hover:bg-slate-100" : "hover:bg-white/[0.06]";
 
   const buttonCls = isLight
     ? "border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-800"
     : "border-[#2a3336] bg-white/[0.04] text-slate-300 hover:bg-white/[0.08] hover:text-white";
 
+  const displayDate = selectedDate ?? snapshotDate;
+
   return (
     <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5">
-      <div className="inline-flex items-center gap-1.5 text-[12px]">
-        <span className={labelCls}>최근 동기화</span>
-        <span className={`num font-semibold tabular-nums ${dateCls}`}>
-          {snapshotDate ?? "—"}
-        </span>
+      {/* 현재 스냅샷 + 확장형 드롭다운 (스냅샷이 1개여도 드롭다운 UI 유지) */}
+      <div className="inline-flex items-center gap-2 text-[12px]">
+        <span className={labelCls}>현재 스냅샷</span>
+        <div ref={menuRef} className="relative">
+          <button
+            type="button"
+            onClick={() => setOpen((prev) => !prev)}
+            aria-haspopup="listbox"
+            aria-expanded={open}
+            disabled={options.length === 0}
+            className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[12px] font-semibold tabular-nums transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${triggerCls}`}
+          >
+            <span className="num">{displayDate ?? "—"}</span>
+            <ChevronDown
+              size={14}
+              strokeWidth={2.2}
+              aria-hidden
+              className={`transition-transform ${open ? "rotate-180" : ""}`}
+            />
+          </button>
+
+          {open && options.length > 0 ? (
+            <div
+              role="listbox"
+              aria-label="스냅샷 선택"
+              className={`absolute left-0 z-30 mt-1 max-h-64 min-w-[9.5rem] overflow-auto rounded-lg border py-1 ${menuCls}`}
+            >
+              {options.map((date) => {
+                const active = date === displayDate;
+                return (
+                  <button
+                    key={date}
+                    type="button"
+                    role="option"
+                    aria-selected={active}
+                    onClick={() => handleSelect(date)}
+                    className={`flex w-full items-center justify-between gap-3 px-3 py-1.5 text-left text-[12px] font-medium tabular-nums transition-colors ${optionHoverCls}`}
+                  >
+                    <span className="num">{date}</span>
+                    {active ? (
+                      <Check size={13} strokeWidth={2.4} aria-hidden className="text-blue-500" />
+                    ) : null}
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
+        </div>
       </div>
 
       <button
