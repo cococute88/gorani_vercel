@@ -9,6 +9,7 @@ import { formatCompactKrw } from "@/lib/format";
 import type { Slice } from "@/lib/mockData";
 import { latestOf, usePortfolioSnapshots } from "@/lib/portfolio-store";
 import { filterAggregateHoldings } from "@/lib/portfolio-summary-row";
+import type { Holding } from "@/lib/portfolio-types";
 import { SECTOR_ALLOCATION, SECTOR_FILTERS } from "@/lib/mockData";
 import { useResolvedTheme } from "@/components/theme/ThemeProvider";
 
@@ -35,16 +36,25 @@ interface Props {
   // 좌측 컬럼(섹터 비중 도넛) 하단에 상하로 배치할 "자산군 비중" 도넛 카드.
   // 페이지에서 데이터/계산 로직을 그대로 유지한 채 이 위치로 이동 렌더링한다.
   assetClassDonut?: ReactNode;
+  // 현재 활성/선택 스냅샷의 보유종목. 주면 ETF 투시(섹터 비중/유효 보유)가 이 단일
+  // 소스를 따른다(스냅샷 선택 시 모든 차트가 동일 스냅샷 사용). 없으면 기존처럼
+  // localStorage 최신 스냅샷으로 폴백한다.
+  holdings?: Holding[];
 }
 
 // 포트폴리오 관리 하단의 자산 맵 / ETF 투시 섹션.
-export default function AssetMapSection({ assetClassDonut }: Props) {
+export default function AssetMapSection({ assetClassDonut, holdings }: Props) {
   const theme = useResolvedTheme();
   const snapshots = usePortfolioSnapshots();
   const latestSnapshot = useMemo(() => latestOf(snapshots), [snapshots]);
   const portfolioHoldings = useMemo(
-    () => filterAggregateHoldings(latestSnapshot?.holdings ?? []),
-    [latestSnapshot],
+    () =>
+      // 활성/선택 스냅샷 보유종목이 주어지면 그것을 단일 소스로(localStorage 전용 분기 제거),
+      // 없을 때만 localStorage 최신 스냅샷으로 폴백한다.
+      holdings !== undefined
+        ? filterAggregateHoldings(holdings)
+        : filterAggregateHoldings(latestSnapshot?.holdings ?? []),
+    [holdings, latestSnapshot],
   );
   const exposure = useMemo(
     () =>

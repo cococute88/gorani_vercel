@@ -9,6 +9,9 @@ type Props = {
   theme?: "dark" | "light";
   title?: string;
   emptyMessage?: string;
+  // 권위 총자산(total_assets_krw). 주면 도넛 중앙 "총 평가금액" 을 이 값으로 고정한다
+  // (자가합산 금지). 100만원 미만 숨김분이 있어도 중앙 총자산은 권위 총자산과 일치한다.
+  totalOverrideKRW?: number | null;
 };
 
 function returnLabel(returnPct: number | null): string {
@@ -25,6 +28,7 @@ export default function AssetClassDonut({
   theme = "light",
   title = "자산군 비중",
   emptyMessage = "평가금액이 있는 자산이 없어 자산군 도넛을 표시할 수 없습니다.",
+  totalOverrideKRW,
 }: Props) {
   const isLight = theme === "light";
   const cardCls = isLight
@@ -34,8 +38,13 @@ export default function AssetClassDonut({
   const nameCls = isLight ? "text-slate-700" : "text-slate-200";
   const weakCls = isLight ? "text-slate-500" : "text-slate-400";
 
-  const total = slices.reduce((sum, slice) => sum + slice.valueKRW, 0);
-  const hasData = total > 0;
+  const sliceTotal = slices.reduce((sum, slice) => sum + slice.valueKRW, 0);
+  // 중앙 총 평가금액: 권위 총자산이 주어지면 그 값(단일 기준), 아니면 Σ 슬라이스(폴백).
+  const total =
+    typeof totalOverrideKRW === "number" && Number.isFinite(totalOverrideKRW) && totalOverrideKRW > 0
+      ? totalOverrideKRW
+      : sliceTotal;
+  const hasData = sliceTotal > 0;
 
   return (
     <div className={`box-border min-h-[300px] w-full min-w-0 max-w-full overflow-hidden rounded-2xl border p-4 ${cardCls}`}>

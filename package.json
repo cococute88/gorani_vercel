@@ -44,6 +44,7 @@
     "check:portfolio-totals-reconcile": "node scripts/check-portfolio-totals-reconcile.mjs",
     "check:portfolio-total-consistency": "node scripts/check-portfolio-total-consistency.mjs",
     "check:portfolio-total-anchor-consistency": "node scripts/check-portfolio-total-anchor-consistency.mjs",
+    "check:portfolio-total-single-basis": "node scripts/check-portfolio-total-single-basis.mjs",
     "check:performance-donut-ranking": "node scripts/check-performance-donut-ranking.mjs",
     "check:asset-class-donut-labels": "node scripts/check-asset-class-donut-labels.mjs",
     "check:market-data-real": "node scripts/check-market-data-real.mjs",
