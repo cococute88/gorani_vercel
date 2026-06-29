@@ -36,6 +36,7 @@
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { PortfolioSnapshot } from "./portfolio-types";
+import { isSnapshotDateDeleted } from "./portfolio-snapshot-deletions";
 
 const ENDPOINT = "/api/portfolio/latest-snapshot";
 
@@ -91,6 +92,30 @@ function setFirestoreSnapshot(
   firestoreSnapshotDate = snapshotDate;
   emit();
   return true;
+}
+
+/**
+ * 활성 Firestore 오버레이 스냅샷이 삭제 대상과 일치하면 store 를 비운다(`null`).
+ *
+ * 히스토리의 휴지통은 localStorage 스냅샷만 지우던 기존 handleDeleteSnapshot 으로는
+ * 이 전용 store 에 들어 있는 오버레이(최신/단일 소스) 스냅샷을 절대 제거하지 못해
+ * "클릭해도 아무 일도 일어나지 않는" 증상을 만들었다. 이 함수가 store 를 비우면
+ * 구독 중인 모든 컴포넌트가 useSyncExternalStore 로 즉시 재렌더되어, 새로고침 없이
+ * 해당 행이 사라지고 상단 카드(총자산/보유종목)는 localStorage 로 폴백한다.
+ *
+ * id(오버레이는 id === snapshotDate) 또는 snapshotDate 중 하나라도 일치하면 비운다.
+ * 실제로 store 가 바뀐 경우에만 `true` 를 반환한다.
+ */
+export function removeActiveFirestoreSnapshot(target: {
+  id?: string | null;
+  snapshotDate?: string | null;
+}): boolean {
+  if (firestoreSnapshot === null) return false;
+  const matchesId = target.id != null && firestoreSnapshot.id === target.id;
+  const matchesDate =
+    target.snapshotDate != null && firestoreSnapshotDate === target.snapshotDate;
+  if (!matchesId && !matchesDate) return false;
+  return setFirestoreSnapshot(null, null);
 }
 
 function subscribe(callback: () => void): () => void {
@@ -172,6 +197,14 @@ async function fetchLatestSnapshot(): Promise<FetchedSnapshot> {
 
     const body = (await res.json()) as LatestSnapshotResponse;
     if (body.source === "firestore" && body.snapshot) {
+      // 삭제 묘비 적용: 사용자가 히스토리에서 지운 날짜라면, 읽기 전용 파이프라인
+      // 컬렉션(`portfolio_snapshots`)에서 같은 스냅샷이 다시 내려와도 게시하지 않는다.
+      // 이렇게 해야 새로고침/재진입 후에도 삭제 상태가 유지된다(읽기 전용이라 원본
+      // 문서를 클라이언트가 지울 수 없으므로 게시 단계에서 차단). store 는 null 로
+      // 남아 화면은 localStorage 데이터로 폴백한다 — "empty" 와 동일하게 처리.
+      if (isSnapshotDateDeleted(body.snapshotDate)) {
+        return { kind: "empty" };
+      }
       return {
         kind: "firestore",
         snapshotDate: body.snapshotDate,

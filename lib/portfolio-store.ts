@@ -149,6 +149,21 @@ export function deleteSnapshot(id: string): void {
   write(read().filter((s) => s.id !== id));
 }
 
+/**
+ * id 또는 동일 snapshotDate 에 해당하는 localStorage 스냅샷을 한 번의 write 로 모두 삭제한다.
+ *
+ * 히스토리 목록(mergedSnapshots)은 동일 날짜일 때 Firestore 오버레이 스냅샷을 우선해
+ * 그 id(=날짜)를 표시한다(mergePortfolioSnapshots 의 날짜 기준 중복 제거). 그래서 행에서
+ * 넘어온 id 가 localStorage 의 실제 id(`snap-...`)와 다를 수 있다. id 매칭만으로는 해당
+ * 날짜의 localStorage 스냅샷이 남아 삭제가 "동작하지 않는" 문제가 생기므로, 날짜로도 함께
+ * 제거해 어떤 행을 눌러도 같은 날짜의 로컬 스냅샷이 확실히 사라지게 한다.
+ */
+export function deleteSnapshotByIdOrDate(id: string, snapshotDate?: string | null): void {
+  write(
+    read().filter((s) => s.id !== id && (!snapshotDate || s.snapshotDate !== snapshotDate)),
+  );
+}
+
 /** Firestore 등 외부 저장소에서 읽은 스냅샷으로 현재 캐시를 교체한다. */
 export function replaceSnapshots(snapshots: PortfolioSnapshot[]): void {
   write(sanitizeSnapshots(snapshots));

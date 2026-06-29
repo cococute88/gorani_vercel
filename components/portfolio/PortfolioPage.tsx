@@ -7,7 +7,7 @@ import PortfolioSyncControl from "./PortfolioSyncControl";
 import {
   usePortfolioSnapshots,
   saveSnapshot,
-  deleteSnapshot,
+  deleteSnapshotByIdOrDate,
   hasSnapshotDate,
   mergePortfolioSnapshots,
 } from "@/lib/portfolio-store";
@@ -15,7 +15,13 @@ import { usePortfolioView } from "@/lib/use-portfolio-view";
 import {
   usePortfolioFirestoreSnapshot,
   usePortfolioFirestoreSnapshotData,
+  removeActiveFirestoreSnapshot,
 } from "@/lib/portfolio-firestore-snapshot-sync";
+import {
+  markSnapshotDateDeleted,
+  unmarkSnapshotDateDeleted,
+  useDeletedSnapshotDates,
+} from "@/lib/portfolio-snapshot-deletions";
 import { useFirebaseAuth } from "@/lib/firebase/auth";
 import { deletePortfolioSnapshot, savePortfolioSnapshot, warnFirestoreFallback } from "@/lib/firebase/firestore-repositories";
 import { parseBanksaladFile } from "@/lib/banksalad-parser";
@@ -116,9 +122,13 @@ export default function PortfolioPage() {
   // (스냅샷 없음/오류 시 기존 로컬 데이터로 자동 fallback. 계산/뷰모델은 변경하지 않는다.)
   usePortfolioFirestoreSnapshot();
   const portfolioView = usePortfolioView();
-  // 현재 화면을 구동하는 "활성" Firestore 스냅샷 객체(없으면 null → 로컬로 폴백).
+  // 활성 Firestore 스냅샷 객체(없으면 null → 로컬로 폴백).
   // 투자현황 화면이 보는 것과 동일한 소스다(usePortfolioView 도 이 값을 읽는다).
   const firestoreSnapshot = usePortfolioFirestoreSnapshotData();
+
+  // 사용자가 히스토리에서 삭제한 스냅샷 날짜(영구 묘비). mergedSnapshots 에서 제외해
+  // 어떤 소스(localStorage/계약/오버레이)에서 다시 올라오더라도 삭제 상태를 유지한다.
+  const deletedSnapshotDates = useDeletedSnapshotDates();
 
   // 드롭다운 / 히스토리 / 미리보기가 모두 "현재 활성 스냅샷"과 같은 소스를 보도록,
   // 활성 Firestore 스냅샷을 localStorage 스냅샷과 하나의 목록으로 통합한다.
@@ -132,8 +142,14 @@ export default function PortfolioPage() {
     const merged = firestoreSnapshot
       ? mergePortfolioSnapshots(snapshots, [firestoreSnapshot])
       : snapshots;
-    return [...merged].sort((a, b) => (a.snapshotDate < b.snapshotDate ? 1 : -1));
-  }, [firestoreSnapshot, snapshots]);
+    // 삭제 묘비 적용: 사용자가 지운 날짜는 어떤 소스에서 다시 올라와도 목록에서 제외한다.
+    // (계약 어댑터의 replaceSnapshots 재동기화 등 읽기 전용 소스에서의 재유입까지 방어)
+    const withoutDeleted =
+      deletedSnapshotDates.size === 0
+        ? merged
+        : merged.filter((snapshot) => !deletedSnapshotDates.has(snapshot.snapshotDate));
+    return [...withoutDeleted].sort((a, b) => (a.snapshotDate < b.snapshotDate ? 1 : -1));
+  }, [firestoreSnapshot, snapshots, deletedSnapshotDates]);
 
   const [files, setFiles] = useState<File[]>([]);
   const [parsing, setParsing] = useState(false);
@@ -232,6 +248,8 @@ export default function PortfolioPage() {
       if (!ok) return;
     }
     saveSnapshot(snap);
+    // 같은 날짜를 다시 등록하면 이전 삭제 묘비를 해제해 목록에 정상적으로 다시 보이게 한다.
+    unmarkSnapshotDateDeleted(snap.snapshotDate);
     if (user && !USE_FIRESTORE_CONTRACT) {
       try {
         await savePortfolioSnapshot(user.uid, snap);
@@ -244,11 +262,46 @@ export default function PortfolioPage() {
   };
 
   const handleDeleteSnapshot = async (id: string) => {
-    if (previewSnapshotId === id) setPreviewSnapshotId(null);
-    deleteSnapshot(id);
-    if (user && !USE_FIRESTORE_CONTRACT) {
+    // 1) 삭제 대상 행을 통합 목록에서 찾아 날짜와 동일 날짜의 localStorage 원본 id 를 확보한다.
+    //    (병합 목록은 동일 날짜일 때 Firestore 오버레이의 id(=날짜)를 표시할 수 있어,
+    //     넘어온 id 가 localStorage 의 실제 id(`snap-...`)와 다를 수 있으므로 날짜가 필요하다.)
+    const target = mergedSnapshots.find((snapshot) => snapshot.id === id) ?? null;
+    const snapshotDate = target?.snapshotDate ?? null;
+    const localTwins = snapshots.filter(
+      (snapshot) => snapshot.id === id || (snapshotDate != null && snapshot.snapshotDate === snapshotDate),
+    );
+
+    // 2) 삭제 대상이 현재 미리보기 중이면 미리보기를 닫는다(id 또는 날짜 기준).
+    const previewedDate = previewSnapshotId
+      ? mergedSnapshots.find((snapshot) => snapshot.id === previewSnapshotId)?.snapshotDate ?? null
+      : null;
+    if (
+      previewSnapshotId === id ||
+      (snapshotDate != null && previewedDate === snapshotDate)
+    ) {
+      setPreviewSnapshotId(null);
+    }
+
+    // 3) 영구 묘비에 날짜를 기록 → 새로고침/재진입 후에도(읽기 전용 오버레이·계약 재유입 포함) 삭제 유지.
+    if (snapshotDate != null) markSnapshotDateDeleted(snapshotDate);
+
+    // 4) localStorage 스냅샷을 id 와 날짜 양쪽으로 제거(즉시 목록 갱신).
+    deleteSnapshotByIdOrDate(id, snapshotDate);
+
+    // 5) 활성 Firestore 오버레이 스냅샷이 이 행이면 전용 store 를 비워 즉시 UI 갱신
+    //    (상단 총자산/보유종목 카드는 localStorage 로 폴백). ← "클릭해도 무반응" 핵심 해결.
+    removeActiveFirestoreSnapshot({ id, snapshotDate });
+
+    // 6) 클라우드(쓰기 가능 컬렉션 users/{uid}/portfolioSnapshots)에서도 실제 삭제.
+    //    기존에는 `!USE_FIRESTORE_CONTRACT` 게이트로 막혀 새로고침 후 재유입되었다.
+    //    로그인 상태면 항상 시도한다(계약 모드에서는 해당 컬렉션이 비어 무해한 no-op).
+    //    오버레이 행은 넘어온 id 가 날짜일 수 있으므로 localStorage 원본 id 들도 함께 지운다.
+    if (user) {
+      const idsToDelete = new Set<string>([id, ...localTwins.map((snapshot) => snapshot.id)]);
       try {
-        await deletePortfolioSnapshot(user.uid, id);
+        await Promise.all(
+          Array.from(idsToDelete).map((snapshotId) => deletePortfolioSnapshot(user.uid, snapshotId)),
+        );
         // Firestore 삭제 성공도 클라우드 반영(동기화)이므로 시각을 갱신한다.
         markPortfolioCloudSyncNow();
       } catch (err) {
