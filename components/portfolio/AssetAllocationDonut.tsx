@@ -15,6 +15,9 @@ interface Props {
   includeFinanceAssets?: boolean;
   className?: string;
   size?: number;
+  // 스냅샷 권위 현금 합계(total_cash_krw). 주면 키워드를 빠져나간 투자 계좌 잔액을
+  // 이 한도로 reconcile 해 도넛 총자산이 단일 기준(권위 총자산)과 일치한다.
+  authoritativeCashKRW?: number | null;
 }
 
 // 기존 Streamlit 스타일 자산군 도넛 그래프.
@@ -29,14 +32,15 @@ export default function AssetAllocationDonut({
   includeFinanceAssets = true,
   className = "h-full",
   size,
+  authoritativeCashKRW,
 }: Props) {
   const { slices, totalKRW } = useMemo(
     () =>
       buildAssetAllocationFromSnapshotLike(
         { holdings, financeAssets },
-        { includeFinanceAssets },
+        { includeFinanceAssets, authoritativeCashKRW },
       ),
-    [holdings, financeAssets, includeFinanceAssets],
+    [holdings, financeAssets, includeFinanceAssets, authoritativeCashKRW],
   );
 
   return (

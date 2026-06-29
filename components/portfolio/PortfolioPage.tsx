@@ -354,11 +354,21 @@ export default function PortfolioPage() {
     [mergedSnapshots],
   );
 
-  // 상단 3-카드 도넛 기준: 파싱 preview 우선 → 없으면 최신 스냅샷 → 없으면 empty.
-  const donutHoldings = result ? holdings : latestSnapshot?.holdings ?? [];
-  const donutFinanceAssets = result
-    ? result.financeAssets ?? []
-    : latestSnapshot?.financeAssets ?? [];
+  // 상단 3-카드 도넛 기준: 스냅샷 미리보기 > 파싱 preview > 최신 스냅샷 > empty.
+  // (요구사항 4: 선택된 스냅샷이 모든 차트의 유일한 데이터 소스 — 자산맵 도넛도 미리보기를 따른다.)
+  const donutSnapshot = previewSnapshot ?? (result ? null : latestSnapshot);
+  const donutHoldings = previewSnapshot
+    ? displayedHoldings
+    : result
+      ? holdings
+      : latestSnapshot?.holdings ?? [];
+  const donutFinanceAssets = previewSnapshot
+    ? previewSnapshot.financeAssets ?? []
+    : result
+      ? result.financeAssets ?? []
+      : latestSnapshot?.financeAssets ?? [];
+  // 권위 현금 합계(있으면)로 자산군 도넛 총자산을 단일 기준에 reconcile 한다.
+  const donutAuthoritativeCashKRW = donutSnapshot?.authoritativeTotals?.totalCashKRW ?? null;
   const donutEmptyMessage = result
     ? "평가금액이 있는 항목이 없어 자산군 비중을 표시할 수 없습니다."
     : "엑셀을 업로드하면 자산군 비중이 표시됩니다.";
@@ -477,6 +487,7 @@ export default function PortfolioPage() {
                   theme="dark"
                   title={`자산군 비중 · ${previewSnapshot.snapshotDate} 기준`}
                   emptyMessage="이 스냅샷에는 표시할 자산군 비중이 없습니다."
+                  authoritativeCashKRW={previewSnapshot.authoritativeTotals?.totalCashKRW ?? null}
                 />
               </div>
               <div className="w-full min-w-0">
@@ -503,13 +514,15 @@ export default function PortfolioPage() {
             />
           </div>
           <div className="min-w-0">
-            <PortfolioAssetTrendChart snapshots={snapshots} />
+            <PortfolioAssetTrendChart snapshots={mergedSnapshots} />
           </div>
         </section>
 
-        {/* 2년 역산 성과 분석 — 선택된(없으면 최신) 스냅샷 비중 기준 역산. */}
+        {/* 2년 역산 성과 분석 — 선택된(없으면 최신) 스냅샷 비중 기준 역산.
+            드롭다운/히스토리와 동일한 통합 목록(mergedSnapshots)을 사용해 현재 활성
+            Firestore 스냅샷을 단일 소스로 따른다 (localStorage 전용 목록 혼입 제거). */}
         <SnapshotBacktestSection
-          snapshots={snapshots}
+          snapshots={mergedSnapshots}
           selectedSnapshotId={previewSnapshotId}
           accountTab={accountTab}
         />
@@ -525,6 +538,7 @@ export default function PortfolioPage() {
               emptyMessage={donutEmptyMessage}
               size={150}
               className=""
+              authoritativeCashKRW={donutAuthoritativeCashKRW}
             />
           }
         />

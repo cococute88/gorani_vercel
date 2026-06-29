@@ -104,9 +104,12 @@ function financeAssetClassText(asset: FinanceAsset): string {
 
 // 보유종목 + 비투자성 현금성 잔액을 자산군으로 합산한다.
 // (자산 구성 도넛과 동일하게, 보유종목이 있으면 투자성 재무현황은 중복 집계를 피해 제외한다.)
+// authoritativeCashKRW(스냅샷 권위 현금 합계)를 주면 키워드를 빠져나간 투자 계좌 잔액을
+// 그 한도로 reconcile 해 총자산이 단일 기준(권위 총자산)과 일치한다.
 export function buildAssetClassAllocation(
   holdings: Holding[],
   financeAssets: FinanceAsset[],
+  options: { authoritativeCashKRW?: number | null } = {},
 ): AssetClassSlice[] {
   const totals = new Map<AssetClassName, { value: number; principal: number }>();
   const add = (name: AssetClassName, value: number, principal: number) => {
@@ -122,7 +125,9 @@ export function buildAssetClassAllocation(
     add(classifyAssetClass(holdingClassText(holding)), value, finiteNumber(holding.principalKRW) ?? 0);
   }
 
-  const financeRows = selectAllocationFinanceAssets(holdings, financeAssets);
+  const financeRows = selectAllocationFinanceAssets(holdings, financeAssets, {
+    authoritativeCashKRW: options.authoritativeCashKRW,
+  });
   for (const asset of financeRows) {
     const value = isAllocationChartAmountVisible(asset.amountKRW) ? asset.amountKRW : null;
     if (value === null) continue;

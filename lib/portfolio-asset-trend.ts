@@ -73,13 +73,20 @@ export function buildPortfolioAssetTrend(
 
   const representatives = monthKeys.map((k) => latestByMonth.get(k)!);
 
+  // 권위 현금 합계 합산(있는 스냅샷만). 전역 정렬/색상 확정용 도넛에 reconcile 기준을 준다.
+  const totalAuthoritativeCashKRW = representatives.reduce<number | null>((sum, snap) => {
+    const cash = snap.authoritativeTotals?.totalCashKRW;
+    if (typeof cash !== "number" || !Number.isFinite(cash)) return sum;
+    return (sum ?? 0) + cash;
+  }, null);
+
   // 2) 전역 정렬/색상 확정. 원본의 tag_totals(전체 기간 합계) → sort_tags_by_super_group
   //    → assign_colors 와 동일하게, 전체 기간의 보유종목/재무자산을 한 번에 도넛에
   //    통과시켜 자산군 순서와 색을 얻는다.
   const orderedSlices = buildAssetAllocationFromSnapshotLike({
     holdings: representatives.flatMap((s) => s.holdings),
     financeAssets: representatives.flatMap((s) => s.financeAssets),
-  }).slices;
+  }, { authoritativeCashKRW: totalAuthoritativeCashKRW }).slices;
 
   if (orderedSlices.length === 0) return { series: [], points: [] };
 
@@ -95,7 +102,7 @@ export function buildPortfolioAssetTrend(
     const { slices } = buildAssetAllocationFromSnapshotLike({
       holdings: snap.holdings,
       financeAssets: snap.financeAssets,
-    });
+    }, { authoritativeCashKRW: snap.authoritativeTotals?.totalCashKRW ?? null });
     const typeTotals = new Map<AssetTypeKey, number>();
     for (const slice of slices) typeTotals.set(slice.assetType, slice.valueKRW);
 

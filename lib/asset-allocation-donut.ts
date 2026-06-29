@@ -306,12 +306,14 @@ export function buildAssetAllocationFromSnapshotLike(
     holdings?: readonly Holding[] | null;
     financeAssets?: readonly FinanceAsset[] | null;
   },
-  options: { includeFinanceAssets?: boolean } = {},
+  options: { includeFinanceAssets?: boolean; authoritativeCashKRW?: number | null } = {},
 ): AssetAllocationResult {
   const includeFinance = options.includeFinanceAssets ?? true;
   const holdings = input.holdings ?? [];
   const financeAssets = includeFinance
-    ? selectAllocationFinanceAssets(holdings, input.financeAssets)
+    ? selectAllocationFinanceAssets(holdings, input.financeAssets, {
+        authoritativeCashKRW: options.authoritativeCashKRW,
+      })
     : [];
 
   return buildAssetAllocationDonut([
