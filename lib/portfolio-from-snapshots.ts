@@ -484,10 +484,14 @@ const INVESTMENT_PURPOSE_GROUPS: AssetPurposeGroup[] = ["성장", "배당"];
 function computeAssetPurposeTotals(
   holdings: Holding[],
   financeAssets: FinanceAsset[],
+  authoritativeCashKRW?: number | null,
 ): Map<AssetPurposeGroup, number> {
   // 보유종목과 중복되는 투자 계좌 잔액을 제외한 현금성 재무자산만 집계한다.
-  // (자산군 도넛/자산군 합산과 동일한 selectAllocationFinanceAssets 단일 기준을 공유한다.)
-  const financeRows = selectAllocationFinanceAssets(holdings, financeAssets);
+  // (자산군 도넛/자산군 합산과 동일한 selectAllocationFinanceAssets 단일 기준을 공유하며,
+  //  권위 현금 합계로 키워드를 빠져나간 투자 잔액까지 reconcile 한다.)
+  const financeRows = selectAllocationFinanceAssets(holdings, financeAssets, {
+    authoritativeCashKRW,
+  });
 
   const totals = new Map<AssetPurposeGroup, number>();
   const add = (group: AssetPurposeGroup, amount: number | null) => {
@@ -508,8 +512,12 @@ function sumPurposeGroups(totals: Map<AssetPurposeGroup, number>, groups: AssetP
   return groups.reduce((sum, group) => sum + (totals.get(group) ?? 0), 0);
 }
 
-function buildAssetAllocation(holdings: Holding[], financeAssets: FinanceAsset[]): PortfolioAllocationSlice[] {
-  const totals = computeAssetPurposeTotals(holdings, financeAssets);
+function buildAssetAllocation(
+  holdings: Holding[],
+  financeAssets: FinanceAsset[],
+  authoritativeCashKRW?: number | null,
+): PortfolioAllocationSlice[] {
+  const totals = computeAssetPurposeTotals(holdings, financeAssets, authoritativeCashKRW);
   const total = sumPurposeGroups(totals, ASSET_PURPOSE_ORDER);
   if (total <= 0) return [];
 
@@ -529,8 +537,9 @@ function buildAssetAllocation(holdings: Holding[], financeAssets: FinanceAsset[]
 function buildStockCashTargets(
   holdings: Holding[],
   financeAssets: FinanceAsset[],
+  authoritativeCashKRW?: number | null,
 ): PortfolioSummaryCards["stockCashTargets"] {
-  const totals = computeAssetPurposeTotals(holdings, financeAssets);
+  const totals = computeAssetPurposeTotals(holdings, financeAssets, authoritativeCashKRW);
   const investValue = sumPurposeGroups(totals, INVESTMENT_PURPOSE_GROUPS);
   const cashValue = sumPurposeGroups(totals, CASH_PURPOSE_GROUPS);
   const total = investValue + cashValue;
@@ -673,7 +682,10 @@ export function buildPortfolioPageFromSnapshot(
     (row) => holdingDisplayLabel({ name: row.name, ticker: row.ticker }),
     15,
   );
-  const assetAllocation = buildAssetAllocation(holdings, financeAssets);
+  // 자산 배분 차트가 공유할 권위 현금 합계(total_cash_krw). 존재하면 키워드를 빠져나간
+  // 투자 계좌 잔액을 이 한도로 reconcile 해 모든 차트의 총자산이 권위 총자산과 일치한다.
+  const authoritativeCashKRW = snapshot.authoritativeTotals?.totalCashKRW ?? null;
+  const assetAllocation = buildAssetAllocation(holdings, financeAssets, authoritativeCashKRW);
   const purposeAllocation = groupSlices(holdings, (holding) => positiveNumber(holding.valueKRW), holdingPurposeName);
 
   if (assetAllocation.length === 0) {
@@ -709,7 +721,7 @@ export function buildPortfolioPageFromSnapshot(
       holdingCount: holdings.length,
       accountCount: accountRows.length,
       financeAssetCount: financeAssets.filter(isNonDebtFinanceAsset).length,
-      stockCashTargets: buildStockCashTargets(holdings, financeAssets),
+      stockCashTargets: buildStockCashTargets(holdings, financeAssets, authoritativeCashKRW),
     },
     accountAllocation,
     stockAllocation,

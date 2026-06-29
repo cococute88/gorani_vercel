@@ -24,7 +24,12 @@ export default function PortfolioPage() {
   // 하단 "보유 비중 분석": 보유종목/현금성 잔액을 TQQQ·QLD·QQQ·SPY·SCHD·MSFT·달러·현금·예적금·기타
   // 자산군 단위로 합산해 Streamlit 방식 도넛으로 표시한다 (원본 상품명 단위로 쪼개지 않는다).
   const assetClassSlices = useMemo(
-    () => buildAssetClassAllocation(portfolioView.mappedHoldings, portfolioView.snapshot?.financeAssets ?? []),
+    () =>
+      buildAssetClassAllocation(
+        portfolioView.mappedHoldings,
+        portfolioView.snapshot?.financeAssets ?? [],
+        { authoritativeCashKRW: portfolioView.snapshot?.authoritativeTotals?.totalCashKRW ?? null },
+      ),
     [portfolioView.mappedHoldings, portfolioView.snapshot],
   );
 
@@ -73,6 +78,7 @@ export default function PortfolioPage() {
             financeAssets={portfolioView.snapshot?.financeAssets ?? []}
             theme={theme}
             emptyMessage="평가금액이 있는 보유종목이 없어 종목별 비중을 표시할 수 없습니다."
+            authoritativeCashKRW={portfolioView.snapshot?.authoritativeTotals?.totalCashKRW ?? null}
           />
           <DonutChartCard
             title="목적별 비중"

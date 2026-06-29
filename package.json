@@ -42,6 +42,8 @@
     "check:asset-allocation-donut": "node scripts/check-asset-allocation-donut.mjs",
     "check:asset-map-etf-decomposition": "node scripts/check-asset-map-etf-decomposition.mjs",
     "check:portfolio-totals-reconcile": "node scripts/check-portfolio-totals-reconcile.mjs",
+    "check:portfolio-total-consistency": "node scripts/check-portfolio-total-consistency.mjs",
+    "check:portfolio-total-anchor-consistency": "node scripts/check-portfolio-total-anchor-consistency.mjs",
     "check:performance-donut-ranking": "node scripts/check-performance-donut-ranking.mjs",
     "check:asset-class-donut-labels": "node scripts/check-asset-class-donut-labels.mjs",
     "check:market-data-real": "node scripts/check-market-data-real.mjs",

@@ -138,6 +138,33 @@ export function isInvestmentFinanceAsset(asset: FinanceAsset): boolean {
   return false;
 }
 
+function positiveAmount(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : 0;
+}
+
+/**
+ * 한 재무자산 행의 "현금성 확신도"를 매긴다 (이중집계 잔여분을 잘라낼 때의 우선순위).
+ *   2 = 명시적 현금성 (category 현금/예적금 또는 강한 현금성 신호) — 항상 현금으로 본다.
+ *   1 = 모호(ambiguous) — 현금 신호도 투자 신호도 없는 "기타" 류. 보험 해약환급금 같은
+ *       비투자 자산일 수도, 키워드가 빠진 투자 계좌 잔액일 수도 있다.
+ * (투자 신호가 있는 행은 애초에 selectAllocationFinanceAssets 에서 제외되므로 여기 오지 않는다.)
+ */
+function cashConfidence(asset: FinanceAsset): 1 | 2 {
+  if (asset.category === "현금" || asset.category === "예적금") return 2;
+  const text = financeAssetText(asset);
+  if (includesAny(text, CASH_OVERRIDE_SIGNALS)) return 2;
+  return 1;
+}
+
+export interface SelectAllocationFinanceAssetsOptions {
+  /**
+   * 스냅샷이 내려준 "권위 있는" 현금 합계(total_cash_krw). 존재하면, 보유종목이 있을 때
+   * 선별된 현금성 잔액 합계가 이 값을 넘지 않도록 reconcile 한다(아래 설명 참고).
+   * 오프라인/레거시(권위 합계 없음) 스냅샷에서는 undefined 로 두면 기존 키워드 동작만 한다.
+   */
+  authoritativeCashKRW?: number | null;
+}
+
 /**
  * 자산 배분 차트(자산군 도넛 / 자산군 합산 / 자산구성·투자현금 비중)가 공유하는
  * 재무자산 선별 기준.
@@ -147,17 +174,73 @@ export function isInvestmentFinanceAsset(asset: FinanceAsset): boolean {
  *     제외해 이중집계를 막는다. (현금성 잔액만 남겨 holdings + 현금 = 총자산)
  *   - 보유종목이 없으면 중복될 대상이 없으므로 비부채 재무자산을 모두 사용한다.
  *
+ * 권위 합계 anchor(PORTFOLIO-TOTAL-CONSISTENCY-FIX-2):
+ *   키워드 기반 투자행 제외(isInvestmentFinanceAsset)는 producer 가 투자 계좌 행에
+ *   기대한 키워드(투자/연금/증권/위탁/ETF...)를 안 넣어주면 일부 행이 빠져나가
+ *   holdings 와 이중집계되어 총자산이 부풀어 오른다(예: 권위 총자산 6.51억인데 도넛은
+ *   7.52억). 따라서 스냅샷이 권위 있는 현금 합계(total_cash_krw)를 주면, 선별된
+ *   현금성 잔액 합계가 그 값을 넘는 경우(=키워드를 빠져나간 투자 계좌 잔액이 남은 경우)
+ *   현금성 확신도가 낮은(모호한) 행부터 권위 현금 한도까지만 남기고 초과분을 떨궈
+ *   "holdings + 현금 = 권위 총자산" 이 성립하도록 reconcile 한다.
+ *   이는 숫자를 임의로 보정하는 게 아니라(각 행 금액은 그대로 유지) 잘못된 합산 경로를
+ *   단일 기준(스냅샷 권위 합계)에 맞추는 수정이다.
+ *
  * 이 함수를 모든 자산 배분 차트가 공유하므로, 동일 스냅샷에서 모든 차트의 총자산
  * 기준이 일치한다.
  */
 export function selectAllocationFinanceAssets(
   holdings: readonly Holding[] | null | undefined,
   financeAssets: readonly FinanceAsset[] | null | undefined,
+  options: SelectAllocationFinanceAssetsOptions = {},
 ): FinanceAsset[] {
   const hasHoldings = (holdings?.length ?? 0) > 0;
-  return (financeAssets ?? []).filter((asset) => {
-    if (asset.isDebt === true) return false;
-    if (hasHoldings && isInvestmentFinanceAsset(asset)) return false;
-    return true;
+  const nonDebt = (financeAssets ?? []).filter((asset) => asset.isDebt !== true);
+
+  // 보유종목이 없으면 중복될 대상이 없다 → 비부채 재무자산을 모두 사용.
+  if (!hasHoldings) return nonDebt;
+
+  // 1차: 키워드로 투자 계좌(보유종목과 중복)로 판별된 행을 제외한다(기존 동작).
+  const keywordKept = nonDebt.filter((asset) => !isInvestmentFinanceAsset(asset));
+
+  const authoritativeCashKRW = options.authoritativeCashKRW;
+  if (
+    typeof authoritativeCashKRW !== "number" ||
+    !Number.isFinite(authoritativeCashKRW) ||
+    authoritativeCashKRW < 0
+  ) {
+    // 권위 현금 합계가 없는(레거시/오프라인) 스냅샷 → 키워드 결과를 그대로 사용(회귀 없음).
+    return keywordKept;
+  }
+
+  // 2차: 권위 현금 합계로 reconcile. 키워드 결과 합계가 권위 현금을 (오차범위 내에서)
+  // 넘지 않으면 그대로 사용한다(=키워드 제외만으로 충분했던 정상 케이스, 회귀 없음).
+  const tolerance = Math.max(1000, authoritativeCashKRW * 0.005);
+  const keptSum = keywordKept.reduce((sum, asset) => sum + positiveAmount(asset.amountKRW), 0);
+  if (keptSum <= authoritativeCashKRW + tolerance) {
+    return keywordKept;
+  }
+
+  // 초과분 존재 = 키워드를 빠져나간 투자 계좌 잔액이 현금성에 섞여 있다.
+  // 현금성 확신도 높은 행(명시적 현금/예적금)을 먼저 확정해 항상 보존하고,
+  // 모호한 행은 권위 현금 한도 안에서만 남긴다(한도를 넘기는 모호한 큰 금액 = 투자 잔액 → 제외).
+  const ranked = [...keywordKept].sort((a, b) => {
+    const confDiff = cashConfidence(b) - cashConfidence(a); // 확신도 높은 행 우선
+    if (confDiff !== 0) return confDiff;
+    return positiveAmount(a.amountKRW) - positiveAmount(b.amountKRW); // 같은 확신도면 작은 금액 우선
   });
+
+  const reconciled: FinanceAsset[] = [];
+  let running = 0;
+  for (const asset of ranked) {
+    const amount = positiveAmount(asset.amountKRW);
+    if (running + amount <= authoritativeCashKRW + tolerance) {
+      reconciled.push(asset);
+      running += amount;
+    }
+    // 한도를 넘기는 행은 건너뛴다(키워드를 빠져나간 투자 계좌 잔액으로 간주).
+  }
+
+  // 원본 순서를 보존해 반환한다(정렬은 선별에만 사용).
+  const keepSet = new Set(reconciled);
+  return keywordKept.filter((asset) => keepSet.has(asset));
 }
