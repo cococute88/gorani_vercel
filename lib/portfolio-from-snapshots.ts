@@ -474,11 +474,13 @@ function buildTreemapAndRanking(
 
 // 자산 구성 도넛/리스트를 성장/배당/현금(원)/현금(달러) 4개 그룹으로 집계한다 (#3).
 // 보유종목은 목적·티커 기준으로, 현금성 잔액은 통화별로 분류한다.
+// PORTFOLIO-PURPOSE-DONUT-COLOR: 목적별 비중 색상을 의미가 직관적으로 드러나도록 조정한다.
+// 성장=주황, 배당=노랑, 현금(원)=연두, 현금(달러)=초록. (도넛 Cell 과 범례 dot 이 동일하게 이 색을 공유한다.)
 const ASSET_PURPOSE_COLOR: Record<AssetPurposeGroup, string> = {
-  성장: "#22c55e",
-  배당: "#3b82f6",
-  "현금(원)": "#f59e0b",
-  "현금(달러)": "#14b8a6",
+  성장: "#f97316", // 주황
+  배당: "#eab308", // 노랑
+  "현금(원)": "#84cc16", // 연두
+  "현금(달러)": "#22c55e", // 초록
 };
 const ASSET_PURPOSE_ORDER: AssetPurposeGroup[] = ["성장", "배당", "현금(원)", "현금(달러)"];
 const CASH_PURPOSE_GROUPS: AssetPurposeGroup[] = ["현금(원)", "현금(달러)"];

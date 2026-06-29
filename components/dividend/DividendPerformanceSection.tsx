@@ -5,8 +5,18 @@ import { Bar, CartesianGrid, ComposedChart, Legend, Line, LineChart, ResponsiveC
 import type { DividendPerformanceResult } from "@/lib/dividend-performance-from-snapshots";
 import { AXIS_LINE, AXIS_TICK_SM, CHART_GRID, CHART_MARGIN, TOOLTIP_STYLE } from "@/lib/chart-style";
 import { formatPercent } from "@/lib/format";
+import {
+  clampPerformancePointsToMonths,
+  DEFAULT_PERFORMANCE_MONTHS,
+} from "@/lib/performance-period";
+import PerformancePeriodToggle from "./PerformancePeriodToggle";
 
-interface Props { result: DividendPerformanceResult; }
+interface Props {
+  result: DividendPerformanceResult;
+  // 성과 그래프 표시 구간(개월). 위탁/절세/전체합산 그래프가 공유한다(데이터 계산은 불변).
+  periodMonths?: number;
+  onPeriodMonthsChange?: (months: number) => void;
+}
 
 const card = "rounded-2xl border border-slate-200 bg-white p-5 dark:border-[#2a3336] dark:bg-[#191f20]";
 const LEGEND_WRAPPER = { fontSize: 12, paddingTop: 8 };
@@ -49,9 +59,19 @@ function Kpi({ label, value, rate }: { label: string; value: number | null | und
   );
 }
 
-export default function DividendPerformanceSection({ result }: Props) {
+export default function DividendPerformanceSection({
+  result,
+  periodMonths = DEFAULT_PERFORMANCE_MONTHS,
+  onPeriodMonthsChange,
+}: Props) {
   const [selectedYear, setSelectedYear] = useState<number | null>(result.availableYears.at(-1) ?? null);
   useEffect(() => setSelectedYear(result.availableYears.at(-1) ?? null), [result.availableYears]);
+  // 성과(누적) LineChart 표시 구간. 데이터는 그대로 두고 마지막 N개월만 보여준다.
+  // (월별 수익/손실 추이는 아래 monthlyRows 를 쓰므로 이 구간 선택의 영향을 받지 않는다.)
+  const performancePoints = useMemo(
+    () => clampPerformancePointsToMonths(result.points, periodMonths),
+    [result.points, periodMonths],
+  );
   const monthlyRows = useMemo(() => {
     if (selectedYear == null) return result.points;
     const byMonth = new Map(result.points.filter((point) => point.year === selectedYear).map((point) => [Number(point.date.slice(5, 7)), point]));
@@ -68,9 +88,18 @@ export default function DividendPerformanceSection({ result }: Props) {
   return (
     <section className="mb-6">
       <div className={card}>
-        <div className="mb-1 flex flex-wrap items-center gap-2">
-          <h2 className="text-[15px] font-bold text-slate-700 dark:text-slate-300">전체 합산 성과 (참고)</h2>
-          <span className="rounded-md bg-blue-500/10 px-2 py-0.5 text-[11px] text-blue-400">최신 보유 기준 역산</span>
+        <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-[15px] font-bold text-slate-700 dark:text-slate-300">전체 합산 성과 (참고)</h2>
+            <span className="rounded-md bg-blue-500/10 px-2 py-0.5 text-[11px] text-blue-400">최신 보유 기준 역산</span>
+          </div>
+          {onPeriodMonthsChange && (
+            <PerformancePeriodToggle
+              months={periodMonths}
+              onChange={onPeriodMonthsChange}
+              ariaLabel="성과 그래프 기간 선택"
+            />
+          )}
         </div>
         <p className="mb-4 text-[12px] text-slate-500">최신 보유종목을 현재 수량으로 고정하고, 과거 가격을 대입해 역산한 참고 성과입니다.</p>
 
@@ -89,10 +118,10 @@ export default function DividendPerformanceSection({ result }: Props) {
             </div>
             <div className="h-[320px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={result.points} margin={CHART_MARGIN}>
+                <LineChart data={performancePoints} margin={CHART_MARGIN}>
                   <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} vertical={false} />
                   <XAxis dataKey="date" tick={AXIS_TICK_SM} tickLine={false} axisLine={AXIS_LINE} minTickGap={24} />
-                  <YAxis domain={performanceDomain(result.points)} tickFormatter={eokFmt} tick={AXIS_TICK_SM} tickLine={false} axisLine={false} width={48} />
+                  <YAxis domain={performanceDomain(performancePoints)} tickFormatter={eokFmt} tick={AXIS_TICK_SM} tickLine={false} axisLine={false} width={48} />
                   <Tooltip contentStyle={TOOLTIP_STYLE} formatter={tooltipFormatter} />
                   <Legend wrapperStyle={LEGEND_WRAPPER} />
                   <Line type="monotone" dataKey="deposit" name="누적 입금" stroke="#94a3b8" strokeWidth={1.5} dot={false} strokeDasharray="4 4" />

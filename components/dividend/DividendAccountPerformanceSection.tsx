@@ -31,10 +31,18 @@ import { normalizeHoldingTickerInfo } from "@/lib/holding-ticker-normalizer";
 import type { QuoteHistoryResponse } from "@/lib/quote-types";
 import { AXIS_LINE, AXIS_TICK_SM, CHART_GRID, CHART_MARGIN, TOOLTIP_STYLE } from "@/lib/chart-style";
 import { formatPercent } from "@/lib/format";
+import {
+  clampPerformancePointsToMonths,
+  DEFAULT_PERFORMANCE_MONTHS,
+} from "@/lib/performance-period";
+import PerformancePeriodToggle from "./PerformancePeriodToggle";
 
 interface Props {
   snapshots: PortfolioSnapshot[];
   latestBackcastHoldings?: Record<AccountPerfGroup, DividendPerformanceHoldingInput[]>;
+  // 성과 그래프 표시 구간(개월). 위탁/절세/전체합산 그래프가 공유한다(데이터 계산은 불변).
+  periodMonths?: number;
+  onPeriodMonthsChange?: (months: number) => void;
 }
 
 // 원본 Streamlit 색상 그대로 유지한다.
@@ -164,7 +172,7 @@ function performanceDomain(rows: Array<Record<string, number | string | null>>):
   return [min - range * 0.08, max + range * 0.08];
 }
 
-function GroupBlock({ view }: { view: GroupView }) {
+function GroupBlock({ view, periodMonths }: { view: GroupView; periodMonths: number }) {
   const { group, base, benchmarks } = view;
   const sourceBadge = base.available ? "최신 보유 기준 역산" : "데이터 부족";
   const badgeClass = base.available
@@ -175,6 +183,8 @@ function GroupBlock({ view }: { view: GroupView }) {
     return base.points.map((point, index) => {
       const row: Record<string, number | string | null> = {
         date: point.label,
+        // 표시 구간 필터링용 원본 날짜(YYYY-MM-DD). X축 라벨(date=YY/MM)과 분리해서 보관한다.
+        isoDate: point.date,
         deposit: point.depositKRW,
         portfolio: point.portfolioKRW,
         monthlyProfit: point.monthlyProfitKRW,
@@ -188,6 +198,18 @@ function GroupBlock({ view }: { view: GroupView }) {
       return row;
     });
   }, [base.points, benchmarks]);
+
+  // 성과(누적) LineChart 에만 적용하는 표시 구간. 데이터는 그대로 두고 마지막 N개월만 보여준다.
+  // (월별 수익/손실 추이는 아래 monthlyRows 를 쓰므로 이 구간 선택의 영향을 받지 않는다.)
+  const performanceChartData = useMemo(() => {
+    const allowedIso = new Set(
+      clampPerformancePointsToMonths(
+        chartData.map((row) => ({ date: String(row.isoDate ?? "") })),
+        periodMonths,
+      ).map((row) => row.date),
+    );
+    return chartData.filter((row) => allowedIso.has(String(row.isoDate ?? "")));
+  }, [chartData, periodMonths]);
 
   const [selectedYear, setSelectedYear] = useState<number | null>(base.availableYears.at(-1) ?? null);
   useEffect(() => setSelectedYear(base.availableYears.at(-1) ?? null), [base.availableYears]);
@@ -253,10 +275,10 @@ function GroupBlock({ view }: { view: GroupView }) {
 
           <div className="h-[320px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData} margin={CHART_MARGIN}>
+              <LineChart data={performanceChartData} margin={CHART_MARGIN}>
                 <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} vertical={false} />
                 <XAxis dataKey="date" tick={AXIS_TICK_SM} tickLine={false} axisLine={AXIS_LINE} minTickGap={24} />
-                <YAxis domain={performanceDomain(chartData)} tickFormatter={eokFmt} tick={AXIS_TICK_SM} tickLine={false} axisLine={false} width={48} />
+                <YAxis domain={performanceDomain(performanceChartData)} tickFormatter={eokFmt} tick={AXIS_TICK_SM} tickLine={false} axisLine={false} width={48} />
                 <Tooltip contentStyle={TOOLTIP_STYLE} formatter={tooltipFormatter} />
                 <Legend wrapperStyle={LEGEND_WRAPPER} />
                 <Line
@@ -376,7 +398,12 @@ function GroupBlock({ view }: { view: GroupView }) {
   );
 }
 
-export default function DividendAccountPerformanceSection({ snapshots, latestBackcastHoldings }: Props) {
+export default function DividendAccountPerformanceSection({
+  snapshots,
+  latestBackcastHoldings,
+  periodMonths = DEFAULT_PERFORMANCE_MONTHS,
+  onPeriodMonthsChange,
+}: Props) {
   const latestSnapshot = useMemo(() => [...snapshots].filter((snapshot) => snapshot.snapshotDate).sort((a, b) => (a.snapshotDate < b.snapshotDate ? 1 : -1))[0], [snapshots]);
   const accountTickers = useMemo(() => Array.from(new Set((latestBackcastHoldings ? [...latestBackcastHoldings["위탁"], ...latestBackcastHoldings["절세"]] : (latestSnapshot?.holdings ?? [])).map((holding) => ((holding as { normalizedTicker?: string }).normalizedTicker ?? holding.ticker ?? normalizeHoldingTickerInfo(holding).quoteTicker ?? "").trim().toUpperCase()).filter(Boolean))).sort(), [latestBackcastHoldings, latestSnapshot]);
 
@@ -465,13 +492,22 @@ export default function DividendAccountPerformanceSection({ snapshots, latestBac
 
   return (
     <section className="mb-6">
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        <h2 className="text-[16px] font-extrabold text-slate-900 dark:text-white">성과 분석</h2>
-        <span className="text-[12px] text-slate-500">위탁 / 절세 계좌별 누적 성과 (원본 배당금가계부 이식)</span>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="text-[16px] font-extrabold text-slate-900 dark:text-white">성과 분석</h2>
+          <span className="text-[12px] text-slate-500">위탁 / 절세 계좌별 누적 성과 (원본 배당금가계부 이식)</span>
+        </div>
+        {onPeriodMonthsChange && (
+          <PerformancePeriodToggle
+            months={periodMonths}
+            onChange={onPeriodMonthsChange}
+            ariaLabel="성과 그래프 기간 선택"
+          />
+        )}
       </div>
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
         {views.map((view) => (
-          <GroupBlock key={view.group} view={view} />
+          <GroupBlock key={view.group} view={view} periodMonths={periodMonths} />
         ))}
       </div>
     </section>
