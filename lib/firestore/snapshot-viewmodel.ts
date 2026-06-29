@@ -37,6 +37,11 @@ import type {
   PortfolioAuthoritativeTotals,
   PortfolioSnapshot,
 } from "../portfolio-types";
+import {
+  decorateFinanceAssetWithTags,
+  decorateHoldingWithTags,
+} from "../portfolio-tags";
+import { canonicalizeAccountGroupLabel } from "../account-status-group";
 
 type RawRecord = Record<string, unknown>;
 
@@ -141,7 +146,16 @@ function firstArrayFrom(
 
 function mapHolding(raw: RawRecord, index: number): Holding {
   const s = [raw];
-  return {
+  // Field mapping only — no monetary value is derived here. The producer keeps
+  // the user's `①②③④` tags inside `product_name` (it parses the same upload
+  // the legacy xlsx path does). Decorate the mapped row with those tags so
+  // account/purpose/status/symbol groups are populated EXACTLY like the legacy
+  // localStorage path; this is what lets the Portfolio screen group holdings
+  // into account-level cards (위탁/연금/ISA/달러/원) instead of one card per
+  // holding. Explicit `*_group` fields (1.1.0 enriched docs) are still honoured
+  // because decorate prefers parsed tags, then the existing field, then a
+  // broker/group fallback. No total is recomputed by this decoration.
+  const mapped: Holding = {
     id: firstString(s, ["id", "holding_id", "holdingId"]) ?? `fs-holding-${index}`,
     broker:
       firstString(s, [
@@ -190,11 +204,23 @@ function mapHolding(raw: RawRecord, index: number): Holding {
     purposeGroup: firstString(s, ["purpose_group", "purposeGroup"]),
     statusGroup: firstString(s, ["status_group", "statusGroup"]),
   };
+  // Decorate with `①②③④` tags (same as the legacy xlsx path), THEN normalize
+  // the account group label so pension/IRP accounts that the producer exports
+  // under their raw account name (e.g. "한투개인형IRP", "개인형IRP") collapse
+  // into the single "연금" card, and ISA variants into "ISA" — exactly as the
+  // legacy `②연금` / `②ISA` tags grouped them. Taxable groups (위탁/달러/원) are
+  // left untouched. This only changes WHICH card a holding lands in; no total
+  // or calculation is recomputed.
+  const decorated = decorateHoldingWithTags(mapped);
+  return {
+    ...decorated,
+    accountGroup: canonicalizeAccountGroupLabel(decorated.accountGroup),
+  };
 }
 
 function mapCashAsset(raw: RawRecord, index: number): FinanceAsset {
   const s = [raw];
-  return {
+  const mapped: FinanceAsset = {
     id: firstString(s, ["id", "asset_id", "assetId"]) ?? `fs-cash-${index}`,
     groupName: firstString(s, ["group_name", "groupName", "group"]) ?? "",
     productName: firstString(s, ["product_name", "productName", "name"]) ?? "",
@@ -207,6 +233,17 @@ function mapCashAsset(raw: RawRecord, index: number): FinanceAsset {
     accountGroup: firstString(s, ["account_group", "accountGroup"]),
     purposeGroup: firstString(s, ["purpose_group", "purposeGroup"]),
     statusGroup: firstString(s, ["status_group", "statusGroup"]),
+  };
+  // Same tag decoration as holdings (see mapHolding): populate the account /
+  // purpose / status / symbol groups from the `①②③④` tags carried in
+  // `product_name`, matching the legacy path so finance assets bucket into the
+  // same account cards. Non-destructive to enriched (1.1.0) documents. The
+  // account group is then normalized so pension/ISA cash buckets merge into the
+  // same "연금" / "ISA" cards as the legacy path.
+  const decorated = decorateFinanceAssetWithTags(mapped);
+  return {
+    ...decorated,
+    accountGroup: canonicalizeAccountGroupLabel(decorated.accountGroup),
   };
 }
 
