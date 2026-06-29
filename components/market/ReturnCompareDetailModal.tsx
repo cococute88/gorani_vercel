@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
+import TrPrToggle, { type TrPrMode } from "@/components/common/TrPrToggle";
 import {
   DEFAULT_RETURN_PERIOD,
   RETURN_PERIODS,
@@ -16,6 +17,7 @@ interface Props {
   raw: ReturnCompareRaw | null;
   loading: boolean;
   initialPeriod?: string;
+  initialTrMode?: TrPrMode;
   dark: boolean;
   onClose: () => void;
 }
@@ -23,14 +25,17 @@ interface Props {
 // 누적 수익률 비교 "상세 보기" 모달.
 // 인라인 차트와 동일 데이터(raw)를 공유하므로 추가 API 호출이 없다.
 // 대형 차트에서 휠 확대 / 드래그 이동 / 긴 기간 탐색이 자유롭게 가능하다.
+// 기간 버튼은 MAX 데이터를 확대(Zoom)하며, TR/PR 전환도 인라인 차트와 동일하다.
 export default function ReturnCompareDetailModal({
   raw,
   loading,
   initialPeriod = DEFAULT_RETURN_PERIOD,
+  initialTrMode = "tr",
   dark,
   onClose,
 }: Props) {
   const [period, setPeriod] = useState(initialPeriod);
+  const [trMode, setTrMode] = useState<TrPrMode>(initialTrMode);
   const [active, setActive] = useState<ActiveReturns | null>(null);
 
   useEffect(() => {
@@ -41,14 +46,15 @@ export default function ReturnCompareDetailModal({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  // 기간이 바뀌면 화면 기준 수익률을 초기화(차트가 새 기준으로 다시 통지).
+  // 기간/기준(TR·PR)이 바뀌면 화면 기준 수익률을 초기화(차트가 새 기준으로 다시 통지).
   useEffect(() => {
     setActive(null);
-  }, [period]);
+  }, [period, trMode]);
 
+  // 전체(MAX) 일별 레벨 시계열. 기간에는 의존하지 않는다(기간 = Zoom).
   const series = useMemo(
-    () => buildReturnComparePriceSeries(raw, periodDaysOf(period)),
-    [raw, period],
+    () => buildReturnComparePriceSeries(raw, Infinity, trMode === "tr"),
+    [raw, trMode],
   );
   const empty = !loading && series.every((s) => s.prices.length === 0);
 
@@ -79,7 +85,7 @@ export default function ReturnCompareDetailModal({
           <div className="min-w-0">
             <h2 className="text-[17px] font-extrabold text-slate-900 dark:text-white">수익률 비교 상세</h2>
             <p className="mt-0.5 text-[11px] text-slate-400">
-              QQQ · SPY · SCHD · 선택 기간 시작 = 0% · 일별 데이터 · 휠 확대 / 드래그 이동
+              QQQ · SPY · SCHD · 화면 시작 = 0% · 일별 데이터 · 기간 버튼 = MAX 확대 · 휠 확대 / 드래그 이동
             </p>
           </div>
           <button
@@ -93,21 +99,24 @@ export default function ReturnCompareDetailModal({
 
         {/* Controls: 기간 버튼 + 현재 수익률 범례 */}
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-slate-200 px-4 py-2 dark:border-[#2a3336] sm:px-5">
-          <div className="flex flex-nowrap items-center gap-1 overflow-x-auto">
-            {RETURN_PERIODS.map((p) => (
-              <button
-                key={p.key}
-                onClick={() => setPeriod(p.key)}
-                aria-pressed={period === p.key}
-                className={`shrink-0 rounded-md px-2.5 py-1 text-[12px] font-semibold transition-colors ${
-                  period === p.key
-                    ? "bg-blue-600 text-white"
-                    : "text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/10"
-                }`}
-              >
-                {p.label}
-              </button>
-            ))}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-nowrap items-center gap-1 overflow-x-auto">
+              {RETURN_PERIODS.map((p) => (
+                <button
+                  key={p.key}
+                  onClick={() => setPeriod(p.key)}
+                  aria-pressed={period === p.key}
+                  className={`shrink-0 rounded-md px-2.5 py-1 text-[12px] font-semibold transition-colors ${
+                    period === p.key
+                      ? "bg-blue-600 text-white"
+                      : "text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/10"
+                  }`}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+            <TrPrToggle mode={trMode} onChange={setTrMode} size="sm" />
           </div>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             {series.map((s) => {
@@ -130,7 +139,7 @@ export default function ReturnCompareDetailModal({
 
         {/* Chart */}
         <div className="relative min-h-0 flex-1 px-2 py-2 sm:px-3">
-          <ReturnCompareChart series={series} dark={dark} onActiveReturns={setActive} />
+          <ReturnCompareChart series={series} dark={dark} viewDays={periodDaysOf(period)} onActiveReturns={setActive} />
           {loading && (
             <div className="absolute inset-0 flex items-center justify-center text-[13px] text-slate-500 dark:text-slate-400">
               차트 데이터를 불러오는 중…

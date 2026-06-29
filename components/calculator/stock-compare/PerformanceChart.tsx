@@ -31,9 +31,28 @@ import { rebaseCompareSeries, resolveAnchorDate } from "@/lib/stock-compare/reba
 // =============================================================
 
 interface Props {
+  /**
+   * 비교 시리즈의 "전체(MAX)" 누적수익률 시계열. 기간 버튼은 데이터를 다시
+   * 만들지 않고 이 MAX 위에서 보이는 구간(viewDays)만 확대(Zoom)한다.
+   */
   series: CompareSeries[];
   dark: boolean;
   hidden: Record<string, boolean>;
+  /**
+   * 보이는 기간(일). Infinity → MAX(전체). 기간 버튼 클릭 시 이 값만 바뀌며,
+   * timeScale 의 보이는 범위만 [마지막일 − viewDays, 마지막일] 로 설정한다.
+   */
+  viewDays?: number;
+}
+
+const DAY_MS = 86_400_000;
+
+function parseMs(date: string): number {
+  return new Date(`${date}T00:00:00Z`).getTime();
+}
+
+function toDateStr(ms: number): string {
+  return new Date(ms).toISOString().slice(0, 10);
 }
 
 function palette(dark: boolean) {
@@ -56,7 +75,7 @@ function timeToLabel(time: Time | undefined): string {
 type HoverRow = { key: string; label: string; color: string; value: number | null };
 type HoverState = { x: number; y: number; date: string; rows: HoverRow[] } | null;
 
-export default function PerformanceChart({ series, dark, hidden }: Props) {
+export default function PerformanceChart({ series, dark, hidden, viewDays = Infinity }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesApiRef = useRef<Array<{ key: string; api: ISeriesApi<"Line"> }>>([]);
@@ -65,6 +84,9 @@ export default function PerformanceChart({ series, dark, hidden }: Props) {
   latestRef.current = series;
   const hiddenRef = useRef<Record<string, boolean>>(hidden);
   hiddenRef.current = hidden;
+  // 현재 보이는 기간(일). Infinity → MAX. setVisibleRange 입력.
+  const viewDaysRef = useRef<number>(viewDays);
+  viewDaysRef.current = viewDays;
   // 현재 표시 기준점(0%) 날짜. null = 기간 시작점(원본) 기준.
   const anchorRef = useRef<string | null>(null);
   // 보이는 영역 변경 → 재기준화 처리 중 재진입(setData가 유발하는 추가 이벤트) 방지.
@@ -151,6 +173,41 @@ export default function PerformanceChart({ series, dark, hidden }: Props) {
     });
   }, [handleVisibleRangeChange]);
 
+  // 보이는 구간(Zoom)을 viewDays 에 맞춘다. 데이터는 그대로 두고 timeScale 의
+  // 보이는 범위만 [마지막일 − viewDays, 마지막일] 로 설정한다.
+  //  - Infinity(MAX) 또는 기간이 전체보다 길면 → fitContent(전체 보기).
+  //  - 그 외 → setVisibleRange 로 최근 구간만 확대. 발생하는 range 변경 이벤트가
+  //    handleVisibleRangeChange 를 호출해 화면 좌측 첫 봉을 0% 로 재계산한다.
+  const applyView = useCallback((days: number) => {
+    const chart = chartRef.current;
+    if (!chart) return;
+    let firstDate: string | null = null;
+    let lastDate: string | null = null;
+    for (const s of latestRef.current) {
+      const ps = s.points;
+      if (ps.length) {
+        if (!firstDate || ps[0].date < firstDate) firstDate = ps[0].date;
+        const ld = ps[ps.length - 1].date;
+        if (!lastDate || ld > lastDate) lastDate = ld;
+      }
+    }
+    if (!firstDate || !lastDate) return;
+    if (!Number.isFinite(days)) {
+      chart.timeScale().fitContent();
+      return;
+    }
+    const fromMs = parseMs(lastDate) - days * DAY_MS;
+    if (fromMs <= parseMs(firstDate)) {
+      chart.timeScale().fitContent();
+      return;
+    }
+    try {
+      chart.timeScale().setVisibleRange({ from: toDateStr(fromMs) as Time, to: lastDate as Time });
+    } catch {
+      chart.timeScale().fitContent();
+    }
+  }, []);
+
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -228,7 +285,9 @@ export default function PerformanceChart({ series, dark, hidden }: Props) {
     });
     observer.observe(container);
 
-    applyData(latestRef.current, hiddenRef.current, null, true);
+    // 초기 렌더: MAX 데이터를 적용한 뒤 현재 viewDays 만큼 확대(Zoom).
+    applyData(latestRef.current, hiddenRef.current, null, false);
+    applyView(viewDaysRef.current);
 
     return () => {
       if (rafRef.current != null) {
@@ -242,17 +301,24 @@ export default function PerformanceChart({ series, dark, hidden }: Props) {
       seriesApiRef.current = [];
       zeroLineRef.current = null;
     };
-  }, [dark, applyData, scheduleVisibleRangeCheck]);
+  }, [dark, applyData, applyView, scheduleVisibleRangeCheck]);
 
-  // 기간/옵션 변경(series) 시:
-  //   기준점을 기간 시작점으로 되돌리고(anchor=null) 전체 화면에 맞춘다.
-  //   이후 fitContent 가 유발하는 보이는 영역 변경 콜백이 anchor 를
+  // 기간/옵션/종목 변경(series) 시:
+  //   기준점(anchor)을 초기화하고 MAX 데이터를 다시 적용한 뒤 현재 viewDays 로
+  //   확대한다. setVisibleRange 가 유발하는 보이는 영역 변경 콜백이 anchor 를
   //   "보이는 첫 날짜(=기간 시작)"로 확정하여 항상 0% 에서 시작하게 한다.
   useEffect(() => {
     anchorRef.current = null;
-    applyData(series, hiddenRef.current, null, true);
+    applyData(series, hiddenRef.current, null, false);
+    applyView(viewDaysRef.current);
     setHover(null);
-  }, [series, applyData]);
+  }, [series, applyData, applyView]);
+
+  // 기간 버튼(viewDays) 변경 시: 데이터는 그대로 두고 보이는 구간만 확대(Zoom).
+  //   range 변경 이벤트가 anchor 를 다시 잡아 0% 기준을 갱신한다.
+  useEffect(() => {
+    applyView(viewDays);
+  }, [viewDays, applyView]);
 
   // 범례 On/Off(hidden) 시: 현재 확대 상태와 기준점(anchor)을 유지한 채
   //   표시 여부만 갱신한다(zoom/0% 기준이 초기화되지 않도록 fit=false).

@@ -1,14 +1,16 @@
 "use client";
 
 // =============================================================
-// 상단 옵션 바: 비중 고려 / 중복 제거 / TR 기준 (기본 모두 ON).
+// 상단 옵션 바: 비중 고려 / 중복 제거 (기본 모두 ON).
+// TR/PR(배당 포함·제외) 전환은 성과 비교 그래프 헤더의 TR/PR 토글로 이동했다
+// (시장현황과 동일 UX). totalReturn 값은 그 토글이 제어한다.
 // 옵션은 CompareOptions 객체로 관리하여 향후 토글 추가가 쉽다.
 // =============================================================
 
 export type CompareOptions = {
   weighted: boolean; // 비중 고려
   removeOverlap: boolean; // 중복 제거
-  totalReturn: boolean; // TR 기준(adjClose)
+  totalReturn: boolean; // TR 기준(adjClose) — 그래프 TR/PR 토글이 제어.
 };
 
 export const DEFAULT_COMPARE_OPTIONS: CompareOptions = {
@@ -17,11 +19,10 @@ export const DEFAULT_COMPARE_OPTIONS: CompareOptions = {
   totalReturn: true,
 };
 
-// 확장 가능한 옵션 정의 목록.
+// 확장 가능한 옵션 정의 목록. (totalReturn 은 그래프 TR/PR 토글로 분리됨.)
 const OPTION_DEFS: Array<{ key: keyof CompareOptions; label: string; hint: string }> = [
   { key: "weighted", label: "비중 고려", hint: "구성종목 비중을 반영해 중복을 제거합니다." },
   { key: "removeOverlap", label: "중복 제거", hint: "공통 구성종목을 제거한 성과를 함께 표시합니다." },
-  { key: "totalReturn", label: "TR 기준", hint: "배당 재투자(Total Return) 기준으로 비교합니다." },
 ];
 
 interface Props {

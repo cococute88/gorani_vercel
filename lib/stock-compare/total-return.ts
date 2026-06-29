@@ -28,6 +28,7 @@
 import type { LongSeriesPoint } from "@/lib/market-series";
 import type { CompareSeries, IndexPoint, OverlapResult } from "@/lib/stock-compare/types";
 import { SERIES_STYLE, seriesLabel } from "@/lib/stock-compare/constants";
+import { rebaseCompareSeries } from "@/lib/stock-compare/rebase";
 
 const DAY_MS = 86_400_000;
 
@@ -349,4 +350,51 @@ export function buildCompareSeries(input: BuildInput): {
   }
 
   return { series, axis, exMeta: { aAvailable: aExAvailable, bAvailable: bExAvailable, aWFund, bWFund } };
+}
+
+// =============================================================
+// MAX 시리즈 → 기간 윈도(누적수익률 재기준화). API/재계산 최소화 핵심.
+//
+// buildCompareSeries 를 periodDays 마다 다시 호출하면 (중복 제거) 고유 인덱스까지
+// 전부 재계산된다. 대신 "MAX(전체) 시리즈를 한 번만" 만든 뒤, 카드/지표가 필요한
+// 기간 구간만 잘라(slice) 그 구간 시작일을 0% 로 재기준화하면 동일한 결과를 얻는다.
+//
+// 동치성: MAX 시리즈의 값 v(t) 는 ratio(t)=1+v/100 = level(t)/level(MAX시작).
+// 구간 시작일 s 로 재기준화하면 ratio(t)/ratio(s)=level(t)/level(s) 이며, 이는
+// buildCompareSeries(periodDays) 가 그 구간을 직접 0% 로 만들 때와 정확히 같다.
+// (복리는 곱셈이므로 일별 수익률·중복 제거 인덱스도 그대로 보존된다.)
+//
+// → 기간 변경 시 무거운 buildCompareSeries 대신 가벼운 slice + 선형 재기준화만 수행.
+// =============================================================
+export function windowCompareSeries(maxSeries: CompareSeries[], periodDays: number): CompareSeries[] {
+  if (!Number.isFinite(periodDays)) return maxSeries; // MAX → 그대로.
+  if (maxSeries.length === 0) return maxSeries;
+
+  // 전 시리즈 통틀어 가장 최근 거래일.
+  let lastMs = -Infinity;
+  for (const s of maxSeries) {
+    const last = s.points[s.points.length - 1];
+    if (last) {
+      const ms = parseMs(last.date);
+      if (ms > lastMs) lastMs = ms;
+    }
+  }
+  if (!Number.isFinite(lastMs)) return maxSeries;
+  const cutoffMs = lastMs - periodDays * DAY_MS;
+
+  // 윈도 시작일 = 원본 A·B 가 모두 존재하는, cutoff 이상의 가장 늦은 첫 거래일.
+  // (buildCompareSeries 의 commonStart 규칙과 동일하게 두 본체 기준으로 정렬.)
+  let windowStart = "";
+  for (const s of maxSeries) {
+    if (s.key !== "a" && s.key !== "b") continue;
+    const first = s.points.find((p) => parseMs(p.date) >= cutoffMs);
+    if (first && first.date > windowStart) windowStart = first.date;
+  }
+  if (!windowStart) return maxSeries; // cutoff 이 전체 범위를 덮음 → MAX 와 동일.
+
+  const sliced = maxSeries.map((s) => ({
+    ...s,
+    points: s.points.filter((p) => p.date >= windowStart),
+  }));
+  return rebaseCompareSeries(sliced, windowStart);
 }
