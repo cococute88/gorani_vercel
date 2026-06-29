@@ -97,6 +97,24 @@ export function unmarkSnapshotDateDeleted(snapshotDate: string | null | undefine
   write(next);
 }
 
+/**
+ * Firestore 에서 읽은 삭제 날짜들을 로컬 캐시에 합친다(union 병합).
+ *
+ * 다른 브라우저/기기에서 삭제한 날짜가 Firestore 에 저장되어 있으면, 로그인 시 이 함수로
+ * 로컬 묘비에 합쳐 어떤 기기에서도 동일하게 삭제 상태가 유지되도록 한다. 로컬에만 있던
+ * (아직 클라우드에 못 올린) 항목을 지우지 않도록 합집합으로 병합한다. 실제로 추가된
+ * 항목이 있을 때만 write 해 불필요한 재렌더를 막는다.
+ */
+export function hydrateDeletedSnapshotDates(dates: Iterable<string>): void {
+  const current = read();
+  const next = new Set(current);
+  for (const date of Array.from(dates)) {
+    if (typeof date === "string" && date) next.add(date);
+  }
+  if (next.size === current.size) return;
+  write(next);
+}
+
 // ---- React 구독 ----
 
 function subscribe(cb: () => void): () => void {

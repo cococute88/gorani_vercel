@@ -44,3 +44,36 @@ export function clampPerformancePointsToMonths<T extends { date: string }>(
   const cutoffKey = `${cutoff.getUTCFullYear()}-${String(cutoff.getUTCMonth() + 1).padStart(2, "0")}`;
   return points.filter((point) => monthKey(point.date) >= cutoffKey);
 }
+
+// PERFORMANCE-PERIOD-CARDS-SYNC: 기간 버튼(MAX/2Y/1Y/6M)을 누르면 그래프뿐 아니라
+// 상단 KPI 카드(누적입금/내 포트폴리오/비교 대상/수익률)도 "동일 기간 기준"으로 바뀌어야 한다.
+//
+// 핵심 아이디어: 표시 구간(윈도우)의 "시작 시점"을 기준선으로 재설정(rebase)한다.
+//   - 누적 입금(기준선) = 윈도우 시작 시점의 포트폴리오 평가액
+//   - 벤치마크(비교 대상) = 같은 기준선을 윈도우 시작 시점에 벤치마크에 투자했다고 가정
+//     → 시작 시점 대비 "비율(ratio)"로 환산하므로 수익률 "계산식" 자체는 바뀌지 않는다.
+//       (data source/계산 방식 불변 — 기준 시점만 윈도우 시작으로 이동)
+//   - MAX(전체 구간)에서는 윈도우 시작 = 데이터 시작이므로 기존 값과 100% 동일하다(회귀 없음).
+
+// 윈도우 시작값(windowStartValue)을 새 기준선(newBase)에 맞춰 value 를 비율 환산한다.
+// 값/시작값/기준선 중 하나라도 유효하지 않으면(<=0, NaN, null) null 을 반환해 "끊김"을 유지한다.
+export function rebaseToWindowStart(
+  value: number | null | undefined,
+  windowStartValue: number | null | undefined,
+  newBase: number | null | undefined,
+): number | null {
+  if (value == null || !Number.isFinite(value) || value <= 0) return null;
+  if (windowStartValue == null || !Number.isFinite(windowStartValue) || windowStartValue <= 0) return null;
+  if (newBase == null || !Number.isFinite(newBase) || newBase <= 0) return null;
+  return newBase * (value / windowStartValue);
+}
+
+// 기준선(baseValue) 대비 최신값(latestValue)의 수익률(%). 기존 (value/base - 1) * 100 과 동일한 식.
+export function windowReturnPct(
+  latestValue: number | null | undefined,
+  baseValue: number | null | undefined,
+): number | null {
+  if (latestValue == null || !Number.isFinite(latestValue) || latestValue <= 0) return null;
+  if (baseValue == null || !Number.isFinite(baseValue) || baseValue <= 0) return null;
+  return (latestValue / baseValue - 1) * 100;
+}

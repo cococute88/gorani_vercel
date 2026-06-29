@@ -60,7 +60,7 @@ assert.ok(partial.warnings.some((w) => w.includes("제외")));
 const allFailed = buildDividendPerformanceBackcast({ holdings: [{ ticker: "NOPE", quantity: 1, valueKRW: 1 }], priceHistories: {}, latestDate: "2026-06-15" });
 assert.equal(allFailed.available, false);
 assert.ok(allFailed.unavailableReason.includes("과거 가격을 확인할 수 있는 보유종목이 없습니다"));
-assert.equal(buildDividendPerformanceBackcast({ holdings: taxableHoldings, priceHistories, benchmarkHistories: { kospi: null, sp500: null }, fxHistory, latestDate: "2026-06-15" }).available, true);
+assert.equal(buildDividendPerformanceBackcast({ holdings: taxableHoldings, priceHistories, benchmarkHistories: { schd: null, sp500: null }, fxHistory, latestDate: "2026-06-15" }).available, true);
 
 const snapshots = [{ id: "s1", snapshotDate: "2026-06-15", sourceFileName: "x", totalAssetKRW: 0, totalDebtKRW: 0, netAssetKRW: 0, investmentPrincipalKRW: 0, investmentValueKRW: 0, returnAmountKRW: 0, returnPct: 0, holdings: [], financeAssets: [], createdAt: "" }];
 const group = buildAccountGroupPerformance(snapshots, "위탁", { holdings: taxableHoldings, priceHistories, fxHistory, latestDate: "2026-06-15", months: 24 });

@@ -21,9 +21,25 @@ import {
   markSnapshotDateDeleted,
   unmarkSnapshotDateDeleted,
   useDeletedSnapshotDates,
+  hydrateDeletedSnapshotDates,
 } from "@/lib/portfolio-snapshot-deletions";
+import {
+  markSnapshotDateHidden,
+  unmarkSnapshotDateHidden,
+  useHiddenSnapshotDates,
+  hydrateHiddenSnapshotDates,
+} from "@/lib/portfolio-snapshot-hidden";
 import { useFirebaseAuth } from "@/lib/firebase/auth";
-import { deletePortfolioSnapshot, savePortfolioSnapshot, warnFirestoreFallback } from "@/lib/firebase/firestore-repositories";
+import {
+  deletePortfolioSnapshot,
+  savePortfolioSnapshot,
+  warnFirestoreFallback,
+  loadPortfolioSnapshotState,
+  addDeletedSnapshotDateToCloud,
+  removeDeletedSnapshotDateFromCloud,
+  addHiddenSnapshotDateToCloud,
+  removeHiddenSnapshotDateFromCloud,
+} from "@/lib/firebase/firestore-repositories";
 import { parseBanksaladFile } from "@/lib/banksalad-parser";
 import type { ParseResult } from "@/lib/banksalad-parser";
 import { MOCK_LATEST_SNAPSHOT } from "@/lib/mock-portfolio-data";
@@ -129,6 +145,38 @@ export default function PortfolioPage() {
   // 사용자가 히스토리에서 삭제한 스냅샷 날짜(영구 묘비). mergedSnapshots 에서 제외해
   // 어떤 소스(localStorage/계약/오버레이)에서 다시 올라오더라도 삭제 상태를 유지한다.
   const deletedSnapshotDates = useDeletedSnapshotDates();
+  // 사용자가 숨긴 스냅샷 날짜. 삭제와 달리 데이터는 보존하되 기본 조회에서만 제외한다.
+  const hiddenSnapshotDates = useHiddenSnapshotDates();
+
+  // 로그인 시 Firestore 의 숨김/삭제 상태(users/{uid}/portfolioSnapshotState/state)를 읽어
+  // 로컬 미러에 합친다. 이렇게 해야 다른 브라우저/기기에서 숨기거나 삭제한 상태가 이 기기에서도
+  // 동일하게 적용된다(요구사항 4·5: Firestore 기준 조회). 실패해도 로컬 상태는 그대로 유지한다.
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    loadPortfolioSnapshotState(user.uid)
+      .then((state) => {
+        if (cancelled) return;
+        hydrateDeletedSnapshotDates(state.deletedDates);
+        hydrateHiddenSnapshotDates(state.hiddenDates);
+      })
+      .catch((err) => warnFirestoreFallback("portfolioSnapshotState.load", err));
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  // 활성 Firestore 오버레이 스냅샷(상단 "현재 스냅샷" 카드 소스)의 날짜가 삭제/숨김 대상이면
+  // 전용 store 를 비운다. 새 브라우저에서 온-마운트 오버레이 fetch 와 Firestore 숨김/삭제
+  // 상태 hydration 의 순서가 어긋나도(레이스), hydration 이 끝나는 즉시 상단 카드가
+  // localStorage 로 폴백되어 삭제/숨긴 스냅샷이 어디에도 다시 나타나지 않게 한다.
+  useEffect(() => {
+    const date = firestoreSnapshot?.snapshotDate;
+    if (!date) return;
+    if (deletedSnapshotDates.has(date) || hiddenSnapshotDates.has(date)) {
+      removeActiveFirestoreSnapshot({ id: firestoreSnapshot?.id, snapshotDate: date });
+    }
+  }, [firestoreSnapshot, deletedSnapshotDates, hiddenSnapshotDates]);
 
   // 드롭다운 / 히스토리 / 미리보기가 모두 "현재 활성 스냅샷"과 같은 소스를 보도록,
   // 활성 Firestore 스냅샷을 localStorage 스냅샷과 하나의 목록으로 통합한다.
@@ -142,14 +190,17 @@ export default function PortfolioPage() {
     const merged = firestoreSnapshot
       ? mergePortfolioSnapshots(snapshots, [firestoreSnapshot])
       : snapshots;
-    // 삭제 묘비 적용: 사용자가 지운 날짜는 어떤 소스에서 다시 올라와도 목록에서 제외한다.
+    // 삭제 묘비/숨김 적용: 사용자가 지우거나 숨긴 날짜는 어떤 소스에서 다시 올라와도 목록에서 제외한다.
     // (계약 어댑터의 replaceSnapshots 재동기화 등 읽기 전용 소스에서의 재유입까지 방어)
+    const excludedDates = deletedSnapshotDates.size === 0 && hiddenSnapshotDates.size === 0
+      ? null
+      : new Set<string>([...Array.from(deletedSnapshotDates), ...Array.from(hiddenSnapshotDates)]);
     const withoutDeleted =
-      deletedSnapshotDates.size === 0
+      excludedDates === null
         ? merged
-        : merged.filter((snapshot) => !deletedSnapshotDates.has(snapshot.snapshotDate));
+        : merged.filter((snapshot) => !excludedDates.has(snapshot.snapshotDate));
     return [...withoutDeleted].sort((a, b) => (a.snapshotDate < b.snapshotDate ? 1 : -1));
-  }, [firestoreSnapshot, snapshots, deletedSnapshotDates]);
+  }, [firestoreSnapshot, snapshots, deletedSnapshotDates, hiddenSnapshotDates]);
 
   const [files, setFiles] = useState<File[]>([]);
   const [parsing, setParsing] = useState(false);
@@ -248,8 +299,18 @@ export default function PortfolioPage() {
       if (!ok) return;
     }
     saveSnapshot(snap);
-    // 같은 날짜를 다시 등록하면 이전 삭제 묘비를 해제해 목록에 정상적으로 다시 보이게 한다.
+    // 같은 날짜를 다시 등록하면 이전 삭제 묘비/숨김을 해제해 목록에 정상적으로 다시 보이게 한다.
     unmarkSnapshotDateDeleted(snap.snapshotDate);
+    unmarkSnapshotDateHidden(snap.snapshotDate);
+    // 로그인 상태면 Firestore 의 숨김/삭제 상태에서도 이 날짜를 제거해 모든 기기에서 다시 보이게 한다.
+    if (user) {
+      void removeDeletedSnapshotDateFromCloud(user.uid, snap.snapshotDate).catch((err) =>
+        warnFirestoreFallback("portfolioSnapshotState.undelete", err),
+      );
+      void removeHiddenSnapshotDateFromCloud(user.uid, snap.snapshotDate).catch((err) =>
+        warnFirestoreFallback("portfolioSnapshotState.unhide", err),
+      );
+    }
     if (user && !USE_FIRESTORE_CONTRACT) {
       try {
         await savePortfolioSnapshot(user.uid, snap);
@@ -292,20 +353,55 @@ export default function PortfolioPage() {
     //    (상단 총자산/보유종목 카드는 localStorage 로 폴백). ← "클릭해도 무반응" 핵심 해결.
     removeActiveFirestoreSnapshot({ id, snapshotDate });
 
-    // 6) 클라우드(쓰기 가능 컬렉션 users/{uid}/portfolioSnapshots)에서도 실제 삭제.
-    //    기존에는 `!USE_FIRESTORE_CONTRACT` 게이트로 막혀 새로고침 후 재유입되었다.
-    //    로그인 상태면 항상 시도한다(계약 모드에서는 해당 컬렉션이 비어 무해한 no-op).
+    // 6) 클라우드 영구 반영. 로그인 상태면:
+    //    (a) 쓰기 가능 컬렉션 users/{uid}/portfolioSnapshots 의 실제 문서를 삭제하고,
+    //    (b) 삭제 묘비 날짜를 Firestore(portfolioSnapshotState.deletedDates)에 기록한다.
+    //    (b)는 읽기 전용 파이프라인 오버레이(portfolio_snapshots, 클라이언트가 못 지움)가
+    //    다른 브라우저/기기에서 다시 내려와도 게시 단계에서 걸러지도록 하는 핵심이다
+    //    → 어떤 브라우저에서도 삭제 후 다시 나타나지 않는다(요구사항 4-3·5).
     //    오버레이 행은 넘어온 id 가 날짜일 수 있으므로 localStorage 원본 id 들도 함께 지운다.
     if (user) {
       const idsToDelete = new Set<string>([id, ...localTwins.map((snapshot) => snapshot.id)]);
       try {
-        await Promise.all(
-          Array.from(idsToDelete).map((snapshotId) => deletePortfolioSnapshot(user.uid, snapshotId)),
-        );
+        await Promise.all([
+          ...Array.from(idsToDelete).map((snapshotId) => deletePortfolioSnapshot(user.uid, snapshotId)),
+          ...(snapshotDate != null ? [addDeletedSnapshotDateToCloud(user.uid, snapshotDate)] : []),
+        ]);
         // Firestore 삭제 성공도 클라우드 반영(동기화)이므로 시각을 갱신한다.
         markPortfolioCloudSyncNow();
       } catch (err) {
         warnFirestoreFallback("portfolioSnapshots.delete", err);
+      }
+    }
+  };
+
+  // 숨기기: 데이터(문서)는 보존하고 기본 조회에서만 제외한다. 숨김 상태는 Firestore 에 저장되어
+  // 같은 계정의 모든 브라우저/기기에서 동일하게 유지된다(요구사항 4-2). 삭제와 달리 묘비/문서
+  // 삭제는 하지 않으므로, 같은 날짜를 다시 등록하거나 향후 숨김 해제 시 데이터가 그대로 돌아온다.
+  const handleHideSnapshot = async (id: string) => {
+    const target = mergedSnapshots.find((snapshot) => snapshot.id === id) ?? null;
+    const snapshotDate = target?.snapshotDate ?? null;
+    if (snapshotDate == null) return;
+
+    // 숨기는 스냅샷을 미리보기 중이면 미리보기를 닫는다.
+    const previewedDate = previewSnapshotId
+      ? mergedSnapshots.find((snapshot) => snapshot.id === previewSnapshotId)?.snapshotDate ?? null
+      : null;
+    if (previewSnapshotId === id || previewedDate === snapshotDate) {
+      setPreviewSnapshotId(null);
+    }
+
+    // 로컬 즉시 반영(목록에서 제거) + 활성 오버레이가 이 행이면 비워 상단 카드도 폴백.
+    markSnapshotDateHidden(snapshotDate);
+    removeActiveFirestoreSnapshot({ id, snapshotDate });
+
+    // Firestore 영구 반영(다른 기기에서도 숨김 유지).
+    if (user) {
+      try {
+        await addHiddenSnapshotDateToCloud(user.uid, snapshotDate);
+        markPortfolioCloudSyncNow();
+      } catch (err) {
+        warnFirestoreFallback("portfolioSnapshotState.hide", err);
       }
     }
   };
@@ -636,6 +732,7 @@ export default function PortfolioPage() {
           <SnapshotHistory
             snapshots={mergedSnapshots}
             onDelete={handleDeleteSnapshot}
+            onHide={handleHideSnapshot}
             onSelect={handleSelectSnapshot}
             selectedSnapshotId={selectedSnapshotId}
             loading={authLoading || syncState.status === "syncing"}

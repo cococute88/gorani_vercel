@@ -39,7 +39,7 @@ assert.equal(result.available, true);
 assert.equal(result.dataSource, "latest-holdings-backcast");
 assert.ok(result.kpis.cumulativeDepositKRW > 0);
 assert.ok(result.kpis.portfolioValueKRW > result.kpis.cumulativeDepositKRW);
-assert.equal(result.kpis.kospiValueKRW, null);
+assert.equal(result.kpis.schdValueKRW, null);
 assert.equal(result.points[1].netInvestment, 0);
 assert.ok(result.points[1].monthlyProfit > 0);
 assert.equal(buildDividendPerformanceBackcast({ holdings: [{ ticker: "QQQ", quantity: 10, valueKRW: 1 }], priceHistories: {}, latestDate: "2026-06-15" }).available, false);

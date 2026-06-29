@@ -110,7 +110,7 @@ export default function DividendPage() {
   const [targetTicker, setTargetTicker] = useState("SCHD");
   const [targetQty, setTargetQty] = useState(3300);
   const [marketData, setMarketData] = useState<DividendMarketDataState>(EMPTY_MARKET_DATA);
-  const [performanceHistories, setPerformanceHistories] = useState<{ prices: Record<string, BackcastPricePoint[]>; kospi: BackcastPricePoint[] | null; sp500: BackcastPricePoint[] | null; fx: BackcastPricePoint[] | null }>({ prices: {}, kospi: null, sp500: null, fx: null });
+  const [performanceHistories, setPerformanceHistories] = useState<{ prices: Record<string, BackcastPricePoint[]>; schd: BackcastPricePoint[] | null; sp500: BackcastPricePoint[] | null; fx: BackcastPricePoint[] | null }>({ prices: {}, schd: null, sp500: null, fx: null });
 
   const latestSnapshot = useMemo(() => latestOf(snapshots), [snapshots]);
   const holdings: Holding[] = useMemo(() => latestSnapshot?.holdings ?? [], [latestSnapshot]);
@@ -271,7 +271,7 @@ export default function DividendPage() {
   useEffect(() => {
     const tickers = dividendTickers;
     if (tickers.length === 0) {
-      setPerformanceHistories({ prices: {}, kospi: null, sp500: null, fx: null });
+      setPerformanceHistories({ prices: {}, schd: null, sp500: null, fx: null });
       return;
     }
     let active = true;
@@ -284,11 +284,12 @@ export default function DividendPage() {
         }
       }
       const entries = await Promise.all(tickers.map(async (ticker) => [ticker, toBackcastSeries(await fetchHistory(ticker)) ?? []] as const));
-      const [kospi, sp500, fx] = await Promise.all([fetchHistory("^KS11"), fetchHistory("SPY"), fetchHistory("KRW=X")]);
+      // 비교 대상을 SCHD 로 통일한다(기존 ^KS11/KOSPI 제거). SCHD 는 USD 라 환율(KRW=X)로 KRW 환산한다.
+      const [schd, sp500, fx] = await Promise.all([fetchHistory("SCHD"), fetchHistory("SPY"), fetchHistory("KRW=X")]);
       if (!active) return;
       setPerformanceHistories({
         prices: Object.fromEntries(entries),
-        kospi: toBackcastSeries(kospi),
+        schd: toBackcastSeries(schd),
         sp500: toBackcastSeries(sp500),
         fx: toBackcastSeries(fx),
       });
@@ -361,7 +362,7 @@ export default function DividendPage() {
   const dividendPerformance = useMemo(() => buildDividendPerformanceBackcast({
     holdings: [...estimatedTaxableHoldings, ...estimatedTaxAdvantagedHoldings],
     priceHistories: performanceHistories.prices,
-    benchmarkHistories: { kospi: performanceHistories.kospi, sp500: performanceHistories.sp500 },
+    benchmarkHistories: { schd: performanceHistories.schd, sp500: performanceHistories.sp500 },
     fxHistory: performanceHistories.fx,
     latestDate: latestSnapshot?.snapshotDate,
     months: 24,

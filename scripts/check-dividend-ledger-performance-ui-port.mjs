@@ -46,12 +46,12 @@ assert.ok(comp.includes("위탁 계좌 성과"), "위탁 계좌 성과 section m
 assert.ok(comp.includes("절세 계좌 성과"), "절세 계좌 성과 section must exist");
 assert.ok(page.includes("DividendAccountPerformanceSection"), "page must render account performance section");
 
-// KOSPI benchmark series 존재 + 파랑 점선
-assert.ok(comp.includes('dataKey="kospi"'), "계좌 그래프에 KOSPI series가 있어야 한다");
-assert.ok(comp.includes('COLOR_KOSPI = "#3B82F6"'), "KOSPI는 파랑(#3B82F6)이어야 한다");
-const kospiLine = comp.match(/dataKey="kospi"[\s\S]*?\/>/);
-assert.ok(kospiLine && kospiLine[0].includes("COLOR_KOSPI"), "KOSPI line은 파랑을 사용해야 한다");
-assert.ok(kospiLine && kospiLine[0].includes("strokeDasharray"), "KOSPI line은 점선이어야 한다");
+// SCHD benchmark series 존재 + 파랑 점선
+assert.ok(comp.includes('dataKey="schd"'), "계좌 그래프에 SCHD series가 있어야 한다");
+assert.ok(comp.includes('COLOR_SCHD = "#3B82F6"'), "SCHD는 파랑(#3B82F6)이어야 한다");
+const schdLine = comp.match(/dataKey="schd"[\s\S]*?\/>/);
+assert.ok(schdLine && schdLine[0].includes("COLOR_SCHD"), "SCHD line은 파랑을 사용해야 한다");
+assert.ok(schdLine && schdLine[0].includes("strokeDasharray"), "SCHD line은 점선이어야 한다");
 
 // S&P 500 series 주황색 점선
 assert.ok(comp.includes('COLOR_SP500 = "#F97316"'), "S&P 500은 주황색(#F97316)이어야 한다");
@@ -160,7 +160,7 @@ const tooFew = buildAccountGroupPerformance([snapshots[0]], "위탁");
 assert.equal(tooFew.available, false);
 assert.ok(tooFew.unavailableReason.includes("데이터 부족"), "데이터 부족 사유가 명시돼야 한다");
 
-// 벤치마크: KRW 지수 (KOSPI)
+// 벤치마크: KRW 지수(환율 불필요) — computeBenchmarkSeries 의 isUsd=false 경로 검증
 const flowPoints = brokerage.points.map((p) => ({ date: p.date, netInvestmentKRW: p.netInvestmentKRW }));
 const krwBench = computeBenchmarkSeries({
   points: flowPoints,
