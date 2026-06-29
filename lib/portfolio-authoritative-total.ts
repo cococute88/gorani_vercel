@@ -23,7 +23,15 @@
 //   종목 금액 왜곡 방지). 현금성 행은 권위 remainder 에 비례 스케일해 통화(원화/달러)
 //   분해 비율을 보존한다. 이는 KPI 의 "현금성/기타 = 총자산 − 투자" 와 동일한 정의이며,
 //   숫자를 임의로 만드는 게 아니라 "잘못된 합산 경로를 권위 합계 단일 기준에 맞추는"
-//   수정이다. 권위 합계가 없는 레거시/오프라인 스냅샷은 손대지 않는다(기존 동작 유지).
+//   수정이다.
+//
+// PORTFOLIO-TOTAL-CONSISTENCY-FIX-4 (과거 스냅샷 통일):
+//   FIX-3 까지는 권위 합계 객체(authoritativeTotals)가 "있을 때만" 단일 기준을 적용해,
+//   최신 Firestore 스냅샷만 정상이고 과거(localStorage/레거시) 스냅샷은 anchor 가 꺼져
+//   자가합산으로 되돌아가 KPI·파싱요약(=totalAssetKRW)과 도넛 총자산이 달라졌다.
+//   FIX-4 는 getAuthoritativeTotalAssetsKRW 의 폴백을 totalAssetKRW 로 확장해, 최신/과거
+//   구분 없이 모든 스냅샷이 동일한 총자산 기준·동일한 anchor 경로를 타게 한다. totalAssetKRW
+//   까지 비어 있는(0/없음) 진짜 빈 스냅샷만 자가합산으로 남는다.
 // =============================================================
 
 import type { FinanceAsset, Holding, PortfolioSnapshot } from "./portfolio-types";
@@ -37,9 +45,22 @@ function positiveFinite(value: unknown): number | null {
 }
 
 /**
- * 스냅샷의 "유일한 총자산 기준"(권위 total_assets_krw)을 반환한다.
- * Firestore 계약 스냅샷이면 authoritativeTotals.totalAssetsKRW 를, 그 값이 없으면
- * 동일 값으로 stamp 되는 totalAssetKRW 를 쓴다. 둘 다 없으면 null(레거시/오프라인).
+ * 스냅샷의 "유일한 총자산 기준"을 반환한다 — 최신/과거 구분 없이 모든 스냅샷이 같은
+ * 함수·같은 우선순위를 탄다(스냅샷 전용 예외 경로 없음).
+ *
+ *   1순위: authoritativeTotals.totalAssetsKRW (Firestore 계약 스냅샷의 권위 total_assets_krw)
+ *   2순위: snapshot.totalAssetKRW          (그 외 모든 스냅샷이 저장 시점에 stamp 하는 총자산)
+ *
+ * 두 값 모두 유효(양수·유한)하지 않을 때만 null(차트가 자가합산하는 진짜 빈/0 스냅샷).
+ *
+ * 배경(PR #159 잔차 — 과거 스냅샷이 어긋난 원인):
+ *   직전 구현은 authoritativeTotals 가 "있을 때만" 권위 총자산을 반환하고, 없으면(=
+ *   localStorage/과거/레거시 스냅샷) totalAssetKRW 폴백을 쓰지 않고 null 을 반환했다.
+ *   그래서 최신 Firestore 스냅샷(authoritativeTotals 존재)만 도넛이 권위 총자산에
+ *   anchor 되고, 과거 스냅샷은 anchor 가 꺼져 보유종목+현금성을 자가합산 → KPI·파싱
+ *   요약(=totalAssetKRW)과 도넛 중앙 총자산이 달라졌다(예: 06-16 도넛 7.83억 vs 파싱
+ *   6.79억). totalAssetKRW 는 KPI·파싱요약·히스토리가 이미 쓰는 단일 총자산이므로,
+ *   2순위 폴백으로 동일하게 채택해 모든 스냅샷의 모든 차트가 한 기준을 공유하게 한다.
  */
 export function getAuthoritativeTotalAssetsKRW(
   snapshot: SnapshotLike | null | undefined,
@@ -47,10 +68,11 @@ export function getAuthoritativeTotalAssetsKRW(
   if (!snapshot) return null;
   const authoritative = positiveFinite(snapshot.authoritativeTotals?.totalAssetsKRW);
   if (authoritative !== null) return authoritative;
-  // 권위 합계 객체가 없는 경우에만 totalAssetKRW 를 폴백으로 본다.
-  // (레거시/오프라인 스냅샷은 authoritativeTotals 가 없고, 이 경우 차트는 자가합산을
-  //  유지해야 하므로 여기서도 null 을 반환해 anchor 를 끈다.)
-  return snapshot.authoritativeTotals ? authoritative : null;
+  // 권위 합계 객체가 없거나(과거/localStorage/레거시) 그 안의 총자산이 유효하지 않으면,
+  // KPI·파싱요약·히스토리가 단일 기준으로 쓰는 totalAssetKRW 를 동일하게 폴백 기준으로
+  // 쓴다. 이렇게 해야 최신/과거 구분 없이 모든 스냅샷이 같은 총자산 기준(단일 계산
+  // 경로)을 사용한다. totalAssetKRW 까지 0/없음이면 null → 진짜 빈 스냅샷은 자가합산.
+  return positiveFinite(snapshot.totalAssetKRW);
 }
 
 /** 권위 현금 합계(total_cash_krw). 없으면 null. */
