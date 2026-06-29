@@ -19,8 +19,11 @@ import {
   type BacktestPricePoint,
   type BacktestSeriesKey,
 } from "@/lib/snapshot-backtest";
-import { normalizeHoldingTickerInfo } from "@/lib/holding-ticker-normalizer";
-import { getQuoteTickerForHolding } from "@/lib/ticker-mapper";
+import {
+  applyKnownQuoteTickerToHolding,
+  normalizeHoldingTickerInfo,
+} from "@/lib/holding-ticker-normalizer";
+import { getQuoteTickerForHolding, guessTicker } from "@/lib/ticker-mapper";
 import {
   MIN_HOLDING_VALUE_KRW,
   matchesAccountTab,
@@ -126,9 +129,34 @@ async function fetchHistory(ticker: string, start: string): Promise<QuoteHistory
 
 // 스냅샷 보유종목 → 백테스트 엔트리. 표시되는 "계좌별 종목 비중"과 동일한 기준
 // (동일 티커 합산, 100만원 미만 제외)을 사용한다.
+//
+// [중요] 데이터 소스 무관 티커 정규화:
+//   localStorage(엑셀 파서) 경로의 holdings 는 banksalad-parser 에서 guessTicker 로
+//   ticker 가 채워진 뒤 applyKnownQuoteTickerToHolding 까지 거쳐 들어온다.
+//   그러나 Firestore 활성 스냅샷의 holdings 는 mapHolding 의 필드 매핑만 거쳐서
+//   producer 가 ticker/symbol 을 안 채운 미국 ETF 는 ticker 가 비어 있다.
+//   그 상태로 getQuoteTickerForHolding 을 태우면 현금(null)으로 오분류되어 역산에서
+//   "평탄(0%)" 처리되고 포트폴리오 수익률이 비정상적으로 낮아진다(벤치마크는 정상).
+//   → 여기서 엑셀 경로와 동일한 정규화(이름 기반 guessTicker 폴백 + 표준 티커 적용)를
+//     모든 holdings 에 적용해, 데이터 소스에 관계없이 동일하게 티커를 인식한다.
+//     ticker 가 이미 있는 holdings 는 idempotent 하게 그대로 유지된다.
+function resolveBacktestTicker(holding: Holding): Holding {
+  const hasTicker = typeof holding.ticker === "string" && holding.ticker.trim() !== "";
+  // 엑셀 파서와 동일: ticker 가 없으면 표시명/상품명으로 guessTicker 를 시도해 채운다.
+  // (guessTicker 는 현금성 키워드(예수금/MMF 등)에는 null 을 반환하므로 현금 오인식 위험 없음)
+  const seeded = hasTicker
+    ? holding
+    : {
+        ...holding,
+        ticker: guessTicker(holding.cleanName ?? holding.productName ?? "").ticker ?? undefined,
+      };
+  return applyKnownQuoteTickerToHolding(seeded);
+}
+
 function buildEntries(holdings: Holding[]): BacktestEntry[] {
   const map = new Map<string, BacktestEntry>();
-  for (const holding of holdings ?? []) {
+  for (const rawHolding of holdings ?? []) {
+    const holding = resolveBacktestTicker(rawHolding);
     const valueKRW =
       typeof holding.valueKRW === "number" && Number.isFinite(holding.valueKRW) && holding.valueKRW > 0
         ? holding.valueKRW

@@ -124,7 +124,10 @@ export default function PortfolioPage() {
   // 활성 Firestore 스냅샷을 localStorage 스냅샷과 하나의 목록으로 통합한다.
   // - 중복 제거: snapshotDate 기준(Map/Set). 동일 날짜는 현재 활성(Firestore) 스냅샷을 우선해 1개만 남긴다.
   // - 정렬: snapshotDate 최신순(내림차순).
-  // 계산식/차트(추이·역산)는 변경하지 않기 위해 그쪽에는 기존 `snapshots`(로컬) 를 그대로 넘긴다.
+  // 계산식/차트(추이·역산)는 이 통합 목록(mergedSnapshots)을 사용해 현재 활성
+  // Firestore 스냅샷을 단일 소스로 따른다(PR #158). 단, 역산 성과 분석은 데이터
+  // 소스에 관계없이 보유종목 티커를 동일하게 정규화하므로(SnapshotBacktestSection
+  // 의 resolveBacktestTicker) Firestore/로컬 어느 스냅샷이든 동일 기준으로 계산된다.
   const mergedSnapshots = useMemo<PortfolioSnapshot[]>(() => {
     const merged = firestoreSnapshot
       ? mergePortfolioSnapshots(snapshots, [firestoreSnapshot])
