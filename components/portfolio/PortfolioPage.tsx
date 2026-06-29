@@ -388,6 +388,21 @@ export default function PortfolioPage() {
     return dates;
   }, [activeSnapshotDate, mergedSnapshots]);
 
+  // TEMP DEBUG (gated by ?debugSnap): prints the exact runtime values used to
+  // build the dropdown / history so we can confirm the Firestore snapshot
+  // actually lands in mergedSnapshots. Removed before final commit.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!new URLSearchParams(window.location.search).has("debugSnap")) return;
+    /* eslint-disable no-console */
+    console.log("[debugSnap] localStorage snapshots:", JSON.stringify(snapshots.map((s) => s.snapshotDate)));
+    console.log("[debugSnap] firestoreSnapshot:", firestoreSnapshot ? `${firestoreSnapshot.snapshotDate}#${firestoreSnapshot.id}` : "null");
+    console.log("[debugSnap] activeSnapshotDate:", activeSnapshotDate);
+    console.log("[debugSnap] mergedSnapshots:", JSON.stringify(mergedSnapshots.map((s) => `${s.snapshotDate}#${s.id}`)));
+    console.log("[debugSnap] snapshotDates:", JSON.stringify(snapshotDates));
+    /* eslint-enable no-console */
+  }, [snapshots, firestoreSnapshot, activeSnapshotDate, mergedSnapshots, snapshotDates]);
+
   // 상단 드롭다운과 하단 히스토리가 공유하는 "현재 선택된 스냅샷"(하이라이트/표시값) 기준.
   // 미리보기 요청 여부(previewSnapshotId)와 별개로, 선택 표시는 항상 어떤 스냅샷을 가리킨다:
   // 명시적으로 고른 스냅샷이 있으면 그것을, 없으면 최신 스냅샷으로 폴백한다.
