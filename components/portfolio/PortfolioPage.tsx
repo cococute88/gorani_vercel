@@ -9,9 +9,13 @@ import {
   saveSnapshot,
   deleteSnapshot,
   hasSnapshotDate,
+  mergePortfolioSnapshots,
 } from "@/lib/portfolio-store";
 import { usePortfolioView } from "@/lib/use-portfolio-view";
-import { usePortfolioFirestoreSnapshot } from "@/lib/portfolio-firestore-snapshot-sync";
+import {
+  usePortfolioFirestoreSnapshot,
+  usePortfolioFirestoreSnapshotData,
+} from "@/lib/portfolio-firestore-snapshot-sync";
 import { useFirebaseAuth } from "@/lib/firebase/auth";
 import { deletePortfolioSnapshot, savePortfolioSnapshot, warnFirestoreFallback } from "@/lib/firebase/firestore-repositories";
 import { parseBanksaladFile } from "@/lib/banksalad-parser";
@@ -111,6 +115,21 @@ export default function PortfolioPage() {
   // (스냅샷 없음/오류 시 기존 로컬 데이터로 자동 fallback. 계산/뷰모델은 변경하지 않는다.)
   usePortfolioFirestoreSnapshot();
   const portfolioView = usePortfolioView();
+  // 현재 화면을 구동하는 "활성" Firestore 스냅샷 객체(없으면 null → 로컬로 폴백).
+  // 투자현황 화면이 보는 것과 동일한 소스다(usePortfolioView 도 이 값을 읽는다).
+  const firestoreSnapshot = usePortfolioFirestoreSnapshotData();
+
+  // 드롭다운 / 히스토리 / 미리보기가 모두 "현재 활성 스냅샷"과 같은 소스를 보도록,
+  // 활성 Firestore 스냅샷을 localStorage 스냅샷과 하나의 목록으로 통합한다.
+  // - 중복 제거: snapshotDate 기준(Map/Set). 동일 날짜는 현재 활성(Firestore) 스냅샷을 우선해 1개만 남긴다.
+  // - 정렬: snapshotDate 최신순(내림차순).
+  // 계산식/차트(추이·역산)는 변경하지 않기 위해 그쪽에는 기존 `snapshots`(로컬) 를 그대로 넘긴다.
+  const mergedSnapshots = useMemo<PortfolioSnapshot[]>(() => {
+    const merged = firestoreSnapshot
+      ? mergePortfolioSnapshots(snapshots, [firestoreSnapshot])
+      : snapshots;
+    return [...merged].sort((a, b) => (a.snapshotDate < b.snapshotDate ? 1 : -1));
+  }, [firestoreSnapshot, snapshots]);
 
   const [files, setFiles] = useState<File[]>([]);
   const [parsing, setParsing] = useState(false);
@@ -286,8 +305,8 @@ export default function PortfolioPage() {
   };
 
   const previewSnapshot = useMemo(
-    () => snapshots.find((snapshot) => snapshot.id === previewSnapshotId) ?? null,
-    [previewSnapshotId, snapshots],
+    () => mergedSnapshots.find((snapshot) => snapshot.id === previewSnapshotId) ?? null,
+    [previewSnapshotId, mergedSnapshots],
   );
   const displayedHoldings = useMemo(
     () =>
@@ -324,14 +343,15 @@ export default function PortfolioPage() {
     .join(" ");
 
   // 최신 등록 스냅샷 (파싱 preview 가 없을 때 자산군 도넛의 기준).
+  // 통합 목록(mergedSnapshots) 기준이므로 현재 활성 Firestore 스냅샷이 곧 최신으로 잡힌다.
   const latestSnapshot = useMemo(
     () =>
-      snapshots.length > 0
-        ? snapshots.reduce((latest, item) =>
+      mergedSnapshots.length > 0
+        ? mergedSnapshots.reduce((latest, item) =>
             item.snapshotDate >= latest.snapshotDate ? item : latest,
           )
         : null,
-    [snapshots],
+    [mergedSnapshots],
   );
 
   // 상단 3-카드 도넛 기준: 파싱 preview 우선 → 없으면 최신 스냅샷 → 없으면 empty.
@@ -353,18 +373,20 @@ export default function PortfolioPage() {
   // 상단 스냅샷 컨트롤용 값.
   // 활성(현재) 스냅샷 날짜는 투자현황과 동일하게 portfolioView 기준으로 잡는다.
   const activeSnapshotDate = portfolioView.snapshot?.snapshotDate ?? null;
-  // 드롭다운 항목: 등록된 스냅샷 날짜(최신 우선). 하단 히스토리와 동일한 source(`snapshots`)를
-  // 사용해 두 UI가 항상 같은 날짜 집합을 가리키도록 한다. 스냅샷이 누적되면 이 목록만 늘어나고
-  // UI(스크롤/더보기)는 그대로 동작한다(확장 가능 구조, 하드코딩 없음 — 요구사항 10).
-  // 로컬 히스토리가 비어 있고 Firestore 활성 스냅샷만 있는 경우에만 활성 날짜로 폴백한다.
+  // 드롭다운 항목: 통합 스냅샷 목록(mergedSnapshots)의 날짜(최신 우선). 하단 히스토리와 동일한
+  // source 를 사용하므로 두 UI가 항상 같은 날짜 집합 — 그리고 현재 활성 Firestore 스냅샷 — 을
+  // 가리킨다. 중복 날짜는 Set 으로 제거하고 최신순(내림차순)으로 정렬한다. 스냅샷이 누적되면 이
+  // 목록만 늘어나고 UI(스크롤/더보기)는 그대로 동작한다(확장 가능 구조, 하드코딩 없음 — 요구사항 10).
+  // 통합 목록이 비어 있고 활성 날짜만 있는 극단적 상황에서만 활성 날짜로 폴백한다.
   const snapshotDates = useMemo(() => {
-    if (snapshots.length === 0) {
+    const set = new Set<string>();
+    mergedSnapshots.forEach((snapshot) => set.add(snapshot.snapshotDate));
+    const dates = Array.from(set).sort((a, b) => (a < b ? 1 : -1));
+    if (dates.length === 0) {
       return activeSnapshotDate ? [activeSnapshotDate] : [];
     }
-    const set = new Set<string>();
-    snapshots.forEach((snapshot) => set.add(snapshot.snapshotDate));
-    return Array.from(set).sort((a, b) => (a < b ? 1 : -1));
-  }, [activeSnapshotDate, snapshots]);
+    return dates;
+  }, [activeSnapshotDate, mergedSnapshots]);
 
   // 상단 드롭다운과 하단 히스토리가 공유하는 "현재 선택된 스냅샷"(하이라이트/표시값) 기준.
   // 미리보기 요청 여부(previewSnapshotId)와 별개로, 선택 표시는 항상 어떤 스냅샷을 가리킨다:
@@ -379,11 +401,11 @@ export default function PortfolioPage() {
   // (예전에는 최신 날짜를 null 로 접어 미리보기를 숨겼지만, 이제는 최신도 동일하게 미리보기를 연다.)
   const handleSelectSnapshotDate = useCallback(
     (date: string) => {
-      const target = snapshots.find((snapshot) => snapshot.snapshotDate === date);
+      const target = mergedSnapshots.find((snapshot) => snapshot.snapshotDate === date);
       if (!target) return;
       setPreviewSnapshotId(target.id);
     },
-    [snapshots],
+    [mergedSnapshots],
   );
 
   // 하단 히스토리에서 행을 선택할 때도 동일한 매핑을 사용해 두 UI를 동기화한다.
@@ -517,10 +539,11 @@ export default function PortfolioPage() {
           </button>
         </section>
 
-        {/* 4.5) 등록된 스냅샷 히스토리 — 엑셀 업로드/파싱 결과 다음, 보유종목 바로 위에 배치. */}
+        {/* 4.5) 등록된 스냅샷 히스토리 — 드롭다운과 동일한 통합 목록(mergedSnapshots)을 사용해
+            현재 활성 Firestore 스냅샷도 항상 포함된다. */}
         <section className="mb-6">
           <SnapshotHistory
-            snapshots={snapshots}
+            snapshots={mergedSnapshots}
             onDelete={handleDeleteSnapshot}
             onSelect={handleSelectSnapshot}
             selectedSnapshotId={selectedSnapshotId}
