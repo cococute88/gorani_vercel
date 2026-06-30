@@ -75,24 +75,53 @@ export function buildProjectedDividendCalendarEvents(ticker: string, history: Di
   })).map(normalizeCalendarEventForCache);
 }
 
+// Merge dividend history rows from multiple confirmed sources (Yahoo history +
+// declared Polygon/Finnhub ex-dates) into a single, date-sorted, deduplicated
+// series. Declared rows are layered last so a declared cash amount wins when the
+// same ex-date also exists in the Yahoo history.
+function dedupeDividendHistoryByDate(rows: DividendHistoryRow[]): DividendHistoryRow[] {
+  const byDate = new Map<string, DividendHistoryRow>();
+  for (const row of rows) {
+    const date = row.date?.slice(0, 10);
+    const amount = Number(row.amount);
+    if (!date || !Number.isFinite(amount) || amount <= 0) continue;
+    byDate.set(date, { date, amount });
+  }
+  return Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date));
+}
+
 export function mergeDeclaredAndProjectedEvents(ticker: string, declaredRows: DeclaredDividendRow[], historyRows: DividendHistoryRow[], today = new Date()): CalendarEvent[] {
   const declared = buildDeclaredDividendCalendarEvents(ticker, declaredRows, "declared");
-  const projected = buildProjectedDividendCalendarEvents(ticker, historyRows, today);
 
-  // Confirmed (declared, e.g. Polygon) ex-dates are authoritative. A projected
-  // ESTIMATED ex-date that refers to the SAME dividend period as a confirmed one
-  // is just an approximation of a date we already know exactly — drop it so a
-  // single dividend never renders both a confirmed AND a spurious estimated row.
-  // Matching is by proximity (not exact date), because projected ex-dates rarely
-  // line up exactly with the confirmed date. Tolerance scales with the payout
-  // cadence so it never merges two genuinely-distinct dividends.
+  // Faithful port of the original Streamlit projection
+  // (original/modules/dividend_calendar.py · _project_future_dividends_cached):
+  // there `last_ex_div` is the latest ex-date across ALL confirmed sources — the
+  // combined `declared_dict` (Yahoo history ∪ Finnhub ∪ Polygon ∪ summary info) —
+  // and the estimated projection steps forward from that last KNOWN date. Because
+  // the declared rows already include the confirmed NEXT ex-date, the projection
+  // begins strictly AFTER it and therefore never fabricates an ESTIMATED row for a
+  // dividend period a declared (Polygon) dividend already covers. This replaces the
+  // previous "generate-then-delete-by-proximity" behaviour: estimated rows for
+  // confirmed periods are simply never created (the collision filter below stays
+  // only as a defensive safety net for boundary cases).
+  const projectionHistory = dedupeDividendHistoryByDate([
+    ...historyRows,
+    ...declaredRows.map((row) => ({ date: row.exDate.slice(0, 10), amount: row.amount })),
+  ]);
+  const projected = buildProjectedDividendCalendarEvents(ticker, projectionHistory, today);
+
+  // Safety net: drop any projected ESTIMATED ex-date that still lands in the SAME
+  // dividend period as a confirmed (declared) ex-date, so a single dividend never
+  // renders both a confirmed AND a spurious estimated row. Matching is by proximity
+  // (not exact date); tolerance scales with the payout cadence so it never merges
+  // two genuinely-distinct dividends.
   const declaredExDates = Array.from(
     new Set(declared.filter((event) => event.type === "ex_div").map((event) => event.exDivDate)),
   )
     .map((iso) => parseIsoDate(iso))
     .filter((date): date is Date => Boolean(date));
 
-  const frequency = inferDividendFrequency(historyRows.map((row) => row.date));
+  const frequency = inferDividendFrequency(projectionHistory.map((row) => row.date));
   const collisionToleranceDays = frequency.medianIntervalDays
     ? Math.max(7, Math.floor(frequency.medianIntervalDays / 2))
     : 20;

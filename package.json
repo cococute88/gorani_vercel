@@ -22,6 +22,7 @@
     "check:calendar-provider": "node scripts/check-calendar-provider.mjs",
     "check:us-market-calendar": "node scripts/check-us-market-calendar.mjs",
     "check:calendar-dividend-live-update": "node scripts/check-calendar-dividend-live-update.mjs",
+    "trace:ritm-dividend-pipeline": "node scripts/trace-ritm-dividend-pipeline.mjs",
     "check:calendar-ux-rules": "node scripts/check-calendar-ux-rules.mjs",
     "check:calendar-selected-date-cards": "node scripts/check-calendar-selected-date-cards.mjs",
     "check:calendar-memo-matching": "node scripts/check-calendar-memo-matching.mjs",
