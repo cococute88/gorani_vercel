@@ -20,6 +20,7 @@
     "check:portfolio-parser": "node scripts/check-portfolio-parser.mjs",
     "check:portfolio-parser:private": "node scripts/check-portfolio-parser.mjs --private docs/fixtures/portfolio-parser/private/2025-06-12~2026-06-12.xlsx",
     "check:calendar-provider": "node scripts/check-calendar-provider.mjs",
+    "check:us-market-calendar": "node scripts/check-us-market-calendar.mjs",
     "check:calendar-dividend-live-update": "node scripts/check-calendar-dividend-live-update.mjs",
     "check:calendar-ux-rules": "node scripts/check-calendar-ux-rules.mjs",
     "check:calendar-selected-date-cards": "node scripts/check-calendar-selected-date-cards.mjs",

@@ -1,5 +1,6 @@
 import { buildCalendarTickerCacheFromEvents, buildDividendEventsFromHistory, inferDividendFrequency, normalizeCalendarEventForCache, projectEstimatedDividendEvents } from "@/lib/calendar-event-provider";
 import { normalizeCalendarTicker, type CalendarTickerCache } from "@/lib/calendar-event-identity";
+import { nextUsTradingDayOnOrAfterIso } from "@/lib/us-market-calendar";
 import type { CalendarEvent } from "@/lib/mock-calendar-data";
 import type { QuoteDividendsResponse } from "@/lib/quote-types";
 
@@ -28,10 +29,16 @@ function parseIsoDate(value: string): Date | null {
 }
 function toIsoDate(date: Date): string { return date.toISOString().slice(0, 10); }
 function addDays(date: Date, days: number): Date { const next = new Date(date); next.setUTCDate(next.getUTCDate() + days); return next; }
-function nextWeekday(date: Date): Date { let next = new Date(date); while (next.getUTCDay() === 0 || next.getUTCDay() === 6) next = addDays(next, 1); return next; }
 export function normalizePaymentDate(exDate: string, payDate?: string | null): string {
-  const parsed = parseIsoDate(payDate || "") ?? (parseIsoDate(exDate) ? addDays(parseIsoDate(exDate) as Date, 14) : null);
-  return parsed ? toIsoDate(nextWeekday(parsed)) : "";
+  // A provider-declared payment date is authoritative and confirmed — return it
+  // verbatim (date only) without any weekend/holiday shifting.
+  const declared = parseIsoDate(payDate || "");
+  if (declared) return toIsoDate(declared);
+  // Otherwise derive a provisional payment date (ex + 14 days) and snap it to
+  // the next U.S. trading day so a derived date never lands on a closed market.
+  const exParsed = parseIsoDate(exDate);
+  if (!exParsed) return "";
+  return nextUsTradingDayOnOrAfterIso(toIsoDate(addDays(exParsed, 14)));
 }
 
 export function buildDeclaredDividendCalendarEvents(ticker: string, rows: DeclaredDividendRow[], sourceKind: CalendarEvent["sourceKind"] = "declared"): CalendarEvent[] {
@@ -71,8 +78,33 @@ export function buildProjectedDividendCalendarEvents(ticker: string, history: Di
 export function mergeDeclaredAndProjectedEvents(ticker: string, declaredRows: DeclaredDividendRow[], historyRows: DividendHistoryRow[], today = new Date()): CalendarEvent[] {
   const declared = buildDeclaredDividendCalendarEvents(ticker, declaredRows, "declared");
   const projected = buildProjectedDividendCalendarEvents(ticker, historyRows, today);
-  const declaredEx = new Set(declared.filter((event) => event.type === "ex_div").map((event) => event.exDivDate));
-  const events = [...declared, ...projected.filter((event) => !declaredEx.has(event.exDivDate))];
+
+  // Confirmed (declared, e.g. Polygon) ex-dates are authoritative. A projected
+  // ESTIMATED ex-date that refers to the SAME dividend period as a confirmed one
+  // is just an approximation of a date we already know exactly — drop it so a
+  // single dividend never renders both a confirmed AND a spurious estimated row.
+  // Matching is by proximity (not exact date), because projected ex-dates rarely
+  // line up exactly with the confirmed date. Tolerance scales with the payout
+  // cadence so it never merges two genuinely-distinct dividends.
+  const declaredExDates = Array.from(
+    new Set(declared.filter((event) => event.type === "ex_div").map((event) => event.exDivDate)),
+  )
+    .map((iso) => parseIsoDate(iso))
+    .filter((date): date is Date => Boolean(date));
+
+  const frequency = inferDividendFrequency(historyRows.map((row) => row.date));
+  const collisionToleranceDays = frequency.medianIntervalDays
+    ? Math.max(7, Math.floor(frequency.medianIntervalDays / 2))
+    : 20;
+  const toleranceMs = collisionToleranceDays * 86_400_000;
+
+  const collidesWithConfirmed = (event: CalendarEvent): boolean => {
+    const exDate = parseIsoDate(event.exDivDate || event.date);
+    if (!exDate) return false;
+    return declaredExDates.some((declaredDate) => Math.abs(declaredDate.getTime() - exDate.getTime()) <= toleranceMs);
+  };
+
+  const events = [...declared, ...projected.filter((event) => !collidesWithConfirmed(event))];
   return events.sort((a, b) => a.date.localeCompare(b.date) || a.type.localeCompare(b.type));
 }
 

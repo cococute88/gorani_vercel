@@ -39,7 +39,7 @@ assert.match(live, /eventPriority[\s\S]*status === "confirmed"[\s\S]*sourceKind 
 assert.match(route, /polygonBlockedFallback/, "Polygon rate-limited or failed state blocks projection fallback overwrite");
 assert.match(route, /providerStatus\.polygon === "missing_key" \? yahooRows/, "Yahoo fallback is allowed only when Polygon key is missing");
 assert.match(live, /getPreviousDividendBuyDate|buildDividendEventsFromHistory/, "buy deadline comes from ex-div previous trading day helper");
-assert.match(live, /nextWeekday/, "payment date weekend correction exists");
+assert.match(live, /nextUsTradingDay/, "payment date trading-day (weekend + market holiday) correction exists");
 assert.doesNotMatch(route, /apiKey:|token:|POLYGON_API_KEY.*json|FINNHUB_API_KEY.*json/, "secret values are not returned in response");
 assert.equal(pkg.scripts["check:calendar-dividend-live-update"], "node scripts/check-calendar-dividend-live-update.mjs", "package script registered");
 assert.doesNotMatch(audit, /^(<<<<<<<|=======|>>>>>>>)$/m, "AUDIT has no conflict markers");
