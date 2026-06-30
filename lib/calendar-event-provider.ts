@@ -13,6 +13,7 @@ import {
   type CalendarTickerCacheSource,
 } from "@/lib/calendar-event-identity";
 import { calendarCustomEventToCalendarEvent, type CalendarCustomEvent } from "@/lib/calendar-custom-events";
+import { nextUsTradingDayOnOrAfter, previousUsTradingDay } from "@/lib/us-market-calendar";
 import { fetchQuoteDividends } from "@/lib/calculator-data-provider";
 import { buildMockCalendarEvents, type CalendarEvent } from "@/lib/mock-calendar-data";
 import type { QuoteDividendsResponse } from "@/lib/quote-types";
@@ -130,34 +131,15 @@ function addMonths(date: Date, months: number): Date {
   return next;
 }
 
-function addDays(date: Date, days: number): Date {
-  const next = new Date(date);
-  next.setDate(next.getDate() + days);
-  return next;
-}
-
-function previousWeekday(date: Date): Date {
-  let next = addDays(date, -1);
-  while (next.getDay() === 0 || next.getDay() === 6) {
-    next = addDays(next, -1);
-  }
-  return next;
-}
-
 export function getPreviousDividendBuyDate(exDivDate: string | Date): string {
   const parsed = typeof exDivDate === "string" ? parseIsoDate(exDivDate) : exDivDate;
   if (!parsed || !Number.isFinite(parsed.getTime())) {
     throw new Error("A valid ex-dividend date is required to calculate the buy deadline.");
   }
-  return toIsoDate(previousWeekday(parsed));
-}
-
-function nextWeekday(date: Date): Date {
-  let next = new Date(date);
-  while (next.getDay() === 0 || next.getDay() === 6) {
-    next = addDays(next, 1);
-  }
-  return next;
+  // Buy-deadline is the last *trading* day before the ex-date — skipping
+  // weekends AND U.S. market holidays (e.g. ex on Mon after a Fri holiday must
+  // not produce a closed-market buy-deadline).
+  return toIsoDate(previousUsTradingDay(parsed));
 }
 
 function median(values: number[]): number | null {
@@ -373,7 +355,10 @@ export function projectEstimatedDividendEvents({
   }
 
   while (nextExDivDate <= projectionEnd && guard < 48) {
-    const adjustedExDivDate = nextWeekday(nextExDivDate);
+    // Estimated ex-dates must fall on a real trading day (skip weekends AND
+    // U.S. market holidays) so the derived buy-deadline never lands on a
+    // closed-market day.
+    const adjustedExDivDate = nextUsTradingDayOnOrAfter(nextExDivDate);
     if (adjustedExDivDate > projectionEnd) break;
     const exDivIso = toIsoDate(adjustedExDivDate);
     const buyDeadline = getPreviousDividendBuyDate(adjustedExDivDate);

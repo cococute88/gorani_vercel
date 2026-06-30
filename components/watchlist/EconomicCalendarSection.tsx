@@ -71,7 +71,7 @@ export default function EconomicCalendarSection() {
       <div className="mb-1 flex items-center gap-2">
         <CalendarClock size={16} className="text-blue-500 dark:text-blue-400" />
         <h2 className="text-[14px] font-bold text-slate-900 dark:text-slate-200 sm:text-[15px]">주요 미국 경제 일정</h2>
-        <span className="ml-auto rounded-full bg-black/5 px-2 py-0.5 text-[10px] font-semibold text-slate-500 dark:bg-white/10 dark:text-slate-400 sm:text-[11px]">static</span>
+        <span className="ml-auto rounded-full bg-black/5 px-2 py-0.5 text-[10px] font-semibold text-slate-500 dark:bg-white/10 dark:text-slate-400 sm:text-[11px]">{weeks.source === "generated" ? "자동 갱신" : "static"}</span>
       </div>
       <p className="mb-3 text-[11px] text-slate-500 dark:text-slate-400 sm:text-[12px]">이번주·다음주 중요도 높은 미국 경제지표 일정입니다.</p>
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
@@ -79,7 +79,7 @@ export default function EconomicCalendarSection() {
         <WeekTable week={weeks.nextWeek} />
       </div>
       <p className="mt-3 text-[10px] text-slate-500 dark:text-slate-500 sm:text-[11px]">
-        마지막 업데이트: {formatEconomicUpdatedAt(weeks.updatedAt)} · 원본 Streamlit 정적 스냅샷
+        마지막 업데이트: {formatEconomicUpdatedAt(weeks.updatedAt)} · {weeks.source === "generated" ? "이번주 기준 자동 생성 일정" : "원본 Streamlit 정적 스냅샷"}
       </p>
     </section>
   );
