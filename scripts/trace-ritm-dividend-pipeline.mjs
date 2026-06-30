@@ -1,18 +1,23 @@
 #!/usr/bin/env node
 
 // Step-by-step data-flow trace for the dividend calendar pipeline, focused on
-// RITM (Rithm Capital, monthly payer). It reproduces the real-world failure that
-// PR #167 left unsolved: Yahoo's dividend history lags behind Polygon's already
-// CONFIRMED next ex-date, so a Yahoo-seeded projection fabricated an ESTIMATED
-// row a few days away from the confirmed one — and because the two ex-dates
-// differ, neither the proximity dedup nor the exact-key cache merge removed it,
-// leaving RITM showing BOTH a confirmed and an estimated row on different dates.
+// RITM (Rithm Capital). It documents the real-world failure PR #167 left
+// unsolved and proves the Polygon-Single-Source-of-Truth fix:
+//
+//   On refresh, the CONFIRMED declared series (Polygon on production) is the ONLY
+//   basis for both the confirmed events AND the estimated projection seed. Yahoo's
+//   dividend history lags ~one payout period behind, so a Yahoo-seeded projection
+//   fabricated an ESTIMATED row (RITM 2026-04-06 + 3M = 2026-07-06) for a period
+//   Polygon already confirmed. The fix (lib/calendar-dividend-live.ts ·
+//   mergeDeclaredAndProjectedEvents) seeds the projection STRICTLY from the
+//   declared (Polygon) series — the original Streamlit `last_ex_div` behaviour in
+//   original/modules/dividend_calendar.py — so the estimate starts only AFTER the
+//   last confirmed ex-date and the spurious near-term estimate is never created.
 //
 // This trace prints, for every stage, each event's:
 //   event_type · ex_date · buy_date · payment_date · estimated · source
 // so it is obvious WHERE an estimated row would appear and that it no longer does
-// after seeding the projection from the union of confirmed sources (the original
-// Streamlit `last_ex_div` behaviour in original/modules/dividend_calendar.py).
+// once the projection is seeded from Polygon's confirmed data.
 //
 // Run: node scripts/trace-ritm-dividend-pipeline.mjs
 
@@ -128,13 +133,13 @@ console.log(
     `${spuriousOld.map((e) => e.exDivDate).join(", ") || "none"}`,
 );
 
-// --- Stage 3b: Projection seeded from UNION (the fix) ----------------------
+// --- Stage 3b: Projection seeded from POLYGON declared series (the fix) ------
 const projectionSeed = mergeFetchedEventsWithExistingCache; // referenced for clarity; not used here
 void projectionSeed;
 const events = mergeDeclaredAndProjectedEvents(TICKER, polygonRows, yahooHistoryRows, TODAY);
 const projectedAfter = events.filter((e) => e.status === "estimated");
 printStage(
-  "Stage 3b · Projection after union-seed fix (estimates start only AFTER last confirmed 2026-07-31)",
+  "Stage 3b · Projection after Polygon-SSOT seed fix (estimates start only AFTER last confirmed 2026-07-31)",
   projectedAfter,
 );
 

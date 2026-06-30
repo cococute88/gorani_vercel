@@ -90,31 +90,53 @@ function dedupeDividendHistoryByDate(rows: DividendHistoryRow[]): DividendHistor
   return Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date));
 }
 
+// Restrict a (possibly Yahoo-enriched) history series so its LATEST point can
+// never be later than the last confirmed declared (Polygon) ex-date. This keeps
+// the projection seed pinned to Polygon's confirmed data even when older Yahoo
+// rows are borrowed purely to infer cadence.
+function capHistoryToLastDeclared(rows: DividendHistoryRow[], lastDeclaredDate: string): DividendHistoryRow[] {
+  return rows.filter((row) => row.date <= lastDeclaredDate);
+}
+
 export function mergeDeclaredAndProjectedEvents(ticker: string, declaredRows: DeclaredDividendRow[], historyRows: DividendHistoryRow[], today = new Date()): CalendarEvent[] {
   const declared = buildDeclaredDividendCalendarEvents(ticker, declaredRows, "declared");
 
-  // Faithful port of the original Streamlit projection
-  // (original/modules/dividend_calendar.py · _project_future_dividends_cached):
-  // there `last_ex_div` is the latest ex-date across ALL confirmed sources — the
-  // combined `declared_dict` (Yahoo history ∪ Finnhub ∪ Polygon ∪ summary info) —
-  // and the estimated projection steps forward from that last KNOWN date. Because
-  // the declared rows already include the confirmed NEXT ex-date, the projection
-  // begins strictly AFTER it and therefore never fabricates an ESTIMATED row for a
-  // dividend period a declared (Polygon) dividend already covers. This replaces the
-  // previous "generate-then-delete-by-proximity" behaviour: estimated rows for
-  // confirmed periods are simply never created (the collision filter below stays
-  // only as a defensive safety net for boundary cases).
-  const projectionHistory = dedupeDividendHistoryByDate([
-    ...historyRows,
-    ...declaredRows.map((row) => ({ date: row.exDate.slice(0, 10), amount: row.amount })),
-  ]);
+  // --- Streamlit parity: Polygon-declared data is the SINGLE SOURCE OF TRUTH ---
+  // In original/modules/dividend_calendar.py the projection seed (`last_ex_div`)
+  // and cadence come from the CONFIRMED declared series (Polygon on refresh), and
+  // the estimated projection steps strictly forward from that last KNOWN date.
+  // We reproduce that here: whenever declared (Polygon) rows exist, the projection
+  // is seeded ONLY from them — Yahoo history is never allowed to advance the seed
+  // date or fabricate a future beyond what Polygon confirms. Yahoo is used only as
+  // a cadence aid when Polygon alone is too short, and as a complete fallback for
+  // initial/preview display when there is no declared data at all (no Polygon key).
+  const declaredHistory = dedupeDividendHistoryByDate(
+    declaredRows.map((row) => ({ date: row.exDate.slice(0, 10), amount: row.amount })),
+  );
+
+  let projectionHistory: DividendHistoryRow[];
+  if (declaredHistory.length >= 3) {
+    // Normal refresh path: pure Polygon SSOT (seed + amount + cadence).
+    projectionHistory = declaredHistory;
+  } else if (declaredHistory.length >= 1) {
+    // Polygon returned too few rows to infer cadence on its own: borrow older
+    // cadence points from Yahoo, but pin the seed to the last declared ex-date.
+    const lastDeclaredDate = declaredHistory[declaredHistory.length - 1].date;
+    projectionHistory = capHistoryToLastDeclared(
+      dedupeDividendHistoryByDate([...historyRows, ...declaredHistory]),
+      lastDeclaredDate,
+    );
+  } else {
+    // No declared data (Polygon unavailable) — degrade to Yahoo for fallback only.
+    projectionHistory = dedupeDividendHistoryByDate(historyRows);
+  }
   const projected = buildProjectedDividendCalendarEvents(ticker, projectionHistory, today);
 
-  // Safety net: drop any projected ESTIMATED ex-date that still lands in the SAME
-  // dividend period as a confirmed (declared) ex-date, so a single dividend never
-  // renders both a confirmed AND a spurious estimated row. Matching is by proximity
-  // (not exact date); tolerance scales with the payout cadence so it never merges
-  // two genuinely-distinct dividends.
+  // Streamlit's `known_ex_dates` guard (original used a fixed < 20 day window):
+  // because the projection is now seeded from the confirmed declared series, the
+  // first estimate already lands one full period AFTER the last confirmed ex-date,
+  // so collisions cannot normally occur. This stays only as a defensive net for
+  // boundary cases and never merges two genuinely-distinct dividends.
   const declaredExDates = Array.from(
     new Set(declared.filter((event) => event.type === "ex_div").map((event) => event.exDivDate)),
   )
