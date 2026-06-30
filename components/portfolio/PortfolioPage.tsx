@@ -60,6 +60,7 @@ import AssetAllocationDonut from "./AssetAllocationDonut";
 import HoldingsTable from "./HoldingsTable";
 import AssetTable from "./AssetTable";
 import SnapshotHistory from "./SnapshotHistory";
+import HiddenSnapshotsModal, { type HiddenSnapshotRow } from "./HiddenSnapshotsModal";
 import SnapshotBacktestSection from "./SnapshotBacktestSection";
 import PortfolioAssetTrendChart from "./PortfolioAssetTrendChart";
 import PortfolioQuoteStatusPanel from "./PortfolioQuoteStatusPanel";
@@ -202,6 +203,47 @@ export default function PortfolioPage() {
     return [...withoutDeleted].sort((a, b) => (a.snapshotDate < b.snapshotDate ? 1 : -1));
   }, [firestoreSnapshot, snapshots, deletedSnapshotDates, hiddenSnapshotDates]);
 
+  // 숨긴 스냅샷 조회용 행 목록. "숨긴 날짜 보기" 모달에서 사용한다.
+  // - 데이터 소스: 삭제 묘비만 적용한 통합 목록(deleted 제외, 숨김은 유지)에서 숨김 날짜만 추린다.
+  //   숨기기는 데이터(문서)를 지우지 않고 cloud sync 가 모든 스냅샷을 localStorage 로 적재하므로,
+  //   숨긴 스냅샷의 총자산/평가금액/원금/수익률을 어느 브라우저에서나 그대로 표시할 수 있다.
+  // - Firestore 의 hiddenDates(loadPortfolioSnapshotState → hydrate)가 반영된 hiddenSnapshotDates 를
+  //   단일 기준으로 삼으므로, 조회 역시 Firestore 와 일관된다(요구사항 4).
+  // - 데이터를 찾지 못한 숨김 날짜도(희귀) 날짜만으로 행을 만들어 "숨긴 데이터를 다시 볼 수 없는"
+  //   실패 상황을 방지한다(금액은 null → "-" 표시, 복구는 정상 동작).
+  const hiddenSnapshotRows = useMemo<HiddenSnapshotRow[]>(() => {
+    if (hiddenSnapshotDates.size === 0) return [];
+    const merged = firestoreSnapshot
+      ? mergePortfolioSnapshots(snapshots, [firestoreSnapshot])
+      : snapshots;
+    const withoutDeleted =
+      deletedSnapshotDates.size === 0
+        ? merged
+        : merged.filter((snapshot) => !deletedSnapshotDates.has(snapshot.snapshotDate));
+    const byDate = new Map<string, PortfolioSnapshot>();
+    for (const snapshot of withoutDeleted) byDate.set(snapshot.snapshotDate, snapshot);
+    return Array.from(hiddenSnapshotDates)
+      .sort((a, b) => (a < b ? 1 : -1))
+      .map((date) => {
+        const snapshot = byDate.get(date);
+        return snapshot
+          ? {
+              snapshotDate: date,
+              totalAssetKRW: snapshot.totalAssetKRW,
+              investmentValueKRW: snapshot.investmentValueKRW,
+              investmentPrincipalKRW: snapshot.investmentPrincipalKRW,
+              returnPct: snapshot.returnPct,
+            }
+          : {
+              snapshotDate: date,
+              totalAssetKRW: null,
+              investmentValueKRW: null,
+              investmentPrincipalKRW: null,
+              returnPct: null,
+            };
+      });
+  }, [firestoreSnapshot, snapshots, deletedSnapshotDates, hiddenSnapshotDates]);
+
   const [files, setFiles] = useState<File[]>([]);
   const [parsing, setParsing] = useState(false);
   const [result, setResult] = useState<ParseResult | null>(null);
@@ -219,6 +261,18 @@ export default function PortfolioPage() {
     tone: "success" | "error" | "info";
     text: string;
   } | null>(null);
+  // "숨긴 날짜 보기" 모달 표시 여부.
+  const [hiddenModalOpen, setHiddenModalOpen] = useState(false);
+  // 숨기기/복구 후 잠깐 떠 있는 안내 토스트. message 와 함께 안내 텍스트를 보여준다.
+  // (앱에 별도 토스트 라이브러리가 없어 가벼운 인라인 토스트를 둔다.)
+  const [snapshotToast, setSnapshotToast] = useState<{ tone: "info" | "success"; text: string } | null>(null);
+
+  // 숨기기/복구 안내 토스트 자동 닫힘(약 6초). 새 토스트가 뜨면 타이머를 갱신한다.
+  useEffect(() => {
+    if (!snapshotToast) return;
+    const timer = window.setTimeout(() => setSnapshotToast(null), 6000);
+    return () => window.clearTimeout(timer);
+  }, [snapshotToast]);
 
   const applyResult = (r: ParseResult) => {
     setPreviewSnapshotId(null);
@@ -395,6 +449,12 @@ export default function PortfolioPage() {
     markSnapshotDateHidden(snapshotDate);
     removeActiveFirestoreSnapshot({ id, snapshotDate });
 
+    // 사용자에게 "숨김 = 복구 가능"임을 즉시 알려, 우측 상단에서 다시 꺼낼 수 있음을 안내한다(요구사항 5).
+    setSnapshotToast({
+      tone: "info",
+      text: `${snapshotDate} 스냅샷이 숨김 처리되었습니다. 우측 상단의 "숨긴 날짜 보기"에서 언제든 복구할 수 있습니다.`,
+    });
+
     // Firestore 영구 반영(다른 기기에서도 숨김 유지).
     if (user) {
       try {
@@ -402,6 +462,27 @@ export default function PortfolioPage() {
         markPortfolioCloudSyncNow();
       } catch (err) {
         warnFirestoreFallback("portfolioSnapshotState.hide", err);
+      }
+    }
+  };
+
+  // 복구: 숨김 상태를 해제해 등록된 스냅샷 히스토리 메인 목록에 즉시 다시 표시한다. 삭제와 달리
+  // 데이터를 건드리지 않고 숨김 플래그만 false 로 되돌린다. 로컬 미러를 먼저 갱신해(즉시 반영)
+  // 모달/목록이 바로 업데이트되고, Firestore(hiddenDates)에서도 날짜를 제거해 새로고침/다른
+  // 브라우저에서도 복구 상태가 일관되게 유지된다(요구사항 3·4).
+  const handleRestoreSnapshot = async (snapshotDate: string) => {
+    if (!snapshotDate) return;
+    unmarkSnapshotDateHidden(snapshotDate);
+    setSnapshotToast({
+      tone: "success",
+      text: `${snapshotDate} 스냅샷을 복구했습니다. 등록된 스냅샷 히스토리에 다시 표시됩니다.`,
+    });
+    if (user) {
+      try {
+        await removeHiddenSnapshotDateFromCloud(user.uid, snapshotDate);
+        markPortfolioCloudSyncNow();
+      } catch (err) {
+        warnFirestoreFallback("portfolioSnapshotState.unhide", err);
       }
     }
   };
@@ -736,6 +817,8 @@ export default function PortfolioPage() {
             onSelect={handleSelectSnapshot}
             selectedSnapshotId={selectedSnapshotId}
             loading={authLoading || syncState.status === "syncing"}
+            onOpenHidden={() => setHiddenModalOpen(true)}
+            hiddenCount={hiddenSnapshotRows.length}
           />
         </section>
 
@@ -763,7 +846,55 @@ export default function PortfolioPage() {
             <AssetTable assets={displayedAssets} bare />
           </CollapsibleSection>
         </section>
+
+        {/* 숨긴 날짜 보기 모달 — 숨김 처리된 스냅샷만 조회/복구한다(Firestore 기준). */}
+        <HiddenSnapshotsModal
+          open={hiddenModalOpen}
+          onClose={() => setHiddenModalOpen(false)}
+          rows={hiddenSnapshotRows}
+          onRestore={handleRestoreSnapshot}
+        />
       </main>
+
+      {/* 숨기기/복구 안내 토스트 — 화면 하단 중앙에 잠깐 떠 자동으로 사라진다.
+          숨김이 "삭제"가 아니라 복구 가능한 임시 비표시임을 사용자가 즉시 인지하도록 안내한다. */}
+      {snapshotToast && (
+        <div className="pointer-events-none fixed inset-x-0 bottom-5 z-[130] flex justify-center px-4">
+          <div
+            role="status"
+            aria-live="polite"
+            className={`pointer-events-auto flex max-w-[520px] items-start gap-3 rounded-xl border px-4 py-3 text-[13px] shadow-2xl backdrop-blur ${
+              snapshotToast.tone === "success"
+                ? "border-emerald-500/30 bg-emerald-950/80 text-emerald-100"
+                : "border-amber-500/30 bg-[#1c2426]/90 text-slate-100"
+            }`}
+          >
+            <span className="break-keep leading-5">{snapshotToast.text}</span>
+            {snapshotToast.tone === "info" && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSnapshotToast(null);
+                  setHiddenModalOpen(true);
+                }}
+                className="shrink-0 rounded-md border border-amber-400/40 bg-amber-500/15 px-2 py-1 text-[12px] font-semibold text-amber-200 transition-colors hover:bg-amber-500/25"
+              >
+                보기
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setSnapshotToast(null)}
+              aria-label="알림 닫기"
+              className="shrink-0 rounded-md p-1 text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
+            >
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+                <path d="M6 6l12 12M18 6L6 18" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

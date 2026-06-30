@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { EyeOff, Trash2 } from "lucide-react";
+import { EyeOff, Trash2, History } from "lucide-react";
 import TableCsvMenu from "@/components/ui/TableCsvMenu";
 import { formatWon, formatPercent } from "@/lib/format";
 import type { PortfolioSnapshot } from "@/lib/portfolio-types";
@@ -13,6 +13,9 @@ interface Props {
   onSelect?: (snapshot: PortfolioSnapshot) => void;
   selectedSnapshotId?: string | null;
   loading?: boolean;
+  // "숨긴 날짜 보기" 모달을 여는 콜백. 숨긴 스냅샷 개수(hiddenCount)는 버튼 배지로 표시한다.
+  onOpenHidden?: () => void;
+  hiddenCount?: number;
 }
 
 const card = "rounded-2xl border border-[#2a3336] bg-[#191f20] p-5";
@@ -25,7 +28,7 @@ export const SNAPSHOT_HISTORY_PAGE_SIZE = 10;
 // - 최신 날짜가 항상 가장 위 (요구사항 13)
 // - 기본 최근 10개만 표시, "더보기"로 10개씩 점진적 확장 (요구사항 13~15)
 // - 선택된 스냅샷이 표시 범위 밖이면 자동으로 펼쳐 항상 보이게 한다 (요구사항 16)
-export default function SnapshotHistory({ snapshots, onDelete, onHide, onSelect, selectedSnapshotId, loading = false }: Props) {
+export default function SnapshotHistory({ snapshots, onDelete, onHide, onSelect, selectedSnapshotId, loading = false, onOpenHidden, hiddenCount = 0 }: Props) {
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const sorted = useMemo(
     () => [...snapshots].sort((a, b) => (a.snapshotDate < b.snapshotDate ? 1 : -1)),
@@ -55,13 +58,34 @@ export default function SnapshotHistory({ snapshots, onDelete, onHide, onSelect,
     <div className={card}>
       <div className="mb-4 flex items-center justify-between gap-3">
         <h2 className="text-[15px] font-bold text-slate-300">등록된 스냅샷 히스토리</h2>
-        <TableCsvMenu filename={`portfolio-snapshot-history-${today}.csv`} rows={sorted} columns={[
-          { header: "날짜", value: (row) => row.snapshotDate },
-          { header: "총자산", value: (row) => formatWon(row.totalAssetKRW) },
-          { header: "투자 평가금액", value: (row) => formatWon(row.investmentValueKRW) },
-          { header: "투자원금", value: (row) => formatWon(row.investmentPrincipalKRW) },
-          { header: "수익률", value: (row) => formatPercent(row.returnPct, 1) },
-        ]} />
+        <div className="flex items-center gap-2">
+          {/* "숨긴 날짜 보기" — 숨김 처리된 스냅샷을 조회/복구하는 모달을 연다.
+              기존 CSV 버튼 위치/동작은 그대로 두고 그 옆에만 추가한다. */}
+          {onOpenHidden && (
+            <button
+              type="button"
+              onClick={onOpenHidden}
+              title="숨긴 스냅샷을 보고 복구합니다"
+              aria-label="숨긴 날짜 보기"
+              className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-slate-500/30 bg-white/5 px-2 text-[11px] font-semibold text-slate-400 shadow-sm transition hover:border-amber-400/50 hover:bg-amber-500/10 hover:text-amber-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60"
+            >
+              <History size={13} />
+              숨긴 날짜 보기
+              {hiddenCount > 0 && (
+                <span className="ml-0.5 inline-flex min-w-[16px] items-center justify-center rounded-full bg-amber-500/20 px-1 text-[10px] font-bold text-amber-300">
+                  {hiddenCount}
+                </span>
+              )}
+            </button>
+          )}
+          <TableCsvMenu filename={`portfolio-snapshot-history-${today}.csv`} rows={sorted} columns={[
+            { header: "날짜", value: (row) => row.snapshotDate },
+            { header: "총자산", value: (row) => formatWon(row.totalAssetKRW) },
+            { header: "투자 평가금액", value: (row) => formatWon(row.investmentValueKRW) },
+            { header: "투자원금", value: (row) => formatWon(row.investmentPrincipalKRW) },
+            { header: "수익률", value: (row) => formatPercent(row.returnPct, 1) },
+          ]} />
+        </div>
       </div>
       <div className="scroll-dark overflow-x-auto">
         <table className="w-full min-w-[640px] text-[13px]">
