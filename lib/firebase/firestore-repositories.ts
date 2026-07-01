@@ -569,6 +569,7 @@ export async function saveCalendarCacheEntry(uid: string, entry: CalendarCacheEn
     ...(ticker ? { ticker } : {}),
     tickers: rest.tickers.map((ticker) => ticker.trim().toUpperCase()).filter(Boolean),
   };
+  console.info("[dividend-calendar:trace] Firestore document save", { path: `users/${uid}/calendarCache/${entry.id}`, document: payload });
   await setDoc(doc(requireDb(), "users", uid, "calendarCache", entry.id), {
     ...payload,
     updatedAt: serverTimestamp(),
@@ -633,7 +634,9 @@ export async function loadCalendarTickerCacheEntry(
   const normalizedTicker = normalizeCalendarTicker(ticker);
   if (!normalizedTicker) return null;
   const snap = await getDoc(doc(requireDb(), "users", uid, "calendarCache", normalizedTicker));
-  return snap.exists() ? fromCalendarCacheEntry(snap.data() as unknown as CalendarCacheEntry) : null;
+  const document = snap.exists() ? (snap.data() as unknown as CalendarCacheEntry) : null;
+  console.info("[dividend-calendar:trace] Firestore document load", { path: `users/${uid}/calendarCache/${normalizedTicker}`, document });
+  return document ? fromCalendarCacheEntry(document) : null;
 }
 
 export async function deleteCalendarTickerCacheEntry(uid: string, ticker: string): Promise<void> {
@@ -754,5 +757,17 @@ export async function deletePortfolioCalendarCustomEvent(uid: string, portfolioI
 }
 
 export async function savePortfolioCalendarTickerCacheEntry(uid: string, portfolioId: string, entry: CalendarTickerCache<Record<string, unknown>>): Promise<void> {
-  await setDoc(doc(requireDb(), "users", uid, "calendarPortfolios", portfolioId, "calendarCache", normalizeCalendarTicker(entry.ticker)), sanitizeFirestorePayload(toCalendarTickerCacheEntry(entry)), { merge: true });
+  const normalizedTicker = normalizeCalendarTicker(entry.ticker);
+  const payload = sanitizeFirestorePayload(toCalendarTickerCacheEntry(entry));
+  console.info("[dividend-calendar:trace] Firestore document save", { path: `users/${uid}/calendarPortfolios/${portfolioId}/calendarCache/${normalizedTicker}`, document: payload });
+  await setDoc(doc(requireDb(), "users", uid, "calendarPortfolios", portfolioId, "calendarCache", normalizedTicker), payload, { merge: true });
+}
+
+export async function loadPortfolioCalendarTickerCacheEntry(uid: string, portfolioId: string, ticker: string): Promise<CalendarTickerCache<Record<string, unknown>> | null> {
+  const normalizedTicker = normalizeCalendarTicker(ticker);
+  if (!normalizedTicker) return null;
+  const snap = await getDoc(doc(requireDb(), "users", uid, "calendarPortfolios", portfolioId, "calendarCache", normalizedTicker));
+  const document = snap.exists() ? (snap.data() as unknown as CalendarCacheEntry) : null;
+  console.info("[dividend-calendar:trace] Firestore document load", { path: `users/${uid}/calendarPortfolios/${portfolioId}/calendarCache/${normalizedTicker}`, document });
+  return document ? fromCalendarCacheEntry(document) : null;
 }
