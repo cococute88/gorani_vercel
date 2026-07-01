@@ -218,6 +218,8 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
     if (activePortfolioId === DEFAULT_CALENDAR_PORTFOLIO_ID) {
       loadLegacyImportedCalendarEvents(user.uid)
         .then((events) => {
+          const ritmLegacy = events.filter((e) => e.ticker === "RITM");
+          console.warn("[DIAG:RITM] ▶ calendarEvents(legacy) loaded", { count: events.length, ritmCount: ritmLegacy.length, ritmEvents: ritmLegacy.map((e) => ({ type: e.type, date: e.date, buyDeadline: e.buyDeadline, exDivDate: e.exDivDate, paymentDate: e.paymentDate, sourceKind: e.sourceKind, status: e.status })) });
           traceCalendarStateUpdate("setLegacyImportedEvents(loadLegacyImportedCalendarEvents)", events, legacyImportedEventsTraceRef.current);
           setLegacyImportedEvents(events);
         })
@@ -246,6 +248,7 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
     let cancelled = false;
     const loadProviderEvents = async () => {
       const normalizedTickers = Array.from(new Set(tickers.map((ticker) => ticker.trim().toUpperCase()).filter(Boolean)));
+      console.warn("[DIAG:RITM] ▶ Provider Load START", { user: user?.uid ?? "null", normalizedTickers: normalizedTickers.filter((t) => t === "RITM"), allCount: normalizedTickers.length });
       const firestoreCacheEntries = await Promise.all(
         user
           ? normalizedTickers.map((ticker) =>
@@ -259,6 +262,13 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
       for (const entry of firestoreCacheEntries) {
         if (entry?.ticker) typedFirestoreCacheMap[entry.ticker] = entry as never;
       }
+      const ritmFirestoreCache = typedFirestoreCacheMap["RITM"];
+      if (ritmFirestoreCache) {
+        const ritmCacheEvents = (ritmFirestoreCache.events ?? []) as CalendarEvent[];
+        console.warn("[DIAG:RITM] ▶ calendarCache(Firestore) RITM", { expiresAt: ritmFirestoreCache.expiresAt, fetchedAt: ritmFirestoreCache.fetchedAt, schemaVersion: ritmFirestoreCache.schemaVersion, source: ritmFirestoreCache.source, eventCount: ritmCacheEvents.length, events: ritmCacheEvents.map((e) => ({ type: e.type, date: e.date, buyDeadline: e.buyDeadline, exDivDate: e.exDivDate, paymentDate: e.paymentDate, sourceKind: e.sourceKind, status: e.status })) });
+      } else {
+        console.warn("[DIAG:RITM] ▶ calendarCache(Firestore) RITM = null (not in Firestore)");
+      }
       console.info(`[dividend-calendar:trace] ${traceTimestamp()} initial-load priority`, {
         timestamp: traceTimestamp(),
         stage: "Portfolio Load / Firestore Read / Local Cache Read",
@@ -268,12 +278,22 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
       });
       if (Object.keys(typedFirestoreCacheMap).length > 0) saveCalendarCacheMap(typedFirestoreCacheMap, activePortfolioId);
       const localCacheMap = loadCalendarCacheMap<CalendarEvent>(activePortfolioId);
+      const ritmLocalCache = localCacheMap["RITM"];
+      if (ritmLocalCache) {
+        const ritmLocalEvents = (ritmLocalCache.events ?? []) as CalendarEvent[];
+        console.warn("[DIAG:RITM] ▶ calendarCache(localStorage) RITM", { expiresAt: ritmLocalCache.expiresAt, fetchedAt: ritmLocalCache.fetchedAt, schemaVersion: ritmLocalCache.schemaVersion, source: ritmLocalCache.source, eventCount: ritmLocalEvents.length, events: ritmLocalEvents.map((e) => ({ type: e.type, date: e.date, buyDeadline: e.buyDeadline, exDivDate: e.exDivDate, paymentDate: e.paymentDate, sourceKind: e.sourceKind, status: e.status })) });
+      }
+      const mergedCacheMap = { ...localCacheMap, ...typedFirestoreCacheMap };
+      const ritmMerged = mergedCacheMap["RITM"];
+      if (ritmMerged) {
+        console.warn("[DIAG:RITM] ▶ merged cacheMap RITM (Firestore wins)", { source: ritmMerged.source, expiresAt: ritmMerged.expiresAt, isFresh: Boolean(ritmMerged.expiresAt && new Date(ritmMerged.expiresAt as string).getTime() > Date.now()) });
+      }
       return getCalendarEventsForTickersWithProvider({
         tickers,
         year: month.getFullYear(),
         month: month.getMonth() + 1,
         provider: "real",
-        cacheMap: { ...localCacheMap, ...typedFirestoreCacheMap },
+        cacheMap: mergedCacheMap,
         preferFreshCache: true,
       });
     };
@@ -281,13 +301,19 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
     loadProviderEvents()
       .then((result) => {
         if (!cancelled) {
+          const ritmProviderEvents = result.events.filter((e) => e.ticker === "RITM");
+          const ritmCacheEntry = result.cacheMap["RITM"];
+          console.warn("[DIAG:RITM] ▶ Provider result (final)", { cancelled, source: result.source, ritmCacheSource: ritmCacheEntry?.source, ritmEventCount: ritmProviderEvents.length, ritmEvents: ritmProviderEvents.map((e) => ({ type: e.type, date: e.date, buyDeadline: e.buyDeadline, exDivDate: e.exDivDate, paymentDate: e.paymentDate, sourceKind: e.sourceKind, status: e.status })) });
           traceCalendarFlow("Provider Load -> Projection -> Merge", result.events, "getCalendarEventsForTickersWithProvider()", providerEventsTraceRef.current);
           traceCalendarStateUpdate("setProviderResult(provider load)", result.events, providerEventsTraceRef.current);
           setProviderResult(result);
+        } else {
+          console.warn("[DIAG:RITM] ▶ Provider result CANCELLED (user changed during load)");
         }
       })
       .catch((error) => {
         if (cancelled) return;
+        console.warn("[DIAG:RITM] ▶ Provider FAILED, fallback to mock", { error: error instanceof Error ? error.message : String(error) });
         const fallbackEvents = getCalendarEventsForTickers({ tickers, year: month.getFullYear(), month: month.getMonth() + 1 });
         traceCalendarFlow("provider failure -> default data", fallbackEvents, "getCalendarEventsForTickers()", providerEventsTraceRef.current);
         setProviderResult({
@@ -417,13 +443,20 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
         .filter((entry) => entry.source === "cache" || entry.source === "yahoo" || entry.source === "polygon" || entry.source === "partial")
         .map((entry) => entry.ticker),
     ]);
+    const ritmInProvider = providerResult.events.filter((e) => e.ticker === "RITM");
+    const ritmInLegacy = legacyImportedEvents.filter((e) => e.ticker === "RITM");
+    console.warn("[DIAG:RITM] ▶ dividendEvents useMemo", { usedImported: selected.usedImported, providerAuthoritativeHasRITM: providerAuthoritativeTickerSet.has("RITM"), liveRefreshedHasRITM: liveRefreshedTickerSet.has("RITM"), providerCacheMapRITMSource: providerResult.cacheMap["RITM"]?.source ?? "none", ritmInProvider: ritmInProvider.map((e) => ({ type: e.type, date: e.date, buyDeadline: e.buyDeadline, exDivDate: e.exDivDate, sourceKind: e.sourceKind, status: e.status })), ritmInLegacy: ritmInLegacy.map((e) => ({ type: e.type, date: e.date, buyDeadline: e.buyDeadline, exDivDate: e.exDivDate, sourceKind: e.sourceKind, status: e.status })) });
     if (!selected.usedImported || providerAuthoritativeTickerSet.size === 0) {
+      const ritmFinal = activeOnlyEvents.filter((e) => e.ticker === "RITM");
+      console.warn("[DIAG:RITM] ▶ dividendEvents FINAL (no imported or no authoritative)", { path: "providerOnly", ritmFinal: ritmFinal.map((e) => ({ type: e.type, date: e.date, buyDeadline: e.buyDeadline, exDivDate: e.exDivDate, sourceKind: e.sourceKind, status: e.status })) });
       traceCalendarFlow("Merge: selectCalendarDividendEvents()", activeOnlyEvents, "selectCalendarDividendEvents()", providerResult.events);
       return activeOnlyEvents;
     }
     const authoritativeProviderEvents = providerResult.events.filter((event) => providerAuthoritativeTickerSet.has(event.ticker) && activeTickerSet.has(event.ticker));
     const preservedImportedEvents = legacyImportedEvents.filter((event) => !providerAuthoritativeTickerSet.has(event.ticker) && activeTickerSet.has(event.ticker));
     const merged = [...preservedImportedEvents, ...authoritativeProviderEvents].sort((a, b) => a.date.localeCompare(b.date) || a.ticker.localeCompare(b.ticker) || a.type.localeCompare(b.type));
+    const ritmFinal = merged.filter((e) => e.ticker === "RITM");
+    console.warn("[DIAG:RITM] ▶ dividendEvents FINAL (merged)", { path: "merged", ritmFromProvider: authoritativeProviderEvents.filter((e) => e.ticker === "RITM").length, ritmFromLegacy: preservedImportedEvents.filter((e) => e.ticker === "RITM").length, ritmFinal: ritmFinal.map((e) => ({ type: e.type, date: e.date, buyDeadline: e.buyDeadline, exDivDate: e.exDivDate, sourceKind: e.sourceKind, status: e.status })) });
     traceCalendarFlow("Merge: provider cache overrides legacy imported ticker", merged, "dividendEvents useMemo providerAuthoritativeTickerSet", legacyImportedEvents);
     return merged;
   }, [activeTickerSet, legacyImportedEvents, liveRefreshedTickerSet, providerResult.cacheMap, providerResult.events]);
