@@ -34,7 +34,7 @@ import {
   type CalendarEventMeta,
 } from "@/lib/firebase/firestore-repositories";
 import { DEFAULT_CALENDAR_PORTFOLIO_ID, getCalendarLocalStorageKey, getLegacyCalendarLocalStorageKey } from "@/lib/calendar-portfolio";
-import { buildLiveCalendarCacheEntry, mergeFetchedEventsWithExistingCache, type DividendLiveResponse } from "@/lib/calendar-dividend-live";
+import { buildLiveCalendarCacheEntry, mergeFetchedEventsWithExistingCache, type DividendLiveResponse, type ProviderStatus } from "@/lib/calendar-dividend-live";
 import { loadCalendarCacheMap, saveCalendarCacheMap } from "@/lib/calendar-cache";
 import CalendarGrid from "./CalendarGrid";
 import CalendarEventDialog from "./CalendarEventDialog";
@@ -95,7 +95,7 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
   }));
   const [taxQuoteByTicker, setTaxQuoteByTicker] = useState<Record<string, TaxSavingQuoteState>>({});
   const [taxQuoteLoadingTickers, setTaxQuoteLoadingTickers] = useState<Set<string>>(() => new Set());
-  const [liveRefreshState, setLiveRefreshState] = useState<{ running: boolean; done: number; total: number; success: string[]; failed: string[]; message: string; lastUpdatedAt?: string }>({ running: false, done: 0, total: 0, success: [], failed: [], message: "" });
+  const [liveRefreshState, setLiveRefreshState] = useState<{ running: boolean; done: number; total: number; success: string[]; failed: string[]; message: string; details?: string[]; tone?: "info" | "error"; lastUpdatedAt?: string }>({ running: false, done: 0, total: 0, success: [], failed: [], message: "" });
   const [cloudSaveState, setCloudSaveState] = useState<{ running: boolean; message: string }>({ running: false, message: "" });
   const [liveRefreshedTickerSet, setLiveRefreshedTickerSet] = useState<Set<string>>(() => new Set());
 
@@ -390,9 +390,53 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
     window.setTimeout(resolve, Math.max(0, delayMs ?? 0));
   });
 
+  const formatRemainingTime = (milliseconds: number) => {
+    const seconds = Math.max(0, Math.ceil(milliseconds / 1000));
+    const minutes = Math.floor(seconds / 60);
+    const restSeconds = seconds % 60;
+    if (minutes <= 0) return `약 ${restSeconds}초`;
+    return restSeconds === 0 ? `약 ${minutes}분` : `약 ${minutes}분 ${restSeconds}초`;
+  };
+
+  const buildLiveRefreshDetails = (done: number, total: number, delayMs: number) => {
+    const remainingTickers = Math.max(0, total - done);
+    return [
+      `Polygon API 무료 한도 준수를 위해 종목당 약 ${(delayMs / 1000).toFixed(1)}초 대기 중`,
+      `${done} / ${total}`,
+      `남은 예상 시간 ${formatRemainingTime(remainingTickers * delayMs)}`,
+    ];
+  };
+
+  const polygonFailureMessage = (status?: ProviderStatus["polygon"], failedReason?: string) => {
+    switch (status) {
+      case "missing_key": return "Polygon API Key가 설정되어 있지 않습니다. 관리자에게 문의하거나 환경변수를 확인하세요.";
+      case "unauthorized": return "Polygon API 인증에 실패했습니다(401 Unauthorized). API Key를 확인하세요.";
+      case "forbidden": return "Polygon API 접근이 거부되었습니다(403 Forbidden). 권한 또는 요금제를 확인하세요.";
+      case "rate_limited": return "Polygon API 호출 한도에 도달했습니다(429 Rate Limit). 잠시 후 다시 시도하세요.";
+      case "network_error": return "Polygon API 네트워크 오류가 발생했습니다. 연결 상태를 확인한 뒤 다시 시도하세요.";
+      case "server_error": return "Polygon 서버 오류가 발생했습니다. 잠시 후 다시 시도하세요.";
+      case "failed": return "Polygon API 호출에 실패했습니다. 로그를 확인하세요.";
+      default: return failedReason ?? "배당 일정 최신화에 실패했습니다.";
+    }
+  };
+
   const handleRefreshDividendEvents = async () => {
     const uniqueTickers = Array.from(new Set(tickers.map((ticker) => ticker.trim().toUpperCase()).filter(Boolean)));
-    setLiveRefreshState({ running: true, done: 0, total: uniqueTickers.length, success: [], failed: [], message: `Polygon 무료 한도 보호를 위해 순차 조회 중... 0/${uniqueTickers.length}` });
+    setLiveRefreshState({ running: true, done: 0, total: uniqueTickers.length, success: [], failed: [], message: "Polygon 사용 가능 여부를 확인하는 중...", tone: "info" });
+    let configuredDelayMs = 12500;
+    try {
+      const statusResponse = await fetch("/api/calendar/dividend-events/status", { cache: "no-store" });
+      const statusPayload = (await statusResponse.json()) as { polygon?: "available" | "missing_key"; rateLimitDelayMs?: number; message?: string };
+      configuredDelayMs = statusPayload.rateLimitDelayMs ?? configuredDelayMs;
+      if (!statusResponse.ok || statusPayload.polygon !== "available") {
+        setLiveRefreshState({ running: false, done: 0, total: uniqueTickers.length, success: [], failed: uniqueTickers, message: statusPayload.message ?? "Polygon API Key가 설정되어 있지 않습니다. 관리자에게 문의하거나 환경변수를 확인하세요.", tone: "error" });
+        return;
+      }
+    } catch {
+      setLiveRefreshState({ running: false, done: 0, total: uniqueTickers.length, success: [], failed: uniqueTickers, message: "Polygon 사용 가능 여부 확인에 실패했습니다. 네트워크 또는 서버 로그를 확인하세요.", tone: "error" });
+      return;
+    }
+    setLiveRefreshState({ running: true, done: 0, total: uniqueTickers.length, success: [], failed: [], message: "Polygon API 무료 한도 보호를 위해 순차 조회 중...", details: buildLiveRefreshDetails(0, uniqueTickers.length, configuredDelayMs), tone: "info" });
     const cacheMap = loadCalendarCacheMap<CalendarEvent>(activePortfolioId);
     const successfulEvents: CalendarEvent[] = [];
     const success: string[] = [];
@@ -407,6 +451,7 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
         rateLimitDelayMs = payload.rateLimitDelayMs;
         if (!response.ok || payload.source === "unavailable" || payload.events.length === 0) {
           failed.push(ticker);
+          console.warn(`[dividend-calendar] ${ticker} refresh failed: ${polygonFailureMessage(payload.providerStatus?.polygon, payload.failedReason)}`);
         } else {
           const source = payload.source === "live" ? "polygon" : "partial";
           const existingEvents = [
@@ -424,11 +469,13 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
             void saveCache.catch((err) => warnFirestoreFallback("calendarCache.liveRefresh.save", err));
           }
         }
-      } catch {
+      } catch (error) {
         failed.push(ticker);
+        console.warn(`[dividend-calendar] ${ticker} refresh network/client failure`, error);
       }
       const done = index + 1;
-      setLiveRefreshState({ running: true, done, total: uniqueTickers.length, success: [...success], failed: [...failed], message: `Polygon 무료 한도 보호를 위해 순차 조회 중... ${done}/${uniqueTickers.length}` });
+      const progressDelayMs = rateLimitDelayMs ?? configuredDelayMs;
+      setLiveRefreshState({ running: true, done, total: uniqueTickers.length, success: [...success], failed: [...failed], message: "Polygon API 무료 한도 보호를 위해 순차 조회 중...", details: buildLiveRefreshDetails(done, uniqueTickers.length, progressDelayMs), tone: "info" });
       if (index < uniqueTickers.length - 1 && rateLimitDelayMs && rateLimitDelayMs > 0) {
         await waitForLiveRefreshRateLimit(rateLimitDelayMs);
       }
@@ -445,7 +492,7 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
     }
 
     const lastUpdatedAt = new Date().toISOString();
-    setLiveRefreshState({ running: false, done: uniqueTickers.length, total: uniqueTickers.length, success, failed, lastUpdatedAt, message: `배당 일정 최신화 완료: 성공 ${success.length}개, 실패 ${failed.length}개${failed.length ? ` · 실패: ${failed.join(", ")}` : ""}` });
+    setLiveRefreshState({ running: false, done: uniqueTickers.length, total: uniqueTickers.length, success, failed, lastUpdatedAt, message: `배당 일정 최신화 완료: 성공 ${success.length}개, 실패 ${failed.length}개${failed.length ? ` · 실패: ${failed.join(", ")}` : ""}`, tone: failed.length > 0 ? "error" : "info" });
   };
 
   const handleCloudSave = async () => {
@@ -493,10 +540,13 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
         </div>
         <p className="mt-1 text-[12px] text-slate-500 sm:text-[13px]">배당락·매수마감·지급·실적을 한 화면에서 확인합니다.</p>
         {liveRefreshState.message && (
-          <p className="mt-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
-            {liveRefreshState.message}
-            {liveRefreshState.lastUpdatedAt ? ` · 마지막 최신화: ${new Date(liveRefreshState.lastUpdatedAt).toLocaleString("ko-KR", { hour12: false })}` : ""}
-          </p>
+          <div className={`mt-1 text-[11px] font-semibold ${liveRefreshState.tone === "error" ? "text-rose-700 dark:text-rose-300" : "text-emerald-700 dark:text-emerald-300"}`}>
+            <p>
+              {liveRefreshState.message}
+              {liveRefreshState.lastUpdatedAt ? ` · 마지막 최신화: ${new Date(liveRefreshState.lastUpdatedAt).toLocaleString("ko-KR", { hour12: false })}` : ""}
+            </p>
+            {liveRefreshState.details?.map((detail) => <p key={detail}>{detail}</p>)}
+          </div>
         )}
         {cloudSaveState.message && (
           <p className="mt-1 text-[11px] font-semibold text-cyan-700 dark:text-cyan-300">{cloudSaveState.message}</p>
