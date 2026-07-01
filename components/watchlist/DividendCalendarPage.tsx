@@ -32,6 +32,8 @@ import {
   loadCalendarTickerCacheEntry,
   loadPortfolioCalendarTickerCacheEntry,
   savePortfolioCalendarTickerCacheEntry,
+  saveCalendarCloudSavedAt,
+  loadCalendarCloudSavedAt,
   warnFirestoreFallback,
   type CalendarEventMeta,
 } from "@/lib/firebase/firestore-repositories";
@@ -134,7 +136,7 @@ function resolveCalendarEventMeta(event: CalendarEvent, metas: Record<string, Ca
 }
 
 export default function DividendCalendarPage({ tickers, tickerManager, onManagePortfolio, onManageCalendarPortfolio, activePortfolioId, activePortfolioName, tickerMemos, onSaveTickerMemo }: Props) {
-  const { user } = useFirebaseAuth();
+  const { user, loading: authLoading, configured: authConfigured } = useFirebaseAuth();
   const today = new Date();
   const todayIso = formatIsoDate(today);
   const [month, setMonth] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
@@ -157,6 +159,7 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
   const [taxQuoteLoadingTickers, setTaxQuoteLoadingTickers] = useState<Set<string>>(() => new Set());
   const [liveRefreshState, setLiveRefreshState] = useState<{ running: boolean; done: number; total: number; success: string[]; failed: string[]; message: string; details?: string[]; tone?: "info" | "error"; lastUpdatedAt?: string }>({ running: false, done: 0, total: 0, success: [], failed: [], message: "" });
   const [cloudSaveState, setCloudSaveState] = useState<{ running: boolean; message: string }>({ running: false, message: "" });
+  const [cloudSavedAt, setCloudSavedAt] = useState<string | null>(null);
   const [liveRefreshedTickerSet, setLiveRefreshedTickerSet] = useState<Set<string>>(() => new Set());
   const providerEventsTraceRef = useRef<CalendarEvent[]>(providerResult.events);
   const legacyImportedEventsTraceRef = useRef<CalendarEvent[]>(legacyImportedEvents);
@@ -239,10 +242,15 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
         }
       })
       .catch((err) => warnFirestoreFallback("calendarCustomEvents.load", err));
+
+    loadCalendarCloudSavedAt(user.uid, activePortfolioId)
+      .then((savedAt) => { if (savedAt) setCloudSavedAt(savedAt); })
+      .catch((err) => warnFirestoreFallback("calendarCloudSavedAt.load", err));
   }, [user, activePortfolioId]);
 
   useEffect(() => {
-    traceEffect("DividendCalendarPage useEffect: Provider Load", { tickers, month: month.toISOString(), uid: user?.uid ?? null, activePortfolioId });
+    traceEffect("DividendCalendarPage useEffect: Provider Load", { tickers, month: month.toISOString(), uid: user?.uid ?? null, activePortfolioId, authLoading, authConfigured });
+    if (authConfigured && authLoading) return;
     let cancelled = false;
     const loadProviderEvents = async () => {
       const normalizedTickers = Array.from(new Set(tickers.map((ticker) => ticker.trim().toUpperCase()).filter(Boolean)));
@@ -256,8 +264,12 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
           : [],
       );
       const typedFirestoreCacheMap = {} as ReturnType<typeof loadCalendarCacheMap<CalendarEvent>>;
+      const firestoreCacheTickers = new Set<string>();
       for (const entry of firestoreCacheEntries) {
-        if (entry?.ticker) typedFirestoreCacheMap[entry.ticker] = entry as never;
+        if (entry?.ticker) {
+          typedFirestoreCacheMap[entry.ticker] = entry as never;
+          firestoreCacheTickers.add(entry.ticker);
+        }
       }
       console.info(`[dividend-calendar:trace] ${traceTimestamp()} initial-load priority`, {
         timestamp: traceTimestamp(),
@@ -266,7 +278,7 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
         firestoreCache: Object.values(typedFirestoreCacheMap).map((entry) => summarizeCacheEntryForTrace(entry as never)),
         localStorageCache: Object.values(loadCalendarCacheMap<CalendarEvent>(activePortfolioId)).map(summarizeCacheEntryForTrace),
       });
-      if (Object.keys(typedFirestoreCacheMap).length > 0) saveCalendarCacheMap(typedFirestoreCacheMap, activePortfolioId);
+      if (firestoreCacheTickers.size > 0) saveCalendarCacheMap(typedFirestoreCacheMap, activePortfolioId);
       const localCacheMap = loadCalendarCacheMap<CalendarEvent>(activePortfolioId);
       return getCalendarEventsForTickersWithProvider({
         tickers,
@@ -275,6 +287,7 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
         provider: "real",
         cacheMap: { ...localCacheMap, ...typedFirestoreCacheMap },
         preferFreshCache: true,
+        firestoreCacheTickers,
       });
     };
 
@@ -302,7 +315,7 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
     return () => {
       cancelled = true;
     };
-  }, [activePortfolioId, month, tickers, user]);
+  }, [activePortfolioId, authConfigured, authLoading, month, tickers, user]);
 
   const persistEventMeta = (event: CalendarEvent, meta: CalendarEventMeta) => {
     if (isCustomCalendarEventLike(event)) {
@@ -666,6 +679,9 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
       console.info("[dividend-calendar:trace] cloud-save read-after-write", verifiedEntries.map((entry) => summarizeCacheEntryForTrace(entry as never)));
       const mismatch = cacheEntries.find((entry, index) => !areCacheEntryEventsEqual(entry as never, verifiedEntries[index] as never));
       if (mismatch) throw new Error(`Calendar cache verification failed for ${mismatch.ticker}`);
+      const savedAt = new Date().toISOString();
+      await saveCalendarCloudSavedAt(user.uid, activePortfolioId, savedAt);
+      setCloudSavedAt(savedAt);
       setCloudSaveState({ running: false, message: `클라우드 저장 완료: cache ${cacheEntries.length}개, custom ${customEvents.length}개, meta ${Object.keys(eventMetas).length}개` });
     } catch (error) {
       console.error("[dividend-calendar:trace] cloud-save failed", error);
@@ -680,6 +696,11 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-[22px] font-extrabold text-white sm:text-[26px]">배당캘린더</h1>
           <div className="flex items-center gap-2">
+            {cloudSavedAt && (
+              <span className="text-[10px] text-slate-400 dark:text-slate-500">
+                마지막 저장: {new Date(cloudSavedAt).toLocaleString("ko-KR", { hour12: false })}
+              </span>
+            )}
             <button
               type="button"
               onClick={handleRefreshDividendEvents}

@@ -74,11 +74,15 @@ export function createCalendarTickerCacheEntry<TEvent>({
 export function isCalendarTickerCacheFresh<TEvent = unknown>(
   entry: CalendarTickerCache<TEvent> | null | undefined,
   now = new Date(),
+  options?: { skipTtl?: boolean },
 ): entry is CalendarTickerCache<TEvent> {
   if (!entry) return false;
   if (entry.schemaVersion !== CALENDAR_TICKER_CACHE_SCHEMA_VERSION) return false;
   if (!normalizeCalendarCacheTicker(entry.ticker)) return false;
   if (!Array.isArray(entry.events)) return false;
+  if (entry.events.length === 0) return false;
+
+  if (options?.skipTtl) return true;
 
   const expiresAtTime = new Date(entry.expiresAt).getTime();
   if (!Number.isFinite(expiresAtTime)) return false;

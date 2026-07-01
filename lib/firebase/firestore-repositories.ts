@@ -771,3 +771,14 @@ export async function loadPortfolioCalendarTickerCacheEntry(uid: string, portfol
   console.info("[dividend-calendar:trace] Firestore document load", { path: `users/${uid}/calendarPortfolios/${portfolioId}/calendarCache/${normalizedTicker}`, document });
   return document ? fromCalendarCacheEntry(document) : null;
 }
+
+export async function saveCalendarCloudSavedAt(uid: string, portfolioId: string, savedAt: string): Promise<void> {
+  await setDoc(doc(requireDb(), "users", uid, "calendarSettings", `cloudSavedAt_${portfolioId}`), { savedAt, updatedAt: serverTimestamp() });
+}
+
+export async function loadCalendarCloudSavedAt(uid: string, portfolioId: string): Promise<string | null> {
+  const snap = await getDoc(doc(requireDb(), "users", uid, "calendarSettings", `cloudSavedAt_${portfolioId}`));
+  if (!snap.exists()) return null;
+  const data = snap.data();
+  return typeof data.savedAt === "string" ? data.savedAt : null;
+}
