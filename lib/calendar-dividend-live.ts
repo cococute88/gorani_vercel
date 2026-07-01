@@ -8,7 +8,7 @@ export type DividendLiveSource = "live" | "partial" | "unavailable";
 export type ProviderStatus = {
   yahoo?: "ok" | "failed" | "sample_fallback";
   finnhub?: "ok" | "missing_key" | "failed";
-  polygon?: "ok" | "missing_key" | "rate_limited" | "failed";
+  polygon?: "ok" | "missing_key" | "unauthorized" | "forbidden" | "rate_limited" | "network_error" | "server_error" | "failed";
 };
 export type DividendLiveResponse = {
   ticker: string;
@@ -19,6 +19,7 @@ export type DividendLiveResponse = {
   providerStatus: ProviderStatus;
   warnings: string[];
   rateLimitDelayMs?: number;
+  failureCategory?: "missing_key" | "unauthorized" | "forbidden" | "rate_limited" | "network_error" | "server_error" | "failed";
 };
 export type DeclaredDividendRow = { exDate: string; amount: number; payDate?: string | null };
 export type DividendHistoryRow = { date: string; amount: number };

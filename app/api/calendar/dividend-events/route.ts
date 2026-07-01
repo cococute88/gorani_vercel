@@ -17,20 +17,35 @@ const POLYGON_RETRY_WAIT_MS = 2000;
 
 const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
+class ProviderFetchError extends Error {
+  constructor(
+    public readonly category: "unauthorized" | "forbidden" | "rate_limited" | "network_error" | "server_error" | "failed",
+    message: string,
+  ) { super(message); }
+}
+
 async function fetchJson(url: string) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
-    const response = await fetch(url, { signal: controller.signal, headers: { accept: "application/json" }, cache: "no-store" });
-    if (response.status === 429) throw new Error("RATE_LIMITED");
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    let response: Response;
+    try {
+      response = await fetch(url, { signal: controller.signal, headers: { accept: "application/json" }, cache: "no-store" });
+    } catch (error) {
+      throw new ProviderFetchError("network_error", error instanceof Error ? error.message : "Network error");
+    }
+    if (response.status === 401) throw new ProviderFetchError("unauthorized", "HTTP 401 Unauthorized");
+    if (response.status === 403) throw new ProviderFetchError("forbidden", "HTTP 403 Forbidden");
+    if (response.status === 429) throw new ProviderFetchError("rate_limited", "HTTP 429 Rate Limit");
+    if (response.status >= 500) throw new ProviderFetchError("server_error", `HTTP ${response.status}`);
+    if (!response.ok) throw new ProviderFetchError("failed", `HTTP ${response.status}`);
     return response.json();
   } finally { clearTimeout(timeout); }
 }
 
 async function fetchPolygon(ticker: string, status: ProviderStatus, warnings: string[]): Promise<DeclaredDividendRow[]> {
   const key = process.env.POLYGON_API_KEY;
-  if (!key) { status.polygon = "missing_key"; return []; }
+  if (!key) { status.polygon = "missing_key"; console.warn(`[dividend-events] Polygon skipped for ${ticker}: missing POLYGON_API_KEY`); return []; }
   const url = new URL("https://api.polygon.io/v3/reference/dividends");
   url.searchParams.set("ticker", ticker); url.searchParams.set("limit", "50"); url.searchParams.set("sort", "ex_dividend_date"); url.searchParams.set("order", "desc"); url.searchParams.set("apiKey", key);
   for (let attempt = 1; attempt <= POLYGON_MAX_ATTEMPTS; attempt += 1) {
@@ -42,13 +57,15 @@ async function fetchPolygon(ticker: string, status: ProviderStatus, warnings: st
         return exDate && Number.isFinite(amount) && amount > 0 ? [{ exDate, amount, payDate: item.pay_date?.slice(0, 10) }] : [];
       });
     } catch (error) {
-      const rateLimited = error instanceof Error && error.message === "RATE_LIMITED";
-      if (rateLimited && attempt < POLYGON_MAX_ATTEMPTS) {
+      const category = error instanceof ProviderFetchError ? error.category : "failed";
+      if (category === "rate_limited" && attempt < POLYGON_MAX_ATTEMPTS) {
+        console.warn(`[dividend-events] Polygon ${ticker} rate limited on attempt ${attempt}; retrying after ${POLYGON_RETRY_WAIT_MS * attempt}ms`);
         await delay(POLYGON_RETRY_WAIT_MS * attempt);
         continue;
       }
-      status.polygon = rateLimited ? "rate_limited" : "failed";
-      warnings.push(`Polygon dividend lookup failed for ${ticker}${rateLimited ? " (rate limited after retries)" : ""}.`);
+      status.polygon = category;
+      console.warn(`[dividend-events] Polygon failed for ${ticker}: ${category}${error instanceof Error ? ` · ${error.message}` : ""}`);
+      warnings.push(`Polygon dividend lookup failed for ${ticker} (${category}).`);
       return [];
     }
   }
@@ -98,7 +115,7 @@ export async function GET(request: Request) {
   const providerStatus: ProviderStatus = {}; const warnings: string[] = [];
   if (!ticker) return NextResponse.json({ ticker: "", source: "unavailable", events: [], failedReason: "ticker is required", updatedAt, providerStatus, warnings } satisfies DividendLiveResponse, { status: 400 });
   const polygonRows = await fetchPolygon(ticker, providerStatus, warnings);
-  const polygonBlockedFallback = providerStatus.polygon === "rate_limited" || providerStatus.polygon === "failed";
+  const polygonBlockedFallback = providerStatus.polygon === "unauthorized" || providerStatus.polygon === "forbidden" || providerStatus.polygon === "rate_limited" || providerStatus.polygon === "network_error" || providerStatus.polygon === "server_error" || providerStatus.polygon === "failed";
   const finnhubRows = polygonRows.length > 0 || polygonBlockedFallback ? [] : await fetchFinnhub(ticker, providerStatus, warnings);
   let yahooRows: ReturnType<typeof yahooRowsFromQuoteResponse> = [];
   try {
@@ -111,6 +128,7 @@ export async function GET(request: Request) {
   const historyForProjection = yahooRows.length > 0 ? yahooRows : declared.map((row) => ({ date: row.exDate, amount: row.amount }));
   const events = polygonBlockedFallback ? [] : declared.length > 0 || historyForProjection.length > 0 ? mergeDeclaredAndProjectedEvents(ticker, declared, historyForProjection) : [];
   const source = events.length === 0 ? "unavailable" : providerStatus.polygon === "ok" && polygonRows.length > 0 ? "live" : "partial";
+  const failureCategory: DividendLiveResponse["failureCategory"] = providerStatus.polygon === "missing_key" ? "missing_key" : polygonBlockedFallback ? providerStatus.polygon as DividendLiveResponse["failureCategory"] : undefined;
   logGeneratedCalendarEvents(ticker, source, providerStatus, events);
-  return NextResponse.json({ ticker, source, events, failedReason: events.length === 0 ? (polygonBlockedFallback ? "Polygon dividend lookup failed; existing confirmed cache should be kept." : "No live dividend events were available.") : undefined, updatedAt, providerStatus, warnings, rateLimitDelayMs: providerStatus.polygon && providerStatus.polygon !== "missing_key" ? 12500 : undefined } satisfies DividendLiveResponse);
+  return NextResponse.json({ ticker, source, events, failedReason: events.length === 0 ? (polygonBlockedFallback ? "Polygon dividend lookup failed; existing confirmed cache should be kept." : "No live dividend events were available.") : undefined, updatedAt, providerStatus, warnings, rateLimitDelayMs: providerStatus.polygon && providerStatus.polygon !== "missing_key" ? 12500 : undefined, failureCategory } satisfies DividendLiveResponse);
 }
