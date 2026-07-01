@@ -36,6 +36,7 @@ export type CalendarTickerProviderInput = {
   provider?: CalendarEventProviderKind;
   cache?: CalendarTickerCache<CalendarEvent> | null;
   preferFreshCache?: boolean;
+  skipCacheTtl?: boolean;
   fetchDividends?: QuoteDividendsFetcher;
   today?: Date;
 };
@@ -47,6 +48,8 @@ export type CalendarTickersProviderInput = {
   provider?: CalendarEventProviderKind;
   cacheMap?: CalendarTickerCacheMap<CalendarEvent>;
   preferFreshCache?: boolean;
+  skipCacheTtl?: boolean;
+  firestoreCacheTickers?: Set<string>;
   fetchDividends?: QuoteDividendsFetcher;
   today?: Date;
 };
@@ -478,6 +481,7 @@ export function getCalendarEventsForTicker({
   month,
   cache,
   preferFreshCache = false,
+  skipCacheTtl,
 }: CalendarTickerProviderInput): CalendarTickerProviderResult {
   const ticker = normalizeCalendarTicker(rawTicker);
   if (!ticker) {
@@ -490,7 +494,7 @@ export function getCalendarEventsForTicker({
     };
   }
 
-  if (preferFreshCache && isCalendarTickerCacheFresh(cache)) {
+  if (preferFreshCache && isCalendarTickerCacheFresh(cache, undefined, { skipTtl: skipCacheTtl })) {
     const events = cache.events.map(normalizeCalendarEventForCache);
     return {
       ticker,
@@ -517,6 +521,7 @@ export async function getRealDividendEventsForTicker({
   month,
   cache,
   preferFreshCache = true,
+  skipCacheTtl,
   fetchDividends = fetchQuoteDividends,
   today,
 }: CalendarTickerProviderInput): Promise<CalendarTickerProviderResult> {
@@ -533,7 +538,7 @@ export async function getRealDividendEventsForTicker({
   }
 
   const persistedCache = cache ?? loadCalendarTickerCache<CalendarEvent>(ticker);
-  if (preferFreshCache && isCalendarTickerCacheFresh(persistedCache)) {
+  if (preferFreshCache && isCalendarTickerCacheFresh(persistedCache, undefined, { skipTtl: skipCacheTtl })) {
     const events = persistedCache.events.map(normalizeCalendarEventForCache);
     return {
       ticker,
@@ -640,16 +645,19 @@ export async function getCalendarEventsForTickersWithProvider({
   provider = "real",
   cacheMap = {},
   preferFreshCache = true,
+  skipCacheTtl,
+  firestoreCacheTickers,
   fetchDividends,
   today,
 }: CalendarTickersProviderInput): Promise<CalendarTickersProviderResult> {
   const normalizedTickers = uniqueNormalizedTickers(tickers);
   const tickerResults = await Promise.all(
-    normalizedTickers.map((ticker) =>
-      provider === "mock"
-        ? Promise.resolve(getCalendarEventsForTicker({ ticker, year, month, cache: cacheMap[ticker], preferFreshCache }))
-        : getRealDividendEventsForTicker({ ticker, year, month, cache: cacheMap[ticker], preferFreshCache, fetchDividends, today }),
-    ),
+    normalizedTickers.map((ticker) => {
+      const tickerSkipTtl = skipCacheTtl || (firestoreCacheTickers?.has(ticker) ?? false);
+      return provider === "mock"
+        ? Promise.resolve(getCalendarEventsForTicker({ ticker, year, month, cache: cacheMap[ticker], preferFreshCache, skipCacheTtl: tickerSkipTtl }))
+        : getRealDividendEventsForTicker({ ticker, year, month, cache: cacheMap[ticker], preferFreshCache, skipCacheTtl: tickerSkipTtl, fetchDividends, today });
+    }),
   );
   const events = tickerResults
     .flatMap((result) => result.events)
