@@ -533,8 +533,15 @@ export async function getRealDividendEventsForTicker({
   }
 
   const persistedCache = cache ?? loadCalendarTickerCache<CalendarEvent>(ticker);
-  if (preferFreshCache && isCalendarTickerCacheFresh(persistedCache)) {
+  const cacheIsFresh = preferFreshCache && isCalendarTickerCacheFresh(persistedCache);
+  if (ticker === "RITM") {
+    console.warn("[DIAG:RITM] ▶ getRealDividendEventsForTicker", { ticker, hasCacheArg: Boolean(cache), hasPersistedCache: Boolean(persistedCache), cacheIsFresh, expiresAt: persistedCache?.expiresAt, schemaVersion: persistedCache?.schemaVersion, source: persistedCache?.source, now: new Date().toISOString() });
+  }
+  if (cacheIsFresh) {
     const events = persistedCache.events.map(normalizeCalendarEventForCache);
+    if (ticker === "RITM") {
+      console.warn("[DIAG:RITM] ▶ Using FRESH cache", { eventCount: events.length, events: events.map((e) => ({ type: e.type, date: e.date, buyDeadline: e.buyDeadline, exDivDate: e.exDivDate, sourceKind: e.sourceKind, status: e.status })) });
+    }
     return {
       ticker,
       events,
@@ -545,6 +552,7 @@ export async function getRealDividendEventsForTicker({
   }
 
   try {
+    if (ticker === "RITM") console.warn("[DIAG:RITM] ▶ Cache NOT fresh, calling Yahoo API for RITM");
     const response = await fetchDividends({ ticker, range: DIVIDEND_HISTORY_RANGE });
     const dividends = normalizeDividendHistory(response.dividends);
     const providerSource = getProviderSource(response);
@@ -570,6 +578,9 @@ export async function getRealDividendEventsForTicker({
     const historicalEvents = buildDividendEventsFromHistory({ ticker, dividends, sourceKind });
     const frequency = inferDividendFrequency(dividends.map((dividend) => dividend.date));
     const estimatedEvents = projectEstimatedDividendEvents({ ticker, dividends, frequency, today });
+    if (ticker === "RITM") {
+      console.warn("[DIAG:RITM] ▶ Yahoo API result + Projection", { dividendCount: dividends.length, historicalCount: historicalEvents.length, estimatedCount: estimatedEvents.length, frequency: frequency.frequency, medianDays: frequency.medianIntervalDays, historicalBuyBy: historicalEvents.filter((e) => e.type === "buy_by").map((e) => ({ date: e.date, buyDeadline: e.buyDeadline, exDivDate: e.exDivDate })), estimatedBuyBy: estimatedEvents.filter((e) => e.type === "buy_by").map((e) => ({ date: e.date, buyDeadline: e.buyDeadline, exDivDate: e.exDivDate })) });
+    }
     const events = [...historicalEvents, ...estimatedEvents]
       .map(normalizeCalendarEventForCache)
       .sort((a, b) => a.date.localeCompare(b.date) || a.ticker.localeCompare(b.ticker) || a.type.localeCompare(b.type));
