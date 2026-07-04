@@ -195,6 +195,7 @@ function DividendHistoryTable({ rows }: { rows: SchdDividendHistoryRow[] }) {
 
 function DividendGrowthTable({ rows }: { rows: SchdDividendGrowthRow[] }) {
   if (!rows.length) return <p className="py-2 text-[12px] font-bold text-slate-500 dark:text-slate-400">표시할 배당성장 데이터가 없습니다.</p>;
+  const latestYear = rows.reduce((max, row) => Math.max(max, row.year), Number.NEGATIVE_INFINITY);
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[520px] text-left text-[12px]">
@@ -212,7 +213,7 @@ function DividendGrowthTable({ rows }: { rows: SchdDividendGrowthRow[] }) {
             <tr key={row.year}>
               <td className="px-2 py-2 font-bold text-slate-900 dark:text-white">
                 {row.year}
-                {!row.complete && <span className="ml-1 text-[10px] font-bold text-amber-500">(진행중)</span>}
+                {row.year === latestYear && !row.complete && <span className="ml-1 text-[10px] font-bold text-amber-500">(진행중)</span>}
               </td>
               <td className="px-2 py-2 text-right tabular-nums text-slate-900 dark:text-white">${row.payout.toFixed(4)}</td>
               <td className="px-2 py-2 text-right tabular-nums text-slate-600 dark:text-slate-300">{row.yearEndYield == null ? "-" : `${row.yearEndYield.toFixed(2)}%`}</td>

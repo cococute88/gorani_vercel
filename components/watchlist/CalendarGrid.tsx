@@ -136,7 +136,7 @@ export default function CalendarGrid({
                     title={dayCustom.map((event) => event.title ?? event.ticker).join(", ")}
                     onClick={(clickEvent) => { clickEvent.stopPropagation(); onSelectDate(cell.isoDate); onOpenEvent(dayCustom[0]); }}
                     onKeyDown={(keyEvent) => { if (keyEvent.key === "Enter") onOpenEvent(dayCustom[0]); }}
-                    className={`min-w-0 flex-1 truncate pt-0.5 text-[10px] font-medium leading-none text-amber-700 dark:text-amber-200/90 sm:text-[11px] ${cell.isoDate < todayIso ? "opacity-60" : ""}`}
+                    className={`min-w-0 flex-1 overflow-hidden whitespace-nowrap pt-0.5 text-[10px] font-medium leading-none text-amber-700 [text-overflow:clip] dark:text-amber-200/90 sm:text-[11px] ${cell.isoDate < todayIso ? "opacity-60" : ""}`}
                   >
                     {dayCustom[0].title ?? dayCustom[0].ticker}{dayCustom.length > 1 ? ` +${dayCustom.length - 1}` : ""}
                   </span>

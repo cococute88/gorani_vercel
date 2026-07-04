@@ -1,7 +1,7 @@
 import type { QuoteDividendsResponse, QuoteHistoryResponse, QuoteLastResponse } from "@/lib/quote-types";
 
 export const SCHD_TICKER = "SCHD";
-export const SCHD_TARGET_YIELDS = [0.035, 0.036, 0.037, 0.038] as const;
+export const SCHD_TARGET_YIELDS = [0.034, 0.035, 0.036, 0.037, 0.038] as const;
 export const SCHD_SEEKING_ALPHA_URL = "https://seekingalpha.com/symbol/SCHD/dividends/yield";
 
 export type SchdRangeKey = "1M" | "6M" | "1Y" | "5Y" | "10Y";
@@ -146,18 +146,22 @@ export function buildSchdDividendHistories(
   }
 
   // Aggregate payout + payment count (and keep the events) per calendar year.
-  const yearAgg = new Map<number, { payout: number; count: number; events: Array<{ ms: number; amount: number }> }>();
+  const yearAgg = new Map<number, { payout: number; count: number; quarters: Set<number>; events: Array<{ ms: number; amount: number }> }>();
   for (const dividend of dividends) {
     const yq = getYearQuarter(dividend.date);
     if (yq == null) continue;
-    const current = yearAgg.get(yq.year) ?? { payout: 0, count: 0, events: [] };
+    const current = yearAgg.get(yq.year) ?? { payout: 0, count: 0, quarters: new Set<number>(), events: [] };
     current.payout += dividend.amount;
     current.count += 1;
+    current.quarters.add(yq.quarter);
     current.events.push({ ms: parseDateMs(dividend.date), amount: dividend.amount });
     yearAgg.set(yq.year, current);
   }
 
-  const typicalCount = mostFrequent(Array.from(yearAgg.values()).map((entry) => entry.count), 4);
+  // Infer a normal year's payment cadence from the data's occupied quarters.
+  // Counting raw events misclassifies otherwise complete years when another
+  // year contains duplicate/special payments in the same quarter.
+  const typicalQuarterCount = mostFrequent(Array.from(yearAgg.values()).map((entry) => entry.quarters.size), 4);
   const yearsAsc = Array.from(yearAgg.keys()).sort((a, b) => a - b);
 
   // Dividend-reinvested total return for a complete year:
@@ -178,7 +182,7 @@ export function buildSchdDividendHistories(
 
   const growthAsc: SchdDividendGrowthRow[] = yearsAsc.map((year) => {
     const agg = yearAgg.get(year)!;
-    const complete = agg.count >= typicalCount;
+    const complete = agg.quarters.size >= typicalQuarterCount;
     const yearEnd = yearEndClose.get(year);
     const yearEndYield = complete && isFinitePositive(yearEnd) ? (agg.payout / yearEnd) * 100 : null;
     const totalReturnPct = complete ? totalReturnFor(year, agg.events) : null;

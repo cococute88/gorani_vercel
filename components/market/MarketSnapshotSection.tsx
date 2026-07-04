@@ -59,7 +59,10 @@ function FngCard({ data }: { data: FearGreedData | null }) {
   if (!data) {
     return (
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-[#2a3336] dark:bg-[#191f20]">
-        <h3 className="mb-3 text-[15px] font-bold text-slate-700 dark:text-slate-300">공포 &amp; 탐욕 지수</h3>
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h3 className="text-[15px] font-bold text-slate-700 dark:text-slate-300">공포 &amp; 탐욕 지수</h3>
+          <CnnFearGreedLink />
+        </div>
         <div className="flex h-[200px] items-center justify-center text-center text-[13px] text-slate-500">공포 & 탐욕 지수 조회 불가</div>
       </div>
     );
@@ -73,7 +76,7 @@ function FngCard({ data }: { data: FearGreedData | null }) {
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-[#2a3336] dark:bg-[#191f20]">
       <div className="mb-3 flex items-center justify-between gap-2">
         <h3 className="text-[15px] font-bold text-slate-700 dark:text-slate-300">공포 &amp; 탐욕 지수</h3>
-        <span className="shrink-0 text-[11px] text-slate-500">{data.source ?? "CNN Fear & Greed"}</span>
+        <CnnFearGreedLink label={data.source ?? "CNN Fear & Greed"} />
       </div>
       <div className="flex items-baseline gap-3">
         <span className="num text-[44px] font-black leading-none" style={{ color }}>{data.score}</span>
@@ -96,5 +99,18 @@ function FngCard({ data }: { data: FearGreedData | null }) {
         </ResponsiveContainer>
       </div>
     </div>
+  );
+}
+
+function CnnFearGreedLink({ label = "CNN Fear & Greed" }: { label?: string }) {
+  return (
+    <a
+      href="https://edition.cnn.com/markets/fear-and-greed"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="shrink-0 rounded-sm text-[11px] text-blue-600 underline-offset-4 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 dark:text-blue-300"
+    >
+      {label}
+    </a>
   );
 }

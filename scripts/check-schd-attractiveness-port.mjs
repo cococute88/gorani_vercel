@@ -15,7 +15,9 @@ assertRegex('no sample fallback display in SCHD component', 'components/dividend
 assertRegex('latest four dividend TTM exists', 'lib/schd-attractiveness.ts', /latest four dividend|최신 4개|right < 4/);
 assertRegex('52-week high drawdown exists', 'lib/schd-attractiveness.ts', /52w|365 \* 24|drawdownFrom52wHighPct/);
 assertRegex('5-year average yield exists', 'lib/schd-attractiveness.ts', /fiveYearAverageYield|5 \* 365\.25/);
-for (const y of ['3.5%', '3.6%', '3.7%', '3.8%']) assertIncludes(`target row ${y}`, 'components/dividend/SchdAttractivenessSection.tsx', y);
+for (const [label, value] of [['3.4%', '0.034'], ['3.5%', '0.035'], ['3.6%', '0.036'], ['3.7%', '0.037'], ['3.8%', '0.038']]) {
+  assertIncludes(`target row ${label}`, 'lib/schd-attractiveness.ts', value);
+}
 assertIncludes('Seeking Alpha link exists', 'lib/schd-attractiveness.ts', 'seekingalpha.com/symbol/SCHD/dividends/yield');
 assertRegex('YY.MM formatter exists', 'components/dividend/SchdAttractivenessSection.tsx', /slice\(2\).*padStart\(2, "0"\)/s);
 assertRegex('reference lines exist', 'components/dividend/SchdAttractivenessSection.tsx', /ReferenceLine[\s\S]*5년평균[\s\S]*y=\{3\.5\}[\s\S]*y=\{3\.6\}[\s\S]*y=\{3\.7\}[\s\S]*y=\{3\.8\}/);

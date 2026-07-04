@@ -160,6 +160,7 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
   const [liveRefreshState, setLiveRefreshState] = useState<{ running: boolean; done: number; total: number; success: string[]; failed: string[]; message: string; details?: string[]; tone?: "info" | "error"; lastUpdatedAt?: string }>({ running: false, done: 0, total: 0, success: [], failed: [], message: "" });
   const [cloudSaveState, setCloudSaveState] = useState<{ running: boolean; message: string }>({ running: false, message: "" });
   const [cloudSavedAt, setCloudSavedAt] = useState<string | null>(null);
+  const [cloudSaveNeeded, setCloudSaveNeeded] = useState(false);
   const [liveRefreshedTickerSet, setLiveRefreshedTickerSet] = useState<Set<string>>(() => new Set());
   const providerEventsTraceRef = useRef<CalendarEvent[]>(providerResult.events);
   const legacyImportedEventsTraceRef = useRef<CalendarEvent[]>(legacyImportedEvents);
@@ -195,6 +196,8 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
     }
     setCustomEvents(loadLocalCalendarCustomEvents(activePortfolioId));
     setLegacyImportedEvents([]);
+    setCloudSaveNeeded(false);
+    setCloudSavedAt(null);
     setProviderResult((current) => {
       traceCalendarStateUpdate("setProviderResult(activePortfolio reset)", [], current.events);
       return { ...current, events: [] };
@@ -318,6 +321,7 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
   }, [activePortfolioId, authConfigured, authLoading, month, tickers, user]);
 
   const persistEventMeta = (event: CalendarEvent, meta: CalendarEventMeta) => {
+    setCloudSaveNeeded(true);
     if (isCustomCalendarEventLike(event)) {
       const nextCustomEvents = customEvents.map((customEvent) =>
         customEvent.id === (event.canonicalEventId ?? event.id)
@@ -377,7 +381,7 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
     setActiveEvent(event);
   };
 
-  const handleSubmitCustomEvent = (input: CustomEventSubmitInput) => {
+  const handleSubmitCustomEvent = async (input: CustomEventSubmitInput) => {
     const record = createCalendarCustomEvent({
       id: input.id,
       title: input.title,
@@ -387,14 +391,20 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
       createdAt: input.createdAt,
     });
     const next = dedupeCalendarCustomEvents([...customEvents.filter((item) => item.id !== record.id), record]);
-    saveLocalCalendarCustomEvents(next, activePortfolioId);
-    setCustomEvents(next);
-    setCustomDialogOpen(false);
-    setEditingCustomEvent(null);
-    setSelectedDate(record.date);
-    if (user) {
-      const saveCustom = activePortfolioId === DEFAULT_CALENDAR_PORTFOLIO_ID ? saveFirestoreCalendarCustomEvent(user.uid, record) : savePortfolioCalendarCustomEvent(user.uid, activePortfolioId, record);
-      void saveCustom.catch((err) => warnFirestoreFallback("calendarCustomEvents.save", err));
+    try {
+      if (user) {
+        const saveCustom = activePortfolioId === DEFAULT_CALENDAR_PORTFOLIO_ID ? saveFirestoreCalendarCustomEvent(user.uid, record) : savePortfolioCalendarCustomEvent(user.uid, activePortfolioId, record);
+        await saveCustom;
+      }
+      saveLocalCalendarCustomEvents(next, activePortfolioId);
+      setCustomEvents(next);
+      setCloudSaveNeeded(true);
+      setCustomDialogOpen(false);
+      setEditingCustomEvent(null);
+      setSelectedDate(record.date);
+    } catch (error) {
+      warnFirestoreFallback("calendarCustomEvents.save", error);
+      throw error;
     }
   };
 
@@ -402,6 +412,7 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
     const next = customEvents.filter((item) => item.id !== eventId);
     saveLocalCalendarCustomEvents(next, activePortfolioId);
     setCustomEvents(next);
+    setCloudSaveNeeded(true);
     setCustomDialogOpen(false);
     setEditingCustomEvent(null);
     if (user) {
@@ -682,6 +693,7 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
       const savedAt = new Date().toISOString();
       await saveCalendarCloudSavedAt(user.uid, activePortfolioId, savedAt);
       setCloudSavedAt(savedAt);
+      setCloudSaveNeeded(false);
       setCloudSaveState({ running: false, message: `클라우드 저장 완료: cache ${cacheEntries.length}개, custom ${customEvents.length}개, meta ${Object.keys(eventMetas).length}개` });
     } catch (error) {
       console.error("[dividend-calendar:trace] cloud-save failed", error);
@@ -696,11 +708,15 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-[22px] font-extrabold text-white sm:text-[26px]">배당캘린더</h1>
           <div className="flex items-center gap-2">
-            {cloudSavedAt && (
+            {cloudSaveNeeded ? (
+              <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-300">
+                변경사항이 있습니다. 클라우드 저장해주세요.
+              </span>
+            ) : cloudSavedAt ? (
               <span className="text-[10px] text-slate-400 dark:text-slate-500">
                 마지막 저장: {new Date(cloudSavedAt).toLocaleString("ko-KR", { hour12: false })}
               </span>
-            )}
+            ) : null}
             <button
               type="button"
               onClick={handleRefreshDividendEvents}

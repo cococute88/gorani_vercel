@@ -865,8 +865,8 @@ export default function PortfolioPage() {
             aria-live="polite"
             className={`pointer-events-auto flex max-w-[520px] items-start gap-3 rounded-xl border px-4 py-3 text-[13px] shadow-2xl backdrop-blur ${
               snapshotToast.tone === "success"
-                ? "border-emerald-500/30 bg-emerald-950/80 text-emerald-100"
-                : "border-amber-500/30 bg-[#1c2426]/90 text-slate-100"
+                ? "border-emerald-200 bg-emerald-50/95 text-emerald-900 dark:border-emerald-500/30 dark:bg-emerald-950/80 dark:text-emerald-100"
+                : "border-amber-200 bg-amber-50/95 text-slate-800 dark:border-amber-500/30 dark:bg-[#1c2426]/90 dark:text-slate-100"
             }`}
           >
             <span className="break-keep leading-5">{snapshotToast.text}</span>
@@ -877,7 +877,7 @@ export default function PortfolioPage() {
                   setSnapshotToast(null);
                   setHiddenModalOpen(true);
                 }}
-                className="shrink-0 rounded-md border border-amber-400/40 bg-amber-500/15 px-2 py-1 text-[12px] font-semibold text-amber-200 transition-colors hover:bg-amber-500/25"
+                className="shrink-0 rounded-md border border-amber-300 bg-amber-100 px-2 py-1 text-[12px] font-semibold text-amber-800 transition-colors hover:bg-amber-200 dark:border-amber-400/40 dark:bg-amber-500/15 dark:text-amber-200 dark:hover:bg-amber-500/25"
               >
                 보기
               </button>
@@ -886,7 +886,7 @@ export default function PortfolioPage() {
               type="button"
               onClick={() => setSnapshotToast(null)}
               aria-label="알림 닫기"
-              className="shrink-0 rounded-md p-1 text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
+              className="shrink-0 rounded-md p-1 text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-white"
             >
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
                 <path d="M6 6l12 12M18 6L6 18" />
