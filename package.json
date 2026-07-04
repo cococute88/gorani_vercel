@@ -87,6 +87,7 @@
     "check:schd-attractiveness-port": "node scripts/check-schd-attractiveness-port.mjs",
     "check:schd-attractiveness-dense-data": "node scripts/check-schd-attractiveness-dense-data.mjs",
     "check:schd-detail-chart-tabs": "node scripts/check-schd-detail-chart-tabs.mjs",
+    "check:schd-calendar-portfolio-market-ux": "node scripts/check-schd-calendar-portfolio-market-ux.mjs",
     "check:stock-compare-rebase": "node scripts/check-stock-compare-rebase.mjs",
     "check:stock-compare-holdings": "node scripts/check-stock-compare-holdings.mjs",
     "check:small-ui-favicon-modal-chart-fix": "node scripts/check-small-ui-favicon-modal-chart-fix.mjs",

@@ -94,7 +94,7 @@ export default function MarketIndexCard({ def, onOpen }: Props) {
       </p>
 
       {/* Candlestick mini chart */}
-      <div className="mt-2 h-[80px] border-t border-slate-100 pt-2 dark:border-white/5" onClick={(event) => event.stopPropagation()}>
+      <div className="mt-2 h-[80px] border-t border-slate-100 pt-2 dark:border-white/5">
         {quote && quote.candles.length > 0 ? (
           <IndexSparkline candles={quote.candles} height={80} />
         ) : (

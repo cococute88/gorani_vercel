@@ -20,7 +20,7 @@ interface Props {
   /** Fallback date used for new events (selected date or today). */
   defaultDate: string;
   onClose: () => void;
-  onSubmit: (input: CustomEventSubmitInput) => void;
+  onSubmit: (input: CustomEventSubmitInput) => void | Promise<void>;
   onDelete: (eventId: string) => void;
 }
 
@@ -34,6 +34,7 @@ export default function CustomEventDialog({ open, event, defaultDate, onClose, o
   const [ticker, setTicker] = useState("");
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
@@ -43,12 +44,13 @@ export default function CustomEventDialog({ open, event, defaultDate, onClose, o
     setTicker(event?.ticker ?? "");
     setNote(event?.note ?? "");
     setError("");
+    setSaving(false);
     setConfirmDelete(false);
   }, [open, event, defaultDate]);
 
   if (!open) return null;
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const trimmedTitle = title.trim();
     const trimmedDate = date.trim();
     if (!trimmedTitle) {
@@ -59,14 +61,21 @@ export default function CustomEventDialog({ open, event, defaultDate, onClose, o
       setError("날짜를 YYYY-MM-DD 형식으로 입력하세요.");
       return;
     }
-    onSubmit({
-      id: event?.id,
-      createdAt: event?.createdAt,
-      title: trimmedTitle,
-      date: trimmedDate,
-      ticker: ticker.trim().toUpperCase() || undefined,
-      note: note.trim() || undefined,
-    });
+    setSaving(true);
+    setError("");
+    try {
+      await onSubmit({
+        id: event?.id,
+        createdAt: event?.createdAt,
+        title: trimmedTitle,
+        date: trimmedDate,
+        ticker: ticker.trim().toUpperCase() || undefined,
+        note: note.trim() || undefined,
+      });
+    } catch {
+      setError("일정을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.");
+      setSaving(false);
+    }
   };
 
   return (
@@ -144,7 +153,7 @@ export default function CustomEventDialog({ open, event, defaultDate, onClose, o
           )}
           <div className="flex items-center gap-2">
             <button type="button" onClick={onClose} className="rounded-lg bg-white/10 px-4 py-2 text-[12px] font-semibold text-slate-300 hover:bg-white/15 sm:text-[13px]">취소</button>
-            <button type="button" onClick={handleSave} className="rounded-lg bg-amber-500 px-4 py-2 text-[12px] font-semibold text-slate-900 hover:bg-amber-400 sm:text-[13px]">저장</button>
+            <button type="button" onClick={handleSave} disabled={saving} className="rounded-lg bg-amber-500 px-4 py-2 text-[12px] font-semibold text-slate-900 hover:bg-amber-400 disabled:cursor-wait disabled:opacity-60 sm:text-[13px]">{saving ? "저장 중..." : "저장"}</button>
           </div>
         </div>
       </div>

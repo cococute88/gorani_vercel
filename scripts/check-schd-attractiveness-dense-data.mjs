@@ -118,6 +118,28 @@ check('10) npm script is registered', () => {
   assert.equal(pkg.scripts['check:schd-attractiveness-dense-data'], 'node scripts/check-schd-attractiveness-dense-data.mjs');
 });
 
+check('11) target-yield rows include 3.4% without removing existing rows', () => {
+  assert.deepEqual(Array.from(mod.SCHD_TARGET_YIELDS), [0.034, 0.035, 0.036, 0.037, 0.038]);
+});
+
+check('12) completion uses occupied quarters, not duplicate payment count', () => {
+  const history = mod.buildSchdDividendHistories([
+    { date: '2021-03-24', amount: 0.5 },
+    { date: '2021-06-23', amount: 0.5 },
+    { date: '2021-09-22', amount: 0.5 },
+    { date: '2021-12-08', amount: 0.5 },
+    { date: '2022-03-23', amount: 0.5 },
+    { date: '2022-06-22', amount: 0.5 },
+    { date: '2022-06-29', amount: 0.1 },
+    { date: '2022-09-21', amount: 0.5 },
+    { date: '2022-12-07', amount: 0.5 },
+    { date: '2023-03-22', amount: 0.5 },
+    { date: '2023-06-21', amount: 0.5 },
+  ], []);
+  assert.equal(history.growth.find((row) => row.year === 2021)?.complete, true);
+  assert.equal(history.growth.find((row) => row.year === 2023)?.complete, false);
+});
+
 for (const c of checks) console.log(`${c.ok ? '✅' : '❌'} ${c.name}`);
 const failed = checks.filter((c) => !c.ok);
 if (failed.length) {
