@@ -46,8 +46,8 @@ assert(files.mdd.includes("tickFormatter={formatAxisDate}"), "차트 x축에 for
 assert(/function formatTooltipDate/.test(files.mdd) && files.mdd.includes("slice(0, 4)") && files.mdd.includes("slice(8, 10)"), "tooltip date formatter가 YYYY.MM.DD 구조");
 assert(files.mdd.includes("formatTooltipDate("), "tooltip에 formatTooltipDate 적용");
 
-// 7. 기간 버튼 1년/3년/5년 + 커스텀 (기간 선택 개선)
-for (const label of ["1년", "3년", "5년"]) {
+// 7. 기간 버튼 1년/3년/5년/최대 + 커스텀 (기간 선택 개선)
+for (const label of ["1년", "3년", "5년", "최대"]) {
   assert(files.lib.includes(`"${label}"`), `기간 버튼 라벨 존재: ${label}`);
 }
 assert(files.mdd.includes("MDD_PERIODS"), "컴포넌트가 MDD_PERIODS 기간 버튼을 사용");

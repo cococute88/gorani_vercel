@@ -257,14 +257,15 @@ const PERIOD_MONTHS: Record<PeriodKey, number | null> = {
   max: null,
 };
 
-// 티커 MDD 계산기 기간 버튼: 1년 / 3년 / 5년.
+// 티커 MDD 계산기 기간 버튼: 1년 / 3년 / 5년 / 최대.
 // (커스텀 기간은 컴포넌트에서 시작일/종료일 Date Picker 로 별도 처리한다.)
-// resolvePeriodWindow / PERIOD_MONTHS 는 3m·10y·max 도 계속 지원하므로
+// resolvePeriodWindow / PERIOD_MONTHS 는 3m·10y 도 계속 지원하므로
 // 다른 화면(회귀 테스트/스크립트)의 기존 동작에는 영향이 없다.
 export const MDD_PERIODS: Array<{ key: PeriodKey; label: string }> = [
   { key: "1y", label: "1년" },
   { key: "3y", label: "3년" },
   { key: "5y", label: "5년" },
+  { key: "max", label: "최대" },
 ];
 
 /**

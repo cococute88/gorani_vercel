@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Search } from "lucide-react";
 import {
   Area,
@@ -133,6 +133,9 @@ function tooltipCard(colors: ChartColors, title: string, rows: Array<{ label: st
 }
 
 type MddQuoteState = {
+  // 이 시세가 어떤 티커의 것인지. 티커 변경 중 이전 티커 데이터로 커스텀 날짜를
+  // 잘못 초기화하지 않도록, 현재 조회 대상 티커와 일치할 때만 dateBounds 를 신뢰한다.
+  ticker?: string;
   usdPrices: PricePoint[];
   usdSource?: QuoteSource;
   krwPrices: PricePoint[];
@@ -242,6 +245,7 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
         ]);
         if (cancelled) return;
         setQuote({
+          ticker: submitted.ticker,
           usdPrices: usd.prices.map((p) => ({ date: p.date, close: p.close })),
           usdSource: usd.source,
           krwPrices: krw.prices.map((p) => ({ date: p.date, close: p.close })),
@@ -253,6 +257,7 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
       } catch (error) {
         if (cancelled) return;
         setQuote({
+          ticker: submitted.ticker,
           usdPrices: [],
           krwPrices: [],
           usdSource: "sample",
@@ -275,28 +280,33 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
   const dataAvailable = quote.usdSource !== "sample" && quote.usdPrices.length >= 2;
   const krwAvailable = quote.krwSource !== "sample" && quote.krwPrices.length >= 2;
 
-  // 보유 데이터의 실제 날짜 범위(커스텀 Date Picker 의 min/max, 초기값 산출용).
+  // 현재 조회 대상 티커의 시세가 실제로 도착했는지. 티커를 바꾼 직후에는 아직
+  // 이전 티커의 시세가 남아 있을 수 있으므로, 시세의 ticker 태그가 현재 티커와
+  // 일치할 때만 "이 티커의 데이터"로 신뢰한다(요구사항 5·6: 로딩 중 잘못된 값 방지).
+  const tickerDataReady = quote.ticker === submitted.ticker && quote.usdPrices.length > 0;
+
+  // 해당 티커의 실제 데이터 날짜 범위(커스텀 Date Picker 의 min/max, 초기값 산출용).
+  // 티커별 상장 이후 최초 거래일 ~ 최신 거래일. 전역 데이터가 아니라 이 티커의 것.
   const dateBounds = useMemo(() => {
-    if (quote.usdPrices.length === 0) return null;
+    if (!tickerDataReady) return null;
     return {
       min: quote.usdPrices[0].date,
       max: quote.usdPrices[quote.usdPrices.length - 1].date,
     };
-  }, [quote.usdPrices]);
+  }, [tickerDataReady, quote.usdPrices]);
 
-  // 데이터가 로드되면 커스텀 시작/종료일을 보유 범위로 초기화한다(아직 비어 있을 때만).
-  // 기본값은 "최근 1년" 구간으로 잡아 바로 유효한 분석이 되도록 한다.
+  // 커스텀 시작/종료일 기본값을 "해당 티커의 실제 데이터 범위"로 설정한다.
+  // 티커가 바뀌어 새 데이터가 도착하면(= quote.ticker 변경) 이전 티커의 날짜를
+  // 버리고 새 티커의 상장일~최신일로 재설정한다(요구사항 2·3·6). 같은 티커 안에서는
+  // 사용자가 직접 고른 날짜를 유지한다(customTickerRef 가드).
+  const customTickerRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!dateBounds) return;
-    setCustomEnd((prev) => (prev && prev >= dateBounds.min && prev <= dateBounds.max ? prev : dateBounds.max));
-    setCustomStart((prev) => {
-      if (prev && prev >= dateBounds.min && prev <= dateBounds.max) return prev;
-      const oneYearAgo = new Date(`${dateBounds.max}T00:00:00.000Z`);
-      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-      const candidate = oneYearAgo.toISOString().slice(0, 10);
-      return candidate < dateBounds.min ? dateBounds.min : candidate;
-    });
-  }, [dateBounds]);
+    if (!dateBounds || !quote.ticker) return;
+    if (customTickerRef.current === quote.ticker) return;
+    customTickerRef.current = quote.ticker;
+    setCustomStart(dateBounds.min);
+    setCustomEnd(dateBounds.max);
+  }, [dateBounds, quote.ticker]);
 
   // 커스텀 기간의 유효성: 시작일 > 종료일 이면 잘못된 선택.
   const customInvalid = period === "custom" && Boolean(customStart) && Boolean(customEnd) && customStart > customEnd;
@@ -423,6 +433,11 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
   );
 
   // 커스텀 선택 시 시작일/종료일 Date Picker + 유효성 안내. (입력 폼 영역에만 표시)
+  // Date Picker 의 value/min/max 는 모두 "현재 티커"의 실제 데이터 범위(dateBounds)를
+  // 기준으로 한다. 티커 데이터가 아직 준비되지 않았으면(로딩/티커 변경 직후) 잘못된
+  // 값이 먼저 보이지 않도록 비활성화하고 로딩 문구를 노출한다(요구사항 4·5·6).
+  const inputCls =
+    "rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[12px] font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-60 dark:border-[#2a3336] dark:bg-[#151a1b] dark:text-slate-200";
   const customPickers =
     period === "custom" ? (
       <div className="mt-3 space-y-2">
@@ -431,11 +446,12 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
             <span className="font-medium text-slate-500 dark:text-slate-400">시작일</span>
             <input
               type="date"
-              value={customStart}
+              value={dateBounds ? customStart : ""}
               min={dateBounds?.min}
               max={dateBounds?.max}
+              disabled={!dateBounds}
               onChange={(e) => setCustomStart(e.target.value)}
-              className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[12px] font-semibold text-slate-700 dark:border-[#2a3336] dark:bg-[#151a1b] dark:text-slate-200"
+              className={inputCls}
             />
           </label>
           <span className="text-slate-400">~</span>
@@ -443,15 +459,20 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
             <span className="font-medium text-slate-500 dark:text-slate-400">종료일</span>
             <input
               type="date"
-              value={customEnd}
+              value={dateBounds ? customEnd : ""}
               min={dateBounds?.min}
               max={dateBounds?.max}
+              disabled={!dateBounds}
               onChange={(e) => setCustomEnd(e.target.value)}
-              className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[12px] font-semibold text-slate-700 dark:border-[#2a3336] dark:bg-[#151a1b] dark:text-slate-200"
+              className={inputCls}
             />
           </label>
         </div>
-        {customInvalid ? (
+        {!dateBounds ? (
+          <p className="text-[12px] text-slate-500 dark:text-slate-400">
+            ⏳ ‘{ticker}’ 데이터를 불러오는 중입니다… 잠시 후 기간을 선택할 수 있어요.
+          </p>
+        ) : customInvalid ? (
           <p className="text-[12px] font-medium text-rose-600 dark:text-rose-400">
             ⚠️ 시작일이 종료일보다 늦습니다. 기간을 다시 선택해주세요.
           </p>
@@ -459,11 +480,11 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
           <p className="text-[12px] font-medium text-amber-600 dark:text-amber-400">
             ⚠️ 선택한 기간에 시세 데이터가 없습니다. 다른 기간을 선택해주세요.
           </p>
-        ) : dateBounds ? (
+        ) : (
           <p className="text-[12px] text-slate-500 dark:text-slate-400">
             분석 가능 범위: {dateBounds.min} ~ {dateBounds.max}
           </p>
-        ) : null}
+        )}
       </div>
     ) : null;
 
@@ -495,7 +516,7 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
           </div>
         </div>
         <p className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] text-slate-500 dark:border-[#2a3336] dark:bg-[#151a1b] dark:text-slate-400">
-          티커MDD 계산을 위해 티커를 입력하고 분석 실행을 누른 뒤, 기간 버튼(1년·3년·5년)으로 분석 구간을 조정하세요. 보유 데이터가 선택한 기간보다 짧으면 자동으로 전체 기간을 보여줍니다. &ldquo;커스텀&rdquo;을 선택하면 시작일·종료일을 직접 지정할 수 있습니다.
+          티커MDD 계산을 위해 티커를 입력하고 분석 실행을 누른 뒤, 기간 버튼(1년·3년·5년·최대)으로 분석 구간을 조정하세요. 보유 데이터가 선택한 기간보다 짧으면 자동으로 전체 기간을 보여줍니다. &ldquo;커스텀&rdquo;을 선택하면 해당 티커의 실제 데이터 범위에서 시작일·종료일을 직접 지정할 수 있습니다.
         </p>
       </form>
 
@@ -508,6 +529,15 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
             {loading
               ? "라이브 시세를 불러오는 중입니다…"
               : `'${ticker}' 의 라이브 시세를 가져오지 못했습니다. 티커 철자나 네트워크 상태를 확인한 뒤 다시 시도해주세요. (가짜 데이터로 차트를 그리지 않습니다.)`}
+          </p>
+        </div>
+      ) : period === "custom" && !dateBounds ? (
+        // 커스텀 모드에서 현재 티커 데이터가 아직 준비되지 않았을 때(로딩/티커 변경 직후).
+        // 이전 티커 기준의 잘못된 결과가 먼저 보이지 않도록 로딩 안내만 표시한다.
+        <div className={`${panel} text-center`}>
+          <p className="text-[14px] font-bold text-slate-700 dark:text-slate-200">‘{ticker}’ 데이터를 불러오는 중입니다…</p>
+          <p className="mt-2 text-[13px] text-slate-500 dark:text-slate-400">
+            티커별 실제 데이터 범위를 확인한 뒤 커스텀 기간을 분석합니다.
           </p>
         </div>
       ) : !rangeReady ? (
