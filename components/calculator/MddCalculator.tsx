@@ -198,7 +198,11 @@ function daysBetween(start: string, end: string): number | null {
 export default function MddCalculator({ input, onChange }: { input: MddInput; onChange: (input: MddInput) => void }) {
   const theme = useResolvedTheme();
   const [submitted, setSubmitted] = useState(input);
-  const [period, setPeriod] = useState<PeriodKey>("5y");
+  // 기간 선택: 1년/3년/5년 프리셋 또는 "custom"(시작일/종료일 직접 선택).
+  const [period, setPeriod] = useState<PeriodKey | "custom">("5y");
+  // 커스텀 기간의 시작/종료일(YYYY-MM-DD). 데이터 로드 시 보유 범위로 초기화한다.
+  const [customStart, setCustomStart] = useState<string>("");
+  const [customEnd, setCustomEnd] = useState<string>("");
   const [quote, setQuote] = useState<MddQuoteState>({ usdPrices: [], krwPrices: [], warnings: [] });
   const [loading, setLoading] = useState(false);
   const [segmentSort, setSegmentSort] = useState<SortState<EpisodeSortKey>>({ key: "mdd", direction: "asc" });
@@ -271,7 +275,42 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
   const dataAvailable = quote.usdSource !== "sample" && quote.usdPrices.length >= 2;
   const krwAvailable = quote.krwSource !== "sample" && quote.krwPrices.length >= 2;
 
-  const analysisWindow = useMemo(() => resolvePeriodWindow(quote.usdPrices, period), [quote.usdPrices, period]);
+  // 보유 데이터의 실제 날짜 범위(커스텀 Date Picker 의 min/max, 초기값 산출용).
+  const dateBounds = useMemo(() => {
+    if (quote.usdPrices.length === 0) return null;
+    return {
+      min: quote.usdPrices[0].date,
+      max: quote.usdPrices[quote.usdPrices.length - 1].date,
+    };
+  }, [quote.usdPrices]);
+
+  // 데이터가 로드되면 커스텀 시작/종료일을 보유 범위로 초기화한다(아직 비어 있을 때만).
+  // 기본값은 "최근 1년" 구간으로 잡아 바로 유효한 분석이 되도록 한다.
+  useEffect(() => {
+    if (!dateBounds) return;
+    setCustomEnd((prev) => (prev && prev >= dateBounds.min && prev <= dateBounds.max ? prev : dateBounds.max));
+    setCustomStart((prev) => {
+      if (prev && prev >= dateBounds.min && prev <= dateBounds.max) return prev;
+      const oneYearAgo = new Date(`${dateBounds.max}T00:00:00.000Z`);
+      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+      const candidate = oneYearAgo.toISOString().slice(0, 10);
+      return candidate < dateBounds.min ? dateBounds.min : candidate;
+    });
+  }, [dateBounds]);
+
+  // 커스텀 기간의 유효성: 시작일 > 종료일 이면 잘못된 선택.
+  const customInvalid = period === "custom" && Boolean(customStart) && Boolean(customEnd) && customStart > customEnd;
+
+  const analysisWindow = useMemo(() => {
+    if (period === "custom") {
+      // 잘못된 기간이면 빈 구간을 반환해 계산이 빈 결과가 되도록 하고, 아래에서 안내한다.
+      if (!customStart || !customEnd || customStart > customEnd) {
+        return { start: customStart || "", end: customEnd || "", clampedToMax: false };
+      }
+      return { start: customStart, end: customEnd, clampedToMax: false };
+    }
+    return resolvePeriodWindow(quote.usdPrices, period);
+  }, [quote.usdPrices, period, customStart, customEnd]);
   const windowUsd = useMemo(() => slicePrices(quote.usdPrices, analysisWindow.start, analysisWindow.end), [quote.usdPrices, analysisWindow]);
   const krwCloses = useMemo(
     () => (krwAvailable ? alignKrwCloses(quote.usdPrices, quote.krwPrices) : []),
@@ -348,6 +387,18 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
   );
   const today = new Date().toISOString().slice(0, 10);
 
+  // 커스텀 기간이지만 선택 구간에 유효한 시세가 없을 때(잘못된 기간 제외).
+  const customNoData = period === "custom" && !customInvalid && dataAvailable && windowUsd.length < 2;
+  // 실제로 차트/결과를 그릴 수 있는 상태(기간 내 유효 데이터 2개 이상 + 잘못된 기간 아님).
+  const rangeReady = windowUsd.length >= 2 && !customInvalid;
+
+  const periodButtonClass = (active: boolean) =>
+    `rounded-lg px-3 py-1.5 text-[12px] font-bold transition-colors ${
+      active
+        ? "bg-blue-600 text-white"
+        : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-[#1f2728] dark:text-slate-300 dark:hover:bg-[#27302f]"
+    }`;
+
   const periodButtons = (
     <div className="flex flex-wrap gap-1.5">
       {MDD_PERIODS.map((p) => (
@@ -355,17 +406,66 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
           key={p.key}
           type="button"
           onClick={() => setPeriod(p.key)}
-          className={`rounded-lg px-3 py-1.5 text-[12px] font-bold transition-colors ${
-            period === p.key
-              ? "bg-blue-600 text-white"
-              : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-[#1f2728] dark:text-slate-300 dark:hover:bg-[#27302f]"
-          }`}
+          className={periodButtonClass(period === p.key)}
         >
           {p.label}
         </button>
       ))}
+      <button
+        key="custom"
+        type="button"
+        onClick={() => setPeriod("custom")}
+        className={periodButtonClass(period === "custom")}
+      >
+        커스텀
+      </button>
     </div>
   );
+
+  // 커스텀 선택 시 시작일/종료일 Date Picker + 유효성 안내. (입력 폼 영역에만 표시)
+  const customPickers =
+    period === "custom" ? (
+      <div className="mt-3 space-y-2">
+        <div className="flex flex-wrap items-center gap-2 text-[12px]">
+          <label className="flex items-center gap-1.5">
+            <span className="font-medium text-slate-500 dark:text-slate-400">시작일</span>
+            <input
+              type="date"
+              value={customStart}
+              min={dateBounds?.min}
+              max={dateBounds?.max}
+              onChange={(e) => setCustomStart(e.target.value)}
+              className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[12px] font-semibold text-slate-700 dark:border-[#2a3336] dark:bg-[#151a1b] dark:text-slate-200"
+            />
+          </label>
+          <span className="text-slate-400">~</span>
+          <label className="flex items-center gap-1.5">
+            <span className="font-medium text-slate-500 dark:text-slate-400">종료일</span>
+            <input
+              type="date"
+              value={customEnd}
+              min={dateBounds?.min}
+              max={dateBounds?.max}
+              onChange={(e) => setCustomEnd(e.target.value)}
+              className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[12px] font-semibold text-slate-700 dark:border-[#2a3336] dark:bg-[#151a1b] dark:text-slate-200"
+            />
+          </label>
+        </div>
+        {customInvalid ? (
+          <p className="text-[12px] font-medium text-rose-600 dark:text-rose-400">
+            ⚠️ 시작일이 종료일보다 늦습니다. 기간을 다시 선택해주세요.
+          </p>
+        ) : customNoData ? (
+          <p className="text-[12px] font-medium text-amber-600 dark:text-amber-400">
+            ⚠️ 선택한 기간에 시세 데이터가 없습니다. 다른 기간을 선택해주세요.
+          </p>
+        ) : dateBounds ? (
+          <p className="text-[12px] text-slate-500 dark:text-slate-400">
+            분석 가능 범위: {dateBounds.min} ~ {dateBounds.max}
+          </p>
+        ) : null}
+      </div>
+    ) : null;
 
   return (
     <div className="space-y-4">
@@ -391,10 +491,11 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
           <div>
             <label className="mb-1 block text-[12px] font-medium text-slate-500 dark:text-slate-400">분석 기간</label>
             {periodButtons}
+            {customPickers}
           </div>
         </div>
         <p className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] text-slate-500 dark:border-[#2a3336] dark:bg-[#151a1b] dark:text-slate-400">
-          티커MDD 계산을 위해 티커를 입력하고 분석 실행을 누른 뒤, 기간 버튼으로 분석 구간을 조정하세요. 10년 버튼은 데이터가 10년 미만이면 자동으로 전체 기간을 보여줍니다.
+          티커MDD 계산을 위해 티커를 입력하고 분석 실행을 누른 뒤, 기간 버튼(1년·3년·5년)으로 분석 구간을 조정하세요. 보유 데이터가 선택한 기간보다 짧으면 자동으로 전체 기간을 보여줍니다. &ldquo;커스텀&rdquo;을 선택하면 시작일·종료일을 직접 지정할 수 있습니다.
         </p>
       </form>
 
@@ -409,12 +510,24 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
               : `'${ticker}' 의 라이브 시세를 가져오지 못했습니다. 티커 철자나 네트워크 상태를 확인한 뒤 다시 시도해주세요. (가짜 데이터로 차트를 그리지 않습니다.)`}
           </p>
         </div>
+      ) : !rangeReady ? (
+        // 커스텀 기간이 잘못되었거나(시작일>종료일) 선택 구간에 데이터가 없을 때의 안내.
+        <div className={`${panel} text-center`}>
+          <p className="text-[14px] font-bold text-slate-700 dark:text-slate-200">
+            {customInvalid ? "잘못된 기간을 선택했습니다." : "선택한 기간에 시세 데이터가 없습니다."}
+          </p>
+          <p className="mt-2 text-[13px] text-slate-500 dark:text-slate-400">
+            {customInvalid
+              ? "시작일이 종료일보다 늦습니다. 시작일과 종료일을 다시 선택해주세요."
+              : `분석 가능 범위(${dateBounds?.min ?? "?"} ~ ${dateBounds?.max ?? "?"}) 안에서 다른 기간을 선택해주세요.`}
+          </p>
+        </div>
       ) : (
         <>
           {/* 분석 기간 배너 */}
           <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-[13px] font-semibold text-emerald-700 dark:border-[#244233] dark:bg-[#16241c] dark:text-emerald-300">
             ✅ 분석 기간: {analysisWindow.start} ~ {analysisWindow.end} · 데이터 {result.series.length.toLocaleString("ko-KR")}일
-            {analysisWindow.clampedToMax && period === "10y" ? " (데이터가 10년 미만이라 전체 기간을 표시합니다)" : ""}
+            {analysisWindow.clampedToMax && period !== "custom" ? " (보유 데이터가 선택 기간보다 짧아 전체 기간을 표시합니다)" : ""}
           </div>
 
           <details className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-[12px] text-blue-900 dark:border-[#1e3a5f] dark:bg-[#101b2a] dark:text-blue-100">

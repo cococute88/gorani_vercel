@@ -442,6 +442,31 @@ export async function deleteAssetSimulatorConfig(uid: string): Promise<void> {
   await deleteDoc(doc(requireDb(), "users", uid, "assetSimulatorConfigs", "default"));
 }
 
+// =============================================================
+// 자산 시뮬레이터 상단 개인 메모.
+//
+// 시뮬레이터 입력/계획표(assetSimulatorConfigs)와 독립된 단일 문서에 저장한다.
+//   users/{uid}/assetSimulatorMemo/default  ->  { text, updatedAt }
+// 로그인 사용자별로 분리되고, 다른 기기에서도 동일하게 표시된다. 저장 시각은
+// serverTimestamp() 로 서버가 찍는다.
+// =============================================================
+export type AssetSimulatorMemo = { text: string; updatedAt?: unknown };
+
+export async function loadAssetSimulatorMemo(uid: string): Promise<AssetSimulatorMemo | null> {
+  const snap = await getDoc(doc(requireDb(), "users", uid, "assetSimulatorMemo", "default"));
+  if (!snap.exists()) return null;
+  const data = snap.data() as { text?: unknown; updatedAt?: unknown };
+  return { text: typeof data.text === "string" ? data.text : "", updatedAt: data.updatedAt };
+}
+
+export async function saveAssetSimulatorMemo(uid: string, text: string): Promise<void> {
+  await setDoc(
+    doc(requireDb(), "users", uid, "assetSimulatorMemo", "default"),
+    { text, updatedAt: serverTimestamp() },
+    { merge: true },
+  );
+}
+
 export async function saveCalculatorPreset(uid: string, preset: CalculatorPreset): Promise<void> {
   await setDoc(doc(requireDb(), "users", uid, "calculatorPresets", preset.id), {
     ...preset,

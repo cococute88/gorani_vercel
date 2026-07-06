@@ -46,11 +46,13 @@ assert(files.mdd.includes("tickFormatter={formatAxisDate}"), "차트 x축에 for
 assert(/function formatTooltipDate/.test(files.mdd) && files.mdd.includes("slice(0, 4)") && files.mdd.includes("slice(8, 10)"), "tooltip date formatter가 YYYY.MM.DD 구조");
 assert(files.mdd.includes("formatTooltipDate("), "tooltip에 formatTooltipDate 적용");
 
-// 7. 기간 버튼 3개월/1년/5년/10년/최대
-for (const label of ["3개월", "1년", "5년", "10년", "최대"]) {
+// 7. 기간 버튼 1년/3년/5년 + 커스텀 (기간 선택 개선)
+for (const label of ["1년", "3년", "5년"]) {
   assert(files.lib.includes(`"${label}"`), `기간 버튼 라벨 존재: ${label}`);
 }
 assert(files.mdd.includes("MDD_PERIODS"), "컴포넌트가 MDD_PERIODS 기간 버튼을 사용");
+assert(files.mdd.includes("커스텀"), "커스텀 기간 버튼 존재");
+assert(/type="date"/.test(files.mdd), "커스텀 기간 시작일/종료일 Date Picker 존재");
 
 // 8. 10년 clamp 로직
 assert(files.lib.includes("resolvePeriodWindow") && files.lib.includes("clampedToMax"), "10년 미만 데이터 최대 clamp 로직 존재");

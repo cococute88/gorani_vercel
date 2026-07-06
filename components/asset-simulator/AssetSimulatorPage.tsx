@@ -21,6 +21,7 @@ import {
   type ResolvedSimulatorConfig,
   type SimulatorHydrationSource,
 } from "@/lib/asset-simulator-persistence";
+import AssetSimulatorMemo from "./AssetSimulatorMemo";
 import SimulatorInputPanel from "./SimulatorInputPanel";
 import SimulatorMetricCards from "./SimulatorMetricCards";
 import YearPlanTable from "./YearPlanTable";
@@ -212,37 +213,45 @@ export default function AssetSimulatorPage() {
           </div>
 
           {/*
-            대표 CTA: "당장탈출" 버튼.
-            앱 아이콘처럼 보이지 않도록 둥근 마스킹을 최소화(8px)하고,
-            얇은 테두리 + 아주 약한 그림자로 "누를 수 있는 버튼" 느낌만 준다(과한 카드 X).
-            hover 시 살짝 확대·상승하고 그림자가 약간 진해진다(Glow/색상 변화 없음).
-            "지금 EXIT?" 토글 상태와 무관하게 항상 EXIT 모드 기준 요약 모달을 연다.
-            헤더 우측(데스크톱) / 타이틀 아래(모바일)에 배치해 입력폼 버튼과 분리한다.
+            헤더 우측: 개인 메모 + "당장탈출" 고라니 버튼.
+            메모는 고라니 버튼 옆에 배치하고, 모바일에서는 나란히(메모는 남는 폭 차지,
+            버튼은 고정 크기)로 접힌다.
           */}
-          <button
-            type="button"
-            onClick={() => setExitModalOpen(true)}
-            aria-haspopup="dialog"
-            aria-label="🚪 당장탈출"
-            title="🚪 당장탈출 — 지금 바로 은퇴할 경우의 요약 보기"
-            className="group relative mt-0.5 aspect-square w-24 shrink-0 self-start overflow-hidden rounded-lg border border-slate-200/90 shadow-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.03] hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-400 active:translate-y-0 active:scale-100 dark:border-white/10 sm:w-28"
-          >
+          <div className="flex flex-row items-start gap-3">
+            <AssetSimulatorMemo />
+
             {/*
-              원본 exit.webp는 캐릭터가 캔버스 가로 약 46%·세로 76%만 차지하고
-              주변(좌우 흐린 배경/위 건물/아래 단상)이 비어 보인다. 정사각 이미지를
-              정사각 버튼에 object-cover로 넣으면 잘림 없이 전체가 그대로 보여
-              캐릭터가 작게(여백 있게) 보인다. 캐릭터 중심(약 52% 40%)을 기준으로
-              1.35배 확대해 버튼을 채우고, 넘치는 배경은 버튼의 overflow-hidden이 잘라낸다.
+              대표 CTA: "당장탈출" 버튼.
+              앱 아이콘처럼 보이지 않도록 둥근 마스킹을 최소화(8px)하고,
+              얇은 테두리 + 아주 약한 그림자로 "누를 수 있는 버튼" 느낌만 준다(과한 카드 X).
+              hover 시 살짝 확대·상승하고 그림자가 약간 진해진다(Glow/색상 변화 없음).
+              "지금 EXIT?" 토글 상태와 무관하게 항상 EXIT 모드 기준 요약 모달을 연다.
             */}
-            <Image
-              src="/exit.webp"
-              alt=""
-              width={1254}
-              height={1254}
-              sizes="(max-width: 640px) 96px, 112px"
-              className="h-full w-full origin-[52%_40%] scale-[1.35] object-cover object-center"
-            />
-          </button>
+            <button
+              type="button"
+              onClick={() => setExitModalOpen(true)}
+              aria-haspopup="dialog"
+              aria-label="🚪 당장탈출"
+              title="🚪 당장탈출 — 지금 바로 은퇴할 경우의 요약 보기"
+              className="group relative mt-0.5 aspect-square w-24 shrink-0 self-start overflow-hidden rounded-lg border border-slate-200/90 shadow-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.03] hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-400 active:translate-y-0 active:scale-100 dark:border-white/10 sm:w-28"
+            >
+              {/*
+                원본 exit.webp는 캐릭터가 캔버스 가로 약 46%·세로 76%만 차지하고
+                주변(좌우 흐린 배경/위 건물/아래 단상)이 비어 보인다. 정사각 이미지를
+                정사각 버튼에 object-cover로 넣으면 잘림 없이 전체가 그대로 보여
+                캐릭터가 작게(여백 있게) 보인다. 캐릭터 중심(약 52% 40%)을 기준으로
+                1.35배 확대해 버튼을 채우고, 넘치는 배경은 버튼의 overflow-hidden이 잘라낸다.
+              */}
+              <Image
+                src="/exit.webp"
+                alt=""
+                width={1254}
+                height={1254}
+                sizes="(max-width: 640px) 96px, 112px"
+                className="h-full w-full origin-[52%_40%] scale-[1.35] object-cover object-center"
+              />
+            </button>
+          </div>
         </div>
 
         <div className="space-y-5">
