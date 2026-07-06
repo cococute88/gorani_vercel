@@ -10,6 +10,7 @@ export const STORAGE_KEYS = {
   portfolioCloudSyncTime: "gorani.portfolio.cloud-sync-time.v1",
   assetSimulatorConfigs: "gorani.asset-simulator.preview",
   assetSimulatorMemo: "gorani.asset-simulator.memo.v1",
+  assetSimulatorMemos: "gorani.asset-simulator.memos.v1",
   calendarTickers: "gorani.dividend-calendar.tickers.v1",
   calendarEventMeta: "gorani.dividend-calendar.event-meta.v1",
   calendarCustomEvents: "gorani.dividend-calendar.custom-events.v1",

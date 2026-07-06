@@ -467,6 +467,57 @@ export async function saveAssetSimulatorMemo(uid: string, text: string): Promise
   );
 }
 
+// =============================================================
+// 자산 시뮬레이터 "메모 관리"(다중 메모) 컬렉션.
+//
+//   users/{uid}/assetSimulatorMemos/{memoId}
+//     -> { id, title, content, createdAt, updatedAt }
+//
+// 각 메모를 개별 문서로 저장해 개수 제한 없이 확장할 수 있고, 향후 즐겨찾기
+// (favorite)·태그(tags) 등의 필드를 추가하기 쉽다. createdAt/updatedAt 은
+// 로컬과 동일한 epoch(ms) 숫자로 저장해 기기 간 병합을 결정적으로 만든다.
+// 레거시 단일 메모(assetSimulatorMemo/default)는 손실 방지를 위해 그대로 둔다.
+// =============================================================
+export type AssetSimulatorMemoItem = {
+  id: string;
+  title: string;
+  content: string;
+  createdAt: number;
+  updatedAt: number;
+};
+
+export async function loadAssetSimulatorMemos(uid: string): Promise<AssetSimulatorMemoItem[]> {
+  const snap = await getDocs(collection(requireDb(), "users", uid, "assetSimulatorMemos"));
+  const out: AssetSimulatorMemoItem[] = [];
+  snap.forEach((docSnap) => {
+    const data = docSnap.data() as Record<string, unknown>;
+    const content = typeof data.content === "string" ? data.content : "";
+    const title = typeof data.title === "string" ? data.title : "";
+    const createdAt = typeof data.createdAt === "number" ? data.createdAt : Date.now();
+    const updatedAt = typeof data.updatedAt === "number" ? data.updatedAt : createdAt;
+    out.push({ id: docSnap.id, title, content, createdAt, updatedAt });
+  });
+  return out;
+}
+
+export async function saveAssetSimulatorMemoItem(uid: string, memo: AssetSimulatorMemoItem): Promise<void> {
+  await setDoc(
+    doc(requireDb(), "users", uid, "assetSimulatorMemos", memo.id),
+    {
+      id: memo.id,
+      title: memo.title,
+      content: memo.content,
+      createdAt: memo.createdAt,
+      updatedAt: memo.updatedAt,
+    },
+    { merge: true },
+  );
+}
+
+export async function deleteAssetSimulatorMemoItem(uid: string, memoId: string): Promise<void> {
+  await deleteDoc(doc(requireDb(), "users", uid, "assetSimulatorMemos", memoId));
+}
+
 export async function saveCalculatorPreset(uid: string, preset: CalculatorPreset): Promise<void> {
   await setDoc(doc(requireDb(), "users", uid, "calculatorPresets", preset.id), {
     ...preset,
