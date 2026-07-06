@@ -335,9 +335,13 @@ export async function applyLatestFirestoreSnapshot(): Promise<PortfolioRefreshOu
     const result = await fetchLatestSnapshot();
 
     if (result.kind === "firestore") {
+      // 같은 날짜라도 파이프라인이 재생성해 서버 생성 시각(generated_at → createdAt)이
+      // 갱신되었으면 "변경"으로 취급해 새로 게시한다. 이렇게 해야 같은 날 여러 번
+      // 최신화해도 "최근 클라우드 동기화" 시각이 즉시 갱신된다(요구사항: 최신화 즉시 변경).
       const sameAsActive =
         firestoreSnapshot !== null &&
-        firestoreSnapshotDate === result.snapshotDate;
+        firestoreSnapshotDate === result.snapshotDate &&
+        firestoreSnapshot.createdAt === result.snapshot.createdAt;
       if (sameAsActive) {
         // Identical snapshot: do NOT touch the store (no re-render).
         return "unchanged";

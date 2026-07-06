@@ -10,16 +10,24 @@ import {
 
 type Props = {
   className?: string;
+  /**
+   * 활성 Firestore 스냅샷이 실제로 생성/저장된 서버 시각(ms). 존재하면 이 값을
+   * "최근 클라우드 동기화" 시각의 권위 소스로 사용한다(모든 기기 동일 · 새로고침
+   * 유지 · 최신화 시 즉시 갱신). null 이면 localStorage 기록으로 폴백한다.
+   */
+  serverSyncedAtMs?: number | null;
 };
 
 // 포트폴리오 관리 우측 상단 클라우드 동기화 상태.
 // 로그인 상태에서는 "최근 클라우드 동기화 시각"(한국시간 YYYY.MM.DD HH:mm)을 보여주고,
 // 이력이 없으면 "최근 클라우드 동기화 없음"으로 표시한다.
 // 비로그인/미설정 상태는 기존 저장 모드 안내를 유지한다.
-export default function PortfolioCloudSyncStatus({ className = "" }: Props) {
+export default function PortfolioCloudSyncStatus({ className = "", serverSyncedAtMs = null }: Props) {
   const { user, loading, configured } = useFirebaseAuth();
   const isLight = useResolvedTheme() === "light";
-  const lastSyncedAt = usePortfolioCloudSyncTime();
+  const localSyncedAt = usePortfolioCloudSyncTime();
+  // 서버 권위 시각을 우선 사용하고, 없을 때만(로컬 전용/스냅샷 없음) localStorage 로 폴백한다.
+  const lastSyncedAt = serverSyncedAtMs ?? localSyncedAt;
 
   const pill = (tone: string, content: React.ReactNode) => (
     <span
