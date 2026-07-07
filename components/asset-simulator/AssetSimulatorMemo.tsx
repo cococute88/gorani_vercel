@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { NotebookPen, Plus, Save, History, Search, X, Trash2, CheckCircle2, Circle } from "lucide-react";
+import { Plus, Save, History, Search, X, Trash2, CheckCircle2, Circle } from "lucide-react";
 import { useFirebaseAuth } from "@/lib/firebase/auth";
 import {
   deleteAssetSimulatorMemoItem,
@@ -30,8 +30,10 @@ import {
 
 // 자산 시뮬레이터 상단 개인 "메모 관리".
 // - 여러 개의 메모를 제목/내용/작성일/수정일과 함께 저장한다.
-// - 우측 상단 작은 아이콘 툴바: ➕ 새 메모 · 💾 저장 · 🕒 과거 메모.
-// - 자동 저장(로컬 즉시 + 클라우드 디바운스) 유지, 수동 저장 버튼 추가.
+// - 툴바형 헤더: [제목 입력] ➕ 새 메모 · 💾 저장 · 🕒 과거 메모.
+// - 저장은 오직 💾 버튼(또는 새 메모/과거 메모 전환)을 눌렀을 때만 수행한다.
+//   입력만 했을 때는 저장되지 않으며, 저장되지 않은 변경사항은 상태로 표시한다.
+// - 저장 상태: 저장 중… → 저장 완료 ✓(2.5초 후 기본 상태) / 저장 실패 · 다시 시도.
 // - 과거 메모 모달에서 제목/내용 포함 단어 검색(대소문자 무관) + 최신순 목록.
 // - 각 메모에 "현재 표시" 지정(라디오) + 삭제(휴지통, 확인창) 제공.
 // - "현재 표시" 메모 id 는 로컬/클라우드에 동기화되어 새로고침·기기 간 유지된다.
@@ -39,7 +41,8 @@ import {
 //   다른 기기/새로고침 후에도 동일하게 표시된다. 비로그인 시 브라우저 로컬에만 저장.
 // - 기존 단일 메모(assetSimulatorMemo/default)는 자동 마이그레이션하며 원본은 보존한다.
 
-const CLOUD_SAVE_DEBOUNCE_MS = 800;
+// 저장 완료(✓)를 표시한 뒤 기본 상태로 돌아가기까지의 시간.
+const SAVED_RESET_MS = 2500;
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
 
@@ -70,7 +73,6 @@ export default function AssetSimulatorMemo() {
 
   // 사용자가 편집을 시작했는지. 클라우드 로드가 편집 중 내용을 덮어쓰지 않도록 가드.
   const editedRef = useRef(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const contentRef = useRef<HTMLTextAreaElement | null>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // 마지막으로 저장한 "현재 표시" 메모 id (중복 저장 방지).
@@ -91,6 +93,13 @@ export default function AssetSimulatorMemo() {
     },
     [],
   );
+
+  // 저장 완료(✓)는 잠시만 보여준 뒤 기본 상태로 되돌린다(요구사항: 2~3초).
+  useEffect(() => {
+    if (status !== "saved") return;
+    const t = setTimeout(() => setStatus("idle"), SAVED_RESET_MS);
+    return () => clearTimeout(t);
+  }, [status]);
 
   // "현재 표시" 메모 id 를 로컬 + 클라우드에 동기화한다(같은 값이면 생략).
   const persistCurrentId = useCallback(
@@ -209,19 +218,10 @@ export default function AssetSimulatorMemo() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, hydrateFromList]);
 
-  const clearTimer = useCallback(() => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-  }, []);
-
-  useEffect(() => clearTimer, [clearTimer]);
-
   // 편집기 값을 목록/로컬/클라우드에 반영한다. 빈 초안은 저장하지 않는다.
+  // 저장은 💾 버튼 또는 메모 전환(새 메모/과거 메모) 같은 명시적 동작에서만 호출한다.
   const commit = useCallback(
     (id: string, rawTitle: string, rawContent: string) => {
-      clearTimer();
       if (!rawContent.trim() && !rawTitle.trim()) {
         // 빈 초안: 저장할 것이 없으므로 상태만 idle 로.
         setStatus("idle");
@@ -230,22 +230,21 @@ export default function AssetSimulatorMemo() {
       const now = Date.now();
       const finalTitle = deriveMemoTitle(rawContent, rawTitle);
 
-      let savedMemo: AssetMemo | null = null;
+      // 저장할 메모를 setMemos 업데이터 밖에서 계산한다. (updater 는 React 배치로
+      // 지연 실행되므로, 그 안에서 채운 값에 의존해 저장/상태를 결정하면 안 된다.)
+      const existing = memos.find((m) => m.id === id);
+      const memoToSave: AssetMemo = existing
+        ? { ...existing, title: finalTitle, content: rawContent, updatedAt: now }
+        : { id, title: finalTitle, content: rawContent, createdAt: now, updatedAt: now };
+
       setMemos((prev) => {
-        const existing = prev.find((m) => m.id === id);
-        const memo: AssetMemo = existing
-          ? { ...existing, title: finalTitle, content: rawContent, updatedAt: now }
-          : { id, title: finalTitle, content: rawContent, createdAt: now, updatedAt: now };
-        savedMemo = memo;
-        const next = sortMemosByRecent([...prev.filter((m) => m.id !== id), memo]);
+        const next = sortMemosByRecent([...prev.filter((m) => m.id !== id), memoToSave]);
         writeLocalMemos(next);
         return next;
       });
 
       setBaseline({ title: rawTitle, content: rawContent });
 
-      if (!savedMemo) return;
-      const memoToSave = savedMemo;
       if (user) {
         setStatus("saving");
         saveAssetSimulatorMemoItem(user.uid, memoToSave)
@@ -258,33 +257,18 @@ export default function AssetSimulatorMemo() {
         setStatus("saved");
       }
     },
-    [clearTimer, user],
+    [memos, user],
   );
 
-  const scheduleAutoSave = useCallback(
-    (id: string, nextTitle: string, nextContent: string) => {
-      clearTimer();
-      if (!nextContent.trim() && !nextTitle.trim()) {
-        setStatus("idle");
-        return;
-      }
-      setStatus("saving");
-      timerRef.current = setTimeout(() => {
-        timerRef.current = null;
-        commit(id, nextTitle, nextContent);
-      }, CLOUD_SAVE_DEBOUNCE_MS);
-    },
-    [clearTimer, commit],
-  );
-
+  // 자동 저장 없음: 입력은 상태만 갱신하고 저장하지 않는다(💾 버튼으로만 저장).
   const handleContentChange = useCallback(
     (event: React.ChangeEvent<HTMLTextAreaElement>) => {
       const next = event.target.value.slice(0, MEMO_MAX_CONTENT_LENGTH);
       editedRef.current = true;
       setContent(next);
-      scheduleAutoSave(activeId, title, next);
+      setStatus("idle");
     },
-    [activeId, title, scheduleAutoSave],
+    [],
   );
 
   const handleTitleChange = useCallback(
@@ -292,9 +276,9 @@ export default function AssetSimulatorMemo() {
       const next = event.target.value.slice(0, MEMO_MAX_TITLE_LENGTH);
       editedRef.current = true;
       setTitle(next);
-      scheduleAutoSave(activeId, next, content);
+      setStatus("idle");
     },
-    [activeId, content, scheduleAutoSave],
+    [],
   );
 
   // ➕ 새 메모: 현재 내용을 먼저 저장(있으면)한 뒤, 빈 새 문서를 만든다.
@@ -357,7 +341,6 @@ export default function AssetSimulatorMemo() {
       // 현재 표시(=편집 중) 메모를 삭제한 경우: 다른 메모가 있으면 최신으로,
       // 없으면 빈 새 메모로 자연스럽게 전환한다(빈 화면 방지).
       if (memo.id === activeId) {
-        clearTimer();
         if (next.length > 0) {
           const top = next[0];
           editedRef.current = false;
@@ -379,36 +362,51 @@ export default function AssetSimulatorMemo() {
       }
       showToast("메모를 삭제했습니다.");
     },
-    [memos, activeId, user, clearTimer, persistCurrentId, showToast],
+    [memos, activeId, user, persistCurrentId, showToast],
   );
 
+  const hasContent = Boolean(content.trim() || title.trim());
+  // 저장 상태 표시(우선순위: 저장 중 → 실패 → 완료 → 미저장 변경 → 기본).
   const statusText =
     status === "saving"
       ? "저장 중…"
       : status === "error"
-        ? "저장 실패 · 로컬 보관됨"
+        ? "저장 실패 · 다시 시도"
+        : status === "saved"
+          ? "저장 완료 ✓"
+          : dirty
+            ? "저장되지 않은 변경사항"
+            : hasContent
+              ? user
+                ? "클라우드 저장됨"
+                : configured
+                  ? "로컬 저장됨 · 로그인 시 동기화"
+                  : "로컬 저장됨"
+              : "메모를 입력하고 💾 저장";
+  const statusTone =
+    status === "error"
+      ? "text-rose-500 dark:text-rose-400"
+      : status === "saved"
+        ? "text-emerald-600 dark:text-emerald-400"
         : dirty
-          ? "저장되지 않은 변경사항"
-          : status === "saved"
-            ? user
-              ? "클라우드 저장됨"
-              : configured
-                ? "로컬 저장됨 · 로그인 시 동기화"
-                : "로컬 저장됨"
-            : user
-              ? "클라우드에 자동 저장"
-              : "이 브라우저에 자동 저장";
+          ? "text-amber-600 dark:text-amber-400"
+          : "text-slate-400 dark:text-slate-500";
 
   return (
     <>
-      <div className="flex w-full min-w-0 flex-col rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm dark:border-white/10 dark:bg-[#171d1e] sm:w-80 md:w-[26rem] lg:w-[32rem]">
-        <div className="mb-1 flex items-center justify-between gap-2">
-          <span className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold text-slate-500 dark:text-slate-400">
-            <NotebookPen size={13} strokeWidth={2.2} aria-hidden />
-            메모
-          </span>
-          {/* 작은 아이콘 툴바: ➕ 새 메모 · 💾 저장 · 🕒 과거 메모 */}
-          <div className="flex items-center gap-0.5">
+      <div className="flex w-full min-w-0 flex-col gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm dark:border-white/10 dark:bg-[#171d1e] sm:w-80 md:w-[26rem] lg:w-[30rem]">
+        {/* 툴바: [제목 입력] ➕ 새 메모 · 💾 저장 · 🕒 과거 메모 */}
+        <div className="flex items-center gap-1.5">
+          <input
+            type="text"
+            value={title}
+            onChange={handleTitleChange}
+            maxLength={MEMO_MAX_TITLE_LENGTH}
+            placeholder="제목 (미입력 시 자동 생성)"
+            aria-label="메모 제목"
+            className="min-w-0 flex-1 rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-[12px] font-semibold text-slate-700 outline-none transition-colors placeholder:text-[11.5px] placeholder:font-normal placeholder:text-slate-400 focus:border-blue-400 dark:border-[#2a3336] dark:bg-[#151a1b] dark:text-slate-100 dark:placeholder:text-slate-500"
+          />
+          <div className="flex shrink-0 items-center gap-0.5">
             <ToolbarButton label="새 메모" onClick={handleNew}>
               <Plus size={14} strokeWidth={2.4} aria-hidden />
             </ToolbarButton>
@@ -428,37 +426,25 @@ export default function AssetSimulatorMemo() {
           </div>
         </div>
 
-        <input
-          type="text"
-          value={title}
-          onChange={handleTitleChange}
-          maxLength={MEMO_MAX_TITLE_LENGTH}
-          placeholder="제목 (미입력 시 내용 앞부분으로 자동 생성)"
-          aria-label="메모 제목"
-          className="mb-1 w-full rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-[12.5px] font-semibold text-slate-700 outline-none transition-colors placeholder:font-normal placeholder:text-slate-400 focus:border-blue-400 dark:border-[#2a3336] dark:bg-[#151a1b] dark:text-slate-100 dark:placeholder:text-slate-500"
-        />
-
         <textarea
           ref={contentRef}
           value={content}
           onChange={handleContentChange}
-          rows={3}
+          rows={2}
           maxLength={MEMO_MAX_CONTENT_LENGTH}
           placeholder="투자 아이디어·체크 사항을 기록하세요."
           aria-label="자산 시뮬레이터 메모 내용"
           className="w-full resize-y rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-[12.5px] leading-5 text-slate-700 outline-none transition-colors placeholder:text-slate-400 focus:border-blue-400 dark:border-[#2a3336] dark:bg-[#151a1b] dark:text-slate-200 dark:placeholder:text-slate-500"
         />
 
-        <div className="mt-1 flex items-center justify-between gap-2">
-          <span
-            className={`text-[10.5px] ${
-              status === "error"
-                ? "text-rose-500 dark:text-rose-400"
-                : dirty
-                  ? "text-amber-600 dark:text-amber-400"
-                  : "text-slate-400 dark:text-slate-500"
-            }`}
-          >
+        <div className="flex items-center justify-between gap-2">
+          <span className={`inline-flex items-center gap-1 text-[10.5px] ${statusTone}`} role="status" aria-live="polite">
+            {status === "saving" && (
+              <span className="h-2 w-2 animate-pulse rounded-full bg-slate-400 dark:bg-slate-500" aria-hidden />
+            )}
+            {status !== "saving" && status !== "saved" && dirty && (
+              <span className="h-2 w-2 rounded-full bg-amber-500 dark:bg-amber-400" aria-hidden />
+            )}
             {statusText}
           </span>
           <span className="num text-[10.5px] tabular-nums text-slate-400 dark:text-slate-500">
