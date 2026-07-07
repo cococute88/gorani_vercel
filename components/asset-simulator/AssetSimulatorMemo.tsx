@@ -1,11 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { NotebookPen, Plus, Save, History, Search, X } from "lucide-react";
+import { NotebookPen, Plus, Save, History, Search, X, Trash2, CheckCircle2, Circle } from "lucide-react";
 import { useFirebaseAuth } from "@/lib/firebase/auth";
 import {
+  deleteAssetSimulatorMemoItem,
   loadAssetSimulatorMemo,
+  loadAssetSimulatorMemoCurrentId,
   loadAssetSimulatorMemos,
+  saveAssetSimulatorMemoCurrentId,
   saveAssetSimulatorMemoItem,
   warnFirestoreFallback,
 } from "@/lib/firebase/firestore-repositories";
@@ -16,9 +19,11 @@ import {
   deriveMemoTitle,
   memoFromLegacyText,
   mergeMemos,
+  readLocalCurrentMemoId,
   readLocalMemos,
   searchMemos,
   sortMemosByRecent,
+  writeLocalCurrentMemoId,
   writeLocalMemos,
   type AssetMemo,
 } from "@/lib/asset-simulator-memos";
@@ -28,6 +33,8 @@ import {
 // - 우측 상단 작은 아이콘 툴바: ➕ 새 메모 · 💾 저장 · 🕒 과거 메모.
 // - 자동 저장(로컬 즉시 + 클라우드 디바운스) 유지, 수동 저장 버튼 추가.
 // - 과거 메모 모달에서 제목/내용 포함 단어 검색(대소문자 무관) + 최신순 목록.
+// - 각 메모에 "현재 표시" 지정(라디오) + 삭제(휴지통, 확인창) 제공.
+// - "현재 표시" 메모 id 는 로컬/클라우드에 동기화되어 새로고침·기기 간 유지된다.
 // - 로그인 시 Firebase(users/{uid}/assetSimulatorMemos/{id})에 사용자별 저장되어
 //   다른 기기/새로고침 후에도 동일하게 표시된다. 비로그인 시 브라우저 로컬에만 저장.
 // - 기존 단일 메모(assetSimulatorMemo/default)는 자동 마이그레이션하며 원본은 보존한다.
@@ -59,24 +66,56 @@ export default function AssetSimulatorMemo() {
   const [status, setStatus] = useState<SaveStatus>("idle");
   const [historyOpen, setHistoryOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [toast, setToast] = useState<string | null>(null);
 
   // 사용자가 편집을 시작했는지. 클라우드 로드가 편집 중 내용을 덮어쓰지 않도록 가드.
   const editedRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const contentRef = useRef<HTMLTextAreaElement | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // 마지막으로 저장한 "현재 표시" 메모 id (중복 저장 방지).
+  const lastCurrentIdRef = useRef<string | null>(null);
 
   const dirty = title !== baseline.title || content !== baseline.content;
-  const hasSomething = content.trim().length > 0 || title.trim().length > 0;
 
-  // 편집기를 목록의 특정 메모(없으면 최신) 또는 빈 새 메모로 초기화한다.
-  const hydrateFromList = useCallback((list: AssetMemo[]) => {
+  // 삭제 완료 등 짧은 안내 메시지.
+  const showToast = useCallback((message: string) => {
+    setToast(message);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(null), 2200);
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    },
+    [],
+  );
+
+  // "현재 표시" 메모 id 를 로컬 + 클라우드에 동기화한다(같은 값이면 생략).
+  const persistCurrentId = useCallback(
+    (id: string) => {
+      if (lastCurrentIdRef.current === id) return;
+      lastCurrentIdRef.current = id;
+      writeLocalCurrentMemoId(id);
+      if (user) {
+        void saveAssetSimulatorMemoCurrentId(user.uid, id).catch((err) =>
+          warnFirestoreFallback("assetSimulatorMemos.currentId", err),
+        );
+      }
+    },
+    [user],
+  );
+
+  // 편집기를 지정 메모(preferredId) 또는 최신 메모, 없으면 빈 새 메모로 초기화한다.
+  const hydrateFromList = useCallback((list: AssetMemo[], preferredId?: string | null) => {
     const sorted = sortMemosByRecent(list);
-    if (sorted.length > 0) {
-      const top = sorted[0];
-      setActiveId(top.id);
-      setTitle(top.title);
-      setContent(top.content);
-      setBaseline({ title: top.title, content: top.content });
+    const target = (preferredId ? sorted.find((m) => m.id === preferredId) : undefined) ?? sorted[0];
+    if (target) {
+      setActiveId(target.id);
+      setTitle(target.title);
+      setContent(target.content);
+      setBaseline({ title: target.title, content: target.content });
     } else {
       const fresh = createNewMemo();
       setActiveId(fresh.id);
@@ -89,8 +128,10 @@ export default function AssetSimulatorMemo() {
   // 마운트/사용자 변경 시: 로컬 즉시 표시 → (로그인) 클라우드 로드로 권위 값 병합.
   useEffect(() => {
     const local = readLocalMemos(); // 신규 목록 없으면 레거시 단일 메모 자동 마이그레이션 포함.
+    const localCurrentId = readLocalCurrentMemoId();
+    lastCurrentIdRef.current = localCurrentId;
     setMemos(local);
-    if (!editedRef.current) hydrateFromList(local);
+    if (!editedRef.current) hydrateFromList(local, localCurrentId);
 
     if (!user) return;
     let cancelled = false;
@@ -134,8 +175,28 @@ export default function AssetSimulatorMemo() {
         if (cancelled) return;
         setMemos(merged);
         writeLocalMemos(merged);
-        // 편집 중이 아니고 과거 메모 모달이 닫혀 있으면 최신 값으로 반영.
-        if (!editedRef.current && !historyOpen) hydrateFromList(merged);
+
+        // "현재 표시" 메모 id: 클라우드 우선, 없으면 로컬 값을 클라우드로 승격.
+        let preferredId = localCurrentId;
+        try {
+          const cloudCurrent = await loadAssetSimulatorMemoCurrentId(user.uid);
+          if (cancelled) return;
+          if (cloudCurrent) {
+            preferredId = cloudCurrent;
+          } else if (localCurrentId && merged.some((m) => m.id === localCurrentId)) {
+            void saveAssetSimulatorMemoCurrentId(user.uid, localCurrentId).catch((err) =>
+              warnFirestoreFallback("assetSimulatorMemos.currentIdSeed", err),
+            );
+          }
+        } catch (err) {
+          warnFirestoreFallback("assetSimulatorMemos.currentIdLoad", err);
+        }
+        if (cancelled) return;
+        lastCurrentIdRef.current = preferredId;
+        writeLocalCurrentMemoId(preferredId);
+
+        // 편집 중이 아니고 과거 메모 모달이 닫혀 있으면 현재 표시 메모로 반영.
+        if (!editedRef.current && !historyOpen) hydrateFromList(merged, preferredId);
       } catch (err) {
         warnFirestoreFallback("assetSimulatorMemos.load", err);
       }
@@ -246,17 +307,19 @@ export default function AssetSimulatorMemo() {
     setContent("");
     setBaseline({ title: "", content: "" });
     setStatus("idle");
+    persistCurrentId(fresh.id);
     requestAnimationFrame(() => contentRef.current?.focus());
-  }, [activeId, title, content, commit]);
+  }, [activeId, title, content, commit, persistCurrentId]);
 
   // 💾 저장: 즉시 저장.
   const handleSave = useCallback(() => {
     commit(activeId, title, content);
   }, [activeId, title, content, commit]);
 
-  // 과거 메모에서 선택: 현재 내용을 저장한 뒤 선택 메모를 편집기로 불러온다.
-  const handleSelect = useCallback(
-    (memo: AssetMemo) => {
+  // 메모를 현재 표시 메모로 지정하고 편집기로 불러온다.
+  // close=true 면 모달을 닫고(불러와 편집), false 면 열어둔 채 현재 표시만 변경.
+  const selectMemo = useCallback(
+    (memo: AssetMemo, close: boolean) => {
       commit(activeId, title, content);
       editedRef.current = true;
       setActiveId(memo.id);
@@ -264,11 +327,59 @@ export default function AssetSimulatorMemo() {
       setContent(memo.content);
       setBaseline({ title: memo.title, content: memo.content });
       setStatus("idle");
-      setHistoryOpen(false);
-      setSearchQuery("");
-      requestAnimationFrame(() => contentRef.current?.focus());
+      persistCurrentId(memo.id);
+      if (close) {
+        setHistoryOpen(false);
+        setSearchQuery("");
+        requestAnimationFrame(() => contentRef.current?.focus());
+      }
     },
-    [activeId, title, content, commit],
+    [activeId, title, content, commit, persistCurrentId],
+  );
+
+  // 과거 메모 클릭: 불러와 편집(모달 닫힘).
+  const handleOpen = useCallback((memo: AssetMemo) => selectMemo(memo, true), [selectMemo]);
+  // 라디오(현재 표시): 모달을 열어둔 채 현재 표시 메모만 변경.
+  const handleSetCurrent = useCallback((memo: AssetMemo) => selectMemo(memo, false), [selectMemo]);
+
+  // 삭제: 목록/로컬/클라우드에서 제거. 현재 표시 메모였다면 자동 전환.
+  const handleDelete = useCallback(
+    (memo: AssetMemo) => {
+      const next = sortMemosByRecent(memos.filter((m) => m.id !== memo.id));
+      setMemos(next);
+      writeLocalMemos(next);
+      if (user) {
+        void deleteAssetSimulatorMemoItem(user.uid, memo.id).catch((err) =>
+          warnFirestoreFallback("assetSimulatorMemos.delete", err),
+        );
+      }
+
+      // 현재 표시(=편집 중) 메모를 삭제한 경우: 다른 메모가 있으면 최신으로,
+      // 없으면 빈 새 메모로 자연스럽게 전환한다(빈 화면 방지).
+      if (memo.id === activeId) {
+        clearTimer();
+        if (next.length > 0) {
+          const top = next[0];
+          editedRef.current = false;
+          setActiveId(top.id);
+          setTitle(top.title);
+          setContent(top.content);
+          setBaseline({ title: top.title, content: top.content });
+          persistCurrentId(top.id);
+        } else {
+          const fresh = createNewMemo();
+          editedRef.current = false;
+          setActiveId(fresh.id);
+          setTitle("");
+          setContent("");
+          setBaseline({ title: "", content: "" });
+          persistCurrentId(fresh.id);
+        }
+        setStatus("idle");
+      }
+      showToast("메모를 삭제했습니다.");
+    },
+    [memos, activeId, user, clearTimer, persistCurrentId, showToast],
   );
 
   const statusText =
@@ -362,12 +473,23 @@ export default function AssetSimulatorMemo() {
           activeId={activeId}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          onSelect={handleSelect}
+          onOpen={handleOpen}
+          onSetCurrent={handleSetCurrent}
+          onDelete={handleDelete}
           onClose={() => {
             setHistoryOpen(false);
             setSearchQuery("");
           }}
         />
+      )}
+
+      {toast && (
+        <div className="pointer-events-none fixed inset-x-0 bottom-6 z-[130] flex justify-center px-4" role="status" aria-live="polite">
+          <div className="pointer-events-auto inline-flex items-center gap-2 rounded-full bg-slate-900/95 px-4 py-2 text-[13px] font-semibold text-white shadow-lg dark:bg-white/95 dark:text-slate-900">
+            <CheckCircle2 size={15} strokeWidth={2.4} aria-hidden />
+            {toast}
+          </div>
+        </div>
       )}
     </>
   );
@@ -406,18 +528,26 @@ function MemoHistoryModal({
   activeId,
   searchQuery,
   onSearchChange,
-  onSelect,
+  onOpen,
+  onSetCurrent,
+  onDelete,
   onClose,
 }: {
   memos: AssetMemo[];
   activeId: string;
   searchQuery: string;
   onSearchChange: (value: string) => void;
-  onSelect: (memo: AssetMemo) => void;
+  onOpen: (memo: AssetMemo) => void;
+  onSetCurrent: (memo: AssetMemo) => void;
+  onDelete: (memo: AssetMemo) => void;
   onClose: () => void;
 }) {
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<AssetMemo | null>(null);
+  // ESC 처리 분기용(확인창이 열려 있으면 모달 대신 확인창을 닫는다).
+  const confirmRef = useRef<AssetMemo | null>(null);
+  confirmRef.current = confirmDelete;
 
   const results = useMemo(
     () => sortMemosByRecent(searchMemos(memos, searchQuery)),
@@ -434,6 +564,10 @@ function MemoHistoryModal({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
+        if (confirmRef.current) {
+          setConfirmDelete(null);
+          return;
+        }
         onClose();
       }
     };
@@ -447,6 +581,14 @@ function MemoHistoryModal({
       previouslyFocusedRef.current?.focus?.();
     };
   }, [onClose]);
+
+  // 모달을 열면 현재 표시 메모가 보이도록 스크롤한다.
+  useEffect(() => {
+    const el = dialogRef.current?.querySelector<HTMLElement>('[data-current="true"]');
+    el?.scrollIntoView({ block: "nearest" });
+    // 최초 1회만.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div
@@ -519,44 +661,129 @@ function MemoHistoryModal({
             <ul className="flex flex-col gap-2">
               {results.map((memo) => {
                 const preview = memo.content.replace(/\s+/g, " ").trim();
-                const isActive = memo.id === activeId;
+                const isCurrent = memo.id === activeId;
                 return (
                   <li key={memo.id}>
-                    <button
-                      type="button"
-                      onClick={() => onSelect(memo)}
-                      className={`w-full rounded-xl border px-3 py-2.5 text-left transition-colors ${
-                        isActive
+                    <div
+                      data-current={isCurrent ? "true" : undefined}
+                      className={`flex items-stretch gap-2 rounded-xl border px-2.5 py-2 transition-colors ${
+                        isCurrent
                           ? "border-blue-300 bg-blue-50 dark:border-blue-500/40 dark:bg-blue-500/10"
                           : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 dark:border-[#2a3336] dark:bg-[#151a1b] dark:hover:border-[#3a4548] dark:hover:bg-[#1b2223]"
                       }`}
                     >
-                      <div className="flex items-center gap-2">
-                        <span className="min-w-0 flex-1 truncate text-[13px] font-bold text-slate-800 dark:text-slate-100">
-                          {memo.title || deriveMemoTitle(memo.content)}
-                        </span>
-                        {isActive && (
-                          <span className="shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-600 dark:bg-blue-500/20 dark:text-blue-300">
-                            편집 중
-                          </span>
+                      {/* 현재 표시(라디오): 모달을 열어둔 채 현재 표시 메모만 변경 */}
+                      <button
+                        type="button"
+                        onClick={() => onSetCurrent(memo)}
+                        aria-label="현재 표시로 지정"
+                        aria-pressed={isCurrent}
+                        title="현재 표시로 지정"
+                        className={`mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full transition-colors ${
+                          isCurrent
+                            ? "text-blue-600 dark:text-blue-300"
+                            : "text-slate-300 hover:text-slate-500 dark:text-slate-600 dark:hover:text-slate-400"
+                        }`}
+                      >
+                        {isCurrent ? (
+                          <CheckCircle2 size={17} strokeWidth={2.4} aria-hidden />
+                        ) : (
+                          <Circle size={17} strokeWidth={2.2} aria-hidden />
                         )}
-                      </div>
-                      {preview && (
-                        <p className="mt-1 line-clamp-2 break-all text-[12px] leading-4 text-slate-500 dark:text-slate-400">
-                          {preview}
-                        </p>
-                      )}
-                      <div className="num mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[10.5px] tabular-nums text-slate-400 dark:text-slate-500">
-                        <span>작성 {formatMemoDate(memo.createdAt)}</span>
-                        {memo.updatedAt > memo.createdAt && <span>수정 {formatMemoDate(memo.updatedAt)}</span>}
-                      </div>
-                    </button>
+                      </button>
+
+                      {/* 본문 클릭: 불러와 편집(모달 닫힘) */}
+                      <button
+                        type="button"
+                        onClick={() => onOpen(memo)}
+                        className="min-w-0 flex-1 text-left"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="min-w-0 flex-1 truncate text-[13px] font-bold text-slate-800 dark:text-slate-100">
+                            {memo.title || deriveMemoTitle(memo.content)}
+                          </span>
+                          {isCurrent && (
+                            <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-600 dark:bg-blue-500/20 dark:text-blue-300">
+                              <CheckCircle2 size={10} strokeWidth={2.6} aria-hidden />
+                              현재 표시 중
+                            </span>
+                          )}
+                        </div>
+                        {preview && (
+                          <p className="mt-1 line-clamp-2 break-all text-[12px] leading-4 text-slate-500 dark:text-slate-400">
+                            {preview}
+                          </p>
+                        )}
+                        <div className="num mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[10.5px] tabular-nums text-slate-400 dark:text-slate-500">
+                          <span>작성 {formatMemoDate(memo.createdAt)}</span>
+                          {memo.updatedAt > memo.createdAt && <span>수정 {formatMemoDate(memo.updatedAt)}</span>}
+                        </div>
+                      </button>
+
+                      {/* 삭제(휴지통): 확인창 표시 후 삭제 */}
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDelete(memo)}
+                        aria-label="메모 삭제"
+                        title="메모 삭제"
+                        className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-md text-slate-300 transition-colors hover:bg-rose-50 hover:text-rose-500 dark:text-slate-600 dark:hover:bg-rose-500/10 dark:hover:text-rose-400"
+                      >
+                        <Trash2 size={14} strokeWidth={2.2} aria-hidden />
+                      </button>
+                    </div>
                   </li>
                 );
               })}
             </ul>
           )}
         </div>
+
+        {confirmDelete && (
+          <div className="absolute inset-0 z-[2] flex items-center justify-center p-5">
+            <div
+              className="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px]"
+              aria-hidden="true"
+              onMouseDown={() => setConfirmDelete(null)}
+            />
+            <div
+              role="alertdialog"
+              aria-modal="true"
+              aria-labelledby="memo-delete-title"
+              className="relative z-[1] w-full max-w-[340px] rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl dark:border-[#273032] dark:bg-[#1b2223]"
+            >
+              <h3 id="memo-delete-title" className="text-[14px] font-bold text-slate-900 dark:text-white">
+                정말 이 메모를 삭제하시겠습니까?
+              </h3>
+              <p className="mt-1.5 truncate rounded-lg bg-slate-100 px-2.5 py-1.5 text-[12px] text-slate-600 dark:bg-black/20 dark:text-slate-300">
+                {confirmDelete.title || deriveMemoTitle(confirmDelete.content)}
+              </p>
+              <p className="mt-2 text-[11.5px] text-slate-400 dark:text-slate-500">
+                삭제한 메모는 되돌릴 수 없습니다.
+              </p>
+              <div className="mt-3.5 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setConfirmDelete(null)}
+                  className="rounded-lg border border-slate-200 px-3 py-1.5 text-[12.5px] font-semibold text-slate-600 transition-colors hover:bg-slate-100 dark:border-[#2a3336] dark:text-slate-300 dark:hover:bg-white/5"
+                >
+                  취소
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const target = confirmDelete;
+                    setConfirmDelete(null);
+                    onDelete(target);
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-rose-500 px-3 py-1.5 text-[12.5px] font-semibold text-white transition-colors hover:bg-rose-600"
+                >
+                  <Trash2 size={13} strokeWidth={2.4} aria-hidden />
+                  삭제
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

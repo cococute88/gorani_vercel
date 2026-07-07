@@ -518,6 +518,25 @@ export async function deleteAssetSimulatorMemoItem(uid: string, memoId: string):
   await deleteDoc(doc(requireDb(), "users", uid, "assetSimulatorMemos", memoId));
 }
 
+// "현재 표시" 메모 id 를 별도 상태 문서에 저장한다. 메모 컬렉션과 분리해서
+// (getDocs(assetSimulatorMemos) 결과를 오염시키지 않도록) 관리하며, 기기 간
+// 동일한 메모가 열리도록 동기화한다.
+//   users/{uid}/assetSimulatorMemoState/current  ->  { currentMemoId, updatedAt }
+export async function loadAssetSimulatorMemoCurrentId(uid: string): Promise<string | null> {
+  const snap = await getDoc(doc(requireDb(), "users", uid, "assetSimulatorMemoState", "current"));
+  if (!snap.exists()) return null;
+  const data = snap.data() as { currentMemoId?: unknown };
+  return typeof data.currentMemoId === "string" && data.currentMemoId ? data.currentMemoId : null;
+}
+
+export async function saveAssetSimulatorMemoCurrentId(uid: string, memoId: string): Promise<void> {
+  await setDoc(
+    doc(requireDb(), "users", uid, "assetSimulatorMemoState", "current"),
+    { currentMemoId: memoId, updatedAt: serverTimestamp() },
+    { merge: true },
+  );
+}
+
 export async function saveCalculatorPreset(uid: string, preset: CalculatorPreset): Promise<void> {
   await setDoc(doc(requireDb(), "users", uid, "calculatorPresets", preset.id), {
     ...preset,

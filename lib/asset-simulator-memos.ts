@@ -26,6 +26,7 @@ export const MEMO_AUTO_TITLE_LENGTH = 28;
 
 const NEW_STORAGE_KEY = STORAGE_KEYS.assetSimulatorMemos;
 const LEGACY_STORAGE_KEY = STORAGE_KEYS.assetSimulatorMemo;
+const CURRENT_ID_KEY = STORAGE_KEYS.assetSimulatorMemoCurrent;
 
 // crypto.randomUUID 우선, 없으면 deterministic fallback 으로 id 생성.
 export function createMemoId(): string {
@@ -153,6 +154,27 @@ export function writeLocalMemos(memos: AssetMemo[]): void {
     window.localStorage.setItem(NEW_STORAGE_KEY, JSON.stringify(memos));
   } catch {
     // 저장소 사용 불가 환경 방어(클라우드 저장은 별도 진행).
+  }
+}
+
+// "현재 표시" 메모 id 로컬 캐시. 새로고침 후에도 같은 메모가 열리도록 한다.
+export function readLocalCurrentMemoId(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const id = window.localStorage.getItem(CURRENT_ID_KEY);
+    return id && id.trim() ? id : null;
+  } catch {
+    return null;
+  }
+}
+
+export function writeLocalCurrentMemoId(id: string | null): void {
+  if (typeof window === "undefined") return;
+  try {
+    if (id) window.localStorage.setItem(CURRENT_ID_KEY, id);
+    else window.localStorage.removeItem(CURRENT_ID_KEY);
+  } catch {
+    // ignore
   }
 }
 
