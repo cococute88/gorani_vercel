@@ -5,7 +5,6 @@ import PortfolioSummary from "@/components/PortfolioSummary";
 import DonutChartCard from "@/components/DonutChartCard";
 import AssetAllocationDonut from "@/components/portfolio/AssetAllocationDonut";
 import AssetAccountCards from "@/components/AssetAccountCards";
-import PortfolioDividendSummaryCard from "@/components/portfolio/PortfolioDividendSummaryCard";
 import AssetClassDonut from "@/components/portfolio/AssetClassDonut";
 import PortfolioMarketIndicatorStrip from "@/components/portfolio/PortfolioMarketIndicatorStrip";
 import { usePortfolioView } from "@/lib/use-portfolio-view";
@@ -67,16 +66,9 @@ export default function PortfolioPage() {
           </div>
         ) : null}
 
-        {/* 요약 영역 */}
+        {/* 요약 영역: 총 금융자산 + 배당(위탁)/배당(절세) 요약(배당현황으로 이동) + 투자/현금 비중 */}
         <section className="mb-6">
           <PortfolioSummary theme={theme} />
-        </section>
-
-        {/* 배당 요약 카드: 기존 "데이터 상태" 카드를 대체한다.
-            배당현황과 동일한 계산(useDividendSummary)을 공유하며, 카드 전체를 클릭하면
-            배당 → 배당현황으로 이동한다. 절세 납입원금은 자산시뮬레이터 Save 값 기준. */}
-        <section className="mb-6">
-          <PortfolioDividendSummaryCard />
         </section>
 
         {/* 중간 차트 3개 */}

@@ -1,141 +1,141 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowUpRight } from "lucide-react";
-import { formatWon, formatWonSigned, formatPercent } from "@/lib/format";
+import { formatPercent } from "@/lib/format";
 import { useDividendSummary } from "@/lib/use-dividend-summary";
 import { useTaxAccountPrincipalKRW } from "@/lib/tax-account-principal";
+import { computeConvertedAnnualDividendKRW, DIVIDEND_AFTER_TAX_FACTOR } from "@/lib/dividend-estimates";
 
-// 3% 인출 계산은 절세계좌의 "납입원금" 기준이다(투자원금 아님).
+// 3% 인출은 절세계좌 "납입원금" 기준(투자원금 아님).
 const TAX_ACCOUNT_WITHDRAWAL_RATE = 0.03;
+const UP = "#e5484d";
+const DOWN = "#3b82f6";
 
-// 투자현황의 "데이터 상태" 카드를 대체하는 배당 요약 카드.
-// - 배당 데이터(위탁)는 배당현황 페이지와 동일한 useDividendSummary 훅으로 계산한다.
-//   (중복 계산·별도 계산식 없이 두 화면 숫자가 항상 일치한다.)
-// - 절세계좌 납입원금/3% 인출은 자산시뮬레이터 Save 값(기존 ISA+연금저축 잔고) 기준이다.
-// - 카드 전체를 클릭하면 배당 → 배당현황으로 이동한다.
+// 참고 이미지의 배당(위탁)/배당(절세) 컬럼. 총 금융자산 카드 우측에 두 컬럼으로 붙는다.
+// - 배당 수치는 배당현황과 동일한 useDividendSummary(공유 훅)에서만 계산한다(중복 계산 없음).
+//   세전 연간 = 배당현황 "세전" 토글값, 세후 월 = 배당현황 "세후" 월평균과 각각 동일하다.
+// - 절세 납입원금/3% 인출은 자산시뮬레이터 Save 값(기존 ISA+연금저축 잔고) 기준이다.
+// - 두 컬럼 전체가 배당 → 배당현황으로 이동하는 링크이며 hover/cursor 를 유지한다.
 
-function Row({
-  label,
-  value,
-  accent,
-  strong,
-}: {
-  label: string;
-  value: string;
-  accent?: string;
-  strong?: boolean;
-}) {
-  return (
-    <div className="flex items-baseline justify-between gap-2">
-      <span className="shrink-0 text-[11px] text-slate-500 dark:text-slate-500">{label}</span>
-      <span
-        className={`num truncate text-right ${strong ? "text-[13.5px] font-extrabold" : "text-[12.5px] font-semibold"} ${
-          accent ?? "text-slate-900 dark:text-white"
-        }`}
-      >
-        {value}
-      </span>
-    </div>
-  );
+function wonKR(value: number): string {
+  return Math.round(value).toLocaleString("ko-KR") + "원";
 }
 
-export default function PortfolioDividendSummaryCard() {
-  // 배당현황 페이지 기본 상태(세후 · 위탁만 · 목표 SCHD 3300주)와 동일한 기준으로 호출한다.
-  const summary = useDividendSummary();
+function sharesKR(value: number): string {
+  return value.toLocaleString("ko-KR", { maximumFractionDigits: 0 });
+}
+
+function manKR(value: number): string {
+  return (value / 10_000).toLocaleString("ko-KR", { maximumFractionDigits: 1 });
+}
+
+type Props = { isLight: boolean; className?: string };
+
+export default function PortfolioDividendSummaryCard({ isLight, className }: Props) {
+  // 배당현황 기본 상태와 동일한 소스. 세전 값을 기준으로 받고 세후는 공유 상수/함수로 환산한다.
+  const summary = useDividendSummary({ afterTax: false });
   const taxPrincipalKRW = useTaxAccountPrincipalKRW();
 
-  const {
-    evaluationKRW,
-    annualDividendKRW,
-    monthlyAvgKRW,
-    convertedAnnualDividendKRW,
-    convertedMonthlyDividendKRW,
-    dividendDataAvailable,
-    goalProgress,
-    dividendGroups,
-  } = summary;
+  const { evaluationKRW, annualDividendKRW, convertedAnnualDividendKRW, dividendDataAvailable, goalProgress, dividendGroups } = summary;
 
-  const brokerageEvaluationKRW = evaluationKRW;
+  // 배당(위탁): 세전 연간 + 세후 월 (배당현황 세전/세후 토글값과 각각 일치).
+  const preTaxAnnual = annualDividendKRW;
+  const afterTaxMonthly = Math.round((preTaxAnnual * DIVIDEND_AFTER_TAX_FACTOR) / 12);
+  const convPreTaxAnnual = convertedAnnualDividendKRW; // afterTax:false → 평가금액 × 3.5%
+  const convAfterTaxMonthly = Math.round(computeConvertedAnnualDividendKRW(evaluationKRW, { afterTax: true }) / 12);
   const actualShares = goalProgress.actualShares;
   const equivalentShares = goalProgress.equivalentShares;
 
-  const taxAdvantagedEvaluationKRW = dividendGroups.taxAdvantagedTotalKRW;
+  // 배당(절세): 납입원금 기준 누적 수익 / 3% 월 인출.
+  const taxEvalKRW = dividendGroups.taxAdvantagedTotalKRW;
   const hasPrincipal = taxPrincipalKRW !== null && taxPrincipalKRW > 0;
-  const cumulativeProfitKRW = hasPrincipal ? taxAdvantagedEvaluationKRW - (taxPrincipalKRW ?? 0) : null;
-  const monthlyWithdrawalKRW = hasPrincipal ? ((taxPrincipalKRW ?? 0) * TAX_ACCOUNT_WITHDRAWAL_RATE) / 12 : null;
+  const principal = taxPrincipalKRW ?? 0;
+  const profitKRW = hasPrincipal ? taxEvalKRW - principal : null;
+  const profitPct = hasPrincipal && principal > 0 ? ((taxEvalKRW - principal) / principal) * 100 : null;
+  const monthlyWithdrawalKRW = hasPrincipal ? (principal * TAX_ACCOUNT_WITHDRAWAL_RATE) / 12 : null;
 
-  const dividendValue = (value: number) => (dividendDataAvailable ? formatWon(value) : "데이터 없음");
-  const dividendAccent = dividendDataAvailable ? "text-emerald-500 dark:text-emerald-400" : "text-amber-500 dark:text-amber-400";
+  const labelCls = isLight ? "text-slate-500" : "text-slate-400";
+  const valueCls = isLight ? "text-slate-900" : "text-slate-100";
+  const titleCls = isLight ? "text-slate-800" : "text-white";
+  const borderCls = isLight ? "border-slate-200" : "border-[#2a3336]";
+  const line = "text-[13px] leading-[1.75]";
 
   return (
     <Link
       href="/dividends"
       aria-label="배당현황으로 이동"
-      className="group block cursor-pointer rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400 dark:border-[#2a3336] dark:bg-[#191f20] dark:hover:border-blue-500/50"
+      className={`group grid cursor-pointer grid-cols-1 gap-x-6 gap-y-4 border-t pt-5 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400 sm:grid-cols-2 xl:border-l xl:border-t-0 xl:pl-6 xl:pt-0 dark:hover:bg-white/[0.03] ${borderCls} ${className ?? ""}`}
     >
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <span className="text-[13px] font-bold text-slate-700 dark:text-slate-200">배당 요약</span>
-        <span className="flex items-center gap-1 text-[11px] font-medium text-slate-400 transition-colors group-hover:text-blue-500 dark:text-slate-500 dark:group-hover:text-blue-400">
-          배당현황
-          <ArrowUpRight size={13} className="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-        </span>
+      {/* 배당(위탁) */}
+      <div className={`min-w-0 ${line}`}>
+        <div className={`mb-0.5 font-extrabold ${titleCls} transition-colors group-hover:text-blue-500 dark:group-hover:text-blue-400`}>
+          배당(위탁)
+        </div>
+        <div>
+          <span className={labelCls}>평가금액 </span>
+          <span className={`num font-semibold ${valueCls}`}>{wonKR(evaluationKRW)}</span>
+        </div>
+        <div>
+          <span className={labelCls}>목표달성률 </span>
+          <span className={`num font-semibold ${valueCls}`}>
+            {goalProgress.calculable && goalProgress.achievementPct !== undefined
+              ? formatPercent(goalProgress.achievementPct, 1)
+              : "계산 불가"}
+          </span>
+        </div>
+        <div className={`num ${valueCls}`}>
+          SCHD 실보유 {sharesKR(actualShares)}주
+          {goalProgress.calculable && equivalentShares !== undefined ? ` (환산 ${sharesKR(equivalentShares)}주)` : ""}
+        </div>
+        <div className={valueCls}>
+          연간 예상 배당{" "}
+          {dividendDataAvailable ? (
+            <>
+              세전 <span className="num font-semibold">{wonKR(preTaxAnnual)}</span> (세후 월
+              <span className="num font-semibold">{wonKR(afterTaxMonthly)}</span>)
+            </>
+          ) : (
+            <span className="text-amber-500 dark:text-amber-400">데이터 없음</span>
+          )}
+        </div>
+        <div className={valueCls}>
+          환산시 예상 배당 세전 <span className="num font-semibold">{wonKR(convPreTaxAnnual)}</span> (세후 월{" "}
+          <span className="num font-semibold">{wonKR(convAfterTaxMonthly)}</span>)
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {/* 배당(위탁) */}
-        <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3 dark:border-[#2a3336] dark:bg-white/[0.02]">
-          <div className="mb-2 text-[11.5px] font-bold text-slate-600 dark:text-slate-300">배당(위탁)</div>
-          <div className="space-y-1">
-            <Row label="평가금액" value={formatWon(brokerageEvaluationKRW)} strong />
-            <Row
-              label="목표 달성률"
-              value={goalProgress.calculable && goalProgress.achievementPct !== undefined ? formatPercent(goalProgress.achievementPct, 1) : "계산 불가"}
-              accent={goalProgress.calculable ? "text-blue-500 dark:text-blue-400" : "text-amber-500 dark:text-amber-400"}
-            />
-            <Row
-              label="SCHD 실보유/환산"
-              value={
-                goalProgress.calculable && equivalentShares !== undefined
-                  ? `${actualShares.toLocaleString("ko-KR", { maximumFractionDigits: 1 })} / ${equivalentShares.toLocaleString("ko-KR", { maximumFractionDigits: 1 })}주`
-                  : "—"
-              }
-            />
-            <Row label="연간 예상 배당" value={dividendValue(annualDividendKRW)} accent={dividendAccent} />
-            <Row label="월 예상 배당" value={dividendValue(monthlyAvgKRW)} accent={dividendAccent} />
-            <Row label="환산 예상 배당(연)" value={formatWon(convertedAnnualDividendKRW)} accent="text-violet-500 dark:text-violet-400" />
-            <Row label="환산 예상 배당(월)" value={formatWon(convertedMonthlyDividendKRW)} accent="text-violet-500 dark:text-violet-400" />
-          </div>
+      {/* 배당(절세) */}
+      <div className={`min-w-0 border-t pt-4 sm:border-l sm:border-t-0 sm:pl-5 sm:pt-0 ${borderCls} ${line}`}>
+        <div className={`mb-0.5 font-extrabold ${titleCls} transition-colors group-hover:text-blue-500 dark:group-hover:text-blue-400`}>
+          배당(절세)
         </div>
-
-        {/* 배당(절세) */}
-        <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3 dark:border-[#2a3336] dark:bg-white/[0.02]">
-          <div className="mb-2 text-[11.5px] font-bold text-slate-600 dark:text-slate-300">배당(절세)</div>
-          <div className="space-y-1">
-            <Row label="평가금액" value={formatWon(taxAdvantagedEvaluationKRW)} strong />
-            <Row
-              label="누적 수익"
-              value={cumulativeProfitKRW === null ? "—" : formatWonSigned(cumulativeProfitKRW)}
-              accent={
-                cumulativeProfitKRW === null
-                  ? undefined
-                  : cumulativeProfitKRW >= 0
-                    ? "text-[#e5484d]"
-                    : "text-[#3b82f6]"
-              }
-            />
-            <Row label="납입원금" value={hasPrincipal ? formatWon(taxPrincipalKRW ?? 0) : "미설정"} />
-            <Row
-              label="월 인출(납입원금 3%)"
-              value={monthlyWithdrawalKRW === null ? "미설정" : formatWon(monthlyWithdrawalKRW)}
-              accent="text-emerald-500 dark:text-emerald-400"
-            />
-          </div>
-          {!hasPrincipal ? (
-            <p className="mt-2 text-[10.5px] leading-relaxed text-slate-400 dark:text-slate-500">
-              자산시뮬레이터에서 기존 ISA·연금저축 잔고를 입력하고 저장하면 납입원금이 반영됩니다.
-            </p>
-          ) : null}
+        <div>
+          <span className={labelCls}>평가금액 </span>
+          <span className={`num font-semibold ${valueCls}`}>{wonKR(taxEvalKRW)}</span>
+        </div>
+        <div>
+          <span className={labelCls}>누적 수익 </span>
+          {profitKRW === null ? (
+            <span className={valueCls}>—</span>
+          ) : (
+            <span className="num font-semibold" style={{ color: profitKRW >= 0 ? UP : DOWN }}>
+              {(profitKRW >= 0 ? "+" : "-") + wonKR(Math.abs(profitKRW))}
+              {profitPct !== null ? ` (${formatPercent(profitPct, 1)})` : ""}
+            </span>
+          )}
+        </div>
+        <div>
+          <span className={labelCls}>납입원금 </span>
+          <span className={`num font-semibold ${valueCls}`}>{hasPrincipal ? wonKR(principal) : "미설정"}</span>
+        </div>
+        <div className={valueCls}>
+          {monthlyWithdrawalKRW === null ? (
+            <span className={labelCls}>원금의 3% 인출 정보 없음 (자산시뮬 저장 필요)</span>
+          ) : (
+            <>
+              원금의 3% 인출시 월<span className="num font-semibold">{manKR(monthlyWithdrawalKRW)}</span>만 인출가능
+            </>
+          )}
         </div>
       </div>
     </Link>

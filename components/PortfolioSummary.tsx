@@ -7,6 +7,7 @@ import {
 } from "@/lib/format";
 import { usePortfolioView } from "@/lib/use-portfolio-view";
 import MoneyText from "@/components/common/MoneyText";
+import PortfolioDividendSummaryCard from "@/components/portfolio/PortfolioDividendSummaryCard";
 
 type Props = { theme?: "dark" | "light" };
 
@@ -76,9 +77,10 @@ export default function PortfolioSummary({ theme = "light" }: Props) {
   return (
     <div className="flex flex-col gap-3 xl:flex-row">
       <div className={`flex-1 rounded-2xl border p-4 ${panelCls}`}>
-        <div className={`grid min-w-0 grid-cols-1 gap-y-4 sm:grid-cols-2 xl:gap-y-0 xl:divide-x ${isLight ? "xl:divide-slate-200" : "xl:divide-[#2a3336]"}`}>
+        <div className="grid min-w-0 grid-cols-1 gap-5 xl:grid-cols-3">
+          {/* 1) 총 금융자산 */}
           <div className="flex min-w-0 flex-col xl:pr-5">
-            <div className="mb-1 flex items-center gap-2 text-[11px]">
+            <div className="mb-1 flex flex-wrap items-baseline gap-x-2 text-[11px]">
               <span className={`font-bold ${isLight ? "text-slate-700" : "text-slate-200"}`}>
                 총 금융자산
               </span>
@@ -89,28 +91,21 @@ export default function PortfolioSummary({ theme = "light" }: Props) {
             <MoneyText shrink className={`break-keep font-extrabold ${titleCls}`}>
               {formatMaybeWon(d.totalAssetKRW)}
             </MoneyText>
-            <span className={`mt-1 text-[11px] ${subCls}`}>총 금융자산은 투자 평가금액과 현금성/기타 자산을 포함합니다.</span>
+            <div className="mt-1.5 flex flex-wrap items-baseline gap-x-2 text-[13px]">
+              <span className={labelCls}>투자평가금액</span>
+              <span className={`num font-bold ${titleCls}`}>{formatMaybeWon(d.investmentValueKRW)}</span>
+            </div>
             <span className="num mt-1 text-[12.5px] font-semibold" style={{ color: valueColor }}>
               누적 손익 {formatMaybeSignedWon(d.returnAmountKRW)} ({formatMaybePercent(d.returnPct)})
             </span>
-            <span className={`mt-1 text-[11px] ${subCls}`}>
-              최신 스냅샷 기준
-            </span>
-          </div>
-
-          <div className="flex flex-col xl:pl-5">
-            <span className={`text-[11px] ${labelCls}`}>투자 평가금액</span>
-            <span className={`num mt-1 text-[19px] font-extrabold ${titleCls}`}>
-              {formatMaybeWon(d.investmentValueKRW)}
-            </span>
-            <div className={`mt-1 space-y-1 text-[11px] ${subCls}`}>
-              <div className="flex justify-between gap-3">
+            <div className={`mt-4 space-y-1 text-[11.5px] xl:mt-auto xl:pt-4 ${subCls}`}>
+              <div className="flex items-center justify-between gap-3">
                 <span>현금성/기타 자산</span>
                 <span className={`num font-semibold ${isLight ? "text-slate-800" : "text-slate-300"}`}>
                   {formatMaybeWon(d.cashAndOtherKRW)}
                 </span>
               </div>
-              <div className="flex justify-between gap-3">
+              <div className="flex items-center justify-between gap-3">
                 <span>투자원금</span>
                 <span className={`num font-semibold ${isLight ? "text-slate-800" : "text-slate-300"}`}>
                   {formatMaybeWon(d.investmentPrincipalKRW)}
@@ -118,6 +113,9 @@ export default function PortfolioSummary({ theme = "light" }: Props) {
               </div>
             </div>
           </div>
+
+          {/* 2)·3) 배당(위탁) / 배당(절세) — 카드 전체 클릭 시 배당현황으로 이동 */}
+          <PortfolioDividendSummaryCard isLight={isLight} className="xl:col-span-2" />
         </div>
         {hasInfoNotice ? (
           <p className={`mt-3 text-[11px] ${subCls}`}>
