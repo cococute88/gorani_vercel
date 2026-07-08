@@ -66,7 +66,7 @@ export default function PortfolioPage() {
           </div>
         ) : null}
 
-        {/* 요약 영역 */}
+        {/* 요약 영역: 총 금융자산 + 배당(위탁)/배당(절세) 요약(배당현황으로 이동) + 투자/현금 비중 */}
         <section className="mb-6">
           <PortfolioSummary theme={theme} />
         </section>

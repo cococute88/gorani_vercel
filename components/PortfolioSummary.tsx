@@ -1,13 +1,13 @@
 "use client";
 
 import {
-  formatCompactKrw,
   formatPercent,
   formatWon,
   formatWonSigned,
 } from "@/lib/format";
 import { usePortfolioView } from "@/lib/use-portfolio-view";
 import MoneyText from "@/components/common/MoneyText";
+import PortfolioDividendSummaryCard from "@/components/portfolio/PortfolioDividendSummaryCard";
 
 type Props = { theme?: "dark" | "light" };
 
@@ -24,29 +24,6 @@ function formatMaybeSignedWon(value: number | null): string {
 
 function formatMaybePercent(value: number | null): string {
   return value === null ? "—" : formatPercent(value);
-}
-
-function MiniUpLine({ color = UP }: { color?: string }) {
-  return (
-    <svg viewBox="0 0 140 48" className="h-full w-full" preserveAspectRatio="none">
-      <defs>
-        <linearGradient id="pf-up" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity={0.35} />
-          <stop offset="100%" stopColor={color} stopOpacity={0} />
-        </linearGradient>
-      </defs>
-      <path
-        d="M0,42 L20,38 L38,40 L58,30 L78,32 L98,20 L118,15 L140,5 L140,48 L0,48 Z"
-        fill="url(#pf-up)"
-      />
-      <path
-        d="M0,42 L20,38 L38,40 L58,30 L78,32 L98,20 L118,15 L140,5"
-        fill="none"
-        stroke={color}
-        strokeWidth={2}
-      />
-    </svg>
-  );
 }
 
 function RatioRow({
@@ -81,7 +58,7 @@ function RatioRow({
 }
 
 export default function PortfolioSummary({ theme = "light" }: Props) {
-  const { summary: d, warnings, flags } = usePortfolioView();
+  const { summary: d, warnings } = usePortfolioView();
   // 상단의 장황한 안내 박스를 없애는 대신, 안내(info)성 caveat 가 있을 때만
   // summary 하단에 아주 짧은 보조문구 한 줄로 축약해 둔다.
   const hasInfoNotice = warnings.some(
@@ -99,43 +76,42 @@ export default function PortfolioSummary({ theme = "light" }: Props) {
 
   return (
     <div className="flex flex-col gap-3 xl:flex-row">
-      <div className={`flex-1 rounded-2xl border p-4 ${panelCls}`}>
-        <div className={`grid min-w-0 grid-cols-1 gap-y-4 sm:grid-cols-2 xl:grid-cols-3 xl:gap-y-0 xl:divide-x ${isLight ? "xl:divide-slate-200" : "xl:divide-[#2a3336]"}`}>
-          <div className="flex min-w-0 flex-col xl:pr-5">
-            <div className="mb-1 flex items-center gap-2 text-[11px]">
-              <span className={`font-bold ${isLight ? "text-slate-700" : "text-slate-200"}`}>
+      <div className={`flex-1 rounded-2xl border px-4 py-3.5 ${panelCls}`}>
+        <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-3">
+          {/* 1) 총 금융자산 */}
+          <div className="flex min-w-0 flex-col xl:pr-6">
+            <div className="flex flex-wrap items-baseline gap-x-2">
+              <span className={`text-[12.5px] font-bold ${isLight ? "text-slate-700" : "text-slate-200"}`}>
                 총 금융자산
               </span>
-              <span className={subCls}>
+              <span className={`text-[11px] ${subCls}`}>
                 {d.snapshotDate ? `${d.snapshotDate} 기준` : "스냅샷 없음"}
               </span>
             </div>
-            <MoneyText shrink className={`break-keep font-extrabold ${titleCls}`}>
+            <MoneyText shrink className={`num mt-1.5 break-keep font-extrabold leading-none ${titleCls}`}>
               {formatMaybeWon(d.totalAssetKRW)}
             </MoneyText>
-            <span className={`mt-1 text-[11px] ${subCls}`}>총 금융자산은 투자 평가금액과 현금성/기타 자산을 포함합니다.</span>
-            <span className="num mt-1 text-[12.5px] font-semibold" style={{ color: valueColor }}>
-              누적 손익 {formatMaybeSignedWon(d.returnAmountKRW)} ({formatMaybePercent(d.returnPct)})
-            </span>
-            <span className={`mt-1 text-[11px] ${subCls}`}>
-              최신 스냅샷 기준
-            </span>
-          </div>
-
-          <div className="flex flex-col xl:px-5">
-            <span className={`text-[11px] ${labelCls}`}>투자 평가금액</span>
-            <span className={`num mt-1 text-[19px] font-extrabold ${titleCls}`}>
-              {formatMaybeWon(d.investmentValueKRW)}
-            </span>
-            <div className={`mt-1 space-y-1 text-[11px] ${subCls}`}>
-              <div className="flex justify-between gap-3">
-                <span>현금성/기타 자산</span>
+            <div className="mt-2 space-y-0.5 text-[12.5px] leading-[1.4]">
+              <div className="flex items-center justify-between gap-3">
+                <span className={labelCls}>투자평가금액</span>
+                <span className={`num font-semibold ${titleCls}`}>{formatMaybeWon(d.investmentValueKRW)}</span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className={labelCls}>누적 손익</span>
+                <span className="num font-semibold" style={{ color: valueColor }}>
+                  {formatMaybeSignedWon(d.returnAmountKRW)} ({formatMaybePercent(d.returnPct)})
+                </span>
+              </div>
+            </div>
+            <div className={`mt-3 space-y-0.5 text-[12.5px] leading-[1.4] xl:mt-auto xl:pt-3`}>
+              <div className="flex items-center justify-between gap-3">
+                <span className={labelCls}>현금성/기타 자산</span>
                 <span className={`num font-semibold ${isLight ? "text-slate-800" : "text-slate-300"}`}>
                   {formatMaybeWon(d.cashAndOtherKRW)}
                 </span>
               </div>
-              <div className="flex justify-between gap-3">
-                <span>투자원금</span>
+              <div className="flex items-center justify-between gap-3">
+                <span className={labelCls}>투자원금</span>
                 <span className={`num font-semibold ${isLight ? "text-slate-800" : "text-slate-300"}`}>
                   {formatMaybeWon(d.investmentPrincipalKRW)}
                 </span>
@@ -143,29 +119,8 @@ export default function PortfolioSummary({ theme = "light" }: Props) {
             </div>
           </div>
 
-          <div className="relative flex min-w-0 flex-col overflow-hidden xl:pl-5">
-            <span className={`text-[11px] ${labelCls}`}>데이터 상태</span>
-            <div className="relative z-10 mt-1 space-y-0.5">
-              <div className="flex min-w-0 items-baseline gap-1">
-                <span className={`shrink-0 text-[10.5px] ${subCls}`}>불러온 파일</span>
-                <span className={`truncate text-[13px] font-bold ${titleCls}`} title={d.sourceFileName || undefined}>
-                  {d.sourceFileName || "—"}
-                </span>
-              </div>
-              <div>
-                <span className={`text-[10.5px] ${subCls}`}>투자 평가금액 </span>
-                <span className="num text-[14px] font-bold" style={{ color: valueColor }}>
-                  {d.investmentValueKRW === null ? "—" : formatCompactKrw(d.investmentValueKRW)}
-                </span>
-              </div>
-              <div className={`text-[12px] font-semibold ${flags.hasSnapshot ? "text-emerald-500" : "text-amber-500"}`}>
-                {flags.hasSnapshot ? "최신 스냅샷 실데이터" : "스냅샷 등록 전"}
-              </div>
-            </div>
-            <div className="pointer-events-none absolute bottom-2 right-0 h-12 w-28 opacity-70">
-              <MiniUpLine color={valueColor} />
-            </div>
-          </div>
+          {/* 2)·3) 배당(위탁) / 배당(절세) — 카드 전체 클릭 시 배당현황으로 이동 */}
+          <PortfolioDividendSummaryCard isLight={isLight} className="xl:col-span-2" />
         </div>
         {hasInfoNotice ? (
           <p className={`mt-3 text-[11px] ${subCls}`}>
@@ -174,8 +129,8 @@ export default function PortfolioSummary({ theme = "light" }: Props) {
         ) : null}
       </div>
 
-      <div className={`w-full rounded-2xl border p-4 xl:w-[230px] ${panelCls}`}>
-        <div className="mb-3 flex items-center justify-between gap-2">
+      <div className={`w-full rounded-2xl border px-4 py-3.5 xl:w-[230px] ${panelCls}`}>
+        <div className="mb-2.5 flex items-center justify-between gap-2">
           <span className={`text-[12px] font-bold ${isLight ? "text-slate-700" : "text-slate-200"}`}>
             투자 / 현금 비중
           </span>

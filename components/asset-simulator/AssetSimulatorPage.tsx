@@ -21,6 +21,7 @@ import {
   type ResolvedSimulatorConfig,
   type SimulatorHydrationSource,
 } from "@/lib/asset-simulator-persistence";
+import { ASSET_SIMULATOR_SAVED_EVENT } from "@/lib/tax-account-principal";
 import AssetSimulatorMemo from "./AssetSimulatorMemo";
 import SimulatorInputPanel from "./SimulatorInputPanel";
 import SimulatorMetricCards from "./SimulatorMetricCards";
@@ -62,6 +63,8 @@ export default function AssetSimulatorPage() {
     const config = buildStoredSimulatorConfig(nextInputs, nextYearPlans, updatedAt);
     if (typeof window !== "undefined") {
       window.localStorage.setItem(ASSET_SIMULATOR_STORAGE_KEY, JSON.stringify(config));
+      // 같은 탭에서 열려 있는 투자현황이 저장된 납입원금을 즉시 반영하도록 알린다.
+      window.dispatchEvent(new Event(ASSET_SIMULATOR_SAVED_EVENT));
     }
     lastLocalWriteAtRef.current = Date.parse(updatedAt);
     setLastSavedAtMs(lastLocalWriteAtRef.current);
