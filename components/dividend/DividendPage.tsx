@@ -4,23 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Target } from "lucide-react";
 import TopNav from "@/components/TopNav";
-import { usePortfolioSnapshots, latestOf } from "@/lib/portfolio-store";
-import {
-  buildMonthlyDividendsFromRows,
-  type DividendHoldingRow,
-} from "@/lib/mock-dividend-data";
-import {
-  buildDividendEstimateForHolding,
-  computeConvertedAnnualDividendKRW,
-  computeSchdEquivalentGoalProgress,
-  isKrwTicker,
-  type DividendEstimateWarning,
-} from "@/lib/dividend-estimates";
+import { buildMonthlyDividendsFromRows } from "@/lib/mock-dividend-data";
 import { formatPercent } from "@/lib/format";
-import type { Holding } from "@/lib/portfolio-types";
-import { buildDividendHoldingGroupsFromSnapshot } from "@/lib/dividend-holdings-from-portfolio";
-import { quoteDividendsPath, quoteFxPath, quoteHistoryPath, quoteLastPath } from "@/lib/quote-client";
-import type { QuoteDividendsResponse, QuoteFxResponse, QuoteHistoryResponse, QuoteLastResponse } from "@/lib/quote-types";
+import { quoteHistoryPath } from "@/lib/quote-client";
+import type { QuoteHistoryResponse } from "@/lib/quote-types";
+import { useDividendSummary } from "@/lib/use-dividend-summary";
 import DividendSummaryCards from "./DividendSummaryCards";
 import MonthlyDividendChart from "./MonthlyDividendChart";
 import DividendHoldingsTable from "./DividendHoldingsTable";
@@ -34,57 +22,10 @@ import { DEFAULT_PERFORMANCE_MONTHS } from "@/lib/performance-period";
 const card =
   "rounded-2xl border border-slate-200 bg-white p-5 dark:border-[#2a3336] dark:bg-[#191f20]";
 
-type DividendMarketDataState = {
-  loading: boolean;
-  tickerKey: string;
-  quotes: Record<string, QuoteLastResponse | undefined>;
-  dividends: Record<string, QuoteDividendsResponse | undefined>;
-  fx?: QuoteFxResponse;
-  warnings: string[];
-};
-
-const EMPTY_MARKET_DATA: DividendMarketDataState = {
-  loading: false,
-  tickerKey: "",
-  quotes: {},
-  dividends: {},
-  warnings: [],
-};
-
 async function fetchQuoteJson<T>(path: string): Promise<T> {
   const response = await fetch(path, { cache: "no-store" });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   return (await response.json()) as T;
-}
-
-function dividendNoteFromWarnings(warnings: DividendEstimateWarning[]): string {
-  if (warnings.some((warning) => warning.code === "quote_missing" || warning.code === "quote_sample")) {
-    return "현재가 없음";
-  }
-  if (warnings.some((warning) => warning.code === "fx_missing" || warning.code === "fx_sample")) {
-    return "환율 없음";
-  }
-  if (warnings.some((warning) => warning.code === "dividend_missing" || warning.code === "dividend_sample")) {
-    return "배당 데이터 없음";
-  }
-  return "데이터 없음";
-}
-
-function computeActualTargetShares(rows: DividendHoldingRow[], targetPriceKRW?: number): { shares: number; estimated: boolean } {
-  let shares = 0;
-  let estimated = false;
-  for (const row of rows) {
-    if (Number.isFinite(row.quantity) && row.quantity && row.quantity > 0) {
-      shares += row.quantity;
-      if (row.quantityEstimated) estimated = true;
-      continue;
-    }
-    if (targetPriceKRW && targetPriceKRW > 0 && row.valueKRW > 0) {
-      shares += row.valueKRW / targetPriceKRW;
-      estimated = true;
-    }
-  }
-  return { shares, estimated };
 }
 
 const dividendTabs = [
@@ -100,7 +41,6 @@ export default function DividendPage() {
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab");
   const activeTab: DividendTabKey = tabParam === "schd-attractiveness" ? "schd-attractiveness" : "overview";
-  const snapshots = usePortfolioSnapshots();
   const [afterTax, setAfterTax] = useState(true);
   // 성과분석 그래프(위탁/절세/전체합산)가 공유하는 표시 기간. 세 그래프가 항상 같은 구간을 유지한다.
   const [performanceMonths, setPerformanceMonths] = useState<number>(DEFAULT_PERFORMANCE_MONTHS);
@@ -109,164 +49,39 @@ export default function DividendPage() {
   const [chartIncludesTaxAdvantaged, setChartIncludesTaxAdvantaged] = useState(false);
   const [targetTicker, setTargetTicker] = useState("SCHD");
   const [targetQty, setTargetQty] = useState(3300);
-  const [marketData, setMarketData] = useState<DividendMarketDataState>(EMPTY_MARKET_DATA);
   const [performanceHistories, setPerformanceHistories] = useState<{ prices: Record<string, BackcastPricePoint[]>; schd: BackcastPricePoint[] | null; sp500: BackcastPricePoint[] | null; fx: BackcastPricePoint[] | null }>({ prices: {}, schd: null, sp500: null, fx: null });
 
-  const latestSnapshot = useMemo(() => latestOf(snapshots), [snapshots]);
-  const holdings: Holding[] = useMemo(() => latestSnapshot?.holdings ?? [], [latestSnapshot]);
-
-  const hasSnapshotHoldings = holdings.length > 0;
-
-  const dividendGroups = useMemo(
-    () => buildDividendHoldingGroupsFromSnapshot(latestSnapshot, afterTax),
-    [latestSnapshot, afterTax],
-  );
-  const dividendTickers = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          [...dividendGroups.taxableHoldings, ...dividendGroups.taxAdvantagedHoldings]
-            .map((row) => row.ticker.trim().toUpperCase())
-            .filter(Boolean),
-        ),
-      ).sort(),
-    [dividendGroups.taxAdvantagedHoldings, dividendGroups.taxableHoldings],
-  );
-  const targetTickerNormalized = targetTicker.trim().toUpperCase();
-  const marketTickers = useMemo(
-    () => Array.from(new Set([...dividendTickers, targetTickerNormalized].filter(Boolean))).sort(),
-    [dividendTickers, targetTickerNormalized],
-  );
-  const marketTickerKey = marketTickers.join("|");
+  // 배당 요약(평가금액·예상배당·목표달성률 등)은 투자현황 카드와 동일한 단일 훅에서 계산한다.
+  const summary = useDividendSummary({
+    afterTax,
+    includeTaxAdvantaged: includeTaxAdvantagedInSummary,
+    targetTicker,
+    targetQty,
+  });
+  const {
+    snapshots,
+    latestSnapshot,
+    hasSnapshotHoldings,
+    dividendGroups,
+    dividendTickers,
+    estimatedTaxableHoldings,
+    estimatedTaxAdvantagedHoldings,
+    evaluationKRW,
+    annualDividendKRW,
+    monthlyAvgKRW,
+    convertedAnnualDividendKRW,
+    dividendDataAvailable,
+    goalProgress,
+    achievementPct,
+    goalProgressLabel,
+    marketData,
+  } = summary;
 
   function toBackcastSeries(response: QuoteHistoryResponse | undefined): BackcastPricePoint[] | null {
     if (!response || response.source === "sample") return null;
     const points = response.prices.filter((price) => Number.isFinite(price.close) && price.close > 0).map((price) => ({ date: price.date, close: price.close }));
     return points.length > 0 ? points : null;
   }
-
-  useEffect(() => {
-    if (!marketTickerKey) {
-      setMarketData(EMPTY_MARKET_DATA);
-      return;
-    }
-
-    let active = true;
-    const tickers = marketTickers;
-    const needsUsdKrw = tickers.some((ticker) => !isKrwTicker(ticker));
-    setMarketData((current) => ({
-      ...current,
-      loading: true,
-      tickerKey: marketTickerKey,
-      warnings: [],
-    }));
-
-    async function load() {
-      const warnings: string[] = [];
-      const quoteEntries = await Promise.all(
-        tickers.map(async (ticker) => {
-          try {
-            const quote = await fetchQuoteJson<QuoteLastResponse>(quoteLastPath({ ticker }));
-            return [ticker, quote] as const;
-          } catch (error) {
-            warnings.push(`${ticker}: 현재가 요청 실패 (${error instanceof Error ? error.message : String(error)})`);
-            return [ticker, undefined] as const;
-          }
-        }),
-      );
-      const dividendEntries = await Promise.all(
-        tickers.map(async (ticker) => {
-          try {
-            const dividends = await fetchQuoteJson<QuoteDividendsResponse>(quoteDividendsPath({ ticker, range: "1y" }));
-            return [ticker, dividends] as const;
-          } catch (error) {
-            warnings.push(`${ticker}: 배당 요청 실패 (${error instanceof Error ? error.message : String(error)})`);
-            return [ticker, undefined] as const;
-          }
-        }),
-      );
-
-      let fx: QuoteFxResponse | undefined;
-      if (needsUsdKrw) {
-        try {
-          fx = await fetchQuoteJson<QuoteFxResponse>(quoteFxPath());
-        } catch (error) {
-          warnings.push(`USDKRW: 환율 요청 실패 (${error instanceof Error ? error.message : String(error)})`);
-        }
-      }
-
-      if (!active) return;
-      setMarketData({
-        loading: false,
-        tickerKey: marketTickerKey,
-        quotes: Object.fromEntries(quoteEntries),
-        dividends: Object.fromEntries(dividendEntries),
-        fx,
-        warnings,
-      });
-    }
-
-    void load();
-    return () => {
-      active = false;
-    };
-  }, [marketTickerKey, marketTickers]);
-
-  const enrichRows = useMemo(
-    () =>
-      (rows: DividendHoldingRow[]): DividendHoldingRow[] =>
-        rows.map((row) => {
-          const ticker = row.ticker.trim().toUpperCase();
-          const estimate = buildDividendEstimateForHolding(
-            {
-              ticker,
-              valueKRW: row.valueKRW,
-              principalKRW: row.principalKRW,
-            },
-            {
-              quote: marketData.quotes[ticker],
-              dividends: marketData.dividends[ticker],
-              fx: marketData.fx,
-            },
-            { afterTax },
-          );
-          const annualDividendKRW = estimate.annualDividendKRW ?? 0;
-          const hasDividendEstimate = annualDividendKRW > 0;
-
-          return {
-            ...row,
-            quantity: estimate.estimatedQuantity ?? row.quantity,
-            quantityEstimated: estimate.estimatedQuantity !== undefined,
-            averageCost: estimate.estimatedAverageCost ?? row.averageCost,
-            averageCostCurrency: estimate.estimatedAverageCostCurrency ?? row.averageCostCurrency,
-            averageCostEstimated: estimate.estimatedAverageCost !== undefined,
-            currentPrice: estimate.currentPrice ?? row.currentPrice,
-            currentPriceCurrency: estimate.currentPriceCurrency ?? row.currentPriceCurrency,
-            currentPriceKRW: estimate.currentPriceKRW,
-            annualDividendKRW,
-            expectedYieldPct: row.valueKRW > 0 ? (annualDividendKRW / row.valueKRW) * 100 : 0,
-            myYieldPct: estimate.personalYieldPct ?? 0,
-            myYieldBasis: estimate.personalYieldBasis,
-            ttmDividendPerShare: estimate.ttmDividendPerShare,
-            ttmDividendCurrency: estimate.ttmDividendCurrency,
-            dividendMonths: estimate.dividendMonths,
-            estimateSource: estimate.estimateSource,
-            estimateWarnings: estimate.warnings,
-            isEstimated: estimate.isEstimated,
-            dividendDataStatus: hasDividendEstimate ? "available" : "unavailable",
-            dividendDataNote: hasDividendEstimate ? undefined : dividendNoteFromWarnings(estimate.warnings),
-          };
-        }),
-    [afterTax, marketData.dividends, marketData.fx, marketData.quotes],
-  );
-  const estimatedTaxableHoldings = useMemo(
-    () => enrichRows(dividendGroups.taxableHoldings),
-    [dividendGroups.taxableHoldings, enrichRows],
-  );
-  const estimatedTaxAdvantagedHoldings = useMemo(
-    () => enrichRows(dividendGroups.taxAdvantagedHoldings),
-    [dividendGroups.taxAdvantagedHoldings, enrichRows],
-  );
 
   useEffect(() => {
     const tickers = dividendTickers;
@@ -298,17 +113,6 @@ export default function DividendPage() {
     return () => { active = false; };
   }, [dividendTickers]);
 
-  const dividendDataAvailable = useMemo(
-    () => [...estimatedTaxableHoldings, ...estimatedTaxAdvantagedHoldings].some((row) => row.dividendDataStatus === "available"),
-    [estimatedTaxAdvantagedHoldings, estimatedTaxableHoldings],
-  );
-  const summaryRows = useMemo(
-    () =>
-      includeTaxAdvantagedInSummary
-        ? [...estimatedTaxableHoldings, ...estimatedTaxAdvantagedHoldings]
-        : estimatedTaxableHoldings,
-    [estimatedTaxAdvantagedHoldings, estimatedTaxableHoldings, includeTaxAdvantagedInSummary],
-  );
   const chartRows = useMemo(
     () => [
       ...(chartIncludesTaxable ? estimatedTaxableHoldings : []),
@@ -323,37 +127,6 @@ export default function DividendPage() {
   );
   const monthlyComposition = useMemo(() => buildMonthlyDividendsFromRows(chartRows), [chartRows]);
 
-  const evaluationKRW = summaryRows.reduce((s, r) => s + r.valueKRW, 0);
-  const ttmAnnualDividendKRW = summaryRows.reduce((s, r) => s + r.annualDividendKRW, 0);
-  // 환산 예상 배당: 현재 선택된 범위(위탁만/절세합)의 평가금액을 연 3.5%로 인출한다고 가정.
-  const convertedAnnualDividendKRW = computeConvertedAnnualDividendKRW(evaluationKRW, { afterTax });
-  const annualDividendKRW = ttmAnnualDividendKRW;
-  const monthlyAvgKRW = annualDividendKRW / 12;
-
-  const targetRows = [...estimatedTaxableHoldings, ...estimatedTaxAdvantagedHoldings]
-    .filter((row) => row.ticker.trim().toUpperCase() === targetTickerNormalized);
-  const targetQuote = marketData.quotes[targetTickerNormalized];
-  const targetCurrency = isKrwTicker(targetQuote?.normalizedTicker ?? targetTicker) ? "KRW" : "USD";
-  const targetPriceKRW = targetQuote?.source !== "sample" && targetQuote?.price && targetQuote.price > 0
-    ? targetCurrency === "KRW"
-      ? targetQuote.price
-      : marketData.fx?.source !== "sample" && marketData.fx?.rate && marketData.fx.rate > 0
-        ? targetQuote.price * marketData.fx.rate
-        : undefined
-    : undefined;
-  const actualTargetSharesResult = computeActualTargetShares(targetRows, targetPriceKRW);
-  const goalProgress = computeSchdEquivalentGoalProgress({
-    targetTicker,
-    targetQty,
-    evaluationKRW,
-    targetPriceKRW,
-    actualShares: actualTargetSharesResult.shares,
-  });
-  const achievementPct = goalProgress.achievementPct ?? 0;
-  const actualSharesLabel = actualTargetSharesResult.estimated ? `실보유 추정 ${goalProgress.actualShares.toLocaleString("ko-KR", { maximumFractionDigits: 2 })}주` : `실보유 ${goalProgress.actualShares.toLocaleString("ko-KR", { maximumFractionDigits: 2 })}주`;
-  const goalProgressLabel = goalProgress.calculable
-    ? `SCHD 환산 ${goalProgress.equivalentShares?.toLocaleString("ko-KR", { maximumFractionDigits: 1 })}주 · ${actualSharesLabel} / 목표 ${targetQty.toLocaleString("ko-KR")}주`
-    : (goalProgress.error ?? "계산 불가");
   const accountBackcastHoldings = useMemo(() => ({
     위탁: estimatedTaxableHoldings,
     절세: estimatedTaxAdvantagedHoldings,
