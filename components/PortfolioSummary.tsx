@@ -79,34 +79,39 @@ export default function PortfolioSummary({ theme = "light" }: Props) {
       <div className={`flex-1 rounded-2xl border p-4 ${panelCls}`}>
         <div className="grid min-w-0 grid-cols-1 gap-5 xl:grid-cols-3">
           {/* 1) 총 금융자산 */}
-          <div className="flex min-w-0 flex-col xl:pr-5">
-            <div className="mb-1 flex flex-wrap items-baseline gap-x-2 text-[11px]">
-              <span className={`font-bold ${isLight ? "text-slate-700" : "text-slate-200"}`}>
+          <div className="flex min-w-0 flex-col xl:pr-6">
+            <div className="flex flex-wrap items-baseline gap-x-2">
+              <span className={`text-[12.5px] font-bold ${isLight ? "text-slate-700" : "text-slate-200"}`}>
                 총 금융자산
               </span>
-              <span className={subCls}>
+              <span className={`text-[11px] ${subCls}`}>
                 {d.snapshotDate ? `${d.snapshotDate} 기준` : "스냅샷 없음"}
               </span>
             </div>
-            <MoneyText shrink className={`break-keep font-extrabold ${titleCls}`}>
+            <MoneyText shrink className={`num mt-2 break-keep font-extrabold leading-tight ${titleCls}`}>
               {formatMaybeWon(d.totalAssetKRW)}
             </MoneyText>
-            <div className="mt-1.5 flex flex-wrap items-baseline gap-x-2 text-[13px]">
-              <span className={labelCls}>투자평가금액</span>
-              <span className={`num font-bold ${titleCls}`}>{formatMaybeWon(d.investmentValueKRW)}</span>
-            </div>
-            <span className="num mt-1 text-[12.5px] font-semibold" style={{ color: valueColor }}>
-              누적 손익 {formatMaybeSignedWon(d.returnAmountKRW)} ({formatMaybePercent(d.returnPct)})
-            </span>
-            <div className={`mt-4 space-y-1 text-[11.5px] xl:mt-auto xl:pt-4 ${subCls}`}>
+            <div className="mt-2.5 space-y-1 text-[12.5px] leading-[1.45]">
               <div className="flex items-center justify-between gap-3">
-                <span>현금성/기타 자산</span>
+                <span className={labelCls}>투자평가금액</span>
+                <span className={`num font-semibold ${titleCls}`}>{formatMaybeWon(d.investmentValueKRW)}</span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className={labelCls}>누적 손익</span>
+                <span className="num font-semibold" style={{ color: valueColor }}>
+                  {formatMaybeSignedWon(d.returnAmountKRW)} ({formatMaybePercent(d.returnPct)})
+                </span>
+              </div>
+            </div>
+            <div className={`mt-4 space-y-1 text-[12.5px] leading-[1.45] xl:mt-auto xl:pt-4`}>
+              <div className="flex items-center justify-between gap-3">
+                <span className={labelCls}>현금성/기타 자산</span>
                 <span className={`num font-semibold ${isLight ? "text-slate-800" : "text-slate-300"}`}>
                   {formatMaybeWon(d.cashAndOtherKRW)}
                 </span>
               </div>
               <div className="flex items-center justify-between gap-3">
-                <span>투자원금</span>
+                <span className={labelCls}>투자원금</span>
                 <span className={`num font-semibold ${isLight ? "text-slate-800" : "text-slate-300"}`}>
                   {formatMaybeWon(d.investmentPrincipalKRW)}
                 </span>
