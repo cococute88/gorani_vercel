@@ -9,6 +9,7 @@ import { formatPercent } from "@/lib/format";
 import { quoteHistoryPath } from "@/lib/quote-client";
 import type { QuoteHistoryResponse } from "@/lib/quote-types";
 import { useDividendSummary } from "@/lib/use-dividend-summary";
+import { useDividendGoal, setDividendGoal } from "@/lib/dividend-goal-store";
 import DividendSummaryCards from "./DividendSummaryCards";
 import MonthlyDividendChart from "./MonthlyDividendChart";
 import DividendHoldingsTable from "./DividendHoldingsTable";
@@ -47,8 +48,10 @@ export default function DividendPage() {
   const [includeTaxAdvantagedInSummary, setIncludeTaxAdvantagedInSummary] = useState(false);
   const [chartIncludesTaxable, setChartIncludesTaxable] = useState(true);
   const [chartIncludesTaxAdvantaged, setChartIncludesTaxAdvantaged] = useState(false);
-  const [targetTicker, setTargetTicker] = useState("SCHD");
-  const [targetQty, setTargetQty] = useState(3300);
+  // 목표 티커·목표 주수는 투자현황 카드와 공유하는 단일 소스에서 읽고/쓴다.
+  const goal = useDividendGoal();
+  const targetTicker = goal.ticker;
+  const targetQty = goal.qty;
   const [performanceHistories, setPerformanceHistories] = useState<{ prices: Record<string, BackcastPricePoint[]>; schd: BackcastPricePoint[] | null; sp500: BackcastPricePoint[] | null; fx: BackcastPricePoint[] | null }>({ prices: {}, schd: null, sp500: null, fx: null });
 
   // 배당 요약(평가금액·예상배당·목표달성률 등)은 투자현황 카드와 동일한 단일 훅에서 계산한다.
@@ -249,7 +252,7 @@ export default function DividendPage() {
                 <span className="text-[12.5px] text-slate-400">목표 티커</span>
                 <input
                   value={targetTicker}
-                  onChange={(e) => setTargetTicker(e.target.value.toUpperCase())}
+                  onChange={(e) => setDividendGoal({ ticker: e.target.value.toUpperCase() })}
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-[14px] text-slate-900 outline-none focus:border-blue-500 dark:border-[#2a3336] dark:bg-[#11181a] dark:text-white"
                 />
               </label>
@@ -258,7 +261,7 @@ export default function DividendPage() {
                 <input
                   type="number"
                   value={targetQty}
-                  onChange={(e) => setTargetQty(Number(e.target.value) || 0)}
+                  onChange={(e) => setDividendGoal({ qty: Number(e.target.value) || 0 })}
                   className="num mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-[14px] text-slate-900 outline-none focus:border-blue-500 dark:border-[#2a3336] dark:bg-[#11181a] dark:text-white"
                 />
               </label>

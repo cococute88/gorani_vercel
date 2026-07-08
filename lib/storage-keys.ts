@@ -28,6 +28,8 @@ export const STORAGE_KEYS = {
   uiPreferences: "gorani.ui-preferences.v1",
   trackerConfig: "gorani.tracker-config.v1",
   krxTickerNameMap: "gorani.krx-ticker-name-map.v1",
+  // 배당 목표 설정(목표 티커·목표 주수). 배당현황과 투자현황이 공유하는 단일 소스.
+  dividendGoal: "gorani.dividend.goal.v1",
 } as const;
 
 export type StorageKeyName = keyof typeof STORAGE_KEYS;

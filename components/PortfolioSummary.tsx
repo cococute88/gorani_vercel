@@ -76,8 +76,8 @@ export default function PortfolioSummary({ theme = "light" }: Props) {
 
   return (
     <div className="flex flex-col gap-3 xl:flex-row">
-      <div className={`flex-1 rounded-2xl border p-4 ${panelCls}`}>
-        <div className="grid min-w-0 grid-cols-1 gap-5 xl:grid-cols-3">
+      <div className={`flex-1 rounded-2xl border px-4 py-3.5 ${panelCls}`}>
+        <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-3">
           {/* 1) 총 금융자산 */}
           <div className="flex min-w-0 flex-col xl:pr-6">
             <div className="flex flex-wrap items-baseline gap-x-2">
@@ -88,10 +88,10 @@ export default function PortfolioSummary({ theme = "light" }: Props) {
                 {d.snapshotDate ? `${d.snapshotDate} 기준` : "스냅샷 없음"}
               </span>
             </div>
-            <MoneyText shrink className={`num mt-2 break-keep font-extrabold leading-tight ${titleCls}`}>
+            <MoneyText shrink className={`num mt-1.5 break-keep font-extrabold leading-none ${titleCls}`}>
               {formatMaybeWon(d.totalAssetKRW)}
             </MoneyText>
-            <div className="mt-2.5 space-y-1 text-[12.5px] leading-[1.45]">
+            <div className="mt-2 space-y-0.5 text-[12.5px] leading-[1.4]">
               <div className="flex items-center justify-between gap-3">
                 <span className={labelCls}>투자평가금액</span>
                 <span className={`num font-semibold ${titleCls}`}>{formatMaybeWon(d.investmentValueKRW)}</span>
@@ -103,7 +103,7 @@ export default function PortfolioSummary({ theme = "light" }: Props) {
                 </span>
               </div>
             </div>
-            <div className={`mt-4 space-y-1 text-[12.5px] leading-[1.45] xl:mt-auto xl:pt-4`}>
+            <div className={`mt-3 space-y-0.5 text-[12.5px] leading-[1.4] xl:mt-auto xl:pt-3`}>
               <div className="flex items-center justify-between gap-3">
                 <span className={labelCls}>현금성/기타 자산</span>
                 <span className={`num font-semibold ${isLight ? "text-slate-800" : "text-slate-300"}`}>
@@ -129,8 +129,8 @@ export default function PortfolioSummary({ theme = "light" }: Props) {
         ) : null}
       </div>
 
-      <div className={`w-full rounded-2xl border p-4 xl:w-[230px] ${panelCls}`}>
-        <div className="mb-3 flex items-center justify-between gap-2">
+      <div className={`w-full rounded-2xl border px-4 py-3.5 xl:w-[230px] ${panelCls}`}>
+        <div className="mb-2.5 flex items-center justify-between gap-2">
           <span className={`text-[12px] font-bold ${isLight ? "text-slate-700" : "text-slate-200"}`}>
             투자 / 현금 비중
           </span>

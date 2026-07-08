@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { formatPercent } from "@/lib/format";
 import { useDividendSummary } from "@/lib/use-dividend-summary";
+import { useDividendGoal } from "@/lib/dividend-goal-store";
 import { useTaxAccountPrincipalKRW } from "@/lib/tax-account-principal";
 import { computeConvertedAnnualDividendKRW, DIVIDEND_AFTER_TAX_FACTOR } from "@/lib/dividend-estimates";
 
@@ -32,8 +33,10 @@ function manKR(value: number): string {
 type Props = { isLight: boolean; className?: string };
 
 export default function PortfolioDividendSummaryCard({ isLight, className }: Props) {
+  // 배당 목표(티커·주수)는 배당현황 "배당 목표 설정"과 동일한 공유 소스에서 읽는다.
+  const goal = useDividendGoal();
   // 배당현황 기본 상태와 동일한 소스. 세전 값을 기준으로 받고 세후는 공유 상수/함수로 환산한다.
-  const summary = useDividendSummary({ afterTax: false });
+  const summary = useDividendSummary({ afterTax: false, targetTicker: goal.ticker, targetQty: goal.qty });
   const taxPrincipalKRW = useTaxAccountPrincipalKRW();
 
   const { evaluationKRW, annualDividendKRW, convertedAnnualDividendKRW, dividendDataAvailable, goalProgress, dividendGroups } = summary;
@@ -59,22 +62,22 @@ export default function PortfolioDividendSummaryCard({ isLight, className }: Pro
   const strongCls = isLight ? "text-slate-900" : "text-white";
   const borderCls = isLight ? "border-slate-200" : "border-[#2a3336]";
 
-  // 총 금융자산 카드와 동일한 타이포 스케일을 공유한다.
+  // 총 금융자산 카드와 동일한 타이포 스케일을 공유한다(컴팩트 간격).
   const headCls = `text-[12.5px] font-bold ${isLight ? "text-slate-700" : "text-slate-200"} transition-colors group-hover:text-blue-500 dark:group-hover:text-blue-400`;
   const evalLabelCls = `text-[11px] ${labelCls}`;
-  const evalNumberCls = `num mt-0.5 whitespace-nowrap text-[19px] font-extrabold leading-tight ${strongCls}`;
-  const listCls = `mt-2.5 space-y-1 text-[12.5px] leading-[1.45]`;
+  const evalNumberCls = `num mt-0.5 whitespace-nowrap text-[19px] font-extrabold leading-none ${strongCls}`;
+  const listCls = `mt-2 space-y-0.5 text-[12.5px] leading-[1.4]`;
 
   return (
     <Link
       href="/dividends"
       aria-label="배당현황으로 이동"
-      className={`group grid cursor-pointer grid-cols-1 gap-x-6 gap-y-5 border-t pt-5 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400 sm:grid-cols-2 xl:border-l xl:border-t-0 xl:pl-6 xl:pt-0 dark:hover:bg-white/[0.03] ${borderCls} ${className ?? ""}`}
+      className={`group grid cursor-pointer grid-cols-1 gap-x-6 gap-y-4 border-t pt-4 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400 sm:grid-cols-2 xl:border-l xl:border-t-0 xl:pl-6 xl:pt-0 dark:hover:bg-white/[0.03] ${borderCls} ${className ?? ""}`}
     >
       {/* 배당(위탁) */}
       <div className="min-w-0">
         <div className={headCls}>배당(위탁)</div>
-        <div className={`mt-2 ${evalLabelCls}`}>평가금액</div>
+        <div className={`mt-1.5 ${evalLabelCls}`}>평가금액</div>
         <div className={evalNumberCls}>{wonKR(evaluationKRW)}</div>
         <div className={listCls}>
           <div>
@@ -83,6 +86,9 @@ export default function PortfolioDividendSummaryCard({ isLight, className }: Pro
               {goalProgress.calculable && goalProgress.achievementPct !== undefined
                 ? formatPercent(goalProgress.achievementPct, 1)
                 : "계산 불가"}
+            </span>
+            <span className={`ml-1 ${labelCls}`}>
+              (목표 {goal.ticker} {goal.qty.toLocaleString("ko-KR")}주)
             </span>
           </div>
           <div className={`num ${valueCls}`}>
@@ -112,9 +118,9 @@ export default function PortfolioDividendSummaryCard({ isLight, className }: Pro
       </div>
 
       {/* 배당(절세) */}
-      <div className={`min-w-0 border-t pt-5 sm:border-l sm:border-t-0 sm:pl-6 sm:pt-0 ${borderCls}`}>
+      <div className={`min-w-0 border-t pt-4 sm:border-l sm:border-t-0 sm:pl-6 sm:pt-0 ${borderCls}`}>
         <div className={headCls}>배당(절세)</div>
-        <div className={`mt-2 ${evalLabelCls}`}>평가금액</div>
+        <div className={`mt-1.5 ${evalLabelCls}`}>평가금액</div>
         <div className={evalNumberCls}>{wonKR(taxEvalKRW)}</div>
         <div className={listCls}>
           <div>
