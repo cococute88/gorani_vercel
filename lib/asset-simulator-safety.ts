@@ -205,7 +205,7 @@ function resolveFailureReason(
   preservation: number,
   signals: AccountSignals,
 ): SafetyFailureReason {
-  if (!hasRetirementData) return "NO_RETIREMENT_DATA";
+  if (!hasRetirementData) return "DATA_INSUFFICIENT";
   if (signals.principalSold) return "BROKERAGE_SALE";
   if (endingRealAssets <= EPSILON || preservation <= 0.3) return "LOW_ASSET";
   if (signals.coreCashFlowStopped) return account === "brokerage" ? "DIVIDEND_STOPPED" : "INCOME_SHORTAGE";
@@ -305,8 +305,8 @@ function evaluateAccount(account: AccountKind, retirementIndex: number, signals:
     ratio,
     signals,
   );
-  const failed = reason !== "NONE";
-  const score = Math.round(calculateCompositeScore(
+  const failed = reason !== "NONE" && reason !== "DATA_INSUFFICIENT";
+  const score = yearsEvaluated === 0 ? 0 : Math.round(calculateCompositeScore(
     account,
     preservationScore,
     depletionScore,

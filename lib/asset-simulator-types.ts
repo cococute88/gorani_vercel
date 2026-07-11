@@ -182,7 +182,8 @@ export type SafetyFailureReason =
   | "LOW_ASSET"
   | "INCOME_SHORTAGE"
   | "BROKERAGE_SALE"
-  | "DIVIDEND_STOPPED";
+  | "DIVIDEND_STOPPED"
+  | "DATA_INSUFFICIENT";
 
 export type SafetyMetrics = {
   startingRealAssets: number;
