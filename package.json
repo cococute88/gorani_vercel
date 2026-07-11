@@ -65,6 +65,8 @@
     "check:asset-simulator-delay-sync": "node scripts/check-asset-simulator-delay-sync.mjs",
     "check:asset-simulator-principal-withdraw": "node scripts/check-asset-simulator-principal-withdraw.mjs",
     "check:asset-simulator-principal-withdraw-numeric": "npx --yes tsx scripts/check-asset-simulator-principal-withdraw-numeric.mts",
+    "check:asset-simulator-golden": "npx --yes tsx scripts/check-asset-simulator-golden.mts",
+    "check:asset-simulator-period-presets": "npx --yes tsx scripts/check-asset-simulator-period-presets.mts",
     "check:nav-favorites-calculator-menu": "node scripts/check-nav-favorites-calculator-menu.mjs",
     "check:dividend-schd-goal-withdrawal-mode": "node scripts/check-dividend-schd-goal-withdrawal-mode.mjs",
     "check:dividends-performance-streamlit-port": "node scripts/check-dividends-performance-streamlit-port.mjs",

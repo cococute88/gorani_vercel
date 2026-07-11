@@ -3,12 +3,12 @@ import {
   simulate_deposits,
   apply_returns,
   get_real_balances,
-  find_retire_index,
   assign_statuses,
   buildExitYearPlans,
   normalizeInputs,
   simulate_tax_account_withdraw,
 } from "../lib/asset-simulator.ts";
+import { resolveSimulationTimeline } from "../lib/asset-simulator-timeline.ts";
 import type { SimulatorInputs } from "../lib/asset-simulator-types.ts";
 
 function runWithdraw(partial: Partial<SimulatorInputs>) {
@@ -17,8 +17,8 @@ function runWithdraw(partial: Partial<SimulatorInputs>) {
   const dep = simulate_deposits(inputs, plans);
   const nom = apply_returns(inputs, dep);
   const real = get_real_balances(inputs, nom);
-  const retireIdx = find_retire_index(plans);
-  const plan = simulate_tax_account_withdraw(inputs, real, retireIdx)!;
+  const timeline = resolveSimulationTimeline(inputs, plans);
+  const plan = simulate_tax_account_withdraw(inputs, real, timeline)!;
   return { inputs, plan, results: real };
 }
 
