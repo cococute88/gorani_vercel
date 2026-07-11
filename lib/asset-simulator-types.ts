@@ -176,12 +176,12 @@ export type SimulatorProjection = {
 
 export type SafetyGrade = "S" | "A" | "B" | "C" | "D" | "F";
 
+export type SafetyStatus = "evaluated" | "not_applicable" | "data_insufficient";
+
 export type SafetyFailureReason =
   | "NONE"
-  | "NO_RETIREMENT_DATA"
   | "LOW_ASSET"
   | "INCOME_SHORTAGE"
-  | "BROKERAGE_SALE"
   | "DIVIDEND_STOPPED"
   | "DATA_INSUFFICIENT";
 
@@ -197,7 +197,6 @@ export type SafetyMetrics = {
   sustainedThroughRetirement: boolean;
   principalSold: boolean | null;
   dividendsContinued: boolean | null;
-  incomeShortfallYears: number;
   shortfallYears: number;
   consecutiveShortfallYears: number;
   preservationScore: number;
@@ -208,7 +207,8 @@ export type SafetyMetrics = {
 };
 
 export type SafetyResult = {
-  grade: SafetyGrade;
+  status: SafetyStatus;
+  grade: SafetyGrade | null;
   score: number;
   positives: string[];
   warnings: string[];

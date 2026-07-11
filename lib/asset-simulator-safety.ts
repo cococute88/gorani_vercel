@@ -4,6 +4,7 @@ import type {
   SafetyGrade,
   SafetyMetrics,
   SafetyResult,
+  SafetyStatus,
   SimulatorProjection,
 } from "./asset-simulator-types";
 
@@ -86,16 +87,29 @@ function maxConsecutive(values: boolean[]): number {
 
 function livingExpenseSignals(
   source: SimulatorProjection,
-  retirementIndex: number,
   account: "taxSaving" | "combined",
 ): Pick<
   AccountSignals,
   "livingExpensesCovered" | "shortfallYears" | "consecutiveShortfallYears" | "incomeCoverageScore" | "coreCashFlowStopped"
 > {
-  // 별도 목표 생활비 입력이 아직 없으므로 preview의 실질 인출액을 현재 판단 가능한 생활비 수요로 사용한다.
-  // 월 부족액이 해당 연도 필요액의 1% 미만이면 계산 오차 수준으로 보고 부족 연도에서 제외한다.
+  // 별도 목표 생활비 입력이 아직 없으므로 preview의 realWithdraw를 임시 수요 proxy로 사용한다.
+  // 이 값은 공급과 다른 legacy 모델에서 나오므로 부족 횟수/비율은 score와 warnings 참고용으로만 사용한다.
+  // 단, 평가 가능한 전체 기간의 공급 자체가 0인 경우는 별도의 핵심 현금흐름 중단 신호로 유지한다.
+  // 또한 실제 인출 시작 전 대기 구간은 비교 모델 차이로 생기는 가짜 부족이므로 평가에서 제외한다.
+  const withdrawalStartIndex = source.timeline.withdrawalStartIndex;
+  if (withdrawalStartIndex === null) {
+    return {
+      livingExpensesCovered: null,
+      shortfallYears: 0,
+      consecutiveShortfallYears: 0,
+      incomeCoverageScore: NEUTRAL_SCORE,
+      coreCashFlowStopped: false,
+    };
+  }
+
+  // 월 부족액이 해당 연도 임시 수요의 1% 미만이면 계산 오차 수준으로 보고 부족 연도에서 제외한다.
   const rows = source.totalWithdrawRows
-    .slice(retirementIndex + 1)
+    .slice(withdrawalStartIndex)
     .filter((row) => row.isWithdraw && nonNegative(row.realWithdraw) > EPSILON)
     .map((row) => {
       const requiredMonthlyReal = nonNegative(row.realWithdraw) / 12;
@@ -194,21 +208,17 @@ function shortfallDurationScore(shortfallYears: number, consecutiveShortfallYear
   return 45;
 }
 
-function isLongTermShortfall(account: AccountKind, shortfallYears: number, consecutiveShortfallYears: number): boolean {
-  return account === "combined" && (shortfallYears >= 3 || consecutiveShortfallYears >= 2);
-}
-
 function resolveFailureReason(
   account: AccountKind,
-  hasRetirementData: boolean,
+  status: SafetyStatus,
   endingRealAssets: number,
   preservation: number,
   signals: AccountSignals,
 ): SafetyFailureReason {
-  if (!hasRetirementData) return "DATA_INSUFFICIENT";
+  if (status !== "evaluated") return "DATA_INSUFFICIENT";
   if (endingRealAssets <= EPSILON || preservation <= 0.3) return "LOW_ASSET";
   if (signals.coreCashFlowStopped) return account === "brokerage" ? "DIVIDEND_STOPPED" : "INCOME_SHORTAGE";
-  if (isLongTermShortfall(account, signals.shortfallYears, signals.consecutiveShortfallYears)) return "INCOME_SHORTAGE";
+  // proxy 부족 기간은 목표 월생활비 입력이 도입되기 전까지 hard failure로 승격하지 않는다.
   return "NONE";
 }
 
@@ -255,12 +265,21 @@ function preservationMessages(preservation: number, positives: string[], warning
   else warnings.push("장기 계획의 실질 자산 보존 수준을 다시 점검할 필요가 있습니다.");
 }
 
-function accountMessages(account: AccountKind, metrics: SafetyMetrics, cashFlowWeakening: boolean): Pick<SafetyResult, "positives" | "warnings"> {
+function accountMessages(
+  account: AccountKind,
+  status: SafetyStatus,
+  metrics: SafetyMetrics,
+  cashFlowWeakening: boolean,
+): Pick<SafetyResult, "positives" | "warnings"> {
   const positives: string[] = [];
   const warnings: string[] = [];
 
-  if (metrics.yearsEvaluated === 0) {
-    warnings.push("평가할 은퇴 후 기간이 없어 현재 결과만으로 안전성을 판단하기 어렵습니다.");
+  if (status === "not_applicable") {
+    warnings.push("평가할 수 있는 위탁계좌 데이터가 아직 없습니다.");
+    return { positives, warnings };
+  }
+  if (status === "data_insufficient") {
+    warnings.push("평가할 수 있는 데이터가 충분하지 않습니다.");
     return { positives, warnings };
   }
 
@@ -269,10 +288,11 @@ function accountMessages(account: AccountKind, metrics: SafetyMetrics, cashFlowW
   else warnings.push("평가 기간 중 실질 자산 잔고가 소진되는 구간이 있습니다.");
 
   if (account !== "brokerage") {
-    if (metrics.livingExpensesCovered === true) positives.push("평가 기간의 생활비를 안정적으로 충당합니다.");
-    else if (metrics.shortfallYears === 1) warnings.push("생활비 충당력이 일부 연도에서 약해집니다.");
-    else if (metrics.shortfallYears > 1) warnings.push("여러 연도에서 생활비 충당력을 점검할 필요가 있습니다.");
-    else warnings.push("현재 결과만으로 생활비 충당 여부를 판단할 수 없습니다.");
+    if (metrics.livingExpensesCovered === true) positives.push("현재 임시 기준에서 현금흐름이 안정적으로 이어집니다.");
+    else if (metrics.shortfallYears === 1) warnings.push("일부 연도에서 현금흐름이 약해질 수 있습니다.");
+    else if (metrics.shortfallYears > 1) warnings.push("현재 임시 기준에서 여러 연도의 현금흐름을 점검할 필요가 있습니다.");
+    else warnings.push("목표 생활비 입력 전에는 현금흐름 충당 여부를 판단하기 어렵습니다.");
+    if (metrics.shortfallYears > 0) warnings.push("현재 생활비 부족 평가는 임시 기준이며, 목표 생활비 입력 후 더 정확해집니다.");
   } else {
     if (metrics.principalSold === false) positives.push("위탁계좌 원금을 매도하지 않고 유지합니다.");
     else warnings.push("위탁계좌 원금 사용 여부를 점검할 필요가 있습니다.");
@@ -292,24 +312,31 @@ function evaluateAccount(account: AccountKind, retirementIndex: number, signals:
   const endingRealAssets = signals.assets.at(-1) ?? 0;
   const ratio = preservationRatio(startingRealAssets, endingRealAssets);
   const yearsEvaluated = Math.max(0, signals.assets.length - 1);
-  const depleted = yearsEvaluated > 0 && signals.assets.slice(1).some((value) => value <= EPSILON);
-  const sustainedThroughRetirement = yearsEvaluated > 0 && !depleted;
+  const hasRetirementData = retirementIndex >= 0 && yearsEvaluated > 0;
+  const status: SafetyStatus = !hasRetirementData
+    ? "data_insufficient"
+    : account === "brokerage" && startingRealAssets <= EPSILON
+      ? "not_applicable"
+      : "evaluated";
+  const depleted = status === "evaluated" && signals.assets.slice(1).some((value) => value <= EPSILON);
+  const sustainedThroughRetirement = status === "evaluated" && !depleted;
   const preservationScore = scorePreservationRatio(ratio);
-  const depletionScore = depleted ? 0 : yearsEvaluated > 0 ? 100 : NEUTRAL_SCORE;
-  const stability = latePeriodStability(signals.assets);
+  const depletionScore = status === "evaluated" ? (depleted ? 0 : 100) : NEUTRAL_SCORE;
+  const stability = status === "evaluated" ? latePeriodStability(signals.assets) : { score: NEUTRAL_SCORE, latePeriodDecline: false };
+  const incomeCoverageScore = status === "evaluated" ? signals.incomeCoverageScore : NEUTRAL_SCORE;
   const reason = resolveFailureReason(
     account,
-    retirementIndex >= 0 && signals.assets.length > 0,
+    status,
     endingRealAssets,
     ratio,
     signals,
   );
-  const failed = reason !== "NONE" && reason !== "DATA_INSUFFICIENT";
-  const score = yearsEvaluated === 0 ? 0 : Math.round(calculateCompositeScore(
+  const failed = status === "evaluated" && reason !== "NONE";
+  const score = status !== "evaluated" ? 0 : Math.round(calculateCompositeScore(
     account,
     preservationScore,
     depletionScore,
-    signals.incomeCoverageScore,
+    incomeCoverageScore,
     stability.score,
     signals.principalSold,
     signals.shortfallYears,
@@ -326,21 +353,21 @@ function evaluateAccount(account: AccountKind, retirementIndex: number, signals:
     livingExpensesCovered: signals.livingExpensesCovered,
     sustainedThroughRetirement,
     principalSold: signals.principalSold,
-    dividendsContinued: signals.dividendsContinued,
-    incomeShortfallYears: signals.shortfallYears,
+    dividendsContinued: status === "not_applicable" ? null : signals.dividendsContinued,
     shortfallYears: signals.shortfallYears,
     consecutiveShortfallYears: signals.consecutiveShortfallYears,
     preservationScore,
-    incomeCoverageScore: signals.incomeCoverageScore,
+    incomeCoverageScore,
     depletionScore,
     stabilityScore: stability.score,
     latePeriodDecline: stability.latePeriodDecline,
   };
 
   return {
-    grade: safetyGradeFromScore(score, failed),
+    status,
+    grade: status === "evaluated" ? safetyGradeFromScore(score, failed) : null,
     score,
-    ...accountMessages(account, metrics, signals.cashFlowWeakening),
+    ...accountMessages(account, status, metrics, signals.cashFlowWeakening),
     metrics,
   };
 }
@@ -348,8 +375,8 @@ function evaluateAccount(account: AccountKind, retirementIndex: number, signals:
 export function calculateRetirementSafety(source: SimulatorProjection): RetirementSafetyResult {
   const retirementIndex = source.timeline.retirementIndex ?? -1;
   const retirementRows = retirementIndex >= 0 ? source.chartRows.slice(retirementIndex) : [];
-  const taxLivingExpenses = livingExpenseSignals(source, retirementIndex, "taxSaving");
-  const combinedLivingExpenses = livingExpenseSignals(source, retirementIndex, "combined");
+  const taxLivingExpenses = livingExpenseSignals(source, "taxSaving");
+  const combinedLivingExpenses = livingExpenseSignals(source, "combined");
   const brokerageDividends = brokerageDividendSignals(source, retirementIndex);
 
   return {
