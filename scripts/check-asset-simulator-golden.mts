@@ -114,6 +114,14 @@ scenarios.push({
   expected: { rowCount: 30, retirementYear: 2031, actualWithdrawalStartYear: 2036, lastIsaBalance: 29675.35868673801, lastPensionBalance: 59401.078195511924, finalReserveBalance: 0, finalNominalBalance: 166914.5240201617, finalRealBalance: 68766.57386720633, finalTaxableNominalBalance: 0, finalTaxableRealBalance: 0, finalCombinedNominalBalance: 89076.43688224994, finalCombinedRealBalance: 37799.26195775156, lastAfterTaxTaxAccountWithdrawal: 3098.1694514416845, lastAfterTaxTaxableDividend: 0 },
 });
 
+const brokerageInputs = normalizeInputs({ ...baseInputs, initialTaxableDividend: 5000 });
+scenarios.push({
+  name: "brokerage dividends remain separate from valuation balance",
+  inputs: brokerageInputs,
+  plans: buildDefaultYearPlans(brokerageInputs.startYear, brokerageInputs.years),
+  expected: { rowCount: 30, retirementYear: 2031, actualWithdrawalStartYear: 2032, lastIsaBalance: 28018.008552419327, lastPensionBalance: 55937.71361982623, finalReserveBalance: 0, finalNominalBalance: 166914.5240201617, finalRealBalance: 68766.57386720633, finalTaxableNominalBalance: 28717.4558645663, finalTaxableRealBalance: 12186.1479306792, finalCombinedNominalBalance: 112673.178036812, finalCombinedRealBalance: 47812.4532288573, lastAfterTaxTaxAccountWithdrawal: 2919.9858362047194, lastAfterTaxTaxableDividend: 805.985199972497 },
+});
+
 for (const scenario of scenarios) {
   const projection = calculateAssetSimulatorPreview(scenario.inputs, scenario.plans, scenario.exitMode ?? false);
   assertGolden(scenario.name, metrics(projection), scenario.expected);
@@ -140,7 +148,8 @@ assert.deepEqual(
   "no-retirement timeline is handled safely",
 );
 
-// LEGACY CHARACTERIZATION / KNOWN BEHAVIOR: 아래 세 검사는 문제를 고치지 않고 현재 특성을 기록한다.
+// CHARACTERIZATION / KNOWN BEHAVIOR: 위탁 배당 분리 동작과 이번 PR에서 건드리지 않는
+// 기존 실질가치/필드 의미 차이를 함께 기록한다.
 const characterizationInputs = normalizeInputs({ ...DEFAULT_SIMULATOR_INPUTS, initialTaxableDividend: 5000 });
 const characterization = calculateAssetSimulatorPreview(
   characterizationInputs,
@@ -149,13 +158,17 @@ const characterization = calculateAssetSimulatorPreview(
 
 {
   const withdrawalIndex = characterization.results.findIndex((row) => row.status === "인출");
-  assert.ok(withdrawalIndex > 0, "legacy brokerage characterization requires a withdrawal row");
+  assert.ok(withdrawalIndex > 0, "brokerage dividend characterization requires a withdrawal row");
   const previousBalance = characterization.dividendRows[withdrawalIndex - 1].taxableDividendBalanceNominal;
   const current = characterization.dividendRows[withdrawalIndex];
+  const afterGrowth = previousBalance * (1 + characterizationInputs.annualReturnRate / 100);
   const grossDividend = previousBalance * (characterizationInputs.withdrawalRate / 100);
-  const expectedBalance = previousBalance * (1 + characterizationInputs.annualReturnRate / 100) - grossDividend;
-  assert.ok(Math.abs(current.taxableDividendBalanceNominal - expectedBalance) <= ABSOLUTE_TOLERANCE, "legacy known behavior: gross taxable dividend is deducted from brokerage valuation balance");
-  assert.ok(Math.abs(current.afterTaxAnnualDividendNominal - grossDividend * 0.85) <= ABSOLUTE_TOLERANCE, "legacy known behavior: brokerage dividend uses withdrawalRate and 0.85 after-tax factor");
+  const deductedBalance = afterGrowth - grossDividend;
+  assert.ok(grossDividend > 0, "brokerage characterization requires a positive gross dividend");
+  assert.ok(Math.abs(current.taxableDividendBalanceNominal - afterGrowth) <= ABSOLUTE_TOLERANCE, "brokerage valuation balance closes at beginning balance plus price growth");
+  assert.ok(Math.abs(current.taxableDividendBalanceNominal - deductedBalance) > ABSOLUTE_TOLERANCE, "brokerage dividend is not deducted from valuation balance");
+  assert.ok(Math.abs(current.afterTaxAnnualDividendNominal - grossDividend * 0.85) <= ABSOLUTE_TOLERANCE, "brokerage dividend remains a separate after-tax cashflow using the legacy withdrawalRate and 0.85 factor");
+  assert.ok(current.afterTaxAnnualDividendNominal > 0, "brokerage after-tax dividend cashflow remains present");
 }
 
 {

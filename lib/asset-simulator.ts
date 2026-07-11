@@ -623,19 +623,20 @@ export function simulate_dividend_brokerage(cfg: SimConfig, results: YearResult[
   let balance = cfg.initialTaxableDividend;
   const returnRate = pct(cfg.annualReturnRate);
   const inflationRate = pct(cfg.inflationRate);
-  const withdrawalRate = pct(cfg.withdrawalRate);
+  // 별도 배당률 입력값이 도입되기 전까지 withdrawalRate를 위탁계좌 배당률로
+  // 재사용하는 legacy 호환 동작이다. 향후 포트폴리오/자산별 배당률과 분리한다.
+  const legacyDividendRate = pct(cfg.withdrawalRate);
 
   return results.map((result) => {
     const isWithdraw = String(result.status).includes("인출");
-    const growth = balance * returnRate;
-    const afterGrowth = balance + growth;
-    let grossDividend = 0;
-    if (isWithdraw) {
-      grossDividend = balance * withdrawalRate;
-      balance = Math.max(0, afterGrowth - grossDividend);
-    } else {
-      balance = afterGrowth;
-    }
+    const dividendBase = balance;
+    const growth = dividendBase * returnRate;
+    const afterGrowth = dividendBase + growth;
+    const grossDividend = isWithdraw ? dividendBase * legacyDividendRate : 0;
+
+    // 배당금은 재투자하지 않는 별도 현금흐름이며, 지급액만큼 평가잔고를
+    // 차감하지 않는다. 위탁계좌 평가잔고는 가격 성장만 반영해 마감한다.
+    balance = Math.max(0, afterGrowth);
 
     const netDividend = grossDividend * DIVIDEND_TAX_KEEP_RATE;
     const discount = Math.pow(1 + inflationRate, result.year - cfg.startYear);
