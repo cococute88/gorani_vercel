@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 
 const read = (path) => readFileSync(path, "utf8");
 const calc = read("lib/asset-simulator.ts");
+const timeline = read("lib/asset-simulator-timeline.ts");
 const page = read("components/asset-simulator/AssetSimulatorPage.tsx");
 const table = read("components/asset-simulator/YearPlanTable.tsx");
 
@@ -19,20 +20,20 @@ assert.match(
 );
 assert.match(
   calc,
-  /exitMode\s*\n?\s*\?\s*assign_statuses\(buildExitYearPlans\(inputs\)\)/,
-  "exitMode 일 때 buildExitYearPlans 결과를 사용해야 합니다.",
+  /exitMode\s*\n?\s*\?\s*buildExitYearPlans\(inputs\)/,
+  "exitMode 일 때 타임라인 해석 전 buildExitYearPlans 결과를 사용해야 합니다.",
 );
 
 // 2) 인출 시작 연도 규칙: retireIdx === 0, 인출 시작 = startYear + withdrawalDelayYears.
-//    (buildExitYearPlans 가 첫 해를 "은퇴" 로 만들고, actualStartIdx = retireIdx + delay)
+//    (buildExitYearPlans 가 첫 해를 "은퇴" 로 만들고, 공통 타임라인이 delay를 적용)
 assert.match(
-  calc,
-  /const actualStartIdx = retireIdx \+ delay;/,
-  "actualStartIdx 는 retireIdx + delay 로 계산되어야 합니다.",
+  timeline,
+  /candidateWithdrawalStartIndex = retirementIndex === null \? null : retirementIndex \+ delay;/,
+  "공통 타임라인의 인출 시작 인덱스는 retirementIndex + delay 여야 합니다.",
 );
 assert.match(
-  calc,
-  /const delay = Math\.max\(1, Math\.min\(15, cfg\.withdrawalDelayYears\)\);/,
+  timeline,
+  /const delay = Math\.max\(1, Math\.min\(15, inputs\.withdrawalDelayYears\)\);/,
   "delay 는 withdrawalDelayYears(1~15) 를 그대로 사용해야 합니다.",
 );
 

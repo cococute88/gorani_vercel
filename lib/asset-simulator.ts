@@ -2,6 +2,7 @@ import type {
   DividendBrokerageRow,
   RealBalanceRow,
   SimConfig,
+  SimulationTimeline,
   SimulatorInputs,
   SimulatorProjection,
   SimulatorSummary,
@@ -13,6 +14,7 @@ import type {
   YearResult,
 } from "./asset-simulator-types";
 import { buildDefaultYearPlans, DEFAULT_SIMULATOR_INPUTS } from "./mock-asset-simulator-data";
+import { resolveSimulationTimeline } from "./asset-simulator-timeline";
 
 const ISA_ANNUAL_LIMIT = 2000;
 const PENSION_ANNUAL_LIMIT = 1800;
@@ -75,10 +77,15 @@ export function normalizeInputs(inputs: Partial<SimulatorInputs> = {}): Simulato
 
 export function normalizeYearPlans(inputs: SimulatorInputs, yearPlans: YearPlanRow[] = []): YearPlanRow[] {
   const fallbackPlans = buildDefaultYearPlans(inputs.startYear, inputs.years);
+  // 기존 find()의 "같은 연도 중 첫 행 우선" 동작을 유지하면서 O(Y²) 탐색만 제거한다.
+  const plansByYear = new Map<number, YearPlanRow>();
+  for (const plan of yearPlans) {
+    if (!plansByYear.has(plan.year)) plansByYear.set(plan.year, plan);
+  }
   return Array.from({ length: inputs.years }, (_, index) => {
     const year = inputs.startYear + index;
     const fallback = fallbackPlans[index];
-    const existing = yearPlans.find((plan) => plan.year === year);
+    const existing = plansByYear.get(year);
     const legacy = existing as (YearPlanRow & {
       monthly?: number;
       monthlyAmount?: number;
@@ -380,14 +387,17 @@ function _calc_principal_first_withdraw(principal: number, years: number, effRat
   return _calc_first_by_limit(Math.max(0, principal), years, effRate);
 }
 
-export function simulate_tax_account_withdraw(cfg: SimConfig, results: YearResult[], retireIdx: number): WithdrawPlan | null {
-  if (retireIdx < 0) return null;
-  const delay = Math.max(1, Math.min(15, cfg.withdrawalDelayYears));
-  const actualStartIdx = retireIdx + delay;
-  if (actualStartIdx >= results.length) return null;
+export function simulate_tax_account_withdraw(
+  cfg: SimConfig,
+  results: YearResult[],
+  timeline: SimulationTimeline,
+): WithdrawPlan | null {
+  const retireIdx = timeline.retirementIndex;
+  const actualStartIdx = timeline.withdrawalStartIndex;
+  if (retireIdx === null || actualStartIdx === null) return null;
 
-  const retireYear = results[retireIdx].year;
-  const actualStartYear = results[actualStartIdx].year;
+  const retireYear = timeline.retirementYear ?? results[retireIdx].year;
+  const actualStartYear = timeline.withdrawalStartYear ?? results[actualStartIdx].year;
   const returnRate = pct(cfg.annualReturnRate);
   const inflationRate = pct(cfg.inflationRate);
   const withdrawalRate = pct(cfg.withdrawalRate);
@@ -564,9 +574,9 @@ export function simulate_tax_account_withdraw(cfg: SimConfig, results: YearResul
   return plan;
 }
 
-export function simulate_total_withdraw(cfg: SimConfig, results: YearResult[], retireIdx: number): TotalWithdrawRow[] {
+export function simulate_total_withdraw(cfg: SimConfig, results: YearResult[], timeline: SimulationTimeline): TotalWithdrawRow[] {
   const rows: TotalWithdrawRow[] = [];
-  const safeRetireIdx = retireIdx < 0 ? results.length : retireIdx;
+  const safeRetireIdx = timeline.retirementIndex ?? results.length;
   let firstWithdraw = 0;
   let cumulativeInflation = 1;
 
@@ -660,18 +670,20 @@ export function calculateAssetSimulatorPreview(
   // EXIT 모드: 연도별 투자 계획표 입력값을 전부 무시하고 현재 보유 자산만 시작 자산으로 사용한다.
   // buildExitYearPlans 는 모든 적립액을 0 으로 두므로 assign_statuses 가 첫 해(=시작년도)를
   // "은퇴" 로 표시한다. 즉 retireIdx === 0, 은퇴년도 === inputs.startYear 가 보장되고,
-  // 인출 시작 연도 === inputs.startYear + withdrawalDelayYears (simulate_tax_account_withdraw 의
-  // actualStartIdx = retireIdx + delay) 규칙이 계획표와 무관하게 정확히 성립한다.
-  const yearPlans = exitMode
-    ? assign_statuses(buildExitYearPlans(inputs))
-    : assign_statuses(normalizeYearPlans(inputs, rawYearPlans));
+  // 인출 시작 연도 === inputs.startYear + withdrawalDelayYears 규칙은
+  // resolveSimulationTimeline에서 계획표와 무관하게 동일하게 해석된다.
+  const normalizedYearPlans = exitMode
+    ? buildExitYearPlans(inputs)
+    : normalizeYearPlans(inputs, rawYearPlans);
+  const timeline = resolveSimulationTimeline(inputs, normalizedYearPlans);
+  const yearPlans = assign_statuses(normalizedYearPlans);
   const depositResults = simulate_deposits(inputs, yearPlans);
   const nominalResults = apply_returns(inputs, depositResults);
   const results = get_real_balances(inputs, nominalResults);
   const realData = real_balance_rows(results);
-  const retireIdx = find_retire_index(yearPlans);
-  const totalWithdrawSourceRows = simulate_total_withdraw(inputs, results, retireIdx);
-  const withdrawPlan = simulate_tax_account_withdraw(inputs, results, retireIdx);
+  const retireIdx = timeline.retirementIndex ?? -1;
+  const totalWithdrawSourceRows = simulate_total_withdraw(inputs, results, timeline);
+  const withdrawPlan = simulate_tax_account_withdraw(inputs, results, timeline);
   const taxWithdrawRows = withdrawPlan?.rows ?? [];
   const dividendRows = simulate_dividend_brokerage(inputs, results, taxWithdrawRows);
   const taxByYear = new Map(taxWithdrawRows.map((row) => [row.year, row]));
@@ -721,13 +733,14 @@ export function calculateAssetSimulatorPreview(
     finalRealWithoutWithdrawal: finalResult?.totalReal ?? 0,
     combinedNominalBalance: finalChart?.combinedNominalBalance ?? 0,
     combinedRealBalance: finalChart?.combinedRealBalance ?? 0,
-    retirementYear: retireIdx >= 0 ? yearPlans[retireIdx].year : null,
-    actualWithdrawalStartYear: withdrawPlan?.actualStartYear ?? null,
+    retirementYear: timeline.retirementYear,
+    actualWithdrawalStartYear: timeline.withdrawalStartYear,
     pensionLimit: inputs.initialPension + (pensionLimitSource?.totalPensionDeposit ?? 0),
   };
 
   return {
     inputs,
+    timeline,
     yearPlans,
     results,
     realData,

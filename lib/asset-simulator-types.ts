@@ -14,6 +14,18 @@ export type SimConfig = {
 
 export type SimulatorInputs = SimConfig;
 
+export type SimulationTimeline = {
+  startYear: number;
+  simulationYears: number;
+  endYear: number;
+  retirementIndex: number | null;
+  retirementYear: number | null;
+  withdrawalStartIndex: number | null;
+  withdrawalStartYear: number | null;
+  yearsBeforeRetirement: number;
+  yearsAfterRetirement: number;
+};
+
 export type YearPlan = {
   year: number;
   monthlyContribution: number;
@@ -150,6 +162,7 @@ export type SimulatorSummary = {
 
 export type SimulatorProjection = {
   inputs: SimulatorInputs;
+  timeline: SimulationTimeline;
   yearPlans: YearPlanRow[];
   results: YearResult[];
   realData: RealBalanceRow[];
