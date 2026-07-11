@@ -2,7 +2,7 @@ import { normalizeInputs, normalizeYearPlans } from "./asset-simulator";
 import { normalizePortfolioAssumptions, normalizePortfolioConfig } from "./asset-simulator-portfolio";
 import type {
   AssetSimulatorPortfolioConfigV1,
-  PortfolioAssumptionsSnapshot,
+  PersistedPortfolioAssumptions,
   SimulatorInputs,
   StoredSimulatorPreview,
   YearPlanRow,
@@ -19,14 +19,14 @@ export type ResolvedSimulatorConfig = {
   inputs: SimulatorInputs;
   yearPlans: YearPlanRow[];
   portfolioConfig?: AssetSimulatorPortfolioConfigV1;
-  portfolioAssumptions?: PortfolioAssumptionsSnapshot;
+  portfolioAssumptions?: PersistedPortfolioAssumptions;
   updatedAtMs: number;
   source: SimulatorHydrationSource;
 };
 
 export type SimulatorPortfolioPersistence = {
   portfolioConfig?: AssetSimulatorPortfolioConfigV1;
-  portfolioAssumptions?: PortfolioAssumptionsSnapshot;
+  portfolioAssumptions?: PersistedPortfolioAssumptions;
 };
 
 function timestampToMs(value: unknown): number {
