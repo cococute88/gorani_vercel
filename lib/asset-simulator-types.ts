@@ -294,10 +294,47 @@ export type PortfolioAssumptionsSnapshot = {
   holdings: PortfolioHoldingResolution[];
 };
 
+export type PortfolioMetricKey =
+  | "totalReturnCagr"
+  | "priceCagr"
+  | "dividendYield"
+  | "dividendGrowth";
+
+export type AppliedPortfolioHoldingAssumption = {
+  holdingId: string;
+  ticker: string;
+  weightPct: number;
+  metricMode: PortfolioMetricMode;
+  totalReturnCagrPct: number | null;
+  priceCagrPct: number | null;
+  dividendYieldPct: number | null;
+  dividendGrowthPct: number | null;
+  sources: Record<PortfolioMetricKey, PortfolioMetricSource>;
+  statuses: Record<PortfolioMetricKey, PortfolioMetricStatus>;
+  warnings: string[];
+};
+
+export type AppliedAccountPortfolioAssumptions = {
+  accountType: PortfolioAccountType;
+  holdings: AppliedPortfolioHoldingAssumption[];
+};
+
+export type AppliedPortfolioAssumptionsV1 = {
+  version: 1;
+  appliedAt: string;
+  taxSaving: AppliedAccountPortfolioAssumptions;
+  brokerage: AppliedAccountPortfolioAssumptions;
+};
+
+export type PersistedPortfolioAssumptions =
+  | PortfolioAssumptionsSnapshot
+  | AppliedPortfolioAssumptionsV1;
+
 export type PortfolioValidationIssue = {
   accountType: PortfolioAccountType;
   holdingId?: string;
   field?: "ticker" | "weightPct" | "metrics";
+  metric?: PortfolioMetricKey;
   code:
     | "ticker_required"
     | "duplicate_ticker"
@@ -305,7 +342,12 @@ export type PortfolioValidationIssue = {
     | "weight_total_not_100"
     | "manual_metric_required"
     | "account_type_mismatch"
-    | "unknown_version";
+    | "unknown_version"
+    | "resolution_missing"
+    | "metric_unresolved"
+    | "assumption_incomplete"
+    | "stale_assumption"
+    | "config_changed_since_apply";
   message: string;
 };
 
@@ -313,6 +355,6 @@ export type StoredSimulatorPreview = {
   inputs: Partial<SimulatorInputs>;
   yearPlans: YearPlanRow[];
   portfolioConfig?: AssetSimulatorPortfolioConfigV1;
-  portfolioAssumptions?: PortfolioAssumptionsSnapshot;
+  portfolioAssumptions?: PersistedPortfolioAssumptions;
   updatedAt?: unknown;
 };

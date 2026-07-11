@@ -1,6 +1,10 @@
 import type {
   AccountPortfolioConfig,
+  AppliedAccountPortfolioAssumptions,
+  AppliedPortfolioAssumptionsV1,
+  AppliedPortfolioHoldingAssumption,
   AssetSimulatorPortfolioConfigV1,
+  PersistedPortfolioAssumptions,
   PortfolioAccountType,
   PortfolioAssumptionsSnapshot,
   PortfolioHoldingInput,
@@ -181,10 +185,88 @@ function normalizeHoldingResolution(value: unknown): PortfolioHoldingResolution 
   };
 }
 
-export function normalizePortfolioAssumptions(raw: unknown): PortfolioAssumptionsSnapshot | null {
-  if (!isRecord(raw) || typeof raw.resolvedAt !== "string" || !Array.isArray(raw.holdings)) return null;
+function normalizeMetricSource(value: unknown): PortfolioMetricSource {
+  return typeof value === "string" && METRIC_SOURCES.includes(value as PortfolioMetricSource)
+    ? value as PortfolioMetricSource
+    : "legacy";
+}
+
+function normalizeMetricStatus(value: unknown): PortfolioMetricStatus {
+  return typeof value === "string" && METRIC_STATUSES.includes(value as PortfolioMetricStatus)
+    ? value as PortfolioMetricStatus
+    : "failed";
+}
+
+function normalizeAppliedHolding(value: unknown, index: number): AppliedPortfolioHoldingAssumption {
+  const holding = isRecord(value) ? value : {};
+  const sources = isRecord(holding.sources) ? holding.sources : {};
+  const statuses = isRecord(holding.statuses) ? holding.statuses : {};
   return {
+    holdingId: typeof holding.holdingId === "string" ? holding.holdingId : `holding-${index + 1}`,
+    ticker: normalizePortfolioTicker(holding.ticker),
+    weightPct: finiteNumber(holding.weightPct) ?? 0,
+    metricMode: holding.metricMode === "manual" ? "manual" : "auto",
+    totalReturnCagrPct: nullableFiniteNumber(holding.totalReturnCagrPct),
+    priceCagrPct: nullableFiniteNumber(holding.priceCagrPct),
+    dividendYieldPct: nullableFiniteNumber(holding.dividendYieldPct),
+    dividendGrowthPct: nullableFiniteNumber(holding.dividendGrowthPct),
+    sources: {
+      totalReturnCagr: normalizeMetricSource(sources.totalReturnCagr),
+      priceCagr: normalizeMetricSource(sources.priceCagr),
+      dividendYield: normalizeMetricSource(sources.dividendYield),
+      dividendGrowth: normalizeMetricSource(sources.dividendGrowth),
+    },
+    statuses: {
+      totalReturnCagr: normalizeMetricStatus(statuses.totalReturnCagr),
+      priceCagr: normalizeMetricStatus(statuses.priceCagr),
+      dividendYield: normalizeMetricStatus(statuses.dividendYield),
+      dividendGrowth: normalizeMetricStatus(statuses.dividendGrowth),
+    },
+    warnings: Array.isArray(holding.warnings)
+      ? holding.warnings.filter((warning): warning is string => typeof warning === "string")
+      : [],
+  };
+}
+
+function normalizeAppliedAccount(
+  value: unknown,
+  accountType: PortfolioAccountType,
+): AppliedAccountPortfolioAssumptions {
+  const account = isRecord(value) ? value : {};
+  return {
+    accountType,
+    holdings: Array.isArray(account.holdings)
+      ? account.holdings.map(normalizeAppliedHolding)
+      : [],
+  };
+}
+
+function normalizeAppliedPortfolioAssumptions(raw: Record<string, unknown>): AppliedPortfolioAssumptionsV1 | null {
+  if (
+    raw.version !== 1 ||
+    typeof raw.appliedAt !== "string" ||
+    !isRecord(raw.taxSaving) ||
+    !Array.isArray(raw.taxSaving.holdings) ||
+    !isRecord(raw.brokerage) ||
+    !Array.isArray(raw.brokerage.holdings)
+  ) {
+    return null;
+  }
+  return {
+    version: 1,
+    appliedAt: raw.appliedAt,
+    taxSaving: normalizeAppliedAccount(raw.taxSaving, "taxSaving"),
+    brokerage: normalizeAppliedAccount(raw.brokerage, "brokerage"),
+  };
+}
+
+export function normalizePortfolioAssumptions(raw: unknown): PersistedPortfolioAssumptions | null {
+  if (!isRecord(raw)) return null;
+  if (raw.version === 1) return normalizeAppliedPortfolioAssumptions(raw);
+  if (typeof raw.resolvedAt !== "string" || !Array.isArray(raw.holdings)) return null;
+  const legacy: PortfolioAssumptionsSnapshot = {
     resolvedAt: raw.resolvedAt,
     holdings: raw.holdings.map(normalizeHoldingResolution),
   };
+  return legacy;
 }
