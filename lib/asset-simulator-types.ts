@@ -284,6 +284,11 @@ export type PortfolioHoldingResolution = {
   dividendGrowth: ResolvedPortfolioMetric;
 };
 
+export type ResolvePortfolioHoldingInput = {
+  ticker: string;
+  accountType: PortfolioAccountType;
+};
+
 export type PortfolioAssumptionsSnapshot = {
   resolvedAt: string;
   holdings: PortfolioHoldingResolution[];
