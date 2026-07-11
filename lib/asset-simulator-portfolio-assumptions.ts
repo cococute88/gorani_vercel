@@ -4,6 +4,7 @@ import type {
   AppliedPortfolioAssumptionsV1,
   AppliedPortfolioHoldingAssumption,
   AssetSimulatorPortfolioConfigV1,
+  EffectivePortfolioProjectionAssumptions,
   PortfolioAccountType,
   PortfolioHoldingInput,
   PortfolioHoldingResolution,
@@ -14,6 +15,82 @@ import type {
   PortfolioValidationIssue,
   ResolvedPortfolioMetric,
 } from "./asset-simulator-types";
+
+const MIN_RETURN_PCT = -99;
+const MAX_RETURN_PCT = 100;
+const MAX_DIVIDEND_YIELD_PCT = 100;
+
+function clampProjectionPct(value: number, min: number, max: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.min(max, Math.max(min, value));
+}
+
+function weightedMetricPct(
+  holdings: AppliedPortfolioHoldingAssumption[],
+  metric: "totalReturnCagrPct" | "priceCagrPct" | "dividendYieldPct",
+): number {
+  return holdings.reduce((sum, holding) => {
+    const value = holding[metric];
+    return sum + holding.weightPct * (typeof value === "number" && Number.isFinite(value) ? value : 0);
+  }, 0) / 100;
+}
+
+export function resolveEffectivePortfolioProjectionAssumptions(
+  assumptions: AppliedPortfolioAssumptionsV1,
+): EffectivePortfolioProjectionAssumptions {
+  const taxSavingTotalReturnPct = clampProjectionPct(
+    weightedMetricPct(assumptions.taxSaving.holdings, "totalReturnCagrPct"),
+    MIN_RETURN_PCT,
+    MAX_RETURN_PCT,
+  );
+  const brokeragePriceReturnPct = clampProjectionPct(
+    weightedMetricPct(assumptions.brokerage.holdings, "priceCagrPct"),
+    MIN_RETURN_PCT,
+    MAX_RETURN_PCT,
+  );
+  const brokerageDividendYieldPct = clampProjectionPct(
+    weightedMetricPct(assumptions.brokerage.holdings, "dividendYieldPct"),
+    0,
+    MAX_DIVIDEND_YIELD_PCT,
+  );
+  const dividendContributionTotal = assumptions.brokerage.holdings.reduce((sum, holding) => {
+    const yieldPct = typeof holding.dividendYieldPct === "number" && Number.isFinite(holding.dividendYieldPct)
+      ? Math.max(0, holding.dividendYieldPct)
+      : 0;
+    return sum + holding.weightPct * yieldPct;
+  }, 0);
+  const brokerageDividendGrowthPct = dividendContributionTotal > 0
+    ? clampProjectionPct(assumptions.brokerage.holdings.reduce((sum, holding) => {
+      const yieldPct = typeof holding.dividendYieldPct === "number" && Number.isFinite(holding.dividendYieldPct)
+        ? Math.max(0, holding.dividendYieldPct)
+        : 0;
+      const growthPct = typeof holding.dividendGrowthPct === "number" && Number.isFinite(holding.dividendGrowthPct)
+        ? holding.dividendGrowthPct
+        : 0;
+      return sum + holding.weightPct * yieldPct * growthPct;
+    }, 0) / dividendContributionTotal, MIN_RETURN_PCT, MAX_RETURN_PCT)
+    : 0;
+
+  return {
+    taxSavingTotalReturnPct,
+    brokeragePriceReturnPct,
+    brokerageDividendYieldPct,
+    brokerageDividendGrowthPct,
+    portfolioSummary: {
+      appliedAt: assumptions.appliedAt,
+      taxSaving: {
+        tickers: assumptions.taxSaving.holdings.map((holding) => holding.ticker),
+        effectiveTotalReturnPct: taxSavingTotalReturnPct,
+      },
+      brokerage: {
+        tickers: assumptions.brokerage.holdings.map((holding) => holding.ticker),
+        effectivePriceReturnPct: brokeragePriceReturnPct,
+        effectiveDividendYieldPct: brokerageDividendYieldPct,
+        effectiveDividendGrowthPct: brokerageDividendGrowthPct,
+      },
+    },
+  };
+}
 
 const ACCOUNT_TYPES: PortfolioAccountType[] = ["taxSaving", "brokerage"];
 const STALE_AFTER_MS = 7 * 24 * 60 * 60 * 1000;
