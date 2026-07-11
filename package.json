@@ -61,6 +61,7 @@
     "check:calendar-priority-tax-style": "node scripts/check-calendar-priority-tax-style.mjs",
     "check:calendar-wide-layout-polish": "node scripts/check-calendar-wide-layout-polish.mjs",
     "check:asset-simulator-persistence": "node scripts/check-asset-simulator-persistence.mjs",
+    "check:asset-simulator-portfolio-config": "npx --yes tsx scripts/check-asset-simulator-portfolio-config.mts",
     "check:asset-simulator-exit-mode": "node scripts/check-asset-simulator-exit-mode.mjs",
     "check:asset-simulator-delay-sync": "node scripts/check-asset-simulator-delay-sync.mjs",
     "check:asset-simulator-principal-withdraw": "node scripts/check-asset-simulator-principal-withdraw.mjs",
