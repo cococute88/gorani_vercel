@@ -1,5 +1,12 @@
 import { normalizeInputs, normalizeYearPlans } from "./asset-simulator";
-import type { SimulatorInputs, StoredSimulatorPreview, YearPlanRow } from "./asset-simulator-types";
+import { normalizePortfolioAssumptions, normalizePortfolioConfig } from "./asset-simulator-portfolio";
+import type {
+  AssetSimulatorPortfolioConfigV1,
+  PortfolioAssumptionsSnapshot,
+  SimulatorInputs,
+  StoredSimulatorPreview,
+  YearPlanRow,
+} from "./asset-simulator-types";
 import { DEFAULT_SIMULATOR_INPUTS } from "./mock-asset-simulator-data";
 
 export type SimulatorPersistedConfig = StoredSimulatorPreview & {
@@ -11,8 +18,15 @@ export type SimulatorHydrationSource = "cloud" | "local" | "default";
 export type ResolvedSimulatorConfig = {
   inputs: SimulatorInputs;
   yearPlans: YearPlanRow[];
+  portfolioConfig?: AssetSimulatorPortfolioConfigV1;
+  portfolioAssumptions?: PortfolioAssumptionsSnapshot;
   updatedAtMs: number;
   source: SimulatorHydrationSource;
+};
+
+export type SimulatorPortfolioPersistence = {
+  portfolioConfig?: AssetSimulatorPortfolioConfigV1;
+  portfolioAssumptions?: PortfolioAssumptionsSnapshot;
 };
 
 function timestampToMs(value: unknown): number {
@@ -42,9 +56,13 @@ export function normalizePersistedSimulatorConfig(
 ): ResolvedSimulatorConfig | null {
   if (!config?.inputs) return null;
   const inputs = normalizeInputs({ ...DEFAULT_SIMULATOR_INPUTS, ...config.inputs });
+  const portfolioConfig = normalizePortfolioConfig(config.portfolioConfig);
+  const portfolioAssumptions = normalizePortfolioAssumptions(config.portfolioAssumptions);
   return {
     inputs,
     yearPlans: normalizeYearPlans(inputs, config.yearPlans ?? []),
+    ...(portfolioConfig ? { portfolioConfig } : {}),
+    ...(portfolioAssumptions ? { portfolioAssumptions } : {}),
     updatedAtMs: timestampToMs(config.updatedAt),
     source,
   };
@@ -58,11 +76,20 @@ export function chooseLatestSimulatorConfig(
   return cloud ?? local;
 }
 
-export function buildStoredSimulatorConfig(inputs: SimulatorInputs, yearPlans: YearPlanRow[], updatedAt = new Date().toISOString()): StoredSimulatorPreview & { updatedAt: string } {
+export function buildStoredSimulatorConfig(
+  inputs: SimulatorInputs,
+  yearPlans: YearPlanRow[],
+  updatedAt = new Date().toISOString(),
+  portfolio: SimulatorPortfolioPersistence = {},
+): StoredSimulatorPreview & { updatedAt: string } {
   const normalizedInputs = normalizeInputs(inputs);
+  const portfolioConfig = normalizePortfolioConfig(portfolio.portfolioConfig);
+  const portfolioAssumptions = normalizePortfolioAssumptions(portfolio.portfolioAssumptions);
   return {
     inputs: normalizedInputs,
     yearPlans: normalizeYearPlans(normalizedInputs, yearPlans),
+    ...(portfolioConfig ? { portfolioConfig } : {}),
+    ...(portfolioAssumptions ? { portfolioAssumptions } : {}),
     updatedAt,
   };
 }
@@ -116,9 +143,13 @@ export function findFirestoreUnsafePaths(value: unknown, path = "payload"): stri
 
 export function buildFirestoreSimulatorConfigPayload(config: StoredSimulatorPreview): StoredSimulatorPreview {
   const normalizedInputs = normalizeInputs(config.inputs);
+  const portfolioConfig = normalizePortfolioConfig(config.portfolioConfig);
+  const portfolioAssumptions = normalizePortfolioAssumptions(config.portfolioAssumptions);
   const normalizedConfig: StoredSimulatorPreview = {
     inputs: normalizedInputs,
     yearPlans: normalizeYearPlans(normalizedInputs, config.yearPlans ?? []),
+    ...(portfolioConfig ? { portfolioConfig } : {}),
+    ...(portfolioAssumptions ? { portfolioAssumptions } : {}),
   };
   const cleaned = sanitizeForFirestore(normalizedConfig) as StoredSimulatorPreview;
   const unsafePaths = findFirestoreUnsafePaths(cleaned);

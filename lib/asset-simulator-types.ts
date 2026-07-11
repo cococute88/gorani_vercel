@@ -221,8 +221,93 @@ export type RetirementSafetyResult = {
   combined: SafetyResult;
 };
 
+export type PortfolioAccountType = "taxSaving" | "brokerage";
+
+export type PortfolioMetricMode = "auto" | "manual";
+
+export type PortfolioMetricSource =
+  | "yahoo-adj-close"
+  | "yahoo-close"
+  | "yahoo-dividends"
+  | "manual"
+  | "legacy";
+
+export type PortfolioMetricStatus =
+  | "resolved"
+  | "manual"
+  | "insufficient_history"
+  | "not_applicable"
+  | "failed";
+
+export type PortfolioManualMetrics = {
+  totalReturnCagrPct?: number;
+  priceCagrPct?: number;
+  dividendYieldPct?: number;
+  dividendGrowthPct?: number;
+};
+
+export type PortfolioHoldingInput = {
+  id: string;
+  ticker: string;
+  weightPct: number;
+  metricMode: PortfolioMetricMode;
+  manual?: PortfolioManualMetrics;
+};
+
+export type AccountPortfolioConfig = {
+  accountType: PortfolioAccountType;
+  holdings: PortfolioHoldingInput[];
+};
+
+export type AssetSimulatorPortfolioConfigV1 = {
+  version: 1;
+  taxSaving: AccountPortfolioConfig;
+  brokerage: AccountPortfolioConfig;
+};
+
+export type ResolvedPortfolioMetric = {
+  valuePct: number | null;
+  source: PortfolioMetricSource;
+  status: PortfolioMetricStatus;
+  asOf: string | null;
+  periodStart: string | null;
+  periodEnd: string | null;
+  observationYears: number | null;
+  warnings: string[];
+};
+
+export type PortfolioHoldingResolution = {
+  ticker: string;
+  totalReturnCagr: ResolvedPortfolioMetric;
+  priceCagr: ResolvedPortfolioMetric;
+  dividendYield: ResolvedPortfolioMetric;
+  dividendGrowth: ResolvedPortfolioMetric;
+};
+
+export type PortfolioAssumptionsSnapshot = {
+  resolvedAt: string;
+  holdings: PortfolioHoldingResolution[];
+};
+
+export type PortfolioValidationIssue = {
+  accountType: PortfolioAccountType;
+  holdingId?: string;
+  field?: "ticker" | "weightPct" | "metrics";
+  code:
+    | "ticker_required"
+    | "duplicate_ticker"
+    | "invalid_weight"
+    | "weight_total_not_100"
+    | "manual_metric_required"
+    | "account_type_mismatch"
+    | "unknown_version";
+  message: string;
+};
+
 export type StoredSimulatorPreview = {
   inputs: Partial<SimulatorInputs>;
   yearPlans: YearPlanRow[];
+  portfolioConfig?: AssetSimulatorPortfolioConfigV1;
+  portfolioAssumptions?: PortfolioAssumptionsSnapshot;
   updatedAt?: unknown;
 };
