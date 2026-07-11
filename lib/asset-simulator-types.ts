@@ -174,6 +174,53 @@ export type SimulatorProjection = {
   summary: SimulatorSummary;
 };
 
+export type SafetyGrade = "S" | "A" | "B" | "C" | "D" | "F";
+
+export type SafetyStatus = "evaluated" | "not_applicable" | "data_insufficient";
+
+export type SafetyFailureReason =
+  | "NONE"
+  | "LOW_ASSET"
+  | "INCOME_SHORTAGE"
+  | "DIVIDEND_STOPPED"
+  | "DATA_INSUFFICIENT";
+
+export type SafetyMetrics = {
+  startingRealAssets: number;
+  endingRealAssets: number;
+  preservationRatio: number;
+  yearsEvaluated: number;
+  failed: boolean;
+  failureReason: SafetyFailureReason;
+  depleted: boolean;
+  livingExpensesCovered: boolean | null;
+  sustainedThroughRetirement: boolean;
+  principalSold: boolean | null;
+  dividendsContinued: boolean | null;
+  shortfallYears: number;
+  consecutiveShortfallYears: number;
+  preservationScore: number;
+  incomeCoverageScore: number;
+  depletionScore: number;
+  stabilityScore: number;
+  latePeriodDecline: boolean;
+};
+
+export type SafetyResult = {
+  status: SafetyStatus;
+  grade: SafetyGrade | null;
+  score: number;
+  positives: string[];
+  warnings: string[];
+  metrics: SafetyMetrics;
+};
+
+export type RetirementSafetyResult = {
+  taxSaving: SafetyResult;
+  brokerage: SafetyResult;
+  combined: SafetyResult;
+};
+
 export type StoredSimulatorPreview = {
   inputs: Partial<SimulatorInputs>;
   yearPlans: YearPlanRow[];
