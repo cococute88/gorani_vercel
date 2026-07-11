@@ -158,6 +158,33 @@ export type SimulatorSummary = {
   retirementYear: number | null;
   actualWithdrawalStartYear: number | null;
   pensionLimit: number;
+  portfolioSummary?: PortfolioProjectionSummary;
+};
+
+export type PortfolioProjectionSummary = {
+  appliedAt: string;
+  taxSaving: {
+    tickers: string[];
+    effectiveTotalReturnPct: number;
+  };
+  brokerage: {
+    tickers: string[];
+    effectivePriceReturnPct: number;
+    effectiveDividendYieldPct: number;
+    effectiveDividendGrowthPct: number;
+  };
+};
+
+export type EffectivePortfolioProjectionAssumptions = {
+  taxSavingTotalReturnPct: number;
+  brokeragePriceReturnPct: number;
+  brokerageDividendYieldPct: number;
+  brokerageDividendGrowthPct: number;
+  portfolioSummary: PortfolioProjectionSummary;
+};
+
+export type AssetSimulatorPreviewOptions = {
+  portfolioAssumptions?: AppliedPortfolioAssumptionsV1 | null;
 };
 
 export type SimulatorProjection = {
