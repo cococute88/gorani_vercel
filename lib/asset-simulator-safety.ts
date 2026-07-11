@@ -206,7 +206,6 @@ function resolveFailureReason(
   signals: AccountSignals,
 ): SafetyFailureReason {
   if (!hasRetirementData) return "DATA_INSUFFICIENT";
-  if (signals.principalSold) return "BROKERAGE_SALE";
   if (endingRealAssets <= EPSILON || preservation <= 0.3) return "LOW_ASSET";
   if (signals.coreCashFlowStopped) return account === "brokerage" ? "DIVIDEND_STOPPED" : "INCOME_SHORTAGE";
   if (isLongTermShortfall(account, signals.shortfallYears, signals.consecutiveShortfallYears)) return "INCOME_SHORTAGE";
