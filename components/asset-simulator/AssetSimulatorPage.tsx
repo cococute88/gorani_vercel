@@ -4,7 +4,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import TopNav from "@/components/TopNav";
 import StorageModeBadge from "@/components/common/StorageModeBadge";
 import { calculateAssetSimulatorPreview, normalizeInputs, normalizeYearPlans } from "@/lib/asset-simulator";
-import type { SimulatorInputs, YearPlanRow } from "@/lib/asset-simulator-types";
+import type {
+  AppliedPortfolioAssumptionsV1,
+  AssetSimulatorPortfolioConfigV1,
+  SimulatorInputs,
+  YearPlanRow,
+} from "@/lib/asset-simulator-types";
 import {
   ASSET_SIMULATOR_STORAGE_KEY,
   DEFAULT_SIMULATOR_INPUTS,
@@ -28,6 +33,8 @@ import SimulatorMetricCards from "./SimulatorMetricCards";
 import YearPlanTable from "./YearPlanTable";
 import SimulatorResultTabs from "./SimulatorResultTabs";
 import ExitSummaryModal from "./ExitSummaryModal";
+import PortfolioConfigSection from "./PortfolioConfigSection";
+import RetirementSafetySection from "./RetirementSafetySection";
 import { useResolvedTheme } from "@/components/theme/ThemeProvider";
 import Image from "next/image";
 
@@ -36,6 +43,10 @@ export default function AssetSimulatorPage() {
   const { user, configured } = useFirebaseAuth();
   const [inputs, setInputs] = useState<SimulatorInputs>(DEFAULT_SIMULATOR_INPUTS);
   const [yearPlans, setYearPlans] = useState<YearPlanRow[]>(DEFAULT_YEAR_PLANS);
+  // 포트폴리오 설정과 "적용된" 가정. 기존 사용자에게 자동 주입하지 않으므로 기본값은 비어 있다.
+  // portfolioAssumptions 는 적용 버튼을 눌렀을 때만 채워지고, projection 에 반영된다.
+  const [portfolioConfig, setPortfolioConfig] = useState<AssetSimulatorPortfolioConfigV1 | null>(null);
+  const [portfolioAssumptions, setPortfolioAssumptions] = useState<AppliedPortfolioAssumptionsV1 | null>(null);
   // "지금 EXIT?" 모드는 로컬 UI 상태로만 관리한다. Firebase/로컬 저장 금지, 새로고침 시 초기화.
   const [exitMode, setExitMode] = useState(false);
   // 연도별 투자 계획표 펼침/접힘 상태. 일반 모드 기본값은 열림.
@@ -60,7 +71,12 @@ export default function AssetSimulatorPage() {
   };
 
   const writeLocalConfig = (nextInputs: SimulatorInputs, nextYearPlans: YearPlanRow[], updatedAt = new Date().toISOString()) => {
-    const config = buildStoredSimulatorConfig(nextInputs, nextYearPlans, updatedAt);
+    // 포트폴리오 설정/적용 가정은 컴포넌트 상태(closure)에서 읽어 저장 payload 에 포함한다.
+    // writeLocalConfig 호출부 시그니처는 그대로 유지한다.
+    const config = buildStoredSimulatorConfig(nextInputs, nextYearPlans, updatedAt, {
+      ...(portfolioConfig ? { portfolioConfig } : {}),
+      ...(portfolioAssumptions ? { portfolioAssumptions } : {}),
+    });
     if (typeof window !== "undefined") {
       window.localStorage.setItem(ASSET_SIMULATOR_STORAGE_KEY, JSON.stringify(config));
       // 같은 탭에서 열려 있는 투자현황이 저장된 납입원금을 즉시 반영하도록 알린다.
@@ -79,12 +95,22 @@ export default function AssetSimulatorPage() {
       if (lastLocalWriteAtRef.current > 0 && config.updatedAtMs < lastLocalWriteAtRef.current) return;
       setInputs(config.inputs);
       setYearPlans(config.yearPlans);
+      // 저장된 포트폴리오 설정/적용 가정을 복원한다. 적용 가정은 version 1(applied)만 projection 에 사용한다.
+      setPortfolioConfig(config.portfolioConfig ?? null);
+      setPortfolioAssumptions(
+        config.portfolioAssumptions && "version" in config.portfolioAssumptions && config.portfolioAssumptions.version === 1
+          ? config.portfolioAssumptions
+          : null,
+      );
       setLastSavedAtMs(config.updatedAtMs);
       if (source === "cloud" && typeof window !== "undefined") {
         try {
           window.localStorage.setItem(
             ASSET_SIMULATOR_STORAGE_KEY,
-            JSON.stringify(buildStoredSimulatorConfig(config.inputs, config.yearPlans, new Date(config.updatedAtMs || Date.now()).toISOString())),
+            JSON.stringify(buildStoredSimulatorConfig(config.inputs, config.yearPlans, new Date(config.updatedAtMs || Date.now()).toISOString(), {
+              ...(config.portfolioConfig ? { portfolioConfig: config.portfolioConfig } : {}),
+              ...(config.portfolioAssumptions ? { portfolioAssumptions: config.portfolioAssumptions } : {}),
+            })),
           );
         } catch {
           // local cache write failure must not block cloud hydration.
@@ -116,8 +142,8 @@ export default function AssetSimulatorPage() {
   }, [user]);
 
   const projection = useMemo(
-    () => calculateAssetSimulatorPreview(inputs, yearPlans, exitMode),
-    [inputs, yearPlans, exitMode],
+    () => calculateAssetSimulatorPreview(inputs, yearPlans, exitMode, { portfolioAssumptions }),
+    [inputs, yearPlans, exitMode, portfolioAssumptions],
   );
 
   // "지금탈출" 모달 전용 계산 결과.
@@ -187,6 +213,8 @@ export default function AssetSimulatorPage() {
     const plans = buildDefaultYearPlans();
     setInputs(DEFAULT_SIMULATOR_INPUTS);
     setYearPlans(plans);
+    setPortfolioConfig(null);
+    setPortfolioAssumptions(null);
 
     if (typeof window !== "undefined") {
       try {
@@ -262,6 +290,14 @@ export default function AssetSimulatorPage() {
           <YearPlanTable plans={tablePlans} onChange={setYearPlans} open={planTableOpen} onToggleOpen={() => setPlanTableOpen((prev) => !prev)} exitMode={exitMode} />
           <SimulatorMetricCards summary={projection.summary} />
           <SimulatorResultTabs projection={projection} />
+          <PortfolioConfigSection
+            config={portfolioConfig}
+            onConfigChange={setPortfolioConfig}
+            appliedAssumptions={portfolioAssumptions}
+            onApply={setPortfolioAssumptions}
+            portfolioSummary={projection.summary.portfolioSummary}
+          />
+          <RetirementSafetySection projection={projection} portfolioApplied={portfolioAssumptions !== null} />
           <p className="rounded-2xl border border-[#273032] bg-[#171d1e] px-4 py-3 text-[13px] text-slate-400">
             {lastSavedAtMs ? `마지막 저장: ${formatSimulatorSavedAt(lastSavedAtMs) ?? "확인 중"} · ` : ""}{user
               ? "로그인 상태에서는 Save 시 계정 클라우드에 저장돼요."
