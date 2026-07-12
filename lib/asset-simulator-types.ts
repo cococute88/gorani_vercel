@@ -183,8 +183,21 @@ export type EffectivePortfolioProjectionAssumptions = {
   portfolioSummary: PortfolioProjectionSummary;
 };
 
+// 은퇴 스트레스 시나리오 프리셋.
+// - "none": 스트레스 미적용(기본 projection 과 동일).
+// - "early_downturn": 은퇴 직후 하락장 + 초반 저수익 + 배당 삭감 가정.
+export type RetirementStressScenarioPreset = "none" | "early_downturn";
+
+export type RetirementStressScenarioConfigV1 = {
+  version: 1;
+  preset: RetirementStressScenarioPreset;
+};
+
 export type AssetSimulatorPreviewOptions = {
   portfolioAssumptions?: AppliedPortfolioAssumptionsV1 | null;
+  // 은퇴 스트레스 시나리오. 없거나 preset "none" 이면 기존 projection 과 deep-equal 을 유지한다.
+  // 값이 있으면 은퇴 직후 구간에만 계좌 단위 스트레스를 반영한 별도 projection 을 만든다.
+  stressScenario?: RetirementStressScenarioConfigV1 | null;
 };
 
 export type SimulatorProjection = {

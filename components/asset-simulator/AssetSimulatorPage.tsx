@@ -154,6 +154,16 @@ export default function AssetSimulatorPage() {
     [inputs, yearPlans, exitMode, portfolioAssumptions],
   );
 
+  // 기본 화면/차트는 projection 을 계속 사용하고, 보수적 stress projection 은
+  // 은퇴 안전성 비교에만 전달한다. 두 계산에는 동일한 입력과 portfolio assumptions 를 쓴다.
+  const stressProjection = useMemo(
+    () => calculateAssetSimulatorPreview(inputs, yearPlans, exitMode, {
+      portfolioAssumptions,
+      stressScenario: { version: 1, preset: "early_downturn" },
+    }),
+    [inputs, yearPlans, exitMode, portfolioAssumptions],
+  );
+
   // "지금탈출" 모달 전용 계산 결과.
   // 사용자가 "지금 EXIT?" 토글을 켜지 않았더라도, 모달은 항상 EXIT 모드(=ON) 기준으로
   // 계산한 결과를 보여준다. (화면의 토글/계획표 상태는 변경하지 않는다.)
@@ -308,6 +318,7 @@ export default function AssetSimulatorPage() {
           />
           <RetirementSafetySection
             projection={projection}
+            stressProjection={stressProjection}
             portfolioApplied={portfolioAssumptions !== null}
             targetMonthlyExpenseReal={targetMonthlyExpenseReal}
             onTargetMonthlyExpenseChange={setTargetMonthlyExpenseReal}
