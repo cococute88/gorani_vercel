@@ -10,6 +10,7 @@ import type {
   SafetyResult,
 } from "./asset-simulator-types";
 import { safetyGradeFromScore } from "./asset-simulator-safety";
+import { formatManwonMoney } from "./format";
 
 // Pure, framework-free display helpers for the portfolio + safety UI. Kept out
 // of the React components so the wording/logic can be unit-checked directly.
@@ -153,6 +154,121 @@ export function calibrateStressSafetyForDisplay(
     taxSaving: capStressResultForDisplay(base.taxSaving, stress.taxSaving),
     brokerage: capStressResultForDisplay(base.brokerage, stress.brokerage),
     combined: capStressResultForDisplay(base.combined, stress.combined),
+  };
+}
+
+// 충당률(월 수요 대비 월 공급 평균, 0~1)을 백분율 문자열로 표시한다. 값이 없으면 대시.
+export function formatCoverageRatio(ratio: number | null | undefined): string {
+  if (typeof ratio !== "number" || !Number.isFinite(ratio)) return "—";
+  return formatPct(ratio * 100, 0);
+}
+
+// 안전성 결과를 "강함 / 보통 / 약함 / 평가 불가" 4단계로 요약한다.
+// 대시보드 요약 문구와 시나리오 비교 카드가 같은 기준으로 톤을 정하도록 공유한다.
+export type SafetyTier = "strong" | "moderate" | "weak" | "none";
+
+export function safetyTier(result: SafetyResult): SafetyTier {
+  if (result.status !== "evaluated" || result.grade === null) return "none";
+  if (result.metrics.failed) return "weak";
+  if (result.grade === "S" || result.grade === "A" || result.grade === "B") return "strong";
+  if (result.grade === "C") return "moderate";
+  return "weak";
+}
+
+// 계좌별 안전성 카드의 "평가 기준"을 명확히 안내한다.
+// 목표 월생활비는 통합 평가에만 반영되므로, 절세/위탁 단독 카드는 각자의 기준을 명시한다.
+// (계산 로직은 변경하지 않고, 이미 정해진 평가 기준을 문구로만 드러낸다.)
+export type SafetyBasis = {
+  label: string;
+  sub?: string;
+};
+
+export function describeSafetyBasis(
+  account: "taxSaving" | "brokerage" | "combined",
+  targetMonthlyExpenseReal: number | null,
+): SafetyBasis {
+  if (account === "taxSaving") {
+    return {
+      label: "평가 기준: 절세계좌 인출 계획 기준",
+      sub: "목표 월생활비는 통합 안정성 평가에 반영됩니다.",
+    };
+  }
+  if (account === "brokerage") {
+    return {
+      label: "평가 기준: 배당 현금흐름과 자산 보존성",
+      sub: "목표 월생활비 충당 여부는 통합 안정성에서 함께 봅니다.",
+    };
+  }
+  // combined
+  if (targetMonthlyExpenseReal !== null) {
+    return { label: `평가 기준: 목표 월생활비 ${formatManwonMoney(targetMonthlyExpenseReal)}` };
+  }
+  return {
+    label: "평가 기준: 임시 인출 기준",
+    sub: "목표 월생활비를 입력하면 더 정확해집니다.",
+  };
+}
+
+export type SafetyVerdict = {
+  // 한줄 판단. 단정적 표현을 피하고 부드럽게 안내한다.
+  headline: string;
+  tone: UiTone;
+  // 목표 월생활비 미입력 시에만 채워지는 보조 안내.
+  subline?: string;
+};
+
+// 통합 안전성(기본 + 하락장) 결과에서 한줄 판단을 파생한다.
+// 계산 로직을 새로 만들지 않고, 기존 SafetyResult 의 등급/상태만 해석한다.
+export function describeSafetyVerdict(
+  basicCombined: SafetyResult,
+  stressCombined: SafetyResult,
+  hasTarget: boolean,
+): SafetyVerdict {
+  const subline = hasTarget ? undefined : "목표 월생활비를 입력하면 목표 기준 평가로 전환됩니다.";
+
+  const basicTier = safetyTier(basicCombined);
+  if (basicTier === "none") {
+    return {
+      headline: "확인 필요 — 데이터 부족으로 일부 항목을 평가하지 못했습니다.",
+      tone: "muted",
+      subline,
+    };
+  }
+
+  if (basicTier === "weak") {
+    return {
+      headline: hasTarget
+        ? "현재 입력 기준으로는 목표 생활비 대비 부족합니다."
+        : "현재 입력 기준으로는 보수적 점검이 필요합니다.",
+      tone: "warning",
+      subline,
+    };
+  }
+
+  const stressTier = safetyTier(stressCombined);
+  if (basicTier === "strong" && stressTier === "strong") {
+    return {
+      headline: hasTarget
+        ? "현재 입력 기준으로 기본과 하락장 모두 목표 생활비를 충당합니다."
+        : "현재 입력 기준으로 기본과 하락장 모두 안정적입니다.",
+      tone: "positive",
+      subline,
+    };
+  }
+
+  if (basicTier === "strong") {
+    return {
+      headline: "기본 시나리오는 안정적이지만, 하락장에서는 조정 권장입니다.",
+      tone: "caution",
+      subline,
+    };
+  }
+
+  // 기본이 "보통(C)" 구간인 경우.
+  return {
+    headline: "기본 시나리오는 대체로 안정적이나 일부 항목은 점검이 필요합니다.",
+    tone: "caution",
+    subline,
   };
 }
 
