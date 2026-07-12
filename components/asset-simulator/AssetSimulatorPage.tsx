@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import TopNav from "@/components/TopNav";
 import StorageModeBadge from "@/components/common/StorageModeBadge";
 import { calculateAssetSimulatorPreview, normalizeInputs, normalizeYearPlans } from "@/lib/asset-simulator";
@@ -35,11 +36,38 @@ import SimulatorResultTabs from "./SimulatorResultTabs";
 import ExitSummaryModal from "./ExitSummaryModal";
 import PortfolioConfigSection from "./PortfolioConfigSection";
 import RetirementSafetySection from "./RetirementSafetySection";
+import {
+  doPortfolioAssumptionsMatchConfig,
+  isPortfolioAssumptionsStale,
+} from "@/lib/asset-simulator-portfolio-assumptions";
 import { useResolvedTheme } from "@/components/theme/ThemeProvider";
 import Image from "next/image";
 
+// 계산기 페이지와 동일한 URL query parameter 기반 서브탭 구조.
+// 기본 시뮬레이터(basic)와 안정성 체크(safety) 두 탭으로 분리한다.
+const SIMULATOR_TABS = [
+  { key: "basic", label: "기본 시뮬레이터" },
+  { key: "safety", label: "안정성 체크" },
+] as const;
+
+type SimulatorTabKey = (typeof SIMULATOR_TABS)[number]["key"];
+
+// 잘못된 tab 값은 basic 으로 fallback 한다.
+function resolveSimulatorTab(tabParam: string | null): SimulatorTabKey {
+  return tabParam === "safety" ? "safety" : "basic";
+}
+
+// 안정성 체크 탭 상태 도트 색상.
+// - 적용 가정 없음: 회색 / 있으나 config 불일치 또는 stale: 호박 / 적용·일치·최신: 초록
+type SafetyDotState = "none" | "attention" | "ready";
+
 export default function AssetSimulatorPage() {
   const theme = useResolvedTheme();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const [activeTab, setActiveTab] = useState<SimulatorTabKey>(() => resolveSimulatorTab(tabParam));
   const { user, configured } = useFirebaseAuth();
   const [inputs, setInputs] = useState<SimulatorInputs>(DEFAULT_SIMULATOR_INPUTS);
   const [yearPlans, setYearPlans] = useState<YearPlanRow[]>(DEFAULT_YEAR_PLANS);
@@ -179,6 +207,16 @@ export default function AssetSimulatorPage() {
     [inputs, yearPlans],
   );
 
+  // 안정성 체크 탭 상태 도트. PortfolioConfigSection 의 applyState 판정과 동일한 기준을 쓴다.
+  const safetyDotState: SafetyDotState = useMemo(() => {
+    if (!portfolioAssumptions) return "none";
+    if (!portfolioConfig || !doPortfolioAssumptionsMatchConfig(portfolioConfig, portfolioAssumptions)) {
+      return "attention";
+    }
+    if (isPortfolioAssumptionsStale(portfolioAssumptions)) return "attention";
+    return "ready";
+  }, [portfolioAssumptions, portfolioConfig]);
+
   // "지금 EXIT?" 토글 시 계획표를 자동으로 접고/펼친다.
   // ON → 계산에 쓰이지 않으므로 즉시 접기, OFF → 기본 상태(열림) 복원.
   // 토글 사이에는 사용자가 직접 펼치기/접기 버튼으로 제어할 수 있다.
@@ -186,6 +224,23 @@ export default function AssetSimulatorPage() {
     setExitMode(next);
     setPlanTableOpen(!next);
   };
+
+  // URL query parameter 변화(?tab=...)에 맞춰 활성 탭을 동기화한다.
+  // 직접 진입(?tab=safety)과 뒤로가기/앞으로가기 모두 반영된다.
+  useEffect(() => {
+    setActiveTab(resolveSimulatorTab(tabParam));
+  }, [tabParam]);
+
+  // 탭 클릭 시 활성 탭을 즉시 갱신하고 URL 을 replace 한다(히스토리 오염 방지).
+  // 비활성 탭은 언마운트하지 않고 hidden 처리하므로 상태/진행 중 요청은 보존된다.
+  const handleTabChange = useCallback(
+    (next: SimulatorTabKey) => {
+      setActiveTab(next);
+      const query = next === "safety" ? "?tab=safety" : "";
+      router.replace(`${pathname}${query}`, { scroll: false });
+    },
+    [pathname, router],
+  );
 
   const handleInputsChange = (nextInputs: SimulatorInputs) => {
     const normalizedInputs = normalizeInputs(nextInputs);
@@ -247,6 +302,18 @@ export default function AssetSimulatorPage() {
     }
   };
 
+  // 저장 안내 footer. 기본/안정성 두 탭 모두 하단에 노출한다.
+  // 화이트모드 가독성을 위해 라이트/다크 이중 클래스로 지정한다(기존 다크 하드코딩 제거).
+  const savedFooter = (
+    <p className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-[13px] text-slate-600 dark:border-[#273032] dark:bg-[#171d1e] dark:text-slate-400">
+      {lastSavedAtMs ? `마지막 저장: ${formatSimulatorSavedAt(lastSavedAtMs) ?? "확인 중"} · ` : ""}{user
+        ? "로그인 상태에서는 Save 시 계정 클라우드에 저장돼요."
+        : configured
+          ? "로그아웃 상태에서는 이 브라우저에만 임시 저장돼요."
+          : "Firebase 설정이 없어 로컬 미리보기 모드로 동작합니다."} 입력값과 계획표는 금융 API 없이 저장됩니다.
+    </p>
+  );
+
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#f8fafc] text-slate-800 dark:bg-[#111516] dark:text-slate-200">
       <TopNav theme={theme} />
@@ -304,11 +371,75 @@ export default function AssetSimulatorPage() {
           </div>
         </div>
 
-        <div className="space-y-5">
+        {/*
+          서브탭 바. 계산기 페이지 탭 바 스타일을 참고했다.
+          active 탭은 blue primary, inactive 탭은 화이트모드에서도 명확히 보이도록
+          text-slate-700 이상을 사용한다. 모바일에서는 overflow-x-auto 로 가로 스크롤.
+        */}
+        <div
+          role="tablist"
+          aria-label="자산 시뮬레이터 탭"
+          className="no-scrollbar my-5 flex max-w-full gap-1.5 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-1.5 dark:border-[#273032] dark:bg-[#171d1e] sm:gap-2 sm:p-2"
+        >
+          {SIMULATOR_TABS.map((tab) => {
+            const isActive = activeTab === tab.key;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                onClick={() => handleTabChange(tab.key)}
+                className={`inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-[12.5px] font-bold transition-colors sm:px-4 sm:text-[13px] ${
+                  isActive
+                    ? "bg-blue-600 text-white shadow-lg shadow-blue-950/20"
+                    : "text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-slate-200"
+                }`}
+              >
+                {tab.label}
+                {tab.key === "safety" && (
+                  <span
+                    aria-hidden
+                    className={`h-2 w-2 shrink-0 rounded-full ${
+                      safetyDotState === "ready"
+                        ? "bg-emerald-500"
+                        : safetyDotState === "attention"
+                          ? "bg-amber-500"
+                          : "bg-slate-400 dark:bg-slate-500"
+                    }`}
+                  />
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/*
+          비활성 탭은 언마운트하지 않고 hidden 처리한다. 이유:
+          - PortfolioConfigSection 내부 자동 계산 결과(resolutions) 상태 보존
+          - 진행 중 자동 계산 요청 abort 방지
+          - 탭 전환 시 입력/계산 중 상태 유실 방지
+          hidden 속성만으로 접근성 트리에서도 제외되므로 aria-hidden 은 중복 지정하지 않는다.
+        */}
+        <section
+          role="tabpanel"
+          aria-label="기본 시뮬레이터"
+          hidden={activeTab !== "basic"}
+          className="space-y-5"
+        >
           <SimulatorInputPanel inputs={inputs} onChange={handleInputsChange} onReset={handleReset} onSave={handleSave} saving={saving} saveMessage={saveMessage} saveError={saveError} exitMode={exitMode} onExitModeChange={handleExitModeChange} />
           <YearPlanTable plans={tablePlans} onChange={setYearPlans} open={planTableOpen} onToggleOpen={() => setPlanTableOpen((prev) => !prev)} exitMode={exitMode} />
           <SimulatorMetricCards summary={projection.summary} />
           <SimulatorResultTabs projection={projection} />
+          {savedFooter}
+        </section>
+
+        <section
+          role="tabpanel"
+          aria-label="안정성 체크"
+          hidden={activeTab !== "safety"}
+          className="space-y-5"
+        >
           <PortfolioConfigSection
             config={portfolioConfig}
             onConfigChange={setPortfolioConfig}
@@ -323,14 +454,8 @@ export default function AssetSimulatorPage() {
             targetMonthlyExpenseReal={targetMonthlyExpenseReal}
             onTargetMonthlyExpenseChange={setTargetMonthlyExpenseReal}
           />
-          <p className="rounded-2xl border border-[#273032] bg-[#171d1e] px-4 py-3 text-[13px] text-slate-400">
-            {lastSavedAtMs ? `마지막 저장: ${formatSimulatorSavedAt(lastSavedAtMs) ?? "확인 중"} · ` : ""}{user
-              ? "로그인 상태에서는 Save 시 계정 클라우드에 저장돼요."
-              : configured
-                ? "로그아웃 상태에서는 이 브라우저에만 임시 저장돼요."
-                : "Firebase 설정이 없어 로컬 미리보기 모드로 동작합니다."} 입력값과 계획표는 금융 API 없이 저장됩니다.
-          </p>
-        </div>
+          {savedFooter}
+        </section>
       </main>
       <ExitSummaryModal
         open={exitModalOpen}
