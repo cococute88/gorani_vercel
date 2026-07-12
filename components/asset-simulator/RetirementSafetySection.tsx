@@ -2,7 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { calculateRetirementSafety } from "@/lib/asset-simulator-safety";
-import { describeSafety, formatPct, type UiTone } from "@/lib/asset-simulator-portfolio-ui";
+import {
+  calibrateStressSafetyForDisplay,
+  describeSafety,
+  formatPct,
+  formatPreservationRatio,
+  type UiTone,
+} from "@/lib/asset-simulator-portfolio-ui";
 import { formatManwonMoney } from "@/lib/format";
 import type { SafetyResult, SimulatorProjection } from "@/lib/asset-simulator-types";
 
@@ -71,7 +77,12 @@ function SafetyCard({ title, hint, result }: { title: string; hint: string; resu
         <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[11.5px]">
           <div className="flex items-center justify-between gap-1">
             <dt className="text-slate-500 dark:text-slate-400">자산 보존율</dt>
-            <dd className="font-semibold text-slate-700 dark:text-slate-200">{formatPct(result.metrics.preservationRatio * 100, 0)}</dd>
+            <dd
+              className="font-semibold text-slate-700 dark:text-slate-200"
+              title={result.metrics.preservationRatio >= 10 ? formatPct(result.metrics.preservationRatio * 100, 0) : undefined}
+            >
+              {formatPreservationRatio(result.metrics.preservationRatio)}
+            </dd>
           </div>
           <div className="flex items-center justify-between gap-1">
             <dt className="text-slate-500 dark:text-slate-400">평가 연수</dt>
@@ -142,6 +153,10 @@ export default function RetirementSafetySection({
   const stressSafety = useMemo(
     () => calculateRetirementSafety(stressProjection, { targetMonthlyExpenseReal }),
     [stressProjection, targetMonthlyExpenseReal],
+  );
+  const displayedStressSafety = useMemo(
+    () => calibrateStressSafetyForDisplay(safety, stressSafety),
+    [safety, stressSafety],
   );
 
   // 부드러운 타이핑을 위해 로컬 문자열 상태를 두고, 파싱된 값만 상위로 전달한다.
@@ -223,7 +238,7 @@ export default function RetirementSafetySection({
       <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-[12px] leading-relaxed text-amber-800 dark:border-amber-500/25 dark:bg-amber-500/[0.06] dark:text-amber-200">
         <p className="font-semibold">하락장 시나리오는 보수적으로 점검하기 위한 가정입니다.</p>
         <p className="mt-0.5 text-amber-700/80 dark:text-amber-200/70">
-          은퇴 직후 하락장, 첫 3년 저수익, 위탁 배당 20% 삭감을 가정합니다. 미래를 예측하는 값은 아닙니다.
+          은퇴 직후 하락장과 첫 3년 저수익을 가정해 손상 정도를 확인합니다. 점수와 함께 기본 대비 약해진 항목을 확인해 주세요.
         </p>
       </div>
 
@@ -236,7 +251,7 @@ export default function RetirementSafetySection({
         <ScenarioSafetyGroup
           title="하락장 시나리오"
           description="보수적 점검용 · 은퇴 초반 하락, 3년 저수익, 배당 20% 삭감"
-          safety={stressSafety}
+          safety={displayedStressSafety}
           stress
         />
       </div>

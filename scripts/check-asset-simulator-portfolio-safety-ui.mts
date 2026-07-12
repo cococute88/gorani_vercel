@@ -202,5 +202,7 @@ const safety = read("components/asset-simulator/RetirementSafetySection.tsx");
 assert.match(safety, /은퇴 안전성 분석/, "안전성 섹션 제목");
 assert.match(safety, /절세계좌 안전성[\s\S]*위탁계좌 안전성[\s\S]*통합 안전성/, "3개 안전성 카드");
 assert.match(safety, /overflow-hidden/, "가로 넘침 방지용 overflow-hidden 사용");
+assert.match(safety, /displayedStressSafety/, "하락장 표시 점수 보정 결과 사용");
+assert.match(safety, /1,000% 이상|formatPreservationRatio/, "과대 보존율 상한 표시 사용");
 
 console.log("asset simulator portfolio + safety UI checks passed");
