@@ -36,6 +36,7 @@ import SimulatorResultTabs from "./SimulatorResultTabs";
 import ExitSummaryModal from "./ExitSummaryModal";
 import PortfolioConfigSection from "./PortfolioConfigSection";
 import RetirementSafetySection from "./RetirementSafetySection";
+import SafetyCheckDashboard from "./SafetyCheckDashboard";
 import {
   doPortfolioAssumptionsMatchConfig,
   isPortfolioAssumptionsStale,
@@ -440,19 +441,38 @@ export default function AssetSimulatorPage() {
           hidden={activeTab !== "safety"}
           className="space-y-5"
         >
-          <PortfolioConfigSection
-            config={portfolioConfig}
-            onConfigChange={setPortfolioConfig}
-            appliedAssumptions={portfolioAssumptions}
-            onApply={setPortfolioAssumptions}
-            portfolioSummary={projection.summary.portfolioSummary}
-          />
-          <RetirementSafetySection
+          {/*
+            안정성 체크 탭은 SafetyCheckDashboard 래퍼로 대시보드 레이아웃(요약 바 + 좌 설정/우 결과)을 구성한다.
+            설정/상세 섹션은 슬롯으로 전달해 기존 상태 보존 구조와 회귀 검증 배선을 그대로 유지한다.
+          */}
+          <SafetyCheckDashboard
             projection={projection}
             stressProjection={stressProjection}
             portfolioApplied={portfolioAssumptions !== null}
             targetMonthlyExpenseReal={targetMonthlyExpenseReal}
-            onTargetMonthlyExpenseChange={setTargetMonthlyExpenseReal}
+            lastSavedAtMs={lastSavedAtMs}
+            onSave={handleSave}
+            saving={saving}
+            saveMessage={saveMessage}
+            saveError={saveError}
+            configPanel={
+              <PortfolioConfigSection
+                config={portfolioConfig}
+                onConfigChange={setPortfolioConfig}
+                appliedAssumptions={portfolioAssumptions}
+                onApply={setPortfolioAssumptions}
+                portfolioSummary={projection.summary.portfolioSummary}
+              />
+            }
+            safetyPanel={
+              <RetirementSafetySection
+                projection={projection}
+                stressProjection={stressProjection}
+                portfolioApplied={portfolioAssumptions !== null}
+                targetMonthlyExpenseReal={targetMonthlyExpenseReal}
+                onTargetMonthlyExpenseChange={setTargetMonthlyExpenseReal}
+              />
+            }
           />
           {savedFooter}
         </section>

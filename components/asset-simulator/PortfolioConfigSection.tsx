@@ -339,16 +339,33 @@ export default function PortfolioConfigSection({
       aria-labelledby="portfolio-config-heading"
       className="overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-[#273032] dark:bg-[#171d1e] sm:p-5"
     >
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-2">
         <div className="min-w-0">
           <h2 id="portfolio-config-heading" className="text-[17px] font-bold text-slate-900 dark:text-white">
             포트폴리오 설정
           </h2>
-          <p className="mt-1 text-[13px] leading-6 text-slate-500 dark:text-slate-400">
-            <span className="font-medium text-slate-600 dark:text-slate-300">1. 티커·비중 입력 → 2. 자동 계산 또는 수동 보완 → 3. 가정 적용</span>
-            <span className="block text-[12px] text-slate-400 dark:text-slate-500">적용 전의 계산 결과는 시뮬레이션에 반영되지 않습니다.</span>
+          <p className="mt-1 text-[13px] leading-6 text-slate-600 dark:text-slate-400">
+            티커와 비중을 입력하고 가정을 적용하면 안전성 결과에 반영됩니다.
           </p>
         </div>
+
+        {/* 자동 계산/수동 보완/가정 적용 흐름을 한눈에 보여주는 stepper. */}
+        <ol className="flex flex-wrap items-center gap-x-1.5 gap-y-1.5 text-[12px]">
+          {[
+            { n: "1", label: "티커·비중 입력" },
+            { n: "2", label: "자동 계산 또는 수동 보완" },
+            { n: "3", label: "가정 적용" },
+          ].map((step, index) => (
+            <li key={step.n} className="flex items-center gap-1.5">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2 py-1 font-semibold text-slate-700 dark:bg-white/5 dark:text-slate-200">
+                <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-sky-600 text-[10px] font-bold text-white">{step.n}</span>
+                {step.label}
+              </span>
+              {index < 2 && <span aria-hidden className="text-slate-400 dark:text-slate-500">→</span>}
+            </li>
+          ))}
+        </ol>
+        <p className="text-[12px] text-slate-600 dark:text-slate-400">적용 전의 계산 결과는 시뮬레이션에 반영되지 않습니다.</p>
       </div>
 
       {!config ? (
@@ -376,7 +393,7 @@ export default function PortfolioConfigSection({
               빈 포트폴리오로 시작
             </button>
           </div>
-          <p className="mt-2 text-[12px] text-slate-400 dark:text-slate-500">
+          <p className="mt-2 text-[12px] text-slate-600 dark:text-slate-400">
             예시 값(절세: SCHD/QLD, 위탁: SCHD/JEPQ)은 참고용이며 투자 권유가 아닙니다.
           </p>
         </div>
@@ -412,7 +429,7 @@ export default function PortfolioConfigSection({
 
                   <div className="mt-3 space-y-3">
                     {account.holdings.length === 0 ? (
-                      <p className="rounded-lg border border-dashed border-slate-300 px-3 py-4 text-center text-[12.5px] text-slate-400 dark:border-[#2c3638] dark:text-slate-500">
+                      <p className="rounded-lg border border-dashed border-slate-300 px-3 py-4 text-center text-[12.5px] text-slate-600 dark:border-[#2c3638] dark:text-slate-400">
                         아직 티커가 없습니다. 아래 “행 추가”로 종목을 넣어 주세요.
                       </p>
                     ) : (
@@ -599,7 +616,7 @@ function HoldingRow({
     <div className="min-w-0 rounded-lg border border-slate-200 bg-white p-2.5 dark:border-[#2c3638] dark:bg-[#171d1e]">
       <div className="flex flex-wrap items-end gap-2">
         <label className="flex min-w-0 flex-1 flex-col gap-1">
-          <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">티커</span>
+          <span className="text-[11px] font-medium text-slate-700 dark:text-slate-300">티커</span>
           <input
             type="text"
             value={holding.ticker}
@@ -610,7 +627,7 @@ function HoldingRow({
           />
         </label>
         <label className="flex w-20 flex-col gap-1">
-          <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">비중 %</span>
+          <span className="text-[11px] font-medium text-slate-700 dark:text-slate-300">비중 %</span>
           <input
             type="number"
             inputMode="decimal"
@@ -626,7 +643,7 @@ function HoldingRow({
           />
         </label>
         <div className="flex flex-col gap-1">
-          <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">계산 방식</span>
+          <span className="text-[11px] font-medium text-slate-700 dark:text-slate-300">계산 방식</span>
           <div className="inline-flex overflow-hidden rounded-md border border-slate-300 dark:border-[#2c3638]" role="group" aria-label="계산 방식 선택">
             {(["auto", "manual"] as const).map((mode) => (
               <button
@@ -667,7 +684,7 @@ function HoldingRow({
 
       {isManual ? (
         <div className="mt-2 rounded-md border border-slate-200 bg-slate-50 p-2 dark:border-[#2c3638] dark:bg-[#12181a]">
-          <p className="mb-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
+          <p className="mb-1.5 text-[11px] font-medium text-slate-700 dark:text-slate-300">
             수동 입력값 (단위 %)
           </p>
           <div className="flex flex-wrap gap-2">
@@ -692,7 +709,7 @@ function HoldingRow({
       ) : (
         <div className="mt-2 flex flex-col gap-2">
           <div className="flex items-center justify-between gap-2">
-            <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">자동 계산 결과</p>
+            <p className="text-[11px] font-medium text-slate-700 dark:text-slate-300">자동 계산 결과</p>
             <button
               type="button"
               onClick={onRecalculate}
