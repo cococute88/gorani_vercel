@@ -7,6 +7,7 @@ const APP_NAME = "고라니 자산관리";
 const APP_DESCRIPTION = "고라니 자산관리 — 포트폴리오 자산 관리 대시보드";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://gorani-vercel.vercel.app"),
   applicationName: APP_NAME,
   title: {
     default: APP_NAME,
