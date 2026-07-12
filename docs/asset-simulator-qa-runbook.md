@@ -198,5 +198,7 @@ npm.cmd run check:asset-simulator-target-expense
 
 - 현재 하락장 검증은 계좌 단위 `early_downturn` preset 중심이다.
 - holding별 stress, 현금/예비금 stress, 여러 stress preset 선택 기능은 별도 후속 작업으로 검토한다.
+- 하락장 시나리오는 기본보다 좋아지는지를 판단하는 지표가 아니라, 동일 조건에서 손상 정도를 확인하는 보수적 점검이다. 비교 카드의 표시 점수는 사용자가 반대로 해석하지 않도록 같은 계정의 기본 점수를 넘지 않는다.
+- 자산 보존율이 1,000% 이상이면 UI 카드에서는 `1,000% 이상`으로 상한 표시할 수 있다. 계산에 사용되는 raw metric은 내부 결과에 그대로 유지된다.
 - 자동 metric 데이터의 범위·신뢰도 표시와 이력 부족 ETF의 수동 fallback UX를 더 세분화한다.
 - 저장/복원 QA를 로그인·로그아웃·Firebase 미설정 환경별 자동화 시나리오로 확장한다.

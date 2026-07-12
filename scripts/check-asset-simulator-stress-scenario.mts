@@ -4,6 +4,10 @@ import { readFileSync } from "node:fs";
 import { calculateAssetSimulatorPreview } from "../lib/asset-simulator.ts";
 import { calculateRetirementSafety } from "../lib/asset-simulator-safety.ts";
 import {
+  calibrateStressSafetyForDisplay,
+  formatPreservationRatio,
+} from "../lib/asset-simulator-portfolio-ui.ts";
+import {
   EARLY_DOWNTURN_DIVIDEND_CUT_MULTIPLIER,
   EARLY_DOWNTURN_LOW_RETURN_PCT,
   EARLY_DOWNTURN_SHOCK_RETURN_PCT,
@@ -165,6 +169,38 @@ assert.ok(
   "stress Safety 는 하락한 통합 실질 잔고 평가",
 );
 
+// raw Safety 결과는 보존하고, 비교 UI에 쓰는 stress 점수/등급만 같은 계정의 base 이하로 제한한다.
+const invertedStressSafety = {
+  ...stressSafety,
+  taxSaving: {
+    ...stressSafety.taxSaving,
+    score: Math.min(100, baseSafety.taxSaving.score + 3.9),
+    grade: "S" as const,
+    metrics: {
+      ...stressSafety.taxSaving.metrics,
+      preservationRatio: Math.max(0, baseSafety.taxSaving.metrics.preservationRatio - 1),
+    },
+  },
+};
+const displayedStressSafety = calibrateStressSafetyForDisplay(baseSafety, invertedStressSafety);
+assert.ok(
+  invertedStressSafety.taxSaving.metrics.preservationRatio < baseSafety.taxSaving.metrics.preservationRatio,
+  "fixture 의 stress 보존율은 base 보다 낮음",
+);
+assert.ok(invertedStressSafety.taxSaving.score > baseSafety.taxSaving.score, "raw stress 점수 역전 fixture");
+assert.equal(displayedStressSafety.taxSaving.score, baseSafety.taxSaving.score, "표시 stress 점수는 base 점수로 cap");
+assert.equal(
+  displayedStressSafety.taxSaving.metrics.preservationRatio,
+  invertedStressSafety.taxSaving.metrics.preservationRatio,
+  "표시 보정 후에도 stress raw metric 유지",
+);
+assert.equal(stressSafety.taxSaving.score, calculateRetirementSafety(stress, { targetMonthlyExpenseReal }).taxSaving.score, "원본 stress Safety 불변");
+
+assert.equal(formatPreservationRatio(67.09), "1,000% 이상", "6709% 보존율 상한 표시");
+assert.equal(formatPreservationRatio(22.56), "1,000% 이상", "2256% 보존율 상한 표시");
+assert.equal(formatPreservationRatio(9.99), "999%", "1000% 미만은 기존 퍼센트 표시");
+assert.equal(invertedStressSafety.taxSaving.metrics.preservationRatio, Math.max(0, baseSafety.taxSaving.metrics.preservationRatio - 1), "포맷 후 raw metric 유지");
+
 // portfolio mode에서도 동일한 effective assumptions 를 사용한 뒤 stress 를 덧씌운다.
 const portfolioBase = calculateAssetSimulatorPreview(inputs, plans, false, { portfolioAssumptions });
 const portfolioStress = calculateAssetSimulatorPreview(inputs, plans, false, {
@@ -196,10 +232,13 @@ assert.match(page, /stressScenario: \{ version: 1, preset: "early_downturn" \}/,
 assert.match(page, /stressProjection=\{stressProjection\}/, "안전성 섹션에 stress projection 전달");
 assert.match(section, /calculateRetirementSafety\(projection, \{ targetMonthlyExpenseReal \}\)/, "기본 Safety 에 target 전달");
 assert.match(section, /calculateRetirementSafety\(stressProjection, \{ targetMonthlyExpenseReal \}\)/, "stress Safety 에 target 전달");
+assert.match(section, /calibrateStressSafetyForDisplay\(safety, stressSafety\)/, "stress 표시 점수 비교 cap 연결");
+assert.match(section, /formatPreservationRatio/, "보존율 상한 포맷 연결");
 assert.match(section, /기본 시나리오/, "기본 시나리오 UI");
 assert.match(section, /하락장 시나리오/, "하락장 시나리오 UI");
 assert.match(section, /첫 3년 저수익/, "stress 가정 안내");
 assert.match(section, /배당 20% 삭감/, "배당 삭감 안내");
+assert.match(section, /손상 정도를 확인/, "stress 비교 목적 안내");
 assert.match(section, /grid-cols-1/, "모바일 단일 열 레이아웃");
 assert.match(section, /dark:/, "다크모드 스타일 유지");
 

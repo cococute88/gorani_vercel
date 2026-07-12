@@ -6,8 +6,10 @@ import type {
   PortfolioMetricKey,
   PortfolioMetricStatus,
   ResolvedPortfolioMetric,
+  RetirementSafetyResult,
   SafetyResult,
 } from "./asset-simulator-types";
+import { safetyGradeFromScore } from "./asset-simulator-safety";
 
 // Pure, framework-free display helpers for the portfolio + safety UI. Kept out
 // of the React components so the wording/logic can be unit-checked directly.
@@ -47,6 +49,13 @@ export function isWeightTotalValid(holdings: PortfolioHoldingInput[]): boolean {
 export function formatPct(value: number | null | undefined, digits = 2): string {
   if (typeof value !== "number" || !Number.isFinite(value)) return "—";
   return `${value.toFixed(digits)}%`;
+}
+
+// 계산 원값은 유지하되, 네 자리 이상 보존율은 카드에서 과장되어 보이지 않게 상한 표기한다.
+export function formatPreservationRatio(ratio: number | null | undefined): string {
+  if (typeof ratio !== "number" || !Number.isFinite(ratio)) return "—";
+  const percentage = ratio * 100;
+  return percentage >= 1_000 ? "1,000% 이상" : formatPct(percentage, 0);
 }
 
 export function formatYears(value: number | null | undefined): string {
@@ -122,6 +131,29 @@ export function describeSafety(result: SafetyResult): SafetyDisplay {
   };
   const descriptor = toneByGrade[result.grade] ?? { toneLabel: "점검 필요", tone: "caution" as UiTone };
   return { gradeLabel: result.grade, toneLabel: descriptor.toneLabel, tone: descriptor.tone, showScore: true };
+}
+
+function capStressResultForDisplay(base: SafetyResult, stress: SafetyResult): SafetyResult {
+  if (base.status !== "evaluated" || stress.status !== "evaluated" || stress.score <= base.score) return stress;
+
+  const score = base.score;
+  return {
+    ...stress,
+    score,
+    grade: safetyGradeFromScore(score, stress.metrics.failed),
+  };
+}
+
+// stress 계산값과 metrics는 수정하지 않고, 같은 계정의 비교 카드에 쓰는 점수/등급만 base 이하로 제한한다.
+export function calibrateStressSafetyForDisplay(
+  base: RetirementSafetyResult,
+  stress: RetirementSafetyResult,
+): RetirementSafetyResult {
+  return {
+    taxSaving: capStressResultForDisplay(base.taxSaving, stress.taxSaving),
+    brokerage: capStressResultForDisplay(base.brokerage, stress.brokerage),
+    combined: capStressResultForDisplay(base.combined, stress.combined),
+  };
 }
 
 export type PortfolioApplyState =
