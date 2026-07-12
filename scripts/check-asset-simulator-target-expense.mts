@@ -276,17 +276,26 @@ function fixture(options: FixtureOptions = {}): SimulatorProjection {
   assert.match(page, /targetMonthlyExpenseReal/, "페이지가 목표 월생활비 상태를 관리");
   assert.match(page, /setTargetMonthlyExpenseReal/, "목표 월생활비 setter 존재");
   assert.match(page, /retirementSafetyConfig: \{ version: 1 as const, targetMonthlyExpenseReal \}/, "저장 payload 에 목표 월생활비 포함");
-  assert.match(page, /onTargetMonthlyExpenseChange=\{setTargetMonthlyExpenseReal\}/, "섹션에 setter 전달");
+  assert.match(page, /onTargetMonthlyExpenseChange=\{setTargetMonthlyExpenseReal\}/, "대시보드에 setter 전달");
   assert.match(page, /setTargetMonthlyExpenseReal\(null\)/, "초기화 시 목표 월생활비 해제");
+
+  // 목표 월생활비 입력은 은퇴 안전성 섹션에서 SafetyHeroCard 로 이동했다.
+  // 대시보드는 setter 를 Hero 까지 전달하고, Hero 가 입력 UI/문구를 갖는다.
+  const dashboard = read("components/asset-simulator/SafetyCheckDashboard.tsx");
+  assert.match(dashboard, /onTargetMonthlyExpenseChange=\{onTargetMonthlyExpenseChange\}/, "대시보드가 Hero 로 setter 전달");
+
+  const hero = read("components/asset-simulator/SafetyHeroCard.tsx");
+  assert.match(hero, /id="target-monthly-expense"/, "Hero 목표 월생활비 입력 id");
+  assert.match(hero, /목표 월생활비/, "목표 월생활비 입력 라벨");
+  assert.match(hero, /현재 가치 기준/, "현재 가치 기준 안내");
+  assert.match(hero, /목표 생활비 기준으로 평가합니다/, "미입력 안내 문구");
+  assert.match(hero, /참고용 임시 평가/, "미입력 임시 평가 문구");
+  assert.match(hero, /기준으로 평가 중/, "입력 시 평가 기준 문구");
+  assert.match(hero, /충당률/, "월 공급 대비 충당률 표시");
+  assert.match(hero, /onTargetMonthlyExpenseChange\(parseTargetInput\(next\)\)/, "Hero 가 파싱된 목표 값을 상위로 전달");
 
   const section = read("components/asset-simulator/RetirementSafetySection.tsx");
   assert.match(section, /calculateRetirementSafety\(projection, \{ targetMonthlyExpenseReal \}\)/, "섹션이 목표 월생활비를 Safety 에 전달");
-  assert.match(section, /목표 월생활비/, "목표 월생활비 입력 라벨");
-  assert.match(section, /현재 가치 기준/, "현재 가치 기준 안내");
-  assert.match(section, /목표 생활비 기준으로 평가합니다/, "미입력 안내 문구");
-  assert.match(section, /참고용 임시 평가/, "미입력 임시 평가 문구");
-  assert.match(section, /기준으로 평가 중/, "입력 시 평가 기준 문구");
-  assert.match(section, /충당률/, "월 공급 대비 충당률 표시");
   assert.match(section, /overflow-hidden/, "가로 넘침 방지 유지");
 }
 

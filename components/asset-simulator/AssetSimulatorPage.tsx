@@ -450,6 +450,7 @@ export default function AssetSimulatorPage() {
             stressProjection={stressProjection}
             portfolioApplied={portfolioAssumptions !== null}
             targetMonthlyExpenseReal={targetMonthlyExpenseReal}
+            onTargetMonthlyExpenseChange={setTargetMonthlyExpenseReal}
             lastSavedAtMs={lastSavedAtMs}
             onSave={handleSave}
             saving={saving}
@@ -470,7 +471,6 @@ export default function AssetSimulatorPage() {
                 stressProjection={stressProjection}
                 portfolioApplied={portfolioAssumptions !== null}
                 targetMonthlyExpenseReal={targetMonthlyExpenseReal}
-                onTargetMonthlyExpenseChange={setTargetMonthlyExpenseReal}
               />
             }
           />

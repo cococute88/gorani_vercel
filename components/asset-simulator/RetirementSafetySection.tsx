@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { calculateRetirementSafety } from "@/lib/asset-simulator-safety";
 import {
   calibrateStressSafetyForDisplay,
@@ -10,28 +10,16 @@ import {
   formatPreservationRatio,
   type UiTone,
 } from "@/lib/asset-simulator-portfolio-ui";
-import { formatManwonMoney } from "@/lib/format";
 import type { SafetyResult, SimulatorProjection } from "@/lib/asset-simulator-types";
 
+// 목표 월생활비 입력은 이 섹션에서 SafetyHeroCard 로 이동했다.
+// 이 섹션은 목표 값을 읽어 Safety 계산에 반영하기만 하고, 입력 UI 는 두지 않는다.
 type Props = {
   projection: SimulatorProjection;
   stressProjection: SimulatorProjection;
   portfolioApplied: boolean;
   targetMonthlyExpenseReal: number | null;
-  onTargetMonthlyExpenseChange: (value: number | null) => void;
 };
-
-// 입력 문자열 <-> 목표 월생활비(만원, 양수) 변환.
-function formatTargetInput(value: number | null): string {
-  return typeof value === "number" && Number.isFinite(value) && value > 0 ? String(value) : "";
-}
-
-function parseTargetInput(raw: string): number | null {
-  const trimmed = raw.trim();
-  if (trimmed === "") return null;
-  const parsed = Number(trimmed);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-}
 
 type AccountKey = "taxSaving" | "brokerage" | "combined";
 
@@ -198,7 +186,6 @@ export default function RetirementSafetySection({
   stressProjection,
   portfolioApplied,
   targetMonthlyExpenseReal,
-  onTargetMonthlyExpenseChange,
 }: Props) {
   const safety = useMemo(
     () => calculateRetirementSafety(projection, { targetMonthlyExpenseReal }),
@@ -213,22 +200,6 @@ export default function RetirementSafetySection({
     [safety, stressSafety],
   );
 
-  // 부드러운 타이핑을 위해 로컬 문자열 상태를 두고, 파싱된 값만 상위로 전달한다.
-  // 외부(하이드레이션/초기화)로 값이 바뀔 때만 입력창을 동기화한다.
-  const [rawInput, setRawInput] = useState(() => formatTargetInput(targetMonthlyExpenseReal));
-  useEffect(() => {
-    setRawInput((prev) => (parseTargetInput(prev) === targetMonthlyExpenseReal ? prev : formatTargetInput(targetMonthlyExpenseReal)));
-  }, [targetMonthlyExpenseReal]);
-
-  const handleTargetChange = (next: string) => {
-    setRawInput(next);
-    onTargetMonthlyExpenseChange(parseTargetInput(next));
-  };
-
-  const hasTarget = targetMonthlyExpenseReal !== null;
-  const coverageRatio = safety.combined.metrics.monthlyIncomeCoverageRatio;
-  const stressCoverageRatio = stressSafety.combined.metrics.monthlyIncomeCoverageRatio;
-
   return (
     <section
       aria-labelledby="retirement-safety-heading"
@@ -240,52 +211,10 @@ export default function RetirementSafetySection({
         </h2>
         <p className="mt-1 text-[13px] leading-6 text-slate-600 dark:text-slate-400">
           위 요약·KPI의 근거가 되는 상세 분석입니다. 은퇴 기간의 실질 자산과 현금흐름을 계좌별로 살펴봅니다.
+          목표 월생활비는 위 요약 영역에서 입력합니다.
           {portfolioApplied
             ? " 적용된 포트폴리오 가정을 반영한 결과입니다."
             : " 아직 포트폴리오 가정은 적용되지 않았습니다."}
-        </p>
-      </div>
-
-      {/* 목표 월생활비 입력 + 평가 기준 안내 */}
-      <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3.5 dark:border-[#273032] dark:bg-[#12181a]">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-          <div className="min-w-0">
-            <label htmlFor="target-monthly-expense" className="block text-[13px] font-semibold text-slate-700 dark:text-slate-200">
-              목표 월생활비
-            </label>
-            <p className="mt-0.5 text-[11.5px] text-slate-600 dark:text-slate-500">현재 가치 기준 · 만원 단위</p>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <input
-              id="target-monthly-expense"
-              type="number"
-              inputMode="decimal"
-              min={0}
-              step={10}
-              value={rawInput}
-              onChange={(event) => handleTargetChange(event.target.value)}
-              placeholder="예: 300"
-              aria-describedby="target-monthly-expense-hint"
-              className="w-32 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-right text-[14px] font-semibold text-slate-800 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:border-[#324043] dark:bg-[#0f1416] dark:text-slate-100 dark:focus:ring-emerald-500/20"
-            />
-            <span className="text-[13px] text-slate-500 dark:text-slate-400">만원</span>
-          </div>
-        </div>
-        <p id="target-monthly-expense-hint" className="mt-2 text-[11.5px] leading-relaxed text-slate-600 dark:text-slate-400">
-          {hasTarget ? (
-            <>
-              <span className="font-semibold text-emerald-600 dark:text-emerald-400">목표 {formatManwonMoney(targetMonthlyExpenseReal)} 기준으로 평가 중</span>
-              {typeof coverageRatio === "number"
-                ? ` · 기본 충당률 ${formatPct(coverageRatio * 100, 0)}`
-                : ""}
-              {typeof stressCoverageRatio === "number"
-                ? ` · 하락장 충당률 ${formatPct(stressCoverageRatio * 100, 0)}`
-                : ""}
-              .
-            </>
-          ) : (
-            <>입력하면 목표 생활비 기준으로 평가합니다. 입력 전에는 현재 인출 조건을 바탕으로 참고용 임시 평가를 보여줍니다.</>
-          )}
         </p>
       </div>
 
