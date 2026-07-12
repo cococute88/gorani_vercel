@@ -3,6 +3,7 @@ import { normalizePortfolioAssumptions, normalizePortfolioConfig } from "./asset
 import type {
   AssetSimulatorPortfolioConfigV1,
   PersistedPortfolioAssumptions,
+  RetirementSafetyConfigV1,
   SimulatorInputs,
   StoredSimulatorPreview,
   YearPlanRow,
@@ -20,6 +21,7 @@ export type ResolvedSimulatorConfig = {
   yearPlans: YearPlanRow[];
   portfolioConfig?: AssetSimulatorPortfolioConfigV1;
   portfolioAssumptions?: PersistedPortfolioAssumptions;
+  retirementSafetyConfig?: RetirementSafetyConfigV1;
   updatedAtMs: number;
   source: SimulatorHydrationSource;
 };
@@ -27,7 +29,22 @@ export type ResolvedSimulatorConfig = {
 export type SimulatorPortfolioPersistence = {
   portfolioConfig?: AssetSimulatorPortfolioConfigV1;
   portfolioAssumptions?: PersistedPortfolioAssumptions;
+  retirementSafetyConfig?: RetirementSafetyConfigV1;
 };
+
+// 저장/복원 시 목표 월생활비 설정을 방어적으로 정규화한다.
+// - version 이 1 이 아니면 무효(null)
+// - targetMonthlyExpenseReal 은 유한한 양수만 허용(NaN/Infinity/0 이하 → 무효)
+// - 담을 유효 값이 없으면 config 자체를 생략(null)해 저장 payload를 깔끔하게 유지한다.
+export function normalizeRetirementSafetyConfig(raw: unknown): RetirementSafetyConfigV1 | null {
+  if (!raw || typeof raw !== "object") return null;
+  const candidate = raw as { version?: unknown; targetMonthlyExpenseReal?: unknown };
+  if (candidate.version !== 1) return null;
+  const value = candidate.targetMonthlyExpenseReal;
+  const normalized = typeof value === "number" && Number.isFinite(value) && value > 0 ? value : null;
+  if (normalized === null) return null;
+  return { version: 1, targetMonthlyExpenseReal: normalized };
+}
 
 function timestampToMs(value: unknown): number {
   if (!value) return 0;
@@ -58,11 +75,13 @@ export function normalizePersistedSimulatorConfig(
   const inputs = normalizeInputs({ ...DEFAULT_SIMULATOR_INPUTS, ...config.inputs });
   const portfolioConfig = normalizePortfolioConfig(config.portfolioConfig);
   const portfolioAssumptions = normalizePortfolioAssumptions(config.portfolioAssumptions);
+  const retirementSafetyConfig = normalizeRetirementSafetyConfig(config.retirementSafetyConfig);
   return {
     inputs,
     yearPlans: normalizeYearPlans(inputs, config.yearPlans ?? []),
     ...(portfolioConfig ? { portfolioConfig } : {}),
     ...(portfolioAssumptions ? { portfolioAssumptions } : {}),
+    ...(retirementSafetyConfig ? { retirementSafetyConfig } : {}),
     updatedAtMs: timestampToMs(config.updatedAt),
     source,
   };
@@ -85,11 +104,13 @@ export function buildStoredSimulatorConfig(
   const normalizedInputs = normalizeInputs(inputs);
   const portfolioConfig = normalizePortfolioConfig(portfolio.portfolioConfig);
   const portfolioAssumptions = normalizePortfolioAssumptions(portfolio.portfolioAssumptions);
+  const retirementSafetyConfig = normalizeRetirementSafetyConfig(portfolio.retirementSafetyConfig);
   return {
     inputs: normalizedInputs,
     yearPlans: normalizeYearPlans(normalizedInputs, yearPlans),
     ...(portfolioConfig ? { portfolioConfig } : {}),
     ...(portfolioAssumptions ? { portfolioAssumptions } : {}),
+    ...(retirementSafetyConfig ? { retirementSafetyConfig } : {}),
     updatedAt,
   };
 }
@@ -145,11 +166,13 @@ export function buildFirestoreSimulatorConfigPayload(config: StoredSimulatorPrev
   const normalizedInputs = normalizeInputs(config.inputs);
   const portfolioConfig = normalizePortfolioConfig(config.portfolioConfig);
   const portfolioAssumptions = normalizePortfolioAssumptions(config.portfolioAssumptions);
+  const retirementSafetyConfig = normalizeRetirementSafetyConfig(config.retirementSafetyConfig);
   const normalizedConfig: StoredSimulatorPreview = {
     inputs: normalizedInputs,
     yearPlans: normalizeYearPlans(normalizedInputs, config.yearPlans ?? []),
     ...(portfolioConfig ? { portfolioConfig } : {}),
     ...(portfolioAssumptions ? { portfolioAssumptions } : {}),
+    ...(retirementSafetyConfig ? { retirementSafetyConfig } : {}),
   };
   const cleaned = sanitizeForFirestore(normalizedConfig) as StoredSimulatorPreview;
   const unsafePaths = findFirestoreUnsafePaths(cleaned);
