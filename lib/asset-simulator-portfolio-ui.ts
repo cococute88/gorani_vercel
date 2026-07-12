@@ -76,7 +76,7 @@ export function describeMetricStatus(
     case "manual":
       return { label: "수동 입력", tone: "neutral" };
     case "insufficient_history":
-      return { label: "데이터 부족 · 수동 입력 필요", tone: "caution" };
+      return { label: "데이터 부족 · 수동 보완", tone: "caution" };
     case "not_applicable":
       if (options.isDividendMetric && metric.valuePct === 0) {
         return { label: "무배당", tone: "neutral" };
@@ -99,12 +99,12 @@ export type SafetyDisplay = {
 // their own soft copy and only show a letter grade when status === "evaluated".
 export function describeSafety(result: SafetyResult): SafetyDisplay {
   if (result.status === "not_applicable") {
-    return { gradeLabel: "평가 대상 없음", toneLabel: "평가할 데이터가 아직 없습니다", tone: "muted", showScore: false };
+    return { gradeLabel: "평가 대상 없음", toneLabel: "현재 평가할 데이터가 없습니다", tone: "muted", showScore: false };
   }
   if (result.status === "data_insufficient" || result.grade === null) {
     return {
       gradeLabel: "데이터 부족",
-      toneLabel: "데이터가 부족해 아직 평가하지 않았습니다",
+      toneLabel: "데이터를 보완하면 평가할 수 있습니다",
       tone: "muted",
       showScore: false,
     };
@@ -130,24 +130,28 @@ export type PortfolioApplyState =
 
 export function describeApplyState(state: PortfolioApplyState): { label: string; tone: UiTone } | null {
   switch (state) {
+    case "none":
+      return {
+        label: "아직 포트폴리오 가정이 적용되지 않았습니다.",
+        tone: "neutral",
+      };
     case "config_changed":
       return {
-        label: "포트폴리오 설정이 변경되었습니다. 다시 적용하면 시뮬레이션에 반영됩니다.",
+        label: "현재 설정이 적용된 가정과 다릅니다. 다시 적용하면 반영됩니다.",
         tone: "caution",
       };
     case "stale":
       return {
-        label: "적용된 가정이 오래되었습니다. 필요하면 다시 계산해 주세요.",
+        label: "적용된 가정이 오래됐습니다. 필요하면 다시 계산해 적용해 주세요.",
         tone: "caution",
       };
     case "clean":
-    case "none":
     default:
       return null;
   }
 }
 
-export const AUTO_NOT_APPLIED_HINT = "자동 계산값은 적용 버튼을 누르기 전까지 시뮬레이션에 반영되지 않습니다.";
+export const AUTO_NOT_APPLIED_HINT = "자동 계산 결과는 아직 반영되지 않았습니다. 적용하면 시뮬레이션에 반영됩니다.";
 
 // Small shared key so the page/section can index transient resolver results.
 export function resolutionKey(accountType: PortfolioAccountType, ticker: string): string {

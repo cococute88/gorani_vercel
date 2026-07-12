@@ -283,9 +283,9 @@ function fixture(options: FixtureOptions = {}): SimulatorProjection {
   assert.match(section, /calculateRetirementSafety\(projection, \{ targetMonthlyExpenseReal \}\)/, "섹션이 목표 월생활비를 Safety 에 전달");
   assert.match(section, /목표 월생활비/, "목표 월생활비 입력 라벨");
   assert.match(section, /현재 가치 기준/, "현재 가치 기준 안내");
-  assert.match(section, /통합 안전성 평가가 더 정확해집니다/, "미입력 안내 문구");
-  assert.match(section, /임시 평가입니다/, "미입력 임시 평가 문구");
-  assert.match(section, /목표 월생활비 기준으로 통합 안전성을 평가 중/, "입력 시 평가 기준 문구");
+  assert.match(section, /목표 생활비 기준으로 평가합니다/, "미입력 안내 문구");
+  assert.match(section, /참고용 임시 평가/, "미입력 임시 평가 문구");
+  assert.match(section, /기준으로 평가 중/, "입력 시 평가 기준 문구");
   assert.match(section, /충당률/, "월 공급 대비 충당률 표시");
   assert.match(section, /overflow-hidden/, "가로 넘침 방지 유지");
 }

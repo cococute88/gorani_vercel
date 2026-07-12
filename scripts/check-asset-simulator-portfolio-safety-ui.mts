@@ -58,7 +58,7 @@ assert.equal(describeMetricStatus(metric({ status: "resolved", valuePct: 6 })).l
 assert.equal(describeMetricStatus(metric({ status: "failed" })).label, "조회 실패", "failed → 조회 실패");
 assert.equal(
   describeMetricStatus(metric({ status: "insufficient_history" })).label,
-  "데이터 부족 · 수동 입력 필요",
+  "데이터 부족 · 수동 보완",
   "insufficient_history → 데이터 부족",
 );
 assert.equal(
@@ -179,9 +179,9 @@ assert.ok(normalizePortfolioConfig(stored.portfolioConfig), "portfolioConfig 정
 assert.ok(normalizePortfolioAssumptions(stored.portfolioAssumptions), "portfolioAssumptions 정규화 라운드트립");
 
 // ----- 6) apply 상태 안내 문구 --------------------------------------------
-assert.equal(describeApplyState("none"), null, "미적용 상태는 배너 없음");
+assert.ok(describeApplyState("none")?.label.includes("아직"), "미적용 상태 안내");
 assert.equal(describeApplyState("clean"), null, "일치 상태는 배너 없음");
-assert.ok(describeApplyState("config_changed")?.label.includes("변경"), "설정 변경 배너 문구");
+assert.ok(describeApplyState("config_changed")?.label.includes("다릅니다"), "설정 변경 배너 문구");
 assert.ok(describeApplyState("stale")?.label.includes("오래"), "stale 배너 문구");
 
 // ----- 7) 페이지/컴포넌트 배선 확인 ----------------------------------------
