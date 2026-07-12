@@ -66,6 +66,7 @@
     "check:asset-simulator-portfolio-assumptions": "npx --yes tsx scripts/check-asset-simulator-portfolio-assumptions.mts",
     "check:asset-simulator-portfolio-projection": "npx --yes tsx scripts/check-asset-simulator-portfolio-projection.mts",
     "check:asset-simulator-portfolio-safety-ui": "npx --yes tsx scripts/check-asset-simulator-portfolio-safety-ui.mts",
+    "check:asset-simulator-portfolio-resilience": "npx --yes tsx scripts/check-asset-simulator-portfolio-resilience.mts",
     "check:asset-simulator-exit-mode": "node scripts/check-asset-simulator-exit-mode.mjs",
     "check:asset-simulator-delay-sync": "node scripts/check-asset-simulator-delay-sync.mjs",
     "check:asset-simulator-principal-withdraw": "node scripts/check-asset-simulator-principal-withdraw.mjs",

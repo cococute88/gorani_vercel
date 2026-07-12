@@ -11,16 +11,23 @@ import {
   doPortfolioAssumptionsMatchConfig,
   isPortfolioAssumptionsStale,
 } from "@/lib/asset-simulator-portfolio-assumptions";
-import { fetchPortfolioHoldingResolution } from "@/lib/asset-simulator-portfolio-client";
+import { resolvePortfolioHoldingMetricsClient } from "@/lib/asset-simulator-portfolio-client";
 import {
   ACCOUNT_LABELS,
+  APPLY_BLOCKED_HINT,
+  APPLY_WHILE_LOADING_HINT,
   AUTO_NOT_APPLIED_HINT,
+  AUTO_RESULT_STALE_HINT,
+  MANUAL_FALLBACK_HINTS,
   describeApplyState,
   describeMetricStatus,
   formatPct,
   formatYears,
+  isAutoResultStale,
   isWeightTotalValid,
+  resolutionHasInsufficientHistory,
   resolutionKey,
+  resolutionNeedsManualFallback,
   sumWeightPct,
   type PortfolioApplyState,
   type UiTone,
@@ -96,10 +103,21 @@ export default function PortfolioConfigSection({
   portfolioSummary,
 }: Props) {
   const [resolutions, setResolutions] = useState<Record<string, PortfolioHoldingResolution>>({});
+  const [resolvedAt, setResolvedAt] = useState<Record<string, string>>({});
   const [loadingKeys, setLoadingKeys] = useState<Record<string, boolean>>({});
   const [fetchErrors, setFetchErrors] = useState<Record<string, string>>({});
-  const [applyIssues, setApplyIssues] = useState<PortfolioValidationIssue[]>([]);
   const [applyMessage, setApplyMessage] = useState<string | null>(null);
+
+  // 진행 중인 자동 계산 요청을 티커 키별로 추적한다. 같은 키의 새 요청이 시작되면
+  // 이전 요청을 abort 해 최신 요청만 반영하고, 언마운트 시 모두 취소한다.
+  const controllersRef = useRef<Map<string, AbortController>>(new Map());
+  useEffect(() => {
+    const controllers = controllersRef.current;
+    return () => {
+      controllers.forEach((controller) => controller.abort());
+      controllers.clear();
+    };
+  }, []);
 
   // 편집 중인 숫자 입력만 사용자의 입력 텍스트를 보존하고, 나머지는 항상 config 값을 표시한다.
   const [drafts, setDrafts] = useState<Record<string, string>>({});
@@ -147,6 +165,18 @@ export default function PortfolioConfigSection({
   }, [appliedAssumptions, config]);
 
   const hasAutoResults = useMemo(() => Object.keys(resolutions).length > 0, [resolutions]);
+
+  // 적용 게이트를 실시간으로 미리 계산한다. 이 계산은 시뮬레이션에 반영되지 않고,
+  // 적용 가능 여부와 남은 이슈 안내에만 쓴다(appliedAt 은 실제 적용 시 다시 찍는다).
+  const applyPreview = useMemo(() => {
+    if (!config) {
+      return { assumptions: null as AppliedPortfolioAssumptionsV1 | null, issues: [] as PortfolioValidationIssue[] };
+    }
+    return buildAppliedPortfolioAssumptions(config, Object.values(resolutions));
+  }, [config, resolutions]);
+
+  const anyLoading = useMemo(() => Object.values(loadingKeys).some(Boolean), [loadingKeys]);
+  const canApply = Boolean(config) && Boolean(applyPreview.assumptions) && !anyLoading;
 
   const updateAccount = (accountType: PortfolioAccountType, holdings: PortfolioHoldingInput[]) => {
     const base = config ?? buildDefaultPortfolioConfig();
@@ -217,48 +247,81 @@ export default function PortfolioConfigSection({
     const ticker = normalizePortfolioTicker(holding.ticker);
     if (!ticker) return;
     const key = resolutionKey(accountType, ticker);
+
+    // 최신 요청만 반영: 같은 티커의 진행 중 요청은 취소한다.
+    controllersRef.current.get(key)?.abort();
+    const controller = new AbortController();
+    controllersRef.current.set(key, controller);
+
     setLoadingKeys((current) => ({ ...current, [key]: true }));
     setFetchErrors((current) => {
       const next = { ...current };
       delete next[key];
       return next;
     });
+
     try {
-      const resolution = await fetchPortfolioHoldingResolution(ticker, accountType);
-      setResolutions((current) => ({ ...current, [key]: resolution }));
+      const result = await resolvePortfolioHoldingMetricsClient(ticker, accountType, controller.signal);
+      // 이 응답이 여전히 최신 요청인지 확인(그 사이 새 요청이 시작되면 무시).
+      if (controllersRef.current.get(key) !== controller) return;
+      // 성공/실패 모두 resolution(성공값 또는 실패 fallback)을 보관해 UI 상태를 유지한다.
+      setResolutions((current) => ({ ...current, [key]: result.resolution }));
+      setResolvedAt((current) => ({ ...current, [key]: new Date().toISOString() }));
+      if (!result.ok) {
+        setFetchErrors((current) => ({ ...current, [key]: result.message ?? "자동 계산에 실패했습니다." }));
+      }
     } catch (error) {
-      setFetchErrors((current) => ({
-        ...current,
-        [key]: error instanceof Error ? error.message : "자동 계산에 실패했습니다.",
-      }));
+      // AbortError = 최신 요청으로 대체되었거나 언마운트됨 → 조용히 무시한다.
+      if ((error as { name?: string })?.name === "AbortError") return;
+      if (controllersRef.current.get(key) !== controller) return;
+      setFetchErrors((current) => ({ ...current, [key]: "자동 계산에 실패했습니다." }));
     } finally {
-      setLoadingKeys((current) => {
-        const next = { ...current };
-        delete next[key];
-        return next;
-      });
+      // 이 요청이 여전히 소유자일 때만 로딩을 해제한다(대체된 요청은 새 소유자가 관리).
+      if (controllersRef.current.get(key) === controller) {
+        controllersRef.current.delete(key);
+        setLoadingKeys((current) => {
+          const next = { ...current };
+          delete next[key];
+          return next;
+        });
+      }
     }
   };
 
+  const autoHoldingsWithTicker = (accountType: PortfolioAccountType): PortfolioHoldingInput[] =>
+    config
+      ? config[accountType].holdings.filter(
+          (holding) => holding.metricMode === "auto" && normalizePortfolioTicker(holding.ticker),
+        )
+      : [];
+
+  // 실패했거나(fetchError) 수동 보완이 필요한 자동 계산 티커만 골라낸다.
+  const failedAutoHoldings = (accountType: PortfolioAccountType): PortfolioHoldingInput[] =>
+    autoHoldingsWithTicker(accountType).filter((holding) => {
+      const key = resolutionKey(accountType, normalizePortfolioTicker(holding.ticker));
+      if (fetchErrors[key]) return true;
+      const resolution = resolutions[key];
+      return resolution ? resolutionNeedsManualFallback(resolution, accountType) : false;
+    });
+
   const runResolveAll = async (accountType: PortfolioAccountType) => {
-    if (!config) return;
-    const autoHoldings = config[accountType].holdings.filter(
-      (holding) => holding.metricMode === "auto" && normalizePortfolioTicker(holding.ticker),
-    );
-    await Promise.all(autoHoldings.map((holding) => runResolve(accountType, holding)));
+    await Promise.all(autoHoldingsWithTicker(accountType).map((holding) => runResolve(accountType, holding)));
+  };
+
+  const runResolveFailed = async (accountType: PortfolioAccountType) => {
+    await Promise.all(failedAutoHoldings(accountType).map((holding) => runResolve(accountType, holding)));
   };
 
   const handleApply = () => {
     if (!config) return;
     setApplyMessage(null);
-    const resolutionList = Object.values(resolutions);
-    const { assumptions, issues } = buildAppliedPortfolioAssumptions(config, resolutionList);
+    // 클릭 시점 기준으로 다시 계산해 appliedAt 을 정확히 찍는다.
+    const { assumptions } = buildAppliedPortfolioAssumptions(config, Object.values(resolutions));
     if (!assumptions) {
-      setApplyIssues(issues);
+      // 버튼이 disabled 이므로 정상 흐름에선 도달하지 않지만, 방어적으로 처리한다.
       setApplyMessage("적용할 수 없는 항목이 있어 시뮬레이션에 반영하지 않았습니다.");
       return;
     }
-    setApplyIssues([]);
     onApply(assumptions);
     setApplyMessage("포트폴리오 가정을 적용해 시뮬레이션에 반영했습니다.");
   };
@@ -325,6 +388,11 @@ export default function PortfolioConfigSection({
               const weightPct = sumWeightPct(account.holdings);
               const weightValid = isWeightTotalValid(account.holdings);
               const accountIssues = accountLevelIssues(accountType);
+              const hasAutoTicker = autoHoldingsWithTicker(accountType).length > 0;
+              const accountLoading = account.holdings.some(
+                (holding) => loadingKeys[resolutionKey(accountType, normalizePortfolioTicker(holding.ticker))],
+              );
+              const failedCount = failedAutoHoldings(accountType).length;
               return (
                 <div
                   key={accountType}
@@ -357,6 +425,7 @@ export default function PortfolioConfigSection({
                           resolution={resolutions[resolutionKey(accountType, normalizePortfolioTicker(holding.ticker))]}
                           loading={Boolean(loadingKeys[resolutionKey(accountType, normalizePortfolioTicker(holding.ticker))])}
                           fetchError={fetchErrors[resolutionKey(accountType, normalizePortfolioTicker(holding.ticker))]}
+                          resolvedAt={resolvedAt[resolutionKey(accountType, normalizePortfolioTicker(holding.ticker))]}
                           drafts={drafts}
                           onFocusField={setFocusedKey}
                           onBlurField={() => setFocusedKey(null)}
@@ -392,12 +461,23 @@ export default function PortfolioConfigSection({
                     <button
                       type="button"
                       onClick={() => void runResolveAll(accountType)}
-                      disabled={!account.holdings.some((holding) => holding.metricMode === "auto" && normalizePortfolioTicker(holding.ticker)) || account.holdings.some((holding) => loadingKeys[resolutionKey(accountType, normalizePortfolioTicker(holding.ticker))])}
-                      aria-busy={account.holdings.some((holding) => loadingKeys[resolutionKey(accountType, normalizePortfolioTicker(holding.ticker))]) || undefined}
+                      disabled={!hasAutoTicker || accountLoading}
+                      aria-busy={accountLoading || undefined}
                       className="rounded-lg border border-sky-300 px-2.5 py-1.5 text-[12.5px] font-semibold text-sky-700 transition hover:bg-sky-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400 disabled:cursor-not-allowed disabled:opacity-50 dark:border-sky-500/40 dark:text-sky-300 dark:hover:bg-sky-500/10"
                     >
-                      {account.holdings.some((holding) => loadingKeys[resolutionKey(accountType, normalizePortfolioTicker(holding.ticker))]) ? "자동 계산 중…" : "전체 자동 계산"}
+                      {accountLoading ? "자동 계산 중…" : "전체 자동 계산"}
                     </button>
+                    {failedCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => void runResolveFailed(accountType)}
+                        disabled={accountLoading}
+                        aria-busy={accountLoading || undefined}
+                        className="rounded-lg border border-amber-300 px-2.5 py-1.5 text-[12.5px] font-semibold text-amber-700 transition hover:bg-amber-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400 disabled:cursor-not-allowed disabled:opacity-50 dark:border-amber-500/40 dark:text-amber-300 dark:hover:bg-amber-500/10"
+                      >
+                        실패한 티커만 다시 계산 ({failedCount})
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -410,7 +490,9 @@ export default function PortfolioConfigSection({
               <button
                 type="button"
                 onClick={handleApply}
-                className="rounded-lg bg-sky-600 px-3.5 py-2 text-[13px] font-semibold text-white transition hover:bg-sky-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400"
+                disabled={!canApply}
+                aria-disabled={!canApply || undefined}
+                className="rounded-lg bg-sky-600 px-3.5 py-2 text-[13px] font-semibold text-white transition hover:bg-sky-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-sky-600"
               >
                 포트폴리오 가정 적용
               </button>
@@ -419,25 +501,37 @@ export default function PortfolioConfigSection({
               )}
             </div>
 
+            {anyLoading && (
+              <p className="mt-2 text-[12.5px] leading-relaxed text-slate-500 dark:text-slate-400" role="status" aria-live="polite">
+                {APPLY_WHILE_LOADING_HINT}
+              </p>
+            )}
             {applyStateBanner && (
               <p className={`mt-2 text-[12.5px] leading-relaxed ${TONE_TEXT[applyStateBanner.tone]}`} role="status">{applyStateBanner.label}</p>
             )}
             {hasAutoResults && applyState !== "clean" && (
               <p className="mt-1 text-[12px] leading-relaxed text-amber-600 dark:text-amber-400">{AUTO_NOT_APPLIED_HINT}</p>
             )}
+            {!anyLoading && !applyPreview.assumptions && (
+              <div className="mt-2">
+                <p className="text-[12.5px] leading-relaxed text-amber-600 dark:text-amber-400" role="status">
+                  {APPLY_BLOCKED_HINT}
+                </p>
+                {applyPreview.issues.length > 0 && (
+                  <ul className="mt-1 space-y-1" role="alert">
+                    {applyPreview.issues.map((issue, index) => (
+                      <li key={`${issue.code}-${index}`} className="text-[12px] text-rose-600 dark:text-rose-400">
+                        • [{issue.accountType === "taxSaving" ? "절세" : "위탁"}] {issue.message}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
             {applyMessage && (
-              <p className={`mt-2 text-[12.5px] ${applyIssues.length > 0 ? TONE_TEXT.warning : TONE_TEXT.positive}`} role="status">
+              <p className={`mt-2 text-[12.5px] ${TONE_TEXT.positive}`} role="status">
                 {applyMessage}
               </p>
-            )}
-            {applyIssues.length > 0 && (
-              <ul className="mt-2 space-y-1" role="alert">
-                {applyIssues.map((issue, index) => (
-                  <li key={`${issue.code}-${index}`} className="text-[12px] text-rose-600 dark:text-rose-400">
-                    • [{issue.accountType === "taxSaving" ? "절세" : "위탁"}] {issue.message}
-                  </li>
-                ))}
-              </ul>
             )}
           </div>
 
@@ -457,6 +551,7 @@ type HoldingRowProps = {
   resolution?: PortfolioHoldingResolution;
   loading: boolean;
   fetchError?: string;
+  resolvedAt?: string;
   drafts: Record<string, string>;
   onFocusField: (key: string) => void;
   onBlurField: () => void;
@@ -475,6 +570,7 @@ function HoldingRow({
   resolution,
   loading,
   fetchError,
+  resolvedAt,
   drafts,
   onFocusField,
   onBlurField,
@@ -487,6 +583,17 @@ function HoldingRow({
 }: HoldingRowProps) {
   const draftKey = (field: string) => `${holding.id}:${field}`;
   const isManual = holding.metricMode === "manual";
+
+  // 자동 계산 모드에서만 노출하는 수동 fallback 안내/전환 조건을 계산한다.
+  const needsFallback = !isManual && !loading && (
+    Boolean(fetchError) || (resolution ? resolutionNeedsManualFallback(resolution, accountType) : false)
+  );
+  const fallbackMessage = fetchError
+    ? MANUAL_FALLBACK_HINTS.fetchFailed
+    : resolution && resolutionHasInsufficientHistory(resolution, accountType)
+      ? MANUAL_FALLBACK_HINTS.shortHistory
+      : MANUAL_FALLBACK_HINTS.general;
+  const showStaleHint = !isManual && !loading && !fetchError && Boolean(resolution) && isAutoResultStale(resolvedAt);
 
   return (
     <div className="min-w-0 rounded-lg border border-slate-200 bg-white p-2.5 dark:border-[#2c3638] dark:bg-[#171d1e]">
@@ -596,6 +703,25 @@ function HoldingRow({
             </button>
           </div>
           <AutoMetrics accountType={accountType} resolution={resolution} loading={loading} fetchError={fetchError} />
+          {showStaleHint && (
+            <p className="text-[11px] leading-relaxed text-amber-600 dark:text-amber-400" role="status">
+              {AUTO_RESULT_STALE_HINT}
+            </p>
+          )}
+          {needsFallback && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-amber-50 px-2 py-1.5 dark:bg-amber-500/10">
+              <span className="min-w-0 text-[11.5px] leading-relaxed text-amber-700 dark:text-amber-300">
+                {fallbackMessage}
+              </span>
+              <button
+                type="button"
+                onClick={() => onModeChange("manual")}
+                className="shrink-0 rounded-md border border-amber-300 px-2 py-1 text-[11.5px] font-semibold text-amber-700 transition hover:bg-amber-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400 dark:border-amber-500/40 dark:text-amber-200 dark:hover:bg-amber-500/20"
+              >
+                수동 입력으로 전환
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
