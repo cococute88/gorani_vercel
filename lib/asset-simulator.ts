@@ -17,6 +17,7 @@ import type {
 import { buildDefaultYearPlans, DEFAULT_SIMULATOR_INPUTS } from "./mock-asset-simulator-data";
 import { resolveEffectivePortfolioProjectionAssumptions } from "./asset-simulator-portfolio-assumptions";
 import { resolveSimulationTimeline } from "./asset-simulator-timeline";
+import { buildStressSchedule, type StressSchedule } from "./asset-simulator-stress";
 
 const ISA_ANNUAL_LIMIT = 2000;
 const PENSION_ANNUAL_LIMIT = 1800;
@@ -304,14 +305,18 @@ export function apply_returns(
   cfg: SimConfig,
   rawResults: YearResult[],
   taxSavingReturnRate = cfg.annualReturnRate,
+  stress: StressSchedule | null = null,
 ): YearResult[] {
-  const taxSavingGrowth = 1 + pct(taxSavingReturnRate);
   const reserveGrowth = 1 + pct(cfg.annualReturnRate);
   let pensionNominal = 0;
   let isaNominal = 0;
   let reserveNominal = 0;
 
   return rawResults.map((result, index) => {
+    // 스트레스가 없으면 taxSavingReturnRate 를 그대로 사용해 기존 결과를 보존한다.
+    // 스트레스 구간(은퇴 직후)에서만 절세계좌 성장률을 대체한다. 예비금은 shock 대상이 아니다.
+    const taxSavingStressPct = stress?.taxSavingReturnPctAt(index) ?? null;
+    const taxSavingGrowth = 1 + pct(taxSavingStressPct ?? taxSavingReturnRate);
     if (index === 0) {
       pensionNominal = cfg.initialPension * taxSavingGrowth + result.pensionContribution;
       isaNominal = cfg.initialIsa * taxSavingGrowth + result.isaContribution;
@@ -399,6 +404,7 @@ export function simulate_tax_account_withdraw(
   results: YearResult[],
   timeline: SimulationTimeline,
   taxSavingReturnRate = cfg.annualReturnRate,
+  stress: StressSchedule | null = null,
 ): WithdrawPlan | null {
   const retireIdx = timeline.retirementIndex;
   const actualStartIdx = timeline.withdrawalStartIndex;
@@ -480,8 +486,10 @@ export function simulate_tax_account_withdraw(
   for (let i = retireIdx + 1; i < results.length; i += 1) {
     const row = results[i];
     cumulativeInflation *= 1 + inflationRate;
-    pensionBalance *= 1 + returnRate;
-    isaBalance *= 1 + returnRate;
+    // 스트레스 구간(은퇴 직후)에서는 절세계좌 평가잔고 성장률을 대체한다. 그 외에는 기존 returnRate.
+    const yearReturnRate = stress ? pct(stress.taxSavingReturnPctAt(i) ?? taxSavingReturnRate) : returnRate;
+    pensionBalance *= 1 + yearReturnRate;
+    isaBalance *= 1 + yearReturnRate;
     isaBalance += row.isaContribution;
 
     const isDelay = i < actualStartIdx;
@@ -637,10 +645,11 @@ export function simulate_dividend_brokerage(
   results: YearResult[],
   taxRows: WithdrawRow[] = [],
   assumptions?: DividendBrokerageProjectionAssumptions,
+  stress: StressSchedule | null = null,
 ): DividendBrokerageRow[] {
   const taxByYear = new Map(taxRows.map((row) => [row.year, row]));
   let balance = cfg.initialTaxableDividend;
-  const returnRate = pct(assumptions?.priceReturnPct ?? cfg.annualReturnRate);
+  const priceReturnPct = assumptions?.priceReturnPct ?? cfg.annualReturnRate;
   const inflationRate = pct(cfg.inflationRate);
   // assumptions가 없을 때만 withdrawalRate를 위탁계좌 배당률로 재사용하는
   // 기존 저장값 호환 동작을 유지한다.
@@ -650,14 +659,16 @@ export function simulate_dividend_brokerage(
   return results.map((result, index) => {
     const isWithdraw = String(result.status).includes("인출");
     const dividendBase = balance;
-    const growth = dividendBase * returnRate;
+    const yearPriceReturnRate = pct(stress?.brokeragePriceReturnPctAt(index) ?? priceReturnPct);
+    const growth = dividendBase * yearPriceReturnRate;
     const afterGrowth = dividendBase + growth;
     // Portfolio mode에서는 배당률을 배당성장률로 연도별 성장시키되, 비정상적으로
     // 큰 복리 결과가 잔고를 초과하는 현금흐름을 만들지 않도록 연 100%에서 제한한다.
     const annualDividendRate = assumptions
       ? Math.min(1, Math.max(0, initialDividendRate * Math.pow(1 + dividendGrowthRate, index)))
       : initialDividendRate;
-    const grossDividend = isWithdraw ? dividendBase * annualDividendRate : 0;
+    const dividendMultiplier = stress?.brokerageDividendMultiplierAt(index) ?? 1;
+    const grossDividend = isWithdraw ? dividendBase * annualDividendRate * dividendMultiplier : 0;
 
     // 배당금은 재투자하지 않는 별도 현금흐름이며, 지급액만큼 평가잔고를
     // 차감하지 않는다. 위탁계좌 평가잔고는 가격 성장만 반영해 마감한다.
@@ -707,20 +718,21 @@ export function calculateAssetSimulatorPreview(
     ? buildExitYearPlans(inputs)
     : normalizeYearPlans(inputs, rawYearPlans);
   const timeline = resolveSimulationTimeline(inputs, normalizedYearPlans);
+  const stress = buildStressSchedule(options.stressScenario, timeline);
   const yearPlans = assign_statuses(normalizedYearPlans);
   const depositResults = simulate_deposits(inputs, yearPlans);
-  const nominalResults = apply_returns(inputs, depositResults, taxSavingReturnRate);
+  const nominalResults = apply_returns(inputs, depositResults, taxSavingReturnRate, stress);
   const results = get_real_balances(inputs, nominalResults);
   const realData = real_balance_rows(results);
   const retireIdx = timeline.retirementIndex ?? -1;
   const totalWithdrawSourceRows = simulate_total_withdraw(inputs, results, timeline);
-  const withdrawPlan = simulate_tax_account_withdraw(inputs, results, timeline, taxSavingReturnRate);
+  const withdrawPlan = simulate_tax_account_withdraw(inputs, results, timeline, taxSavingReturnRate, stress);
   const taxWithdrawRows = withdrawPlan?.rows ?? [];
   const dividendRows = simulate_dividend_brokerage(inputs, results, taxWithdrawRows, effectivePortfolio ? {
     priceReturnPct: effectivePortfolio.brokeragePriceReturnPct,
     dividendYieldPct: effectivePortfolio.brokerageDividendYieldPct,
     dividendGrowthPct: effectivePortfolio.brokerageDividendGrowthPct,
-  } : undefined);
+  } : undefined, stress);
   const taxByYear = new Map(taxWithdrawRows.map((row) => [row.year, row]));
   const dividendByYear = new Map(dividendRows.map((row) => [row.year, row]));
 

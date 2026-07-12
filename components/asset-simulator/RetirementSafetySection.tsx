@@ -8,6 +8,7 @@ import type { SafetyResult, SimulatorProjection } from "@/lib/asset-simulator-ty
 
 type Props = {
   projection: SimulatorProjection;
+  stressProjection: SimulatorProjection;
   portfolioApplied: boolean;
   targetMonthlyExpenseReal: number | null;
   onTargetMonthlyExpenseChange: (value: number | null) => void;
@@ -97,8 +98,39 @@ function SafetyCard({ title, hint, result }: { title: string; hint: string; resu
   );
 }
 
+function ScenarioSafetyGroup({
+  title,
+  description,
+  safety,
+  stress = false,
+}: {
+  title: string;
+  description: string;
+  safety: ReturnType<typeof calculateRetirementSafety>;
+  stress?: boolean;
+}) {
+  return (
+    <div className={`min-w-0 rounded-2xl border p-3 sm:p-4 ${
+      stress
+        ? "border-amber-200 bg-amber-50/60 dark:border-amber-500/25 dark:bg-amber-500/[0.04]"
+        : "border-slate-200 bg-slate-50/70 dark:border-[#273032] dark:bg-[#12181a]"
+    }`}>
+      <div className="min-w-0">
+        <h3 className="text-[14px] font-bold text-slate-800 dark:text-slate-100">{title}</h3>
+        <p className="mt-1 text-[11.5px] leading-relaxed text-slate-500 dark:text-slate-400">{description}</p>
+      </div>
+      <div className="mt-3 grid min-w-0 grid-cols-1 gap-3">
+        {CARD_META.map((meta) => (
+          <SafetyCard key={meta.key} title={meta.title} hint={meta.hint} result={safety[meta.key]} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function RetirementSafetySection({
   projection,
+  stressProjection,
   portfolioApplied,
   targetMonthlyExpenseReal,
   onTargetMonthlyExpenseChange,
@@ -106,6 +138,10 @@ export default function RetirementSafetySection({
   const safety = useMemo(
     () => calculateRetirementSafety(projection, { targetMonthlyExpenseReal }),
     [projection, targetMonthlyExpenseReal],
+  );
+  const stressSafety = useMemo(
+    () => calculateRetirementSafety(stressProjection, { targetMonthlyExpenseReal }),
+    [stressProjection, targetMonthlyExpenseReal],
   );
 
   // 부드러운 타이핑을 위해 로컬 문자열 상태를 두고, 파싱된 값만 상위로 전달한다.
@@ -122,6 +158,7 @@ export default function RetirementSafetySection({
 
   const hasTarget = targetMonthlyExpenseReal !== null;
   const coverageRatio = safety.combined.metrics.monthlyIncomeCoverageRatio;
+  const stressCoverageRatio = stressSafety.combined.metrics.monthlyIncomeCoverageRatio;
 
   return (
     <section
@@ -171,7 +208,10 @@ export default function RetirementSafetySection({
               <span className="font-semibold text-emerald-600 dark:text-emerald-400">목표 월생활비 기준으로 통합 안전성을 평가 중</span>
               입니다. 목표 {formatManwonMoney(targetMonthlyExpenseReal)}
               {typeof coverageRatio === "number"
-                ? ` · 월 공급 대비 충당률 ${formatPct(coverageRatio * 100, 0)}`
+                ? ` · 기본 충당률 ${formatPct(coverageRatio * 100, 0)}`
+                : ""}
+              {typeof stressCoverageRatio === "number"
+                ? ` · 하락장 충당률 ${formatPct(stressCoverageRatio * 100, 0)}`
                 : ""}
               .
             </>
@@ -181,10 +221,25 @@ export default function RetirementSafetySection({
         </p>
       </div>
 
-      <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
-        {CARD_META.map((meta) => (
-          <SafetyCard key={meta.key} title={meta.title} hint={meta.hint} result={safety[meta.key]} />
-        ))}
+      <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-[12px] leading-relaxed text-amber-800 dark:border-amber-500/25 dark:bg-amber-500/[0.06] dark:text-amber-200">
+        <p className="font-semibold">하락장에서도 어느 정도 버티는지 보는 보수적 점검입니다.</p>
+        <p className="mt-0.5 text-amber-700/80 dark:text-amber-200/70">
+          은퇴 직후 하락장과 첫 3년 저수익, 위탁 배당 20% 삭감을 가정합니다. 미래를 예측하는 값이 아니라 가정 시나리오입니다.
+        </p>
+      </div>
+
+      <div className="mt-4 grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-2">
+        <ScenarioSafetyGroup
+          title="기본 시나리오"
+          description="현재 입력과 적용된 포트폴리오 가정을 그대로 반영한 기준 결과입니다."
+          safety={safety}
+        />
+        <ScenarioSafetyGroup
+          title="하락장 시나리오"
+          description="은퇴 직후 하락장 가정 · 첫 3년 저수익 + 배당 20% 삭감"
+          safety={stressSafety}
+          stress
+        />
       </div>
 
       <p className="mt-3 text-[11.5px] leading-relaxed text-slate-400 dark:text-slate-500">
