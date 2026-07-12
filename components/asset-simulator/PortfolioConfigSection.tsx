@@ -82,7 +82,7 @@ function generateHoldingId(accountType: PortfolioAccountType): string {
 
 function StatusBadge({ tone, children }: { tone: UiTone; children: React.ReactNode }) {
   return (
-    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ring-inset ${TONE_BADGE[tone]}`}>
+    <span className={`inline-flex max-w-full items-center break-words rounded-full px-2 py-0.5 text-center text-[11px] font-semibold leading-4 ring-1 ring-inset ${TONE_BADGE[tone]}`}>
       {children}
     </span>
   );
@@ -282,7 +282,8 @@ export default function PortfolioConfigSection({
             포트폴리오 설정
           </h2>
           <p className="mt-1 text-[13px] leading-6 text-slate-500 dark:text-slate-400">
-            절세계좌와 위탁계좌의 티커·비중을 입력하면 자동으로 기대수익 가정을 계산합니다. 데이터가 부족하면 수동값을 입력할 수 있습니다.
+            <span className="font-medium text-slate-600 dark:text-slate-300">1. 티커·비중 입력 → 2. 자동 계산 또는 수동 보완 → 3. 가정 적용</span>
+            <span className="block text-[12px] text-slate-400 dark:text-slate-500">적용 전의 계산 결과는 시뮬레이션에 반영되지 않습니다.</span>
           </p>
         </div>
       </div>
@@ -391,9 +392,11 @@ export default function PortfolioConfigSection({
                     <button
                       type="button"
                       onClick={() => void runResolveAll(accountType)}
-                      className="rounded-lg border border-sky-300 px-2.5 py-1.5 text-[12.5px] font-semibold text-sky-700 transition hover:bg-sky-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400 disabled:opacity-50 dark:border-sky-500/40 dark:text-sky-300 dark:hover:bg-sky-500/10"
+                      disabled={!account.holdings.some((holding) => holding.metricMode === "auto" && normalizePortfolioTicker(holding.ticker)) || account.holdings.some((holding) => loadingKeys[resolutionKey(accountType, normalizePortfolioTicker(holding.ticker))])}
+                      aria-busy={account.holdings.some((holding) => loadingKeys[resolutionKey(accountType, normalizePortfolioTicker(holding.ticker))]) || undefined}
+                      className="rounded-lg border border-sky-300 px-2.5 py-1.5 text-[12.5px] font-semibold text-sky-700 transition hover:bg-sky-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400 disabled:cursor-not-allowed disabled:opacity-50 dark:border-sky-500/40 dark:text-sky-300 dark:hover:bg-sky-500/10"
                     >
-                      전체 자동 계산
+                      {account.holdings.some((holding) => loadingKeys[resolutionKey(accountType, normalizePortfolioTicker(holding.ticker))]) ? "자동 계산 중…" : "전체 자동 계산"}
                     </button>
                   </div>
                 </div>
@@ -414,13 +417,13 @@ export default function PortfolioConfigSection({
               {applyState === "clean" && (
                 <StatusBadge tone="positive">적용된 가정으로 시뮬레이션 반영됨</StatusBadge>
               )}
-              {hasAutoResults && applyState !== "clean" && (
-                <span className="text-[12px] text-amber-600 dark:text-amber-400">{AUTO_NOT_APPLIED_HINT}</span>
-              )}
             </div>
 
             {applyStateBanner && (
-              <p className={`mt-2 text-[12.5px] ${TONE_TEXT[applyStateBanner.tone]}`}>{applyStateBanner.label}</p>
+              <p className={`mt-2 text-[12.5px] leading-relaxed ${TONE_TEXT[applyStateBanner.tone]}`} role="status">{applyStateBanner.label}</p>
+            )}
+            {hasAutoResults && applyState !== "clean" && (
+              <p className="mt-1 text-[12px] leading-relaxed text-amber-600 dark:text-amber-400">{AUTO_NOT_APPLIED_HINT}</p>
             )}
             {applyMessage && (
               <p className={`mt-2 text-[12.5px] ${applyIssues.length > 0 ? TONE_TEXT.warning : TONE_TEXT.positive}`} role="status">
@@ -486,7 +489,7 @@ function HoldingRow({
   const isManual = holding.metricMode === "manual";
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-2.5 dark:border-[#2c3638] dark:bg-[#171d1e]">
+    <div className="min-w-0 rounded-lg border border-slate-200 bg-white p-2.5 dark:border-[#2c3638] dark:bg-[#171d1e]">
       <div className="flex flex-wrap items-end gap-2">
         <label className="flex min-w-0 flex-1 flex-col gap-1">
           <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">티커</span>
@@ -612,17 +615,17 @@ function MetricLine({
 }) {
   if (!metric) {
     return (
-      <div className="flex items-center justify-between gap-2 text-[12px]">
-        <span className="text-slate-500 dark:text-slate-400">{label}</span>
+      <div className="flex flex-wrap items-center justify-between gap-2 text-[12px]">
+        <span className="min-w-0 text-slate-500 dark:text-slate-400">{label}</span>
         <span className="text-slate-400 dark:text-slate-500">—</span>
       </div>
     );
   }
   const descriptor = describeMetricStatus(metric, { isDividendMetric });
   return (
-    <div className="flex items-center justify-between gap-2 text-[12px]">
-      <span className="text-slate-500 dark:text-slate-400">{label}</span>
-      <span className="flex items-center gap-1.5">
+    <div className="flex flex-wrap items-center justify-between gap-2 text-[12px]">
+      <span className="min-w-0 text-slate-500 dark:text-slate-400">{label}</span>
+      <span className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
         {showValue && <span className="font-semibold text-slate-800 dark:text-slate-100">{formatPct(metric.valuePct)}</span>}
         <StatusBadge tone={descriptor.tone}>{descriptor.label}</StatusBadge>
       </span>
@@ -647,7 +650,7 @@ function AutoMetrics({
   if (!resolution) {
     return (
       <p className="text-[12px] text-slate-400 dark:text-slate-500">
-        {loading ? "자동 계산 중입니다…" : "아직 자동 계산 결과가 없습니다. “이 티커 다시 계산”을 눌러 주세요."}
+        {loading ? "자동 계산 중입니다…" : "아직 결과가 없습니다. “이 티커 다시 계산”을 눌러 주세요."}
       </p>
     );
   }
@@ -710,7 +713,7 @@ function PortfolioSummaryCard({ summary }: { summary: PortfolioProjectionSummary
         <div className="rounded-lg border border-slate-200 bg-white p-2.5 dark:border-[#2c3638] dark:bg-[#171d1e]">
           <p className="text-[12px] font-semibold text-slate-700 dark:text-slate-200">절세계좌</p>
           <p className="mt-1 text-[12px] text-slate-500 dark:text-slate-400">
-            적용 티커: {summary.taxSaving.tickers.join(", ") || "—"}
+            적용 티커: <span className="break-all">{summary.taxSaving.tickers.join(", ") || "—"}</span>
           </p>
           <p className="mt-0.5 text-[12px] text-slate-600 dark:text-slate-300">
             유효 총수익률: <span className="font-semibold">{formatPct(summary.taxSaving.effectiveTotalReturnPct)}</span>
@@ -719,9 +722,9 @@ function PortfolioSummaryCard({ summary }: { summary: PortfolioProjectionSummary
         <div className="rounded-lg border border-slate-200 bg-white p-2.5 dark:border-[#2c3638] dark:bg-[#171d1e]">
           <p className="text-[12px] font-semibold text-slate-700 dark:text-slate-200">위탁계좌</p>
           <p className="mt-1 text-[12px] text-slate-500 dark:text-slate-400">
-            적용 티커: {summary.brokerage.tickers.join(", ") || "—"}
+            적용 티커: <span className="break-all">{summary.brokerage.tickers.join(", ") || "—"}</span>
           </p>
-          <div className="mt-0.5 grid grid-cols-3 gap-1 text-[12px] text-slate-600 dark:text-slate-300">
+          <div className="mt-0.5 grid grid-cols-1 gap-1 text-[12px] text-slate-600 dark:text-slate-300 sm:grid-cols-3">
             <span>가격수익 <span className="font-semibold">{formatPct(summary.brokerage.effectivePriceReturnPct)}</span></span>
             <span>배당률 <span className="font-semibold">{formatPct(summary.brokerage.effectiveDividendYieldPct)}</span></span>
             <span>배당성장 <span className="font-semibold">{formatPct(summary.brokerage.effectiveDividendGrowthPct)}</span></span>

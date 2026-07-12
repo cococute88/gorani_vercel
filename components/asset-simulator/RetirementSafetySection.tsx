@@ -57,8 +57,8 @@ function SafetyCard({ title, hint, result }: { title: string; hint: string; resu
           <h3 className="text-[14px] font-bold text-slate-800 dark:text-slate-100">{title}</h3>
           <p className="mt-0.5 text-[11.5px] text-slate-400 dark:text-slate-500">{hint}</p>
         </div>
-        <div className="text-right">
-          <div className={`text-[26px] font-extrabold leading-none ${TONE_GRADE[display.tone]}`}>{display.gradeLabel}</div>
+        <div className="shrink-0 text-right">
+          <div className={`max-w-[132px] break-keep text-[20px] font-extrabold leading-tight sm:text-[26px] ${TONE_GRADE[display.tone]}`}>{display.gradeLabel}</div>
           {display.showScore && (
             <div className="mt-0.5 text-[11px] text-slate-400 dark:text-slate-500">점수 {result.score}</div>
           )}
@@ -170,10 +170,10 @@ export default function RetirementSafetySection({
           은퇴 안전성 분석
         </h2>
         <p className="mt-1 text-[13px] leading-6 text-slate-500 dark:text-slate-400">
-          은퇴 기간 동안 실질 자산과 현금흐름이 얼마나 안정적으로 유지되는지 계좌별로 살펴봅니다.
+          은퇴 기간의 실질 자산과 현금흐름을 계좌별로 살펴봅니다.
           {portfolioApplied
             ? " 적용된 포트폴리오 가정을 반영한 결과입니다."
-            : " 포트폴리오 가정을 적용하면 더 정확한 결과를 볼 수 있습니다."}
+            : " 아직 포트폴리오 가정은 적용되지 않았습니다."}
         </p>
       </div>
 
@@ -205,8 +205,7 @@ export default function RetirementSafetySection({
         <p id="target-monthly-expense-hint" className="mt-2 text-[11.5px] leading-relaxed text-slate-500 dark:text-slate-400">
           {hasTarget ? (
             <>
-              <span className="font-semibold text-emerald-600 dark:text-emerald-400">목표 월생활비 기준으로 통합 안전성을 평가 중</span>
-              입니다. 목표 {formatManwonMoney(targetMonthlyExpenseReal)}
+              <span className="font-semibold text-emerald-600 dark:text-emerald-400">목표 {formatManwonMoney(targetMonthlyExpenseReal)} 기준으로 평가 중</span>
               {typeof coverageRatio === "number"
                 ? ` · 기본 충당률 ${formatPct(coverageRatio * 100, 0)}`
                 : ""}
@@ -216,27 +215,27 @@ export default function RetirementSafetySection({
               .
             </>
           ) : (
-            <>입력하면 통합 안전성 평가가 더 정확해집니다. 입력 전에는 기존 인출 기준을 참고한 임시 평가입니다.</>
+            <>입력하면 목표 생활비 기준으로 평가합니다. 입력 전에는 현재 인출 조건을 바탕으로 참고용 임시 평가를 보여줍니다.</>
           )}
         </p>
       </div>
 
       <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-[12px] leading-relaxed text-amber-800 dark:border-amber-500/25 dark:bg-amber-500/[0.06] dark:text-amber-200">
-        <p className="font-semibold">하락장에서도 어느 정도 버티는지 보는 보수적 점검입니다.</p>
+        <p className="font-semibold">하락장 시나리오는 보수적으로 점검하기 위한 가정입니다.</p>
         <p className="mt-0.5 text-amber-700/80 dark:text-amber-200/70">
-          은퇴 직후 하락장과 첫 3년 저수익, 위탁 배당 20% 삭감을 가정합니다. 미래를 예측하는 값이 아니라 가정 시나리오입니다.
+          은퇴 직후 하락장, 첫 3년 저수익, 위탁 배당 20% 삭감을 가정합니다. 미래를 예측하는 값은 아닙니다.
         </p>
       </div>
 
       <div className="mt-4 grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-2">
         <ScenarioSafetyGroup
           title="기본 시나리오"
-          description="현재 입력과 적용된 포트폴리오 가정을 그대로 반영한 기준 결과입니다."
+          description="현재 입력과 적용된 가정을 반영한 기준 결과입니다."
           safety={safety}
         />
         <ScenarioSafetyGroup
           title="하락장 시나리오"
-          description="은퇴 직후 하락장 가정 · 첫 3년 저수익 + 배당 20% 삭감"
+          description="보수적 점검용 · 은퇴 초반 하락, 3년 저수익, 배당 20% 삭감"
           safety={stressSafety}
           stress
         />
