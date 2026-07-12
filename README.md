@@ -12,6 +12,10 @@ npm run dev
 
 브라우저에서 http://localhost:3000 열기. (1440px 이상 데스크톱 기준 최적화)
 
+## QA 문서
+
+- [자산 시뮬레이터 QA Runbook](docs/asset-simulator-qa-runbook.md)
+
 ## 페이지
 
 | 경로 | 설명 | 테마 |
