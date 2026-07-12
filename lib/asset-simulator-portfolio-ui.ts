@@ -2,6 +2,8 @@ import type {
   AssetSimulatorPortfolioConfigV1,
   PortfolioAccountType,
   PortfolioHoldingInput,
+  PortfolioHoldingResolution,
+  PortfolioMetricKey,
   PortfolioMetricStatus,
   ResolvedPortfolioMetric,
   SafetyResult,
@@ -152,6 +154,72 @@ export function describeApplyState(state: PortfolioApplyState): { label: string;
 }
 
 export const AUTO_NOT_APPLIED_HINT = "자동 계산 결과는 아직 반영되지 않았습니다. 적용하면 시뮬레이션에 반영됩니다.";
+
+// 수동 fallback 안내 문구. 실패/데이터 부족/일반 상황을 짧고 부드럽게 구분한다.
+export const MANUAL_FALLBACK_HINTS = {
+  general: "수동 입력으로 보완할 수 있습니다.",
+  fetchFailed: "자동 계산이 실패해도 직접 가정을 입력하면 적용할 수 있습니다.",
+  shortHistory: "이력이 짧은 ETF는 수동 보완이 필요할 수 있습니다.",
+} as const;
+
+// 적용 버튼이 미해결 항목 때문에 막혀 있을 때의 안내 문구.
+export const APPLY_BLOCKED_HINT =
+  "적용하려면 남은 항목을 먼저 정리해 주세요. 자동 계산을 실행하거나 수동 입력으로 보완할 수 있습니다.";
+
+// 자동 계산이 진행 중일 때의 안내 문구.
+export const APPLY_WHILE_LOADING_HINT = "자동 계산이 끝나면 적용할 수 있습니다.";
+
+// 자동 계산 "결과"가 오래된 경우의 안내. (적용된 가정이 오래된 경우는 describeApplyState("stale")로 별도 안내한다.)
+export const AUTO_RESULT_STALE_HINT = "자동 계산 결과가 오래됐습니다. 적용 전 다시 계산하는 것을 권장합니다.";
+
+// 자동 계산 결과가 이 시간보다 오래되면 재계산을 권장한다. (적용 가정 stale 기준 7일과 구분되는 별도 창.)
+export const AUTO_RESULT_STALE_MS = 24 * 60 * 60 * 1000;
+
+const REQUIRED_METRIC_KEYS: Record<PortfolioAccountType, PortfolioMetricKey[]> = {
+  taxSaving: ["totalReturnCagr"],
+  brokerage: ["priceCagr", "dividendYield", "dividendGrowth"],
+};
+
+// 적용 가정 빌더(asset-simulator-portfolio-assumptions)의 isAllowedMetric 과 동일한 규칙.
+// 여기서 미리 판정해 적용 게이트/수동 fallback 안내를 실시간으로 맞춘다.
+function isMetricUsable(metric: PortfolioMetricKey, value: ResolvedPortfolioMetric): boolean {
+  if (value.status === "resolved") return value.valuePct !== null && Number.isFinite(value.valuePct);
+  return (
+    (metric === "dividendYield" || metric === "dividendGrowth") &&
+    value.status === "not_applicable" &&
+    value.valuePct === 0
+  );
+}
+
+// 자동 계산 결과가 (수동 보완 없이는) 적용 불가한 상태인지 판정한다.
+export function resolutionNeedsManualFallback(
+  resolution: PortfolioHoldingResolution,
+  accountType: PortfolioAccountType,
+): boolean {
+  return REQUIRED_METRIC_KEYS[accountType].some((metric) => !isMetricUsable(metric, resolution[metric]));
+}
+
+// 계좌에 필요한 지표 중 이력 부족(insufficient_history)이 있는지 판정한다.
+export function resolutionHasInsufficientHistory(
+  resolution: PortfolioHoldingResolution,
+  accountType: PortfolioAccountType,
+): boolean {
+  return REQUIRED_METRIC_KEYS[accountType].some(
+    (metric) => resolution[metric].status === "insufficient_history",
+  );
+}
+
+// 자동 계산 결과가 오래되었는지(재계산 권장) 판정한다. resolvedAt 이 없으면 stale 아님.
+export function isAutoResultStale(
+  resolvedAt: string | null | undefined,
+  now: Date = new Date(),
+  maxAgeMs: number = AUTO_RESULT_STALE_MS,
+): boolean {
+  if (!resolvedAt) return false;
+  const ms = Date.parse(resolvedAt);
+  if (!Number.isFinite(ms)) return false;
+  return now.getTime() - ms > maxAgeMs;
+}
 
 // Small shared key so the page/section can index transient resolver results.
 export function resolutionKey(accountType: PortfolioAccountType, ticker: string): string {

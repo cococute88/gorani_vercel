@@ -3,10 +3,11 @@ import { NextResponse } from "next/server";
 import { fetchYahooChart, normalizeTicker, toIsoDate } from "@/lib/server/quote-fetchers";
 import { resolvePortfolioHoldingMetrics } from "@/lib/asset-simulator-portfolio-resolver";
 import type { PortfolioResolverSeries } from "@/lib/asset-simulator-portfolio-resolver";
-import type {
-  PortfolioAccountType,
-  PortfolioHoldingResolution,
-} from "@/lib/asset-simulator-types";
+import {
+  parsePortfolioAccountTypeParam,
+  portfolioMetricsErrorBody,
+} from "@/lib/asset-simulator-portfolio-client";
+import type { PortfolioHoldingResolution } from "@/lib/asset-simulator-types";
 
 export const dynamic = "force-dynamic";
 
@@ -27,11 +28,6 @@ type YahooLongSeriesResult = {
 
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
-}
-
-function parseAccountType(value: string | null): PortfolioAccountType | null {
-  if (value === "taxSaving" || value === "brokerage") return value;
-  return null;
 }
 
 async function fetchPortfolioResolverSeries(ticker: string): Promise<PortfolioResolverSeries> {
@@ -84,20 +80,31 @@ async function fetchPortfolioResolverSeries(ticker: string): Promise<PortfolioRe
 export async function GET(request: Request) {
   const searchParams = new URL(request.url).searchParams;
   const ticker = normalizeTicker(searchParams.get("ticker") ?? "");
-  const accountType = parseAccountType(searchParams.get("accountType"));
+  const accountType = parsePortfolioAccountTypeParam(searchParams.get("accountType"));
 
   if (!ticker) {
-    return NextResponse.json({ error: "ticker is required" }, { status: 400 });
+    return NextResponse.json(portfolioMetricsErrorBody("missing_ticker"), { status: 400 });
   }
   if (!accountType) {
-    return NextResponse.json({ error: "accountType must be taxSaving or brokerage" }, { status: 400 });
+    return NextResponse.json(portfolioMetricsErrorBody("invalid_account_type"), { status: 400 });
   }
 
-  const series = await fetchPortfolioResolverSeries(ticker);
-  const resolution: PortfolioHoldingResolution = resolvePortfolioHoldingMetrics(
-    { ticker, accountType },
-    series,
-  );
-
-  return NextResponse.json({ ticker, accountType, seriesSource: series.source, resolution });
+  try {
+    // Provider failures/timeouts are absorbed inside fetchPortfolioResolverSeries,
+    // which returns an "empty" series so the resolver still emits a well-formed
+    // (failed) resolution with warnings. That stays a 200 so the UI can render the
+    // per-metric failure and offer the manual fallback. The try/catch here is the
+    // last line of defense for genuinely unexpected throws.
+    const series = await fetchPortfolioResolverSeries(ticker);
+    const resolution: PortfolioHoldingResolution = resolvePortfolioHoldingMetrics(
+      { ticker, accountType },
+      series,
+    );
+    return NextResponse.json({ ok: true, ticker, accountType, seriesSource: series.source, resolution });
+  } catch (error) {
+    return NextResponse.json(
+      portfolioMetricsErrorBody("unexpected_error", error instanceof Error ? error.message : undefined),
+      { status: 500 },
+    );
+  }
 }
