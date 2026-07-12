@@ -209,6 +209,211 @@ export function describeSafetyBasis(
   };
 }
 
+// ---------------------------------------------------------------------------
+// 기본/하락장 단일 비교표(SafetyScenarioCompareTable) 파생 헬퍼.
+// 새 계산 로직을 만들지 않고, 이미 계산된 SafetyResult/metrics 를 표시용으로 가공만 한다.
+// ---------------------------------------------------------------------------
+
+// 하락장 시나리오 설명은 한 곳에서만 노출한다(중복 배너 방지).
+export const STRESS_SCENARIO_NOTE =
+  "하락장은 은퇴 초반 하락·첫 3년 저수익·배당 20% 삭감을 가정한 보수적 점검입니다. 점수 경쟁이 아니라 기본 대비 손상 정도를 확인하는 영역입니다.";
+
+const DELTA_EPSILON = 1e-9;
+
+export type ScenarioDeltaDirection = "down" | "up" | "flat";
+
+export type ScenarioCompareRowKey = "grade" | "coverage" | "preservation" | "asset";
+
+export type ScenarioCompareRow = {
+  key: ScenarioCompareRowKey;
+  label: string;
+  // 기본/하락장 셀에 표시할 문자열.
+  basicText: string;
+  stressText: string;
+  // 변화 열 본문(방향 기호 제외). 예: "25%p", "2억 4,167만원", "B → D (-28.6점)".
+  deltaText: string;
+  direction: ScenarioDeltaDirection;
+  // 변화 심각도 톤: 악화 caution(amber), 심각 악화 warning(rose), 개선/동일 muted(slate).
+  tone: UiTone;
+  // delta bar 길이(감소 비율, 0~1). 등급 행은 bar 를 쓰지 않는다(showBar=false).
+  magnitude: number;
+  showBar: boolean;
+};
+
+function directionOf(delta: number): ScenarioDeltaDirection {
+  if (delta < -DELTA_EPSILON) return "down";
+  if (delta > DELTA_EPSILON) return "up";
+  return "flat";
+}
+
+// 백분율 포인트(%p) 계열 행(충당률·보존율)의 변화 텍스트.
+// 보존율이 1,000% 이상처럼 큰 경우 %p 가 과장되므로 상대 감소율(%)로 대체한다.
+function deltaPointText(deltaPP: number, reduction: number, capped: boolean, direction: ScenarioDeltaDirection): string {
+  if (direction === "flat") return "동일";
+  if (capped) return `약 ${Math.round(Math.max(0, reduction) * 100)}%`;
+  return `${Math.abs(Math.round(deltaPP))}%p`;
+}
+
+// 기본/하락장 비교표의 4개 행(등급·충당률·보존율·최종자산)을 구성한다.
+export function buildScenarioComparisonRows(
+  basic: SafetyResult,
+  stress: SafetyResult,
+  basicFinalReal: number,
+  stressFinalReal: number,
+  hasTarget: boolean,
+): ScenarioCompareRow[] {
+  const rows: ScenarioCompareRow[] = [];
+
+  // A. 통합 등급 — 텍스트 중심, delta bar 없음.
+  const basicG = describeSafety(basic);
+  const stressG = describeSafety(stress);
+  const bothEvaluated = basic.status === "evaluated" && stress.status === "evaluated";
+  const scoreDelta = bothEvaluated ? Math.round((stress.score - basic.score) * 10) / 10 : 0;
+  rows.push({
+    key: "grade",
+    label: "통합 등급",
+    basicText: basicG.showScore ? `${basicG.gradeLabel} · ${basic.score}점` : basicG.gradeLabel,
+    stressText: stressG.showScore ? `${stressG.gradeLabel} · ${stress.score}점` : stressG.gradeLabel,
+    deltaText: bothEvaluated
+      ? `${basicG.gradeLabel} → ${stressG.gradeLabel} (${scoreDelta > 0 ? "+" : ""}${scoreDelta.toFixed(1)}점)`
+      : `${basicG.gradeLabel} → ${stressG.gradeLabel}`,
+    direction: directionOf(scoreDelta),
+    tone: scoreDelta < -DELTA_EPSILON ? "caution" : "muted",
+    magnitude: 0,
+    showBar: false,
+  });
+
+  // B. 월생활비 충당률 — 목표 미입력이면 임시 표시(bar 없음).
+  const basicCov = basic.metrics.monthlyIncomeCoverageRatio;
+  const stressCov = stress.metrics.monthlyIncomeCoverageRatio;
+  if (!hasTarget || typeof basicCov !== "number" || typeof stressCov !== "number") {
+    rows.push({
+      key: "coverage",
+      label: "월생활비 충당률",
+      basicText: "목표 입력 시 표시",
+      stressText: "목표 입력 시 표시",
+      deltaText: "목표 입력 시",
+      direction: "flat",
+      tone: "muted",
+      magnitude: 0,
+      showBar: false,
+    });
+  } else {
+    // 표시되는 반올림 %(28%/24%)와 변화 %p 가 어긋나지 않도록, 반올림된 백분율의 차이로 계산한다.
+    const deltaPP = Math.round(stressCov * 100) - Math.round(basicCov * 100);
+    const reduction = basicCov > DELTA_EPSILON ? Math.max(0, (basicCov - stressCov) / basicCov) : 0;
+    const direction = directionOf(deltaPP);
+    // rose 승격: 하락장 충당률이 90% 미만으로 떨어질 때.
+    const tone: UiTone = direction === "down" ? (stressCov < 0.9 ? "warning" : "caution") : "muted";
+    rows.push({
+      key: "coverage",
+      label: "월생활비 충당률",
+      basicText: formatCoverageRatio(basicCov),
+      stressText: formatCoverageRatio(stressCov),
+      deltaText: deltaPointText(deltaPP, reduction, false, direction),
+      direction,
+      tone,
+      magnitude: Math.min(1, reduction),
+      showBar: true,
+    });
+  }
+
+  // C. 자산 보존율 — 1,000% 이상은 capped 표시 정책 유지.
+  const basicPres = basic.metrics.preservationRatio;
+  const stressPres = stress.metrics.preservationRatio;
+  {
+    const valid = Number.isFinite(basicPres) && Number.isFinite(stressPres);
+    // 표시되는 반올림 %와 변화 %p 를 일치시킨다(비-capped 구간).
+    const deltaPP = valid ? Math.round(stressPres * 100) - Math.round(basicPres * 100) : 0;
+    const reduction = valid && basicPres > DELTA_EPSILON ? Math.max(0, (basicPres - stressPres) / basicPres) : 0;
+    const direction = directionOf(deltaPP);
+    const capped = valid && (basicPres >= 10 || stressPres >= 10);
+    // rose 승격: 상대 감소율 25% 이상.
+    const tone: UiTone = direction === "down" ? (reduction >= 0.25 ? "warning" : "caution") : "muted";
+    rows.push({
+      key: "preservation",
+      label: "자산 보존율",
+      basicText: formatPreservationRatio(basicPres),
+      stressText: formatPreservationRatio(stressPres),
+      deltaText: deltaPointText(deltaPP, reduction, capped, direction),
+      direction,
+      tone,
+      magnitude: Math.min(1, reduction),
+      showBar: true,
+    });
+  }
+
+  // D. 최종 실질자산.
+  {
+    const deltaAbs = stressFinalReal - basicFinalReal;
+    const reduction = basicFinalReal > DELTA_EPSILON ? Math.max(0, (basicFinalReal - stressFinalReal) / basicFinalReal) : 0;
+    const direction = directionOf(deltaAbs);
+    // rose 승격: 상대 감소율 25% 이상.
+    const tone: UiTone = direction === "down" ? (reduction >= 0.25 ? "warning" : "caution") : "muted";
+    rows.push({
+      key: "asset",
+      label: "최종 실질자산",
+      basicText: formatManwonMoney(basicFinalReal),
+      stressText: formatManwonMoney(stressFinalReal),
+      deltaText: direction === "flat" ? "동일" : formatManwonMoney(Math.abs(deltaAbs)),
+      direction,
+      tone,
+      magnitude: Math.min(1, reduction),
+      showBar: true,
+    });
+  }
+
+  return rows;
+}
+
+export type WorsenedItem = { label: string; deltaText: string; tone: UiTone };
+export type WorsenedSummary = { headline: string; items: WorsenedItem[]; hasSevere: boolean };
+
+// 비교표 아래 "하락장에서 약해진 항목" 한 줄 요약을 구성한다.
+export function summarizeWorsenedMetrics(rows: ScenarioCompareRow[]): WorsenedSummary {
+  const items: WorsenedItem[] = rows
+    .filter((row) => row.showBar && row.direction === "down" && (row.tone === "caution" || row.tone === "warning"))
+    .map((row) => ({ label: row.label, deltaText: `-${row.deltaText}`, tone: row.tone }));
+  return {
+    headline: items.length === 0
+      ? "하락장에서도 핵심 지표가 크게 약해지지 않았습니다."
+      : "하락장에서 약해진 항목",
+    items,
+    hasSevere: items.some((item) => item.tone === "warning"),
+  };
+}
+
+// warnings/metrics 를 근거로 "다음 조정 후보" 칩 문구를 2~3개 만든다.
+// 새 투자 조언이 아니라 점검 항목을 부드럽게 제안한다("검토/점검/보완/재확인").
+export function deriveAdjustmentCandidates(
+  basic: SafetyResult,
+  stress: SafetyResult,
+  hasTarget: boolean,
+): string[] {
+  const out: string[] = [];
+  const push = (label: string) => {
+    if (out.length < 3 && !out.includes(label)) out.push(label);
+  };
+
+  const warnText = [...basic.warnings, ...stress.warnings].join(" ");
+  const basicCov = basic.metrics.monthlyIncomeCoverageRatio;
+  const stressCov = stress.metrics.monthlyIncomeCoverageRatio;
+  const presRed = Number.isFinite(basic.metrics.preservationRatio) && basic.metrics.preservationRatio > DELTA_EPSILON
+    ? (basic.metrics.preservationRatio - stress.metrics.preservationRatio) / basic.metrics.preservationRatio
+    : 0;
+
+  if (!hasTarget) push("목표 생활비 입력 후 재점검");
+  if (hasTarget && ((typeof stressCov === "number" && stressCov < 0.9) || (typeof basicCov === "number" && basicCov < 1))) {
+    push("목표 생활비 조정 검토");
+  }
+  if (/배당/.test(warnText)) push("배당 현금흐름 보강 점검");
+  if (/인출|절세|연금|ISA/.test(warnText)) push("절세계좌 인출 계획 점검");
+  if (presRed >= 0.25) push("현금·안전자산 비중 점검");
+  push("포트폴리오 가정 재확인");
+
+  return out.slice(0, 3);
+}
+
 export type SafetyVerdict = {
   // 한줄 판단. 단정적 표현을 피하고 부드럽게 안내한다.
   headline: string;
