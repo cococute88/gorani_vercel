@@ -1,4 +1,5 @@
 import type {
+  ExpenseDemandSource,
   RetirementSafetyResult,
   SafetyFailureReason,
   SafetyGrade,
@@ -11,6 +12,13 @@ import type {
 const EPSILON = 1e-9;
 const MEANINGFUL_SHORTFALL_RATIO = 0.01;
 const NEUTRAL_SCORE = 70;
+// hard failure 시 점수와 등급이 모순되지 않도록 표시 점수의 상한(F 구간).
+const HARD_FAILURE_SCORE_CEILING = 34;
+
+export type RetirementSafetyOptions = {
+  // 목표 월생활비(현재 가치 기준, 만원). 유효하면 통합 생활비 수요 기준으로 사용한다.
+  targetMonthlyExpenseReal?: number | null;
+};
 
 type AccountKind = keyof RetirementSafetyResult;
 
@@ -24,7 +32,15 @@ type AccountSignals = {
   principalSold: boolean | null;
   dividendsContinued: boolean | null;
   cashFlowWeakening: boolean;
+  expenseDemandSource: ExpenseDemandSource;
+  targetMonthlyExpenseReal: number | null;
+  monthlyIncomeCoverageRatio: number | null;
 };
+
+// 유효한 목표 월생활비만 통과시킨다. NaN/Infinity/0 이하(음수 포함)는 무효로 본다.
+function resolveTargetMonthlyExpense(value: number | null | undefined): number | null {
+  return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : null;
+}
 
 type StabilitySignals = {
   score: number;
@@ -85,34 +101,57 @@ function maxConsecutive(values: boolean[]): number {
   return longest;
 }
 
+type LivingExpenseSignals = Pick<
+  AccountSignals,
+  | "livingExpensesCovered"
+  | "shortfallYears"
+  | "consecutiveShortfallYears"
+  | "incomeCoverageScore"
+  | "coreCashFlowStopped"
+  | "expenseDemandSource"
+  | "targetMonthlyExpenseReal"
+  | "monthlyIncomeCoverageRatio"
+>;
+
 function livingExpenseSignals(
   source: SimulatorProjection,
   account: "taxSaving" | "combined",
-): Pick<
-  AccountSignals,
-  "livingExpensesCovered" | "shortfallYears" | "consecutiveShortfallYears" | "incomeCoverageScore" | "coreCashFlowStopped"
-> {
-  // 별도 목표 생활비 입력이 아직 없으므로 preview의 realWithdraw를 임시 수요 proxy로 사용한다.
-  // 이 값은 공급과 다른 legacy 모델에서 나오므로 부족 횟수/비율은 score와 warnings 참고용으로만 사용한다.
-  // 단, 평가 가능한 전체 기간의 공급 자체가 0인 경우는 별도의 핵심 현금흐름 중단 신호로 유지한다.
+  targetMonthlyExpenseReal: number | null,
+): LivingExpenseSignals {
+  // 목표 월생활비 입력이 있으면 통합(combined) 평가는 명시적 수요를 기준으로 한다.
+  //   월 공급 = taxSavingMonthlyReal (+ taxableMonthlyDividendReal, combined)
+  //   월 수요 = targetMonthlyExpenseReal (연도 무관 고정)
+  // 목표가 없으면 기존처럼 preview 의 realWithdraw 를 임시 수요 proxy 로 사용한다.
+  // proxy 는 공급과 다른 legacy 모델에서 나오므로 부족 횟수/비율은 score/warnings 참고용으로만 쓰인다.
+  // 단, 평가 가능한 전체 기간의 공급 자체가 0인 경우는 핵심 현금흐름 중단 신호로 유지한다.
   // 또한 실제 인출 시작 전 대기 구간은 비교 모델 차이로 생기는 가짜 부족이므로 평가에서 제외한다.
-  const withdrawalStartIndex = source.timeline.withdrawalStartIndex;
-  if (withdrawalStartIndex === null) {
-    return {
-      livingExpensesCovered: null,
-      shortfallYears: 0,
-      consecutiveShortfallYears: 0,
-      incomeCoverageScore: NEUTRAL_SCORE,
-      coreCashFlowStopped: false,
-    };
-  }
+  const useTarget = account === "combined" && targetMonthlyExpenseReal !== null;
+  const demandSource: ExpenseDemandSource = useTarget ? "target" : "legacy_proxy";
+  const resolvedTarget = useTarget ? targetMonthlyExpenseReal : null;
 
-  // 월 부족액이 해당 연도 임시 수요의 1% 미만이면 계산 오차 수준으로 보고 부족 연도에서 제외한다.
+  const emptyResult: LivingExpenseSignals = {
+    livingExpensesCovered: null,
+    shortfallYears: 0,
+    consecutiveShortfallYears: 0,
+    incomeCoverageScore: NEUTRAL_SCORE,
+    coreCashFlowStopped: false,
+    expenseDemandSource: demandSource,
+    targetMonthlyExpenseReal: resolvedTarget,
+    monthlyIncomeCoverageRatio: null,
+  };
+
+  const withdrawalStartIndex = source.timeline.withdrawalStartIndex;
+  if (withdrawalStartIndex === null) return emptyResult;
+
+  // 월 부족액이 해당 연도 수요의 1% 미만이면 계산 오차 수준으로 보고 부족 연도에서 제외한다.
+  // (= 공급이 수요의 99% 미만일 때만 부족으로 본다.)
   const rows = source.totalWithdrawRows
     .slice(withdrawalStartIndex)
-    .filter((row) => row.isWithdraw && nonNegative(row.realWithdraw) > EPSILON)
+    // proxy 는 realWithdraw 가 0 인 연도를 제외했지만, 목표 수요는 연도와 무관하게 고정이므로
+    // 인출 구간의 모든 연도를 평가에 포함한다.
+    .filter((row) => (useTarget ? Boolean(row.isWithdraw) : row.isWithdraw && nonNegative(row.realWithdraw) > EPSILON))
     .map((row) => {
-      const requiredMonthlyReal = nonNegative(row.realWithdraw) / 12;
+      const requiredMonthlyReal = useTarget ? resolvedTarget! : nonNegative(row.realWithdraw) / 12;
       const availableMonthlyReal = account === "taxSaving"
         ? nonNegative(row.taxSavingMonthlyReal)
         : nonNegative(row.taxSavingMonthlyReal) + nonNegative(row.taxableMonthlyDividendReal);
@@ -124,25 +163,21 @@ function livingExpenseSignals(
       };
     });
 
-  if (rows.length === 0) {
-    return {
-      livingExpensesCovered: null,
-      shortfallYears: 0,
-      consecutiveShortfallYears: 0,
-      incomeCoverageScore: NEUTRAL_SCORE,
-      coreCashFlowStopped: false,
-    };
-  }
+  if (rows.length === 0) return emptyResult;
 
   const shortfalls = rows.map((row) => row.meaningfulShortfall);
   const shortfallYears = shortfalls.filter(Boolean).length;
+  const averageCoverage = average(rows.map((row) => row.coverageRatio));
   return {
     livingExpensesCovered: shortfallYears === 0,
     shortfallYears,
     consecutiveShortfallYears: maxConsecutive(shortfalls),
-    incomeCoverageScore: clampScore(average(rows.map((row) => row.coverageRatio)) * 100),
+    incomeCoverageScore: clampScore(averageCoverage * 100),
     // 일부 연도의 약화와 구분해, 평가 가능한 전체 기간에서 흐름이 0일 때만 완전 중단으로 본다.
     coreCashFlowStopped: rows.every((row) => row.availableMonthlyReal <= EPSILON),
+    expenseDemandSource: demandSource,
+    targetMonthlyExpenseReal: resolvedTarget,
+    monthlyIncomeCoverageRatio: averageCoverage,
   };
 }
 
@@ -218,7 +253,16 @@ function resolveFailureReason(
   if (status !== "evaluated") return "DATA_INSUFFICIENT";
   if (endingRealAssets <= EPSILON || preservation <= 0.3) return "LOW_ASSET";
   if (signals.coreCashFlowStopped) return account === "brokerage" ? "DIVIDEND_STOPPED" : "INCOME_SHORTAGE";
-  // proxy 부족 기간은 목표 월생활비 입력이 도입되기 전까지 hard failure로 승격하지 않는다.
+  // 목표 월생활비 입력이 있는 통합 평가에서만 장기 생활비 부족을 hard failure로 승격한다.
+  // (2년 연속 또는 총 3년 이상 부족)
+  if (
+    account === "combined"
+    && signals.expenseDemandSource === "target"
+    && (signals.consecutiveShortfallYears >= 2 || signals.shortfallYears >= 3)
+  ) {
+    return "INCOME_SHORTAGE";
+  }
+  // 목표 입력이 없는 proxy 부족은 hard failure로 승격하지 않는다(score/warning에만 반영).
   return "NONE";
 }
 
@@ -288,11 +332,20 @@ function accountMessages(
   else warnings.push("평가 기간 중 실질 자산 잔고가 소진되는 구간이 있습니다.");
 
   if (account !== "brokerage") {
-    if (metrics.livingExpensesCovered === true) positives.push("현재 임시 기준에서 현금흐름이 안정적으로 이어집니다.");
-    else if (metrics.shortfallYears === 1) warnings.push("일부 연도에서 현금흐름이 약해질 수 있습니다.");
-    else if (metrics.shortfallYears > 1) warnings.push("현재 임시 기준에서 여러 연도의 현금흐름을 점검할 필요가 있습니다.");
-    else warnings.push("목표 생활비 입력 전에는 현금흐름 충당 여부를 판단하기 어렵습니다.");
-    if (metrics.shortfallYears > 0) warnings.push("현재 생활비 부족 평가는 임시 기준이며, 목표 생활비 입력 후 더 정확해집니다.");
+    if (metrics.expenseDemandSource === "target") {
+      // 목표 월생활비 기준 평가: 명시적 수요 대비 공급 충당 여부를 안내한다.
+      if (metrics.livingExpensesCovered === true) positives.push("목표 월생활비를 월 공급이 안정적으로 충당합니다.");
+      else if (metrics.shortfallYears === 1) warnings.push("일부 연도에서 목표 월생활비 대비 월 공급이 부족합니다.");
+      else if (metrics.shortfallYears > 1) warnings.push("여러 연도에서 목표 월생활비를 충당하지 못해 계획 조정을 검토할 필요가 있습니다.");
+      else warnings.push("목표 월생활비 대비 충당 여부를 판단할 데이터가 아직 부족합니다.");
+    } else {
+      // 목표 입력 전 임시(proxy) 기준 평가.
+      if (metrics.livingExpensesCovered === true) positives.push("현재 임시 기준에서 현금흐름이 안정적으로 이어집니다.");
+      else if (metrics.shortfallYears === 1) warnings.push("일부 연도에서 현금흐름이 약해질 수 있습니다.");
+      else if (metrics.shortfallYears > 1) warnings.push("현재 임시 기준에서 여러 연도의 현금흐름을 점검할 필요가 있습니다.");
+      else warnings.push("목표 생활비 입력 전에는 현금흐름 충당 여부를 판단하기 어렵습니다.");
+      if (metrics.shortfallYears > 0) warnings.push("현재 생활비 부족 평가는 임시 기준이며, 목표 생활비 입력 후 더 정확해집니다.");
+    }
   } else {
     if (metrics.principalSold === false) positives.push("위탁계좌 원금을 매도하지 않고 유지합니다.");
     else warnings.push("위탁계좌 원금 사용 여부를 점검할 필요가 있습니다.");
@@ -332,7 +385,7 @@ function evaluateAccount(account: AccountKind, retirementIndex: number, signals:
     signals,
   );
   const failed = status === "evaluated" && reason !== "NONE";
-  const score = status !== "evaluated" ? 0 : Math.round(calculateCompositeScore(
+  const compositeScore = status !== "evaluated" ? 0 : calculateCompositeScore(
     account,
     preservationScore,
     depletionScore,
@@ -341,7 +394,10 @@ function evaluateAccount(account: AccountKind, retirementIndex: number, signals:
     signals.principalSold,
     signals.shortfallYears,
     signals.consecutiveShortfallYears,
-  ) * 10) / 10;
+  );
+  // hard failure는 점수와 등급이 모순되지 않도록 표시 점수를 F 구간으로 제한한다.
+  const boundedScore = failed ? Math.min(compositeScore, HARD_FAILURE_SCORE_CEILING) : compositeScore;
+  const score = Math.round(boundedScore * 10) / 10;
   const metrics: SafetyMetrics = {
     startingRealAssets,
     endingRealAssets,
@@ -361,6 +417,9 @@ function evaluateAccount(account: AccountKind, retirementIndex: number, signals:
     depletionScore,
     stabilityScore: stability.score,
     latePeriodDecline: stability.latePeriodDecline,
+    targetMonthlyExpenseReal: signals.targetMonthlyExpenseReal,
+    expenseDemandSource: signals.expenseDemandSource,
+    monthlyIncomeCoverageRatio: status === "evaluated" ? signals.monthlyIncomeCoverageRatio : null,
   };
 
   return {
@@ -372,11 +431,16 @@ function evaluateAccount(account: AccountKind, retirementIndex: number, signals:
   };
 }
 
-export function calculateRetirementSafety(source: SimulatorProjection): RetirementSafetyResult {
+export function calculateRetirementSafety(
+  source: SimulatorProjection,
+  options: RetirementSafetyOptions = {},
+): RetirementSafetyResult {
   const retirementIndex = source.timeline.retirementIndex ?? -1;
   const retirementRows = retirementIndex >= 0 ? source.chartRows.slice(retirementIndex) : [];
-  const taxLivingExpenses = livingExpenseSignals(source, "taxSaving");
-  const combinedLivingExpenses = livingExpenseSignals(source, "combined");
+  const targetMonthlyExpenseReal = resolveTargetMonthlyExpense(options.targetMonthlyExpenseReal);
+  // 목표는 통합 생활비 수요에만 적용한다. 절세계좌 단독 평가는 기존 proxy 기준을 유지한다.
+  const taxLivingExpenses = livingExpenseSignals(source, "taxSaving", targetMonthlyExpenseReal);
+  const combinedLivingExpenses = livingExpenseSignals(source, "combined", targetMonthlyExpenseReal);
   const brokerageDividends = brokerageDividendSignals(source, retirementIndex);
 
   return {
@@ -393,6 +457,9 @@ export function calculateRetirementSafety(source: SimulatorProjection): Retireme
       shortfallYears: 0,
       consecutiveShortfallYears: 0,
       principalSold: false,
+      expenseDemandSource: "legacy_proxy",
+      targetMonthlyExpenseReal: null,
+      monthlyIncomeCoverageRatio: null,
       ...brokerageDividends,
     }),
     combined: evaluateAccount("combined", retirementIndex, {

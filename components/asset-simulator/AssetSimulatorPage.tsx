@@ -47,6 +47,9 @@ export default function AssetSimulatorPage() {
   // portfolioAssumptions 는 적용 버튼을 눌렀을 때만 채워지고, projection 에 반영된다.
   const [portfolioConfig, setPortfolioConfig] = useState<AssetSimulatorPortfolioConfigV1 | null>(null);
   const [portfolioAssumptions, setPortfolioAssumptions] = useState<AppliedPortfolioAssumptionsV1 | null>(null);
+  // 목표 월생활비(현재 가치 기준, 만원). 입력이 있으면 은퇴 안전성 통합 평가가 target 기준으로 전환된다.
+  // 값이 없으면(null) 기존 proxy 기반 임시 평가를 유지한다.
+  const [targetMonthlyExpenseReal, setTargetMonthlyExpenseReal] = useState<number | null>(null);
   // "지금 EXIT?" 모드는 로컬 UI 상태로만 관리한다. Firebase/로컬 저장 금지, 새로고침 시 초기화.
   const [exitMode, setExitMode] = useState(false);
   // 연도별 투자 계획표 펼침/접힘 상태. 일반 모드 기본값은 열림.
@@ -76,6 +79,8 @@ export default function AssetSimulatorPage() {
     const config = buildStoredSimulatorConfig(nextInputs, nextYearPlans, updatedAt, {
       ...(portfolioConfig ? { portfolioConfig } : {}),
       ...(portfolioAssumptions ? { portfolioAssumptions } : {}),
+      // 목표 월생활비도 closure 에서 읽어 저장 payload 에 포함한다(호출부 시그니처는 유지).
+      ...(targetMonthlyExpenseReal !== null ? { retirementSafetyConfig: { version: 1 as const, targetMonthlyExpenseReal } } : {}),
     });
     if (typeof window !== "undefined") {
       window.localStorage.setItem(ASSET_SIMULATOR_STORAGE_KEY, JSON.stringify(config));
@@ -102,6 +107,8 @@ export default function AssetSimulatorPage() {
           ? config.portfolioAssumptions
           : null,
       );
+      // 저장된 목표 월생활비를 복원한다. 없으면 null(임시 평가 유지).
+      setTargetMonthlyExpenseReal(config.retirementSafetyConfig?.targetMonthlyExpenseReal ?? null);
       setLastSavedAtMs(config.updatedAtMs);
       if (source === "cloud" && typeof window !== "undefined") {
         try {
@@ -110,6 +117,7 @@ export default function AssetSimulatorPage() {
             JSON.stringify(buildStoredSimulatorConfig(config.inputs, config.yearPlans, new Date(config.updatedAtMs || Date.now()).toISOString(), {
               ...(config.portfolioConfig ? { portfolioConfig: config.portfolioConfig } : {}),
               ...(config.portfolioAssumptions ? { portfolioAssumptions: config.portfolioAssumptions } : {}),
+              ...(config.retirementSafetyConfig ? { retirementSafetyConfig: config.retirementSafetyConfig } : {}),
             })),
           );
         } catch {
@@ -215,6 +223,7 @@ export default function AssetSimulatorPage() {
     setYearPlans(plans);
     setPortfolioConfig(null);
     setPortfolioAssumptions(null);
+    setTargetMonthlyExpenseReal(null);
 
     if (typeof window !== "undefined") {
       try {
@@ -297,7 +306,12 @@ export default function AssetSimulatorPage() {
             onApply={setPortfolioAssumptions}
             portfolioSummary={projection.summary.portfolioSummary}
           />
-          <RetirementSafetySection projection={projection} portfolioApplied={portfolioAssumptions !== null} />
+          <RetirementSafetySection
+            projection={projection}
+            portfolioApplied={portfolioAssumptions !== null}
+            targetMonthlyExpenseReal={targetMonthlyExpenseReal}
+            onTargetMonthlyExpenseChange={setTargetMonthlyExpenseReal}
+          />
           <p className="rounded-2xl border border-[#273032] bg-[#171d1e] px-4 py-3 text-[13px] text-slate-400">
             {lastSavedAtMs ? `마지막 저장: ${formatSimulatorSavedAt(lastSavedAtMs) ?? "확인 중"} · ` : ""}{user
               ? "로그인 상태에서는 Save 시 계정 클라우드에 저장돼요."

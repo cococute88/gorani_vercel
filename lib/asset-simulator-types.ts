@@ -212,6 +212,11 @@ export type SafetyFailureReason =
   | "DIVIDEND_STOPPED"
   | "DATA_INSUFFICIENT";
 
+// 생활비 수요를 어디서 가져왔는지 구분한다.
+// - "target": 사용자가 입력한 목표 월생활비(현재 가치, 만원) 기준
+// - "legacy_proxy": 목표 입력이 없어 기존 realWithdraw 인출값을 임시 수요로 사용
+export type ExpenseDemandSource = "target" | "legacy_proxy";
+
 export type SafetyMetrics = {
   startingRealAssets: number;
   endingRealAssets: number;
@@ -231,6 +236,13 @@ export type SafetyMetrics = {
   depletionScore: number;
   stabilityScore: number;
   latePeriodDecline: boolean;
+  // 목표 월생활비 모델 관련 필드. 기존 UI/저장 호환을 위해 optional 로 둔다.
+  // targetMonthlyExpenseReal: 이 평가에 실제로 사용된 목표 월생활비(만원). 없으면 null.
+  targetMonthlyExpenseReal?: number | null;
+  // expenseDemandSource: 생활비 수요 기준(target vs legacy_proxy).
+  expenseDemandSource?: ExpenseDemandSource;
+  // monthlyIncomeCoverageRatio: 월 수요 대비 월 공급 평균 충당률(0~1). 평가 불가 시 null.
+  monthlyIncomeCoverageRatio?: number | null;
 };
 
 export type SafetyResult = {
@@ -378,10 +390,18 @@ export type PortfolioValidationIssue = {
   message: string;
 };
 
+// 저장 가능한 은퇴 안전성 설정. 현재는 목표 월생활비(현재 가치 기준, 만원)만 담는다.
+// 값이 없거나 무효하면 targetMonthlyExpenseReal 은 null 또는 생략된다.
+export type RetirementSafetyConfigV1 = {
+  version: 1;
+  targetMonthlyExpenseReal?: number | null;
+};
+
 export type StoredSimulatorPreview = {
   inputs: Partial<SimulatorInputs>;
   yearPlans: YearPlanRow[];
   portfolioConfig?: AssetSimulatorPortfolioConfigV1;
   portfolioAssumptions?: PersistedPortfolioAssumptions;
+  retirementSafetyConfig?: RetirementSafetyConfigV1;
   updatedAt?: unknown;
 };
