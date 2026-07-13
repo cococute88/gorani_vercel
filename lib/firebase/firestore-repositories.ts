@@ -12,6 +12,7 @@ import {
   arrayUnion,
   arrayRemove,
   type DocumentData,
+  type Timestamp,
 } from "firebase/firestore";
 import type { PortfolioSnapshot } from "@/lib/portfolio-types";
 import type { StoredSimulatorPreview } from "@/lib/asset-simulator-types";
@@ -177,11 +178,49 @@ export async function ensureUserProfile(user: User): Promise<void> {
   );
 }
 
-export async function savePortfolioSnapshot(uid: string, snapshot: PortfolioSnapshot): Promise<void> {
+export type PortfolioSyncMetadata = {
+  lastSyncedAtMs: number | null;
+  lastSyncedAtIso: string | null;
+};
+
+function portfolioSyncMetadataDoc(uid: string) {
+  return doc(requireDb(), "users", uid, "portfolioSyncMetadata", "status");
+}
+
+function firestoreTimeToMs(value: unknown): number | null {
+  if (!value) return null;
+  if (typeof value === "string") {
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "object" && "toMillis" in value && typeof (value as Timestamp).toMillis === "function") {
+    const parsed = (value as Timestamp).toMillis();
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+export async function recordPortfolioCloudSyncSuccess(uid: string): Promise<PortfolioSyncMetadata> {
+  const ref = portfolioSyncMetadataDoc(uid);
+  await setDoc(ref, { lastSyncedAt: serverTimestamp(), updatedAt: serverTimestamp() }, { merge: true });
+  const snap = await getDoc(ref);
+  const ms = snap.exists() ? firestoreTimeToMs(snap.data().lastSyncedAt) : null;
+  return { lastSyncedAtMs: ms, lastSyncedAtIso: ms ? new Date(ms).toISOString() : null };
+}
+
+export async function loadPortfolioSyncMetadata(uid: string): Promise<PortfolioSyncMetadata> {
+  const snap = await getDoc(portfolioSyncMetadataDoc(uid));
+  const ms = snap.exists() ? firestoreTimeToMs(snap.data().lastSyncedAt) : null;
+  return { lastSyncedAtMs: ms, lastSyncedAtIso: ms ? new Date(ms).toISOString() : null };
+}
+
+export async function savePortfolioSnapshot(uid: string, snapshot: PortfolioSnapshot): Promise<PortfolioSyncMetadata> {
   await setDoc(doc(requireDb(), "users", uid, "portfolioSnapshots", snapshot.id), {
     ...snapshot,
     updatedAt: serverTimestamp(),
   });
+  return recordPortfolioCloudSyncSuccess(uid);
 }
 
 export async function loadPortfolioSnapshots(uid: string): Promise<PortfolioSnapshot[]> {

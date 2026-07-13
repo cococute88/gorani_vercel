@@ -39,6 +39,7 @@ import {
   removeDeletedSnapshotDateFromCloud,
   addHiddenSnapshotDateToCloud,
   removeHiddenSnapshotDateFromCloud,
+  recordPortfolioCloudSyncSuccess,
 } from "@/lib/firebase/firestore-repositories";
 import { parseBanksaladFile } from "@/lib/banksalad-parser";
 import type { ParseResult } from "@/lib/banksalad-parser";
@@ -367,9 +368,9 @@ export default function PortfolioPage() {
     }
     if (user && !USE_FIRESTORE_CONTRACT) {
       try {
-        await savePortfolioSnapshot(user.uid, snap);
-        // Firestore 저장 성공 시점에 마지막 클라우드 동기화 시각을 기록한다.
-        markPortfolioCloudSyncNow();
+        const metadata = await savePortfolioSnapshot(user.uid, snap);
+        // Firestore metadata(status.lastSyncedAt)가 SSOT이며 localStorage는 즉시 렌더링용 캐시다.
+        markPortfolioCloudSyncNow(metadata.lastSyncedAtMs ?? Date.now());
       } catch (err) {
         warnFirestoreFallback("portfolioSnapshots.save", err);
       }
@@ -421,8 +422,9 @@ export default function PortfolioPage() {
           ...Array.from(idsToDelete).map((snapshotId) => deletePortfolioSnapshot(user.uid, snapshotId)),
           ...(snapshotDate != null ? [addDeletedSnapshotDateToCloud(user.uid, snapshotDate)] : []),
         ]);
-        // Firestore 삭제 성공도 클라우드 반영(동기화)이므로 시각을 갱신한다.
-        markPortfolioCloudSyncNow();
+        // Firestore 삭제 성공도 클라우드 반영(동기화)이므로 metadata를 갱신한다.
+        const metadata = await recordPortfolioCloudSyncSuccess(user.uid);
+        markPortfolioCloudSyncNow(metadata.lastSyncedAtMs ?? Date.now());
       } catch (err) {
         warnFirestoreFallback("portfolioSnapshots.delete", err);
       }
@@ -459,7 +461,8 @@ export default function PortfolioPage() {
     if (user) {
       try {
         await addHiddenSnapshotDateToCloud(user.uid, snapshotDate);
-        markPortfolioCloudSyncNow();
+        const metadata = await recordPortfolioCloudSyncSuccess(user.uid);
+        markPortfolioCloudSyncNow(metadata.lastSyncedAtMs ?? Date.now());
       } catch (err) {
         warnFirestoreFallback("portfolioSnapshotState.hide", err);
       }
@@ -480,7 +483,8 @@ export default function PortfolioPage() {
     if (user) {
       try {
         await removeHiddenSnapshotDateFromCloud(user.uid, snapshotDate);
-        markPortfolioCloudSyncNow();
+        const metadata = await recordPortfolioCloudSyncSuccess(user.uid);
+        markPortfolioCloudSyncNow(metadata.lastSyncedAtMs ?? Date.now());
       } catch (err) {
         warnFirestoreFallback("portfolioSnapshotState.unhide", err);
       }

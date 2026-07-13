@@ -11,6 +11,7 @@ import {
   loadPortfolioSnapshots,
   savePortfolioSnapshot,
   warnFirestoreFallback,
+  recordPortfolioCloudSyncSuccess,
 } from "@/lib/firebase/firestore-repositories";
 import { USE_FIRESTORE_CONTRACT } from "@/lib/feature-flags";
 import { loadPortfolioContract } from "@/lib/firestore-portfolio-adapter";
@@ -112,8 +113,11 @@ export function usePortfolioCloudSync(): PortfolioCloudSyncState {
         const cloudDates = new Set(cloudSnapshots.map((snapshot) => snapshot.snapshotDate));
         const localOnlySnapshots = merged.filter((snapshot) => !cloudDates.has(snapshot.snapshotDate));
         await Promise.all(localOnlySnapshots.map((snapshot) => savePortfolioSnapshot(user.uid, snapshot)));
-        // 로컬 전용 스냅샷을 실제로 Firestore 에 올린 경우에만 마지막 동기화 시각을 갱신한다.
-        if (localOnlySnapshots.length > 0) markPortfolioCloudSyncNow();
+        // 로컬 전용 스냅샷을 실제로 Firestore 에 올린 경우에만 Firestore metadata SSOT를 갱신한다.
+        if (localOnlySnapshots.length > 0) {
+          const metadata = await recordPortfolioCloudSyncSuccess(user.uid);
+          markPortfolioCloudSyncNow(metadata.lastSyncedAtMs ?? Date.now());
+        }
 
         if (!cancelled) setState({ status: "synced", error: null });
       })
