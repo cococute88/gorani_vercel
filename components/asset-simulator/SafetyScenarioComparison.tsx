@@ -8,9 +8,10 @@ import {
   STRESS_SCENARIO_NOTE,
   summarizeWorsenedMetrics,
 } from "@/lib/asset-simulator-portfolio-ui";
-import type { SafetyResult } from "@/lib/asset-simulator-types";
+import type { SafetyResult, SimulatorProjection } from "@/lib/asset-simulator-types";
 import SafetyScenarioCompareTable from "./SafetyScenarioCompareTable";
 import SafetyAdjustmentCandidates from "./SafetyAdjustmentCandidates";
+import SafetyAssetTrajectoryChart from "./SafetyAssetTrajectoryChart";
 
 // 기본/하락장 통합 안전성을 단일 비교표로 보여주는 섹션.
 // 카드 2장을 나란히 두던 방식 대신, 지표별 기본/하락장/변화를 한 표에서 대조한다.
@@ -25,6 +26,9 @@ type Props = {
   // 최종 실질자산(만원).
   basicFinalReal: number;
   stressFinalReal: number;
+  // 기존 계산 결과를 그대로 차트 표시용으로 전달한다.
+  projection: SimulatorProjection;
+  stressProjection: SimulatorProjection | null;
 };
 
 export default function SafetyScenarioComparison({
@@ -34,6 +38,8 @@ export default function SafetyScenarioComparison({
   targetMonthlyExpenseReal,
   basicFinalReal,
   stressFinalReal,
+  projection,
+  stressProjection,
 }: Props) {
   const rows = useMemo(
     () => buildScenarioComparisonRows(basic, stress, basicFinalReal, stressFinalReal, hasTarget),
@@ -67,7 +73,16 @@ export default function SafetyScenarioComparison({
         <p className="mt-1 text-[11.5px] font-semibold text-slate-700 dark:text-slate-300">{basis.label}</p>
       </div>
 
-      <SafetyScenarioCompareTable basic={basic} stress={stress} rows={rows} />
+      <div className="mt-3 grid min-w-0 grid-cols-1 gap-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] xl:items-start">
+        <SafetyScenarioCompareTable basic={basic} stress={stress} rows={rows} />
+        <div className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-[#273032] dark:bg-white/[0.03] sm:p-4">
+          <div className="mb-2">
+            <h4 className="text-[13px] font-bold text-slate-900 dark:text-slate-100">실질 총자산 추이</h4>
+            <p className="mt-0.5 text-[11.5px] leading-relaxed text-slate-600 dark:text-slate-400">기본과 하락장 시나리오의 자산 격차가 벌어지는 시점을 확인합니다.</p>
+          </div>
+          <SafetyAssetTrajectoryChart projection={projection} stressProjection={stressProjection} />
+        </div>
+      </div>
 
       {!hasTarget && (
         <p className="mt-2 text-[11.5px] leading-relaxed text-slate-600 dark:text-slate-400">

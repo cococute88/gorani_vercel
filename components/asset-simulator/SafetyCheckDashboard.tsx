@@ -129,6 +129,8 @@ export default function SafetyCheckDashboard({
             targetMonthlyExpenseReal={targetMonthlyExpenseReal}
             basicFinalReal={finalRealAsset}
             stressFinalReal={stressFinalReal}
+            projection={projection}
+            stressProjection={stressProjection}
           />
         </div>
       </div>
