@@ -23,7 +23,7 @@ const TONE_DELTA_TEXT: Record<UiTone, string> = {
   neutral: "text-slate-700 dark:text-slate-200",
   caution: "text-amber-600 dark:text-amber-400",
   warning: "text-rose-600 dark:text-rose-400 font-bold",
-  muted: "text-slate-500 dark:text-slate-400",
+  muted: "text-slate-600 dark:text-slate-300",
 };
 
 const GRADE_TONE_TEXT: Record<UiTone, string> = {
@@ -31,7 +31,7 @@ const GRADE_TONE_TEXT: Record<UiTone, string> = {
   neutral: "text-slate-800 dark:text-slate-100",
   caution: "text-amber-600 dark:text-amber-400",
   warning: "text-rose-600 dark:text-rose-400",
-  muted: "text-slate-500 dark:text-slate-400",
+  muted: "text-slate-600 dark:text-slate-300",
 };
 
 function directionMark(direction: ScenarioDeltaDirection): string {
@@ -59,10 +59,10 @@ export default function SafetyScenarioCompareTable({ basic, stress, rows }: Prop
         role="row"
         className="hidden grid-cols-[1.1fr_1fr_1fr_1.3fr] items-center gap-x-3 border-b border-slate-200 pb-2 dark:border-[#273032] md:grid"
       >
-        <span role="columnheader" className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">지표</span>
-        <span role="columnheader" className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">기본 시나리오</span>
+        <span role="columnheader" className="text-[11px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">지표</span>
+        <span role="columnheader" className="text-[11px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">기본 시나리오</span>
         <span role="columnheader" className="text-[11px] font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">하락장 시나리오</span>
-        <span role="columnheader" className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">변화</span>
+        <span role="columnheader" className="text-[11px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">변화</span>
       </div>
 
       <div className="divide-y divide-slate-100 dark:divide-[#232b2d]">
@@ -79,7 +79,7 @@ export default function SafetyScenarioCompareTable({ basic, stress, rows }: Prop
 
             {/* 기본 */}
             <div role="cell" className="min-w-0">
-              <span className="mr-1 text-[10.5px] text-slate-500 dark:text-slate-400 md:hidden">기본</span>
+              <span className="mr-1 text-[10.5px] text-slate-600 dark:text-slate-300 md:hidden">기본</span>
               <span className={`break-keep text-[13.5px] ${valueClass(row, "basic")}`}>{row.basicText}</span>
             </div>
 
@@ -91,7 +91,7 @@ export default function SafetyScenarioCompareTable({ basic, stress, rows }: Prop
 
             {/* 변화 */}
             <div role="cell" className="col-span-2 min-w-0 md:col-span-1">
-              <span className="mr-1 text-[10.5px] text-slate-500 dark:text-slate-400 md:hidden">변화</span>
+              <span className="mr-1 text-[10.5px] text-slate-600 dark:text-slate-300 md:hidden">변화</span>
               <span className={`break-keep text-[12.5px] font-semibold ${TONE_DELTA_TEXT[row.tone]}`}>
                 {row.key === "grade" ? (
                   row.deltaText

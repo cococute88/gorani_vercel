@@ -29,7 +29,7 @@ const TONE_VALUE: Record<UiTone, string> = {
   neutral: "text-slate-900 dark:text-slate-100",
   caution: "text-amber-600 dark:text-amber-400",
   warning: "text-rose-600 dark:text-rose-400",
-  muted: "text-slate-500 dark:text-slate-400",
+  muted: "text-slate-600 dark:text-slate-300",
 };
 
 function KpiCard({
@@ -51,7 +51,7 @@ function KpiCard({
       <p className="text-[12px] font-semibold text-slate-600 dark:text-slate-300">{label}</p>
       <p className={`mt-1.5 break-keep text-[22px] font-extrabold leading-tight ${TONE_VALUE[tone]}`}>{value}</p>
       {children}
-      <p className="mt-1.5 text-[11.5px] leading-relaxed text-slate-500 dark:text-slate-400">{hint}</p>
+      <p className="mt-1.5 text-[11.5px] leading-relaxed text-slate-600 dark:text-slate-300">{hint}</p>
     </div>
   );
 }

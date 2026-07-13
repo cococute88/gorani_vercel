@@ -32,7 +32,7 @@ const TONE_TEXT: Record<UiTone, string> = {
   neutral: "text-slate-700 dark:text-slate-200",
   caution: "text-amber-600 dark:text-amber-400",
   warning: "text-rose-600 dark:text-rose-400",
-  muted: "text-slate-500 dark:text-slate-400",
+  muted: "text-slate-600 dark:text-slate-300",
 };
 
 const TONE_RING: Record<UiTone, string> = {
@@ -59,7 +59,7 @@ export default function SafetyAccountDiagnosis({ accounts, hasTarget, targetMont
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <span className="text-[13.5px] font-bold text-slate-800 dark:text-slate-100">{name}</span>
-                <span className="ml-1.5 break-keep text-[11px] text-slate-500 dark:text-slate-400">· {diag.basisShort}</span>
+                <span className="ml-1.5 break-keep text-[11px] text-slate-600 dark:text-slate-300">· {diag.basisShort}</span>
               </div>
               <div className="flex shrink-0 items-center gap-1.5" aria-label={diag.changeText}>
                 {diag.evaluated ? (

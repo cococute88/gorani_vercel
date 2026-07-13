@@ -18,7 +18,7 @@ export default function SafetyAdjustmentCandidates({ candidates }: { candidates:
           </li>
         ))}
       </ul>
-      <p className="mt-1.5 text-[10.5px] leading-relaxed text-slate-500 dark:text-slate-400">
+      <p className="mt-1.5 text-[10.5px] leading-relaxed text-slate-600 dark:text-slate-300">
         참고용 점검 항목이며 투자 권유가 아닙니다.
       </p>
     </div>

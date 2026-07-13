@@ -87,7 +87,7 @@ export default function SafetyCheckDashboard({
   }, []);
 
   return (
-    <div className="min-w-0 space-y-5">
+    <div className="min-w-0 space-y-6">
       <SafetyHeroCard
         overallGrade={overallGrade}
         verdict={verdict}
@@ -104,14 +104,14 @@ export default function SafetyCheckDashboard({
         saveError={saveError}
       />
 
-      <div className="grid min-w-0 grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">
+      <div className="grid min-w-0 grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">
         {/* 좌: 설정 패널 (데스크톱에서 sticky). 모바일에서는 KPI/비교 아래로 내려간다. */}
         <aside className="order-2 min-w-0 lg:order-1 lg:sticky lg:top-4">
           {configPanel}
         </aside>
 
         {/* 우: KPI/시나리오 비교. 모바일에서는 최상단에 온다. */}
-        <div className="order-1 min-w-0 space-y-5 lg:order-2">
+        <div className="order-1 min-w-0 space-y-6 lg:order-2">
           <SafetyKpiCards
             coverageRatio={safety.combined.metrics.monthlyIncomeCoverageRatio}
             stressCoverageRatio={displayedStress.combined.metrics.monthlyIncomeCoverageRatio}

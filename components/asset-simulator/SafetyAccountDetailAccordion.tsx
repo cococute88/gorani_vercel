@@ -30,7 +30,7 @@ const TONE_TEXT: Record<UiTone, string> = {
   neutral: "text-slate-700 dark:text-slate-200",
   caution: "text-amber-600 dark:text-amber-400",
   warning: "text-rose-600 dark:text-rose-400",
-  muted: "text-slate-500 dark:text-slate-400",
+  muted: "text-slate-600 dark:text-slate-300",
 };
 
 export default function SafetyAccountDetailAccordion({
@@ -67,7 +67,7 @@ export default function SafetyAccountDetailAccordion({
             )}
           </div>
           <svg
-            className="h-4 w-4 shrink-0 text-slate-500 transition-transform group-open:rotate-180 dark:text-slate-400"
+            className="h-4 w-4 shrink-0 text-slate-600 transition-transform group-open:rotate-180 dark:text-slate-300"
             viewBox="0 0 20 20"
             fill="currentColor"
             aria-hidden

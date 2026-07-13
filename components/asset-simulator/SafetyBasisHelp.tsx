@@ -14,10 +14,10 @@ type Props = {
 export default function SafetyBasisHelp({ shortLabel, helpText }: Props) {
   return (
     <details className="group min-w-0">
-      <summary className="flex cursor-pointer list-none items-center gap-1 text-[11px] font-medium text-slate-500 dark:text-slate-400 [&::-webkit-details-marker]:hidden">
+      <summary className="flex cursor-pointer list-none items-center gap-1 text-[11px] font-medium text-slate-600 dark:text-slate-300 [&::-webkit-details-marker]:hidden">
         <span
           aria-hidden
-          className="inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border border-slate-300 text-[9px] font-bold leading-none text-slate-500 dark:border-slate-600 dark:text-slate-400"
+          className="inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border border-slate-300 text-[9px] font-bold leading-none text-slate-600 dark:border-slate-600 dark:text-slate-300"
         >
           i
         </span>

@@ -40,7 +40,7 @@ export default function SafetyAccountDetailPanel({ label, result, stress = false
       <div className="flex items-center justify-between gap-2">
         <span
           className={`text-[11.5px] font-semibold uppercase tracking-wide ${
-            stress ? "text-amber-600 dark:text-amber-400" : "text-slate-500 dark:text-slate-400"
+            stress ? "text-amber-600 dark:text-amber-400" : "text-slate-600 dark:text-slate-300"
           }`}
         >
           {label}
@@ -48,7 +48,7 @@ export default function SafetyAccountDetailPanel({ label, result, stress = false
         <div className="flex shrink-0 items-center gap-1.5">
           <SafetyGradeBadge display={display} size="sm" />
           {display.showScore && (
-            <span className="text-[11px] text-slate-500 dark:text-slate-500">{result.score}점</span>
+            <span className="text-[11px] text-slate-600 dark:text-slate-300">{result.score}점</span>
           )}
         </div>
       </div>
@@ -98,31 +98,31 @@ export default function SafetyAccountDetailPanel({ label, result, stress = false
 
           {/* raw metrics: 기본 접힘. 삭제하지 않고 필요할 때만 펼쳐 본다. */}
           <details className="group mt-2">
-            <summary className="cursor-pointer list-none text-[10.5px] font-medium text-slate-500 dark:text-slate-400 [&::-webkit-details-marker]:hidden">
+            <summary className="cursor-pointer list-none text-[10.5px] font-medium text-slate-600 dark:text-slate-300 [&::-webkit-details-marker]:hidden">
               <span className="underline decoration-dotted underline-offset-2">원자료 보기</span>
             </summary>
             <dl className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1 text-[10.5px]">
               <div className="flex items-center justify-between gap-1">
-                <dt className="text-slate-500 dark:text-slate-500">부족 연수</dt>
+                <dt className="text-slate-600 dark:text-slate-300">부족 연수</dt>
                 <dd className="font-medium text-slate-700 dark:text-slate-300">{metrics.shortfallYears}년</dd>
               </div>
               <div className="flex items-center justify-between gap-1">
-                <dt className="text-slate-500 dark:text-slate-500">연속 부족</dt>
+                <dt className="text-slate-600 dark:text-slate-300">연속 부족</dt>
                 <dd className="font-medium text-slate-700 dark:text-slate-300">{metrics.consecutiveShortfallYears}년</dd>
               </div>
               <div className="flex items-center justify-between gap-1">
-                <dt className="text-slate-500 dark:text-slate-500">시작 실질자산</dt>
+                <dt className="text-slate-600 dark:text-slate-300">시작 실질자산</dt>
                 <dd className="font-medium text-slate-700 dark:text-slate-300">{formatManwonMoney(metrics.startingRealAssets)}</dd>
               </div>
               <div className="flex items-center justify-between gap-1">
-                <dt className="text-slate-500 dark:text-slate-500">종료 실질자산</dt>
+                <dt className="text-slate-600 dark:text-slate-300">종료 실질자산</dt>
                 <dd className="font-medium text-slate-700 dark:text-slate-300">{formatManwonMoney(metrics.endingRealAssets)}</dd>
               </div>
             </dl>
           </details>
         </>
       ) : (
-        <p className="mt-2 break-keep text-[11.5px] leading-relaxed text-slate-500 dark:text-slate-400">
+        <p className="mt-2 break-keep text-[11.5px] leading-relaxed text-slate-600 dark:text-slate-300">
           {display.toneLabel}. 데이터를 보완하면 이 시나리오도 평가할 수 있습니다.
         </p>
       )}
