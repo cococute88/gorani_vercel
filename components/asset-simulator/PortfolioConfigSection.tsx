@@ -14,22 +14,27 @@ import {
 import { resolvePortfolioHoldingMetricsClient } from "@/lib/asset-simulator-portfolio-client";
 import {
   ACCOUNT_LABELS,
+  ACCOUNT_SHORT_LABELS,
   APPLY_BLOCKED_HINT,
+  APPLY_CLEAN_BADGE,
   APPLY_WHILE_LOADING_HINT,
   AUTO_NOT_APPLIED_HINT,
   AUTO_RESULT_STALE_HINT,
   MANUAL_FALLBACK_HINTS,
+  SAVED_ASSUMPTIONS_SESSION_HINT,
+  SETUP_STEP_STATUS_LABEL,
+  describeAccountWeight,
   describeApplyState,
   describeMetricStatus,
+  describePortfolioSetupSteps,
   formatPct,
   formatYears,
   isAutoResultStale,
-  isWeightTotalValid,
   resolutionHasInsufficientHistory,
   resolutionKey,
   resolutionNeedsManualFallback,
-  sumWeightPct,
   type PortfolioApplyState,
+  type SetupStepStatus,
   type UiTone,
 } from "@/lib/asset-simulator-portfolio-ui";
 import type {
@@ -55,6 +60,12 @@ type Props = {
 
 const ACCOUNT_ORDER: PortfolioAccountType[] = ["taxSaving", "brokerage"];
 
+// 빈 상태에서 보여주는 예시 포트폴리오 미리보기(buildDefaultPortfolioConfig 과 동일 구성).
+const EXAMPLE_PREVIEW: Array<{ account: string; tickers: string[] }> = [
+  { account: "절세계좌", tickers: ["SCHD", "QLD"] },
+  { account: "위탁계좌", tickers: ["SCHD", "JEPQ"] },
+];
+
 const MANUAL_FIELDS: Record<PortfolioAccountType, Array<{ key: keyof PortfolioManualMetrics; label: string }>> = {
   taxSaving: [{ key: "totalReturnCagrPct", label: "총수익 CAGR" }],
   brokerage: [
@@ -78,6 +89,30 @@ const TONE_BADGE: Record<UiTone, string> = {
   caution: "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:ring-amber-500/30",
   warning: "bg-rose-50 text-rose-700 ring-rose-200 dark:bg-rose-500/10 dark:text-rose-300 dark:ring-rose-500/30",
   muted: "bg-slate-100 text-slate-400 ring-slate-200 dark:bg-slate-500/10 dark:text-slate-500 dark:ring-slate-500/20",
+};
+
+// 단계 표시(stepper) 각 상태의 색/아이콘. 완료=emerald, 진행 중=sky, 확인 필요=amber, 대기=slate.
+const STEP_STATUS_STYLE: Record<SetupStepStatus, { chip: string; dot: string; mark: string }> = {
+  complete: {
+    chip: "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-500/30",
+    dot: "bg-emerald-500 text-white",
+    mark: "✓",
+  },
+  in_progress: {
+    chip: "bg-sky-50 text-sky-700 ring-sky-200 dark:bg-sky-500/10 dark:text-sky-300 dark:ring-sky-500/30",
+    dot: "bg-sky-500 text-white",
+    mark: "",
+  },
+  attention: {
+    chip: "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:ring-amber-500/30",
+    dot: "bg-amber-500 text-white",
+    mark: "!",
+  },
+  pending: {
+    chip: "bg-slate-100 text-slate-500 ring-slate-200 dark:bg-white/5 dark:text-slate-400 dark:ring-white/10",
+    dot: "bg-slate-300 text-slate-600 dark:bg-slate-600 dark:text-slate-200",
+    mark: "",
+  },
 };
 
 function generateHoldingId(accountType: PortfolioAccountType): string {
@@ -177,6 +212,18 @@ export default function PortfolioConfigSection({
 
   const anyLoading = useMemo(() => Object.values(loadingKeys).some(Boolean), [loadingKeys]);
   const canApply = Boolean(config) && Boolean(applyPreview.assumptions) && !anyLoading;
+
+  // 저장된 가정은 반영 중이지만(clean/stale) 세션 상태인 자동 계산 결과가 없어
+  // 적용 게이트만 막혀 있는 상태. 이 경우 "적용하려면 정리하세요" 경고 대신
+  // "저장된 가정은 반영 중"임을 분리해 안내한다(새로고침 직후 오해 방지).
+  const savedWithoutResolver = useMemo(
+    () =>
+      Boolean(appliedAssumptions) &&
+      (applyState === "clean" || applyState === "stale") &&
+      !applyPreview.assumptions &&
+      !anyLoading,
+    [appliedAssumptions, applyState, applyPreview.assumptions, anyLoading],
+  );
 
   const updateAccount = (accountType: PortfolioAccountType, holdings: PortfolioHoldingInput[]) => {
     const base = config ?? buildDefaultPortfolioConfig();
@@ -334,6 +381,37 @@ export default function PortfolioConfigSection({
 
   const applyStateBanner = describeApplyState(applyState);
 
+  // 단계 표시(stepper)에 넘길 게이트 값들을 파생한다.
+  const hasHoldings = Boolean(config) &&
+    (config!.taxSaving.holdings.length > 0 || config!.brokerage.holdings.length > 0);
+  const weightsValid = Boolean(config) &&
+    describeAccountWeight(config!.taxSaving.holdings).valid &&
+    describeAccountWeight(config!.brokerage.holdings).valid;
+  const needsAttention = ACCOUNT_ORDER.some((accountType) => failedAutoHoldings(accountType).length > 0);
+  const setupSteps = describePortfolioSetupSteps({
+    hasHoldings,
+    weightsValid,
+    anyLoading,
+    needsAttention,
+    canApply,
+    applyState,
+  });
+
+  // 적용 버튼 옆 상태 배지: 적용 완료/재적용 필요/적용 가능/보완 필요를 한눈에.
+  const applyPill: { tone: UiTone; label: string } | null = (() => {
+    if (anyLoading) return { tone: "neutral", label: "자동 계산 진행 중" };
+    if (applyState === "clean") return { tone: "positive", label: APPLY_CLEAN_BADGE };
+    if (applyState === "config_changed") return { tone: "caution", label: "재적용 필요" };
+    if (applyState === "stale") {
+      return savedWithoutResolver
+        ? { tone: "positive", label: "적용됨 · 자동 계산 갱신 권장" }
+        : { tone: "caution", label: "재적용 권장" };
+    }
+    if (canApply) return { tone: "neutral", label: "적용 가능" };
+    if (!hasHoldings) return null;
+    return { tone: "muted", label: "자동 계산 또는 수동 보완 필요" };
+  })();
+
   return (
     <section
       aria-labelledby="portfolio-config-heading"
@@ -349,30 +427,59 @@ export default function PortfolioConfigSection({
           </p>
         </div>
 
-        {/* 자동 계산/수동 보완/가정 적용 흐름을 한눈에 보여주는 stepper. */}
-        <ol className="flex flex-wrap items-center gap-x-1.5 gap-y-1.5 text-[12px]">
-          {[
-            { n: "1", label: "티커·비중 입력" },
-            { n: "2", label: "자동 계산 또는 수동 보완" },
-            { n: "3", label: "가정 적용" },
-          ].map((step, index) => (
-            <li key={step.n} className="flex items-center gap-1.5">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2 py-1 font-semibold text-slate-700 dark:bg-white/5 dark:text-slate-200">
-                <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-sky-600 text-[10px] font-bold text-white">{step.n}</span>
-                {step.label}
-              </span>
-              {index < 2 && <span aria-hidden className="text-slate-400 dark:text-slate-500">→</span>}
-            </li>
-          ))}
+        {/* 티커/비중 입력 → 자동 계산·수동 보완 → 가정 적용 흐름을 상태와 함께 보여주는 stepper. */}
+        <ol className="flex flex-wrap items-center gap-x-1 gap-y-1.5 text-[12px]" aria-label="포트폴리오 설정 단계">
+          {setupSteps.map((step, index) => {
+            const style = STEP_STATUS_STYLE[step.status];
+            return (
+              <li key={step.id} className="flex items-center gap-1">
+                <span
+                  className={`inline-flex items-center gap-1.5 rounded-full px-2 py-1 font-semibold ring-1 ring-inset ${style.chip}`}
+                >
+                  <span className={`inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold leading-none ${style.dot}`}>
+                    {style.mark || step.n}
+                  </span>
+                  <span className="whitespace-nowrap">{step.label}</span>
+                  <span className="whitespace-nowrap text-[10px] font-normal opacity-80">· {SETUP_STEP_STATUS_LABEL[step.status]}</span>
+                </span>
+                {index < setupSteps.length - 1 && (
+                  <span aria-hidden className="text-slate-400 dark:text-slate-500">→</span>
+                )}
+              </li>
+            );
+          })}
         </ol>
         <p className="text-[12px] text-slate-600 dark:text-slate-400">적용 전의 계산 결과는 시뮬레이션에 반영되지 않습니다.</p>
       </div>
 
       {!config ? (
-        <div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5 text-center dark:border-[#2c3638] dark:bg-[#12181a]">
-          <p className="text-[13.5px] text-slate-600 dark:text-slate-300">
-            아직 포트폴리오 설정이 없습니다. 예시 포트폴리오를 불러오거나 빈 설정으로 시작할 수 있습니다.
+        <div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 dark:border-[#2c3638] dark:bg-[#12181a] sm:p-5">
+          <p className="text-center text-[13.5px] text-slate-600 dark:text-slate-300">
+            아직 포트폴리오 설정이 없습니다. 예시 포트폴리오로 시작하거나 빈 설정으로 시작할 수 있습니다.
           </p>
+
+          {/* 예시 포트폴리오 미리보기: 어떤 종목이 들어오는지 먼저 보여준다. */}
+          <div className="mx-auto mt-3 grid max-w-sm grid-cols-1 gap-2 text-left sm:grid-cols-2">
+            {EXAMPLE_PREVIEW.map((preview) => (
+              <div
+                key={preview.account}
+                className="rounded-lg border border-slate-200 bg-white p-2.5 dark:border-[#2c3638] dark:bg-[#171d1e]"
+              >
+                <p className="text-[11.5px] font-semibold text-slate-700 dark:text-slate-200">{preview.account}</p>
+                <div className="mt-1.5 flex flex-wrap gap-1">
+                  {preview.tickers.map((ticker) => (
+                    <span
+                      key={ticker}
+                      className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700 dark:bg-white/5 dark:text-slate-200"
+                    >
+                      {ticker}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+
           <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
             <button
               type="button"
@@ -393,17 +500,18 @@ export default function PortfolioConfigSection({
               빈 포트폴리오로 시작
             </button>
           </div>
-          <p className="mt-2 text-[12px] text-slate-600 dark:text-slate-400">
-            예시 값(절세: SCHD/QLD, 위탁: SCHD/JEPQ)은 참고용이며 투자 권유가 아닙니다.
+          <p className="mt-2 text-center text-[12px] text-slate-600 dark:text-slate-400">
+            예시 값은 검증용 참고 구성이며 투자 권유가 아닙니다.
           </p>
         </div>
       ) : (
         <div className="mt-4 space-y-4">
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          {/* 좁은 설정 패널에서 가독성을 위해 계좌 카드는 항상 세로로 쌓는다. */}
+          <div className="grid grid-cols-1 gap-4">
             {ACCOUNT_ORDER.map((accountType) => {
               const account = config[accountType];
-              const weightPct = sumWeightPct(account.holdings);
-              const weightValid = isWeightTotalValid(account.holdings);
+              const holdingCount = account.holdings.length;
+              const weight = describeAccountWeight(account.holdings);
               const accountIssues = accountLevelIssues(accountType);
               const hasAutoTicker = autoHoldingsWithTicker(accountType).length > 0;
               const accountLoading = account.holdings.some(
@@ -411,20 +519,29 @@ export default function PortfolioConfigSection({
               );
               const failedCount = failedAutoHoldings(accountType).length;
               return (
-                <div
+                <section
                   key={accountType}
+                  aria-label={ACCOUNT_LABELS[accountType]}
                   className="rounded-xl border border-slate-200 bg-slate-50/60 p-3 dark:border-[#2c3638] dark:bg-[#12181a] sm:p-4"
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <h3 className="text-[14.5px] font-bold text-slate-800 dark:text-slate-100">
-                      {ACCOUNT_LABELS[accountType]}
-                    </h3>
-                    <div className="flex items-center gap-2 text-[12px]">
-                      <span className="text-slate-500 dark:text-slate-400">비중 합계</span>
-                      <StatusBadge tone={weightValid ? "positive" : "warning"}>
-                        {weightPct}%
-                      </StatusBadge>
+                  {/* 헤더: 계좌명 · 종목 수 · 비중 합계(100% 여부) + 전체 자동 계산 */}
+                  <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5">
+                    <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1">
+                      <h3 className="text-[14.5px] font-bold text-slate-800 dark:text-slate-100">
+                        {ACCOUNT_SHORT_LABELS[accountType]}
+                      </h3>
+                      <span className="text-[12px] text-slate-500 dark:text-slate-400">· {holdingCount}종목</span>
+                      <StatusBadge tone={weight.tone}>{weight.label}</StatusBadge>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => void runResolveAll(accountType)}
+                      disabled={!hasAutoTicker || accountLoading}
+                      aria-busy={accountLoading || undefined}
+                      className="rounded-lg border border-sky-300 px-2.5 py-1.5 text-[12.5px] font-semibold text-sky-700 transition hover:bg-sky-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400 disabled:cursor-not-allowed disabled:opacity-50 dark:border-sky-500/40 dark:text-sky-300 dark:hover:bg-sky-500/10"
+                    >
+                      {accountLoading ? "자동 계산 중…" : "전체 자동 계산"}
+                    </button>
                   </div>
 
                   <div className="mt-3 space-y-3">
@@ -471,18 +588,9 @@ export default function PortfolioConfigSection({
                     <button
                       type="button"
                       onClick={() => addHolding(accountType)}
-                      className="rounded-lg border border-slate-300 px-2.5 py-1.5 text-[12.5px] font-semibold text-slate-700 transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 dark:border-[#2c3638] dark:text-slate-200 dark:hover:bg-[#1c2426]"
+                      className="rounded-lg border border-slate-300 px-2.5 py-1.5 text-[12.5px] font-semibold text-slate-600 transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 dark:border-[#2c3638] dark:text-slate-300 dark:hover:bg-[#1c2426]"
                     >
                       + 행 추가
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void runResolveAll(accountType)}
-                      disabled={!hasAutoTicker || accountLoading}
-                      aria-busy={accountLoading || undefined}
-                      className="rounded-lg border border-sky-300 px-2.5 py-1.5 text-[12.5px] font-semibold text-sky-700 transition hover:bg-sky-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400 disabled:cursor-not-allowed disabled:opacity-50 dark:border-sky-500/40 dark:text-sky-300 dark:hover:bg-sky-500/10"
-                    >
-                      {accountLoading ? "자동 계산 중…" : "전체 자동 계산"}
                     </button>
                     {failedCount > 0 && (
                       <button
@@ -496,12 +604,12 @@ export default function PortfolioConfigSection({
                       </button>
                     )}
                   </div>
-                </div>
+                </section>
               );
             })}
           </div>
 
-          {/* 적용 흐름 */}
+          {/* 적용 흐름: primary = 포트폴리오 가정 적용. 상태 배지로 적용 가능/불가/완료를 명시한다. */}
           <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3 dark:border-[#2c3638] dark:bg-[#12181a] sm:p-4">
             <div className="flex flex-wrap items-center gap-2">
               <button
@@ -513,9 +621,7 @@ export default function PortfolioConfigSection({
               >
                 포트폴리오 가정 적용
               </button>
-              {applyState === "clean" && (
-                <StatusBadge tone="positive">적용된 가정으로 시뮬레이션 반영됨</StatusBadge>
-              )}
+              {applyPill && <StatusBadge tone={applyPill.tone}>{applyPill.label}</StatusBadge>}
             </div>
 
             {anyLoading && (
@@ -526,24 +632,34 @@ export default function PortfolioConfigSection({
             {applyStateBanner && (
               <p className={`mt-2 text-[12.5px] leading-relaxed ${TONE_TEXT[applyStateBanner.tone]}`} role="status">{applyStateBanner.label}</p>
             )}
-            {hasAutoResults && applyState !== "clean" && (
-              <p className="mt-1 text-[12px] leading-relaxed text-amber-600 dark:text-amber-400">{AUTO_NOT_APPLIED_HINT}</p>
-            )}
-            {!anyLoading && !applyPreview.assumptions && (
-              <div className="mt-2">
-                <p className="text-[12.5px] leading-relaxed text-amber-600 dark:text-amber-400" role="status">
-                  {APPLY_BLOCKED_HINT}
-                </p>
-                {applyPreview.issues.length > 0 && (
-                  <ul className="mt-1 space-y-1" role="alert">
-                    {applyPreview.issues.map((issue, index) => (
-                      <li key={`${issue.code}-${index}`} className="text-[12px] text-rose-600 dark:text-rose-400">
-                        • [{issue.accountType === "taxSaving" ? "절세" : "위탁"}] {issue.message}
-                      </li>
-                    ))}
-                  </ul>
+            {savedWithoutResolver ? (
+              // 저장된 가정은 반영 중. 세션 상태인 자동 계산 결과가 없을 뿐이므로,
+              // "적용됨"과 "자동 계산 결과 없음"을 분리해 차분한 안내만 노출한다.
+              <p className="mt-2 text-[12.5px] leading-relaxed text-slate-600 dark:text-slate-300" role="status">
+                {SAVED_ASSUMPTIONS_SESSION_HINT}
+              </p>
+            ) : (
+              <>
+                {hasAutoResults && applyState !== "clean" && (
+                  <p className="mt-1 text-[12px] leading-relaxed text-amber-600 dark:text-amber-400">{AUTO_NOT_APPLIED_HINT}</p>
                 )}
-              </div>
+                {!anyLoading && !applyPreview.assumptions && (
+                  <div className="mt-2">
+                    <p className="text-[12.5px] leading-relaxed text-amber-600 dark:text-amber-400" role="status">
+                      {APPLY_BLOCKED_HINT}
+                    </p>
+                    {applyPreview.issues.length > 0 && (
+                      <ul className="mt-1 space-y-1" role="alert">
+                        {applyPreview.issues.map((issue, index) => (
+                          <li key={`${issue.code}-${index}`} className="text-[12px] text-rose-600 dark:text-rose-400">
+                            • [{issue.accountType === "taxSaving" ? "절세" : "위탁"}] {issue.message}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
+              </>
             )}
             {applyMessage && (
               <p className={`mt-2 text-[12.5px] ${TONE_TEXT.positive}`} role="status">
