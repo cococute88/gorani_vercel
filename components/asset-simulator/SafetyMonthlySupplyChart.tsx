@@ -3,14 +3,9 @@
 import { Bar, CartesianGrid, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { ReactNode } from "react";
 import { formatManwonMoney } from "@/lib/format";
-import type { SafetyResult, SimulatorProjection, TotalWithdrawRow } from "@/lib/asset-simulator-types";
-
-export type SafetyMonthlySupplyRow = {
-  year: number;
-  baseSupply: number | null;
-  stressSupply: number | null;
-  target: number | null;
-};
+import { buildMonthlySupplyRows, type SafetyMonthlySupplyRow } from "@/lib/asset-simulator-safety-chart-ui";
+import type { SafetyResult, SimulatorProjection } from "@/lib/asset-simulator-types";
+import SafetyShortfallHeatStrip from "./SafetyShortfallHeatStrip";
 
 type Props = {
   projection: SimulatorProjection;
@@ -25,47 +20,6 @@ type TooltipPayload = { payload?: SafetyMonthlySupplyRow };
 
 function toFiniteNumber(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
-}
-
-// Safety 판정과 같은 인출 시작 시점 이후의 isWithdraw 행만 표시용으로 추린다.
-function withdrawalRows(projection: SimulatorProjection): TotalWithdrawRow[] | null {
-  const withdrawalStartIndex = projection.timeline.withdrawalStartIndex;
-  if (withdrawalStartIndex === null || withdrawalStartIndex < 0 || projection.totalWithdrawRows.length === 0) return null;
-  return projection.totalWithdrawRows.slice(withdrawalStartIndex).filter((row) => row.isWithdraw === true);
-}
-
-// 기본/하락장 projection의 이미 계산된 월 공급을 year 기준으로만 병합한다.
-function mergeMonthlySupplyRows(
-  projection: SimulatorProjection,
-  stressProjection: SimulatorProjection,
-  targetMonthlyExpenseReal: number | null,
-): SafetyMonthlySupplyRow[] | null {
-  const baseRows = withdrawalRows(projection);
-  const stressRows = withdrawalRows(stressProjection);
-  if (!baseRows || !stressRows || baseRows.length === 0 || stressRows.length === 0) return null;
-
-  const rows = new Map<number, SafetyMonthlySupplyRow>();
-  const ensureRow = (year: unknown) => {
-    if (typeof year !== "number" || !Number.isFinite(year)) return null;
-    const existing = rows.get(year);
-    if (existing) return existing;
-    const next: SafetyMonthlySupplyRow = { year, baseSupply: null, stressSupply: null, target: targetMonthlyExpenseReal };
-    rows.set(year, next);
-    return next;
-  };
-
-  baseRows.forEach((row) => {
-    const merged = ensureRow(row.year);
-    if (merged) merged.baseSupply = toFiniteNumber(row.totalMonthlyIncomeReal);
-  });
-  stressRows.forEach((row) => {
-    const merged = ensureRow(row.year);
-    if (merged) merged.stressSupply = toFiniteNumber(row.totalMonthlyIncomeReal);
-  });
-
-  return Array.from(rows.values())
-    .filter((row) => row.baseSupply !== null || row.stressSupply !== null)
-    .sort((left, right) => left.year - right.year);
 }
 
 function formatAxisAmount(value: number): string {
@@ -188,7 +142,7 @@ export default function SafetyMonthlySupplyChart({
     );
   }
 
-  const data = mergeMonthlySupplyRows(projection, stressProjection, target);
+  const data = buildMonthlySupplyRows(projection, stressProjection, target);
   if (!data || data.length === 0) {
     return (
       <section className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-[#273032] dark:bg-white/[0.03] sm:p-4">
@@ -235,6 +189,20 @@ export default function SafetyMonthlySupplyChart({
           </ResponsiveContainer>
         </div>
       </div>
+      {hasTarget ? (
+        <SafetyShortfallHeatStrip
+          rows={data}
+          targetMonthlyExpenseReal={target!}
+          basicShortfallYears={basicShortfallYears}
+          basicConsecutiveShortfallYears={basicConsecutiveShortfallYears}
+          stressShortfallYears={stressShortfallYears}
+          stressConsecutiveShortfallYears={stressConsecutiveShortfallYears}
+        />
+      ) : (
+        <p className="mt-3 border-t border-slate-200 pt-3 text-[11.5px] text-slate-600 dark:border-slate-700 dark:text-slate-400">
+          목표 월생활비를 입력하면 부족 연도를 표시합니다.
+        </p>
+      )}
       <style jsx>{`
         .safety-monthly-supply { --safety-monthly-base: #2563eb; --safety-monthly-stress: #d97706; --safety-monthly-target: #475569; --safety-monthly-axis: #64748b; --safety-monthly-grid: #cbd5e1; }
         :global(.dark) .safety-monthly-supply { --safety-monthly-base: #3b82f6; --safety-monthly-stress: #d97706; --safety-monthly-target: #94a3b8; --safety-monthly-axis: #94a3b8; --safety-monthly-grid: #334155; }

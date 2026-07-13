@@ -1,7 +1,7 @@
 "use client";
 
 import { formatManwonMoney } from "@/lib/format";
-import type { SafetyAssetTrajectoryRow } from "./SafetyAssetTrajectoryChart";
+import type { SafetyAssetTrajectoryRow } from "@/lib/asset-simulator-safety-chart-ui";
 
 type TooltipPayload = {
   dataKey?: string | number;
