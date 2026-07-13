@@ -210,6 +210,114 @@ export function describeSafetyBasis(
 }
 
 // ---------------------------------------------------------------------------
+// 계좌 진단 행(SafetyAccountDiagnosis) + 계좌 기준 상세 아코디언 파생 헬퍼.
+// 계산 로직을 새로 만들지 않고, 이미 계산된 SafetyResult 의 상태/등급/톤만 해석한다.
+// ---------------------------------------------------------------------------
+
+export type SafetyAccountKey = "taxSaving" | "brokerage" | "combined";
+
+// 계좌별 평가 기준 도움말(전체 문구). 진단 행의 ⓘ / 상세에서 한 번만 노출한다.
+// 목표 월생활비가 어느 평가에 반영되는지 오해하지 않도록 계좌마다 기준을 명시한다.
+export function describeAccountBasisHelp(
+  account: SafetyAccountKey,
+  targetMonthlyExpenseReal: number | null,
+): string {
+  if (account === "taxSaving") {
+    return "절세계좌 안전성은 연금·ISA 인출 계획 기준입니다. 목표 월생활비 충당 여부는 통합 안전성에서 확인합니다.";
+  }
+  if (account === "brokerage") {
+    return "위탁계좌 안전성은 배당 현금흐름과 자산 보존성을 봅니다. 목표 월생활비 충당 여부는 통합 안전성에서 함께 확인합니다.";
+  }
+  if (targetMonthlyExpenseReal !== null) {
+    return `통합 안전성은 목표 월생활비 ${formatManwonMoney(targetMonthlyExpenseReal)} 충당과 실질 자산 보존을 함께 봅니다.`;
+  }
+  return "통합 안전성은 임시 인출 기준 평가입니다. 목표 월생활비를 입력하면 목표 기준으로 전환됩니다.";
+}
+
+// 진단 행/아코디언 요약에 붙는 짧은 기준 문구.
+export function accountBasisShort(
+  account: SafetyAccountKey,
+  targetMonthlyExpenseReal: number | null,
+): string {
+  if (account === "taxSaving") return "절세계좌 인출 계획 기준";
+  if (account === "brokerage") return "배당 현금흐름·자산 보존성 기준";
+  return targetMonthlyExpenseReal !== null ? "목표 월생활비 기준" : "임시 인출 기준";
+}
+
+export type AccountDiagnosis = {
+  // 기본→하락장 변화 요약. 미평가면 회색 보조 문구 하나만 담는다.
+  changeText: string;
+  // 한줄 근거.
+  reason: string;
+  tone: UiTone;
+  // 기본 status === "evaluated" 여부. false 면 큰 등급처럼 표시하지 않는다.
+  evaluated: boolean;
+  basisShort: string;
+};
+
+// 계좌 진단 한 행의 변화 요약/근거/톤을 파생한다.
+// - 기본이 미평가(not_applicable/data_insufficient)면 등급 대신 회색 안내로 강등한다.
+// - 평가된 경우 기본/하락장 tier 를 비교해 "안정 / 하락장 약화 / 점검 필요" 근거를 만든다.
+export function describeAccountDiagnosis(
+  account: SafetyAccountKey,
+  basic: SafetyResult,
+  stress: SafetyResult,
+  hasTarget: boolean,
+  targetMonthlyExpenseReal: number | null,
+): AccountDiagnosis {
+  const basicDisplay = describeSafety(basic);
+  const stressDisplay = describeSafety(stress);
+  const basisShort = accountBasisShort(account, targetMonthlyExpenseReal);
+
+  if (basic.status !== "evaluated") {
+    const reason =
+      basic.status === "not_applicable"
+        ? account === "brokerage"
+          ? "위탁계좌 잔고 또는 배당 데이터가 있으면 평가됩니다."
+          : "평가할 데이터가 준비되면 등급이 표시됩니다."
+        : "수동 보완 또는 포트폴리오 가정 적용 후 다시 확인할 수 있습니다.";
+    return { changeText: basicDisplay.gradeLabel, reason, tone: "muted", evaluated: false, basisShort };
+  }
+
+  const changeText =
+    stress.status === "evaluated"
+      ? `${basicDisplay.gradeLabel} → ${stressDisplay.gradeLabel}`
+      : basicDisplay.gradeLabel;
+
+  const basicTier = safetyTier(basic);
+  const stressTier = safetyTier(stress);
+
+  let reason: string;
+  let tone: UiTone;
+  if (basicTier === "weak") {
+    tone = "warning";
+    reason =
+      account === "combined"
+        ? hasTarget
+          ? "현재 입력 기준으로는 목표 생활비 대비 부족해 조정 검토가 필요합니다."
+          : "현재 입력 기준으로는 보수적 조정 검토가 필요합니다."
+        : "현재 입력 기준으로도 점검이 필요합니다.";
+  } else if (basicTier === "strong" && stressTier === "strong") {
+    tone = "positive";
+    reason = "기본과 하락장 모두 안정적입니다.";
+  } else if (basicTier === "strong") {
+    tone = "caution";
+    reason =
+      account === "taxSaving"
+        ? "하락장에서는 자산 보존율이 약해집니다."
+        : account === "brokerage"
+          ? "하락장에서는 배당 현금흐름이 약해질 수 있습니다."
+          : "하락장에서 충당률이 약해져 조정 검토가 필요합니다.";
+  } else {
+    // basicTier === "moderate"
+    tone = "caution";
+    reason = "대체로 안정적이나 하락장에서는 일부 항목 점검이 필요합니다.";
+  }
+
+  return { changeText, reason, tone, evaluated: true, basisShort };
+}
+
+// ---------------------------------------------------------------------------
 // 기본/하락장 단일 비교표(SafetyScenarioCompareTable) 파생 헬퍼.
 // 새 계산 로직을 만들지 않고, 이미 계산된 SafetyResult/metrics 를 표시용으로 가공만 한다.
 // ---------------------------------------------------------------------------
