@@ -114,6 +114,8 @@ export default function RetirementSafetySection({
             targetMonthlyExpenseReal={targetMonthlyExpenseReal}
             basicLabel={BASIC_SCENARIO_LABEL}
             stressLabel={STRESS_SCENARIO_LABEL}
+            projection={key === "combined" ? projection : undefined}
+            stressProjection={key === "combined" ? stressProjection : undefined}
           />
         ))}
       </div>

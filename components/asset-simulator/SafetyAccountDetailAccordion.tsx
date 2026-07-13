@@ -6,9 +6,10 @@ import {
   type SafetyAccountKey,
   type UiTone,
 } from "@/lib/asset-simulator-portfolio-ui";
-import type { SafetyResult } from "@/lib/asset-simulator-types";
+import type { SafetyResult, SimulatorProjection } from "@/lib/asset-simulator-types";
 import SafetyGradeBadge from "./SafetyGradeBadge";
 import SafetyAccountDetailPanel from "./SafetyAccountDetailPanel";
+import SafetyYearlyDetailTable from "./SafetyYearlyDetailTable";
 
 // 계좌 기준 상세 아코디언. 기존 "시나리오 → 계좌 3개" 구조를 "계좌 → 기본/하락장 비교"로 뒤집는다.
 // 기본은 접힘이라 첫 화면이 짧고, 펼치면 한 계좌의 기본/하락장을 나란히 비교한다.
@@ -23,6 +24,8 @@ type Props = {
   // 열 라벨은 상위(RetirementSafetySection)에서 문자열로 전달한다.
   basicLabel: string;
   stressLabel: string;
+  projection?: SimulatorProjection;
+  stressProjection?: SimulatorProjection;
 };
 
 const TONE_TEXT: Record<UiTone, string> = {
@@ -42,6 +45,8 @@ export default function SafetyAccountDetailAccordion({
   targetMonthlyExpenseReal,
   basicLabel,
   stressLabel,
+  projection,
+  stressProjection,
 }: Props) {
   const diag = describeAccountDiagnosis(accountKey, basic, stress, hasTarget, targetMonthlyExpenseReal);
   const basicDisplay = describeSafety(basic);
@@ -82,6 +87,15 @@ export default function SafetyAccountDetailAccordion({
         <SafetyAccountDetailPanel label={basicLabel} result={basic} />
         <SafetyAccountDetailPanel label={stressLabel} result={stress} stress />
       </div>
+      {accountKey === "combined" && projection && stressProjection && (
+        <div className="px-3 pb-3 sm:px-4 sm:pb-4">
+          <SafetyYearlyDetailTable
+            projection={projection}
+            stressProjection={stressProjection}
+            targetMonthlyExpenseReal={targetMonthlyExpenseReal}
+          />
+        </div>
+      )}
     </details>
   );
 }

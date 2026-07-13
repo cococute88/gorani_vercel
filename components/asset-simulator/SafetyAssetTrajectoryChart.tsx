@@ -3,14 +3,9 @@
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { ReactNode } from "react";
 import { formatManwonMoney } from "@/lib/format";
+import { buildAssetTrajectoryRows } from "@/lib/asset-simulator-safety-chart-ui";
 import type { SimulatorProjection } from "@/lib/asset-simulator-types";
 import SafetyChartTooltip from "./SafetyChartTooltip";
-
-export type SafetyAssetTrajectoryRow = {
-  year: number;
-  base: number | null;
-  stress: number | null;
-};
 
 type Props = {
   projection: SimulatorProjection;
@@ -19,35 +14,6 @@ type Props = {
 
 function toFiniteNumber(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
-}
-
-// 두 projection의 같은 연도를 방어적으로 병합한다. 계산값은 바꾸지 않고 차트 표시만 위한 행을 만든다.
-function mergeTrajectoryRows(
-  projection: SimulatorProjection,
-  stressProjection: SimulatorProjection,
-): SafetyAssetTrajectoryRow[] {
-  const rows = new Map<number, SafetyAssetTrajectoryRow>();
-  const ensureRow = (year: unknown) => {
-    if (typeof year !== "number" || !Number.isFinite(year)) return null;
-    const existing = rows.get(year);
-    if (existing) return existing;
-    const next = { year, base: null, stress: null };
-    rows.set(year, next);
-    return next;
-  };
-
-  projection.chartRows.forEach((row) => {
-    const merged = ensureRow(row.year);
-    if (merged) merged.base = toFiniteNumber(row.combinedRealBalance);
-  });
-  stressProjection.chartRows.forEach((row) => {
-    const merged = ensureRow(row.year);
-    if (merged) merged.stress = toFiniteNumber(row.combinedRealBalance);
-  });
-
-  return Array.from(rows.values())
-    .filter((row) => row.base !== null || row.stress !== null)
-    .sort((left, right) => left.year - right.year);
 }
 
 function formatAxisAmount(value: number): string {
@@ -86,7 +52,7 @@ export default function SafetyAssetTrajectoryChart({ projection, stressProjectio
     return <EmptyState>하락장 시나리오 결과가 준비되지 않았습니다.</EmptyState>;
   }
 
-  const data = mergeTrajectoryRows(projection, stressProjection);
+  const data = buildAssetTrajectoryRows(projection, stressProjection);
   const chartFinalBase = [...data].reverse().find((row) => row.base !== null)?.base ?? null;
   const chartFinalStress = [...data].reverse().find((row) => row.stress !== null)?.stress ?? null;
   const finalBase = toFiniteNumber(projection.summary.combinedRealBalance) ?? chartFinalBase;
