@@ -1,8 +1,10 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import { Cloud } from "lucide-react";
 import { useFirebaseAuth } from "@/lib/firebase/auth";
 import { useResolvedTheme } from "@/components/theme/ThemeProvider";
+import { loadPortfolioSyncMetadata, warnFirestoreFallback } from "@/lib/firebase/firestore-repositories";
 import {
   formatPortfolioCloudSyncTime,
   usePortfolioCloudSyncTime,
@@ -26,8 +28,46 @@ export default function PortfolioCloudSyncStatus({ className = "", serverSyncedA
   const { user, loading, configured } = useFirebaseAuth();
   const isLight = useResolvedTheme() === "light";
   const localSyncedAt = usePortfolioCloudSyncTime();
-  // 서버 권위 시각을 우선 사용하고, 없을 때만(로컬 전용/스냅샷 없음) localStorage 로 폴백한다.
-  const lastSyncedAt = serverSyncedAtMs ?? localSyncedAt;
+  const [metadataSyncedAtMs, setMetadataSyncedAtMs] = useState<number | null>(null);
+  const [metadataLoading, setMetadataLoading] = useState(false);
+  const [metadataFailed, setMetadataFailed] = useState(false);
+
+  useEffect(() => {
+    if (!configured || loading || !user) {
+      setMetadataSyncedAtMs(null);
+      setMetadataLoading(false);
+      setMetadataFailed(false);
+      return;
+    }
+    let cancelled = false;
+    setMetadataLoading(true);
+    setMetadataFailed(false);
+    loadPortfolioSyncMetadata(user.uid)
+      .then((metadata) => {
+        if (!cancelled) setMetadataSyncedAtMs(metadata.lastSyncedAtMs);
+      })
+      .catch((err) => {
+        warnFirestoreFallback("portfolioSyncMetadata.load", err);
+        if (!cancelled) setMetadataFailed(true);
+      })
+      .finally(() => {
+        if (!cancelled) setMetadataLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [configured, loading, user]);
+
+  // Firestore metadata가 Single Source of Truth다. 다만 GitHub Actions 파이프라인은
+  // top-level snapshot 문서만 쓰므로, 그 문서의 Firestore 생성시각도 서버 권위 후보로
+  // 함께 사용한다. localStorage는 둘 다 없을 때의 임시 캐시다.
+  const lastSyncedAt = useMemo(() => {
+    const firestoreCandidates = [metadataSyncedAtMs, serverSyncedAtMs].filter(
+      (value): value is number => typeof value === "number" && Number.isFinite(value) && value > 0,
+    );
+    if (firestoreCandidates.length > 0) return Math.max(...firestoreCandidates);
+    return localSyncedAt;
+  }, [localSyncedAt, metadataSyncedAtMs, serverSyncedAtMs]);
 
   const pill = (tone: string, content: React.ReactNode) => (
     <span
@@ -74,10 +114,13 @@ export default function PortfolioCloudSyncStatus({ className = "", serverSyncedA
       <Cloud size={15} strokeWidth={2.2} className="shrink-0" />
       <div className="flex min-w-0 flex-col leading-tight">
         <span className="text-[10.5px] font-medium opacity-80">
-          최근 클라우드 동기화{timeText ? "" : " 없음"}
+          {metadataLoading ? "동기화 상태 확인 중" : metadataFailed && timeText ? "마지막 성공 동기화" : `최근 클라우드 동기화${timeText ? "" : " 없음"}`}
         </span>
         {timeText && (
           <span className="num text-[12.5px] font-bold tabular-nums">{timeText}</span>
+        )}
+        {metadataFailed && !timeText && (
+          <span className="text-[12.5px] font-bold">동기화 실패</span>
         )}
       </div>
     </div>
