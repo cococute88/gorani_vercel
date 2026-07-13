@@ -12,6 +12,7 @@ import type { SafetyResult, SimulatorProjection } from "@/lib/asset-simulator-ty
 import SafetyScenarioCompareTable from "./SafetyScenarioCompareTable";
 import SafetyAdjustmentCandidates from "./SafetyAdjustmentCandidates";
 import SafetyAssetTrajectoryChart from "./SafetyAssetTrajectoryChart";
+import SafetyMonthlySupplyChart from "./SafetyMonthlySupplyChart";
 
 // 기본/하락장 통합 안전성을 단일 비교표로 보여주는 섹션.
 // 카드 2장을 나란히 두던 방식 대신, 지표별 기본/하락장/변화를 한 표에서 대조한다.
@@ -84,18 +85,16 @@ export default function SafetyScenarioComparison({
         </div>
       </div>
 
-      {!hasTarget && (
-        <p className="mt-2 text-[11.5px] leading-relaxed text-slate-600 dark:text-slate-400">
-          목표 월생활비를 입력하면 월생활비 충당률까지 함께 비교됩니다.{" "}
-          <button
-            type="button"
-            onClick={focusTargetInput}
-            className="rounded font-semibold text-blue-600 underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400 dark:text-blue-400"
-          >
-            목표 입력하기 →
-          </button>
-        </p>
-      )}
+      <div className="mt-5 min-w-0">
+        <SafetyMonthlySupplyChart
+          projection={projection}
+          stressProjection={stressProjection}
+          targetMonthlyExpenseReal={targetMonthlyExpenseReal}
+          safetyResult={basic}
+          stressSafetyResult={stress}
+          onFocusTargetInput={focusTargetInput}
+        />
+      </div>
 
       {/* 악화 항목 요약 */}
       <div className="mt-3 rounded-lg bg-slate-50 px-3 py-2 dark:bg-white/[0.03]">
