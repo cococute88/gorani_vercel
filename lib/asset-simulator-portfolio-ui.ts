@@ -595,24 +595,36 @@ export function describeApplyState(state: PortfolioApplyState): { label: string;
   switch (state) {
     case "none":
       return {
-        label: "아직 포트폴리오 가정이 적용되지 않았습니다.",
+        // 아직 적용 전. ("아직" 키워드는 회귀 테스트에서 검증한다.)
+        label: "아직 적용 전입니다. 자동 계산 또는 수동 입력 후 가정을 적용하면 시뮬레이션에 반영됩니다.",
         tone: "neutral",
       };
     case "config_changed":
       return {
-        label: "현재 설정이 적용된 가정과 다릅니다. 다시 적용하면 반영됩니다.",
+        // 설정이 적용 시점과 달라짐. ("다릅니다" 키워드는 회귀 테스트에서 검증한다.)
+        label: "설정이 적용 시점과 다릅니다. 다시 적용해야 결과에 반영됩니다.",
         tone: "caution",
       };
     case "stale":
       return {
-        label: "적용된 가정이 오래됐습니다. 필요하면 다시 계산해 적용해 주세요.",
+        // 적용된 가정이 오래됨. ("오래" 키워드는 회귀 테스트에서 검증한다.)
+        label: "적용한 지 오래된 가정입니다. 자동 계산을 갱신해 다시 적용하는 것을 권장합니다.",
         tone: "caution",
       };
     case "clean":
     default:
+      // 적용됨(설정 일치)은 배너 대신 컴포넌트의 긍정 배지로 표시한다.
       return null;
   }
 }
+
+// 적용 완료 상태(설정 일치)에서 노출하는 긍정 배지 문구.
+export const APPLY_CLEAN_BADGE = "적용된 가정으로 시뮬레이션 반영 중";
+
+// 저장된 가정은 반영 중이지만, 세션 상태인 자동 계산 결과가 아직 없을 때의 안내.
+// "적용됨"과 "자동 계산 결과 없음"을 분리해, 새로고침 직후 적용이 풀렸다고 오해하지 않게 한다.
+export const SAVED_ASSUMPTIONS_SESSION_HINT =
+  "저장된 가정은 시뮬레이션에 반영 중입니다. 자동 계산 결과는 세션마다 다시 불러와야 합니다.";
 
 export const AUTO_NOT_APPLIED_HINT = "자동 계산 결과는 아직 반영되지 않았습니다. 적용하면 시뮬레이션에 반영됩니다.";
 
@@ -690,4 +702,83 @@ export function resolutionKey(accountType: PortfolioAccountType, ticker: string)
 export function isEmptyPortfolioConfig(config: AssetSimulatorPortfolioConfigV1 | null | undefined): boolean {
   if (!config) return true;
   return config.taxSaving.holdings.length === 0 && config.brokerage.holdings.length === 0;
+}
+
+// ---------------------------------------------------------------------------
+// 계좌 카드 헤더 / 설정 단계 표시(stepper) 파생 헬퍼.
+// 계산·resolver·저장 로직은 건드리지 않고, 이미 계산된 상태를 표시용으로만 해석한다.
+// ---------------------------------------------------------------------------
+
+// 계좌 카드 헤더에 쓰는 비중 합계 요약. 100%면 "완료", 아니면 amber "확인 필요".
+export type AccountWeightSummary = {
+  pct: number;
+  valid: boolean;
+  label: string; // 예: "100% 완료" / "95% 확인 필요"
+  tone: UiTone;
+};
+
+export function describeAccountWeight(holdings: PortfolioHoldingInput[]): AccountWeightSummary {
+  const pct = sumWeightPct(holdings);
+  const valid = isWeightTotalValid(holdings);
+  return {
+    pct,
+    valid,
+    label: `${pct}% ${valid ? "완료" : "확인 필요"}`,
+    tone: valid ? "positive" : "caution",
+  };
+}
+
+// 설정 패널 상단 단계 표시(stepper)의 각 단계 상태.
+export type SetupStepStatus = "complete" | "in_progress" | "attention" | "pending";
+export type SetupStepId = "input" | "compute" | "apply";
+export type SetupStep = {
+  id: SetupStepId;
+  n: string;
+  label: string;
+  status: SetupStepStatus;
+};
+
+export const SETUP_STEP_STATUS_LABEL: Record<SetupStepStatus, string> = {
+  complete: "완료",
+  in_progress: "진행 중",
+  attention: "확인 필요",
+  pending: "대기",
+};
+
+// 티커/비중 입력 → 자동 계산·수동 보완 → 가정 적용의 3단계 상태를 파생한다.
+// 입력은 컴포넌트가 이미 계산해 둔 게이트 값들만 받아 순수 함수로 유지한다.
+export function describePortfolioSetupSteps(input: {
+  hasHoldings: boolean;
+  weightsValid: boolean; // 두 계좌 모두 100%
+  anyLoading: boolean; // 자동 계산 진행 중
+  needsAttention: boolean; // 데이터 부족/조회 실패 등 수동 보완 필요 항목 존재
+  canApply: boolean; // 지금 적용 가능(적용 게이트 통과)
+  applyState: PortfolioApplyState;
+}): SetupStep[] {
+  const { hasHoldings, weightsValid, anyLoading, needsAttention, canApply, applyState } = input;
+  const applied = applyState === "clean" || applyState === "stale";
+
+  // 1단계: 티커/비중 입력.
+  const input1: SetupStepStatus = !hasHoldings ? "pending" : weightsValid ? "complete" : "attention";
+
+  // 2단계: 자동 계산 또는 수동 보완.
+  let compute: SetupStepStatus;
+  if (!hasHoldings) compute = "pending";
+  else if (anyLoading) compute = "in_progress";
+  else if (needsAttention) compute = "attention";
+  else if (canApply || applied) compute = "complete";
+  else compute = "pending";
+
+  // 3단계: 가정 적용.
+  let apply: SetupStepStatus;
+  if (applyState === "clean") apply = "complete";
+  else if (applyState === "config_changed" || applyState === "stale") apply = "attention";
+  else if (canApply) apply = "in_progress";
+  else apply = "pending";
+
+  return [
+    { id: "input", n: "1", label: "티커·비중 입력", status: input1 },
+    { id: "compute", n: "2", label: "자동 계산 또는 수동 보완", status: compute },
+    { id: "apply", n: "3", label: "가정 적용", status: apply },
+  ];
 }
