@@ -48,7 +48,7 @@ const SCENARIO_TEXT: Record<UiTone, string> = {
   neutral: "text-slate-700 dark:text-slate-200",
   caution: "text-amber-600 dark:text-amber-400",
   warning: "text-rose-600 dark:text-rose-400",
-  muted: "text-slate-500 dark:text-slate-400",
+  muted: "text-slate-600 dark:text-slate-300",
 };
 
 // 입력 문자열 <-> 목표 월생활비(만원, 양수) 변환.
@@ -68,10 +68,10 @@ function ScenarioToken({ label, result }: { label: string; result: SafetyResult 
   const display = describeSafety(result);
   return (
     <span className="inline-flex items-baseline gap-1">
-      <span className="text-slate-500 dark:text-slate-400">{label}</span>
+      <span className="text-slate-600 dark:text-slate-300">{label}</span>
       <span className={`font-bold ${SCENARIO_TEXT[display.tone]}`}>{display.gradeLabel}</span>
       {display.showScore && (
-        <span className="text-slate-500 dark:text-slate-400">{result.score}</span>
+        <span className="text-slate-600 dark:text-slate-300">{result.score}</span>
       )}
     </span>
   );
@@ -83,7 +83,7 @@ function StatusChip({ tone, children }: { tone: "on" | "off"; children: React.Re
       className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11.5px] font-semibold ring-1 ring-inset ${
         tone === "on"
           ? "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-500/30"
-          : "bg-slate-100 text-slate-600 ring-slate-200 dark:bg-slate-500/10 dark:text-slate-300 dark:ring-slate-500/30"
+          : "bg-slate-100 text-slate-700 ring-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700"
       }`}
     >
       {children}
@@ -139,7 +139,7 @@ export default function SafetyHeroCard({
         <div className="flex min-w-0 items-start gap-3.5">
           <SafetyGradeBadge display={overallGrade} size="lg" caption="통합 등급" />
           <div className="min-w-0">
-            <p className="text-[11.5px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">한줄 판단</p>
+            <p className="text-[11.5px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">한줄 판단</p>
             <p className={`mt-0.5 break-keep text-[15px] font-bold leading-snug ${VERDICT_TEXT[verdict.tone]}`}>
               {verdict.headline}
             </p>
@@ -196,7 +196,7 @@ export default function SafetyHeroCard({
               {portfolioApplied ? "가정 적용됨" : "가정 미적용"}
             </StatusChip>
             {appliedAtLabel && (
-              <span className="text-[11px] text-slate-500 dark:text-slate-400">적용 {appliedAtLabel}</span>
+              <span className="text-[11px] text-slate-600 dark:text-slate-300">적용 {appliedAtLabel}</span>
             )}
           </div>
           <div className="flex flex-wrap items-center gap-2 lg:justify-end">
@@ -205,7 +205,7 @@ export default function SafetyHeroCard({
               onClick={onSave}
               disabled={saving}
               aria-busy={saving || undefined}
-              className="rounded-lg bg-blue-600 px-3.5 py-2 text-[13px] font-semibold text-white transition hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400 disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-lg bg-blue-600 px-3.5 py-2 text-[13px] font-semibold text-white transition hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500 disabled:hover:bg-slate-200 dark:disabled:bg-slate-800 dark:disabled:text-slate-500"
             >
               {saving ? "저장 중…" : "저장"}
             </button>
@@ -214,7 +214,7 @@ export default function SafetyHeroCard({
             ) : saveMessage ? (
               <span className="text-[11.5px] font-semibold text-emerald-600 dark:text-emerald-400" role="status">{saveMessage}</span>
             ) : savedLabel ? (
-              <span className="text-[11.5px] text-slate-500 dark:text-slate-400">마지막 저장 {savedLabel}</span>
+              <span className="text-[11.5px] text-slate-600 dark:text-slate-300">마지막 저장 {savedLabel}</span>
             ) : null}
           </div>
         </div>

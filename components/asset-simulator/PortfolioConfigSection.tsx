@@ -77,21 +77,21 @@ const MANUAL_FIELDS: Record<PortfolioAccountType, Array<{ key: keyof PortfolioMa
 
 const TONE_TEXT: Record<UiTone, string> = {
   positive: "text-emerald-600 dark:text-emerald-400",
-  neutral: "text-slate-600 dark:text-slate-300",
+  neutral: "text-slate-700 dark:text-slate-300",
   caution: "text-amber-600 dark:text-amber-400",
   warning: "text-rose-600 dark:text-rose-400",
-  muted: "text-slate-400 dark:text-slate-500",
+  muted: "text-slate-600 dark:text-slate-400",
 };
 
 const TONE_BADGE: Record<UiTone, string> = {
   positive: "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-500/30",
-  neutral: "bg-slate-100 text-slate-600 ring-slate-200 dark:bg-slate-500/10 dark:text-slate-300 dark:ring-slate-500/30",
+  neutral: "bg-slate-100 text-slate-700 ring-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700",
   caution: "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:ring-amber-500/30",
   warning: "bg-rose-50 text-rose-700 ring-rose-200 dark:bg-rose-500/10 dark:text-rose-300 dark:ring-rose-500/30",
-  muted: "bg-slate-100 text-slate-400 ring-slate-200 dark:bg-slate-500/10 dark:text-slate-500 dark:ring-slate-500/20",
+  muted: "bg-slate-100 text-slate-600 ring-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:ring-slate-700",
 };
 
-// 단계 표시(stepper) 각 상태의 색/아이콘. 완료=emerald, 진행 중=sky, 확인 필요=amber, 대기=slate.
+// 단계 표시(stepper) 각 상태의 색/아이콘. 완료=emerald, 진행 중=blue, 확인 필요=amber, 대기=slate.
 const STEP_STATUS_STYLE: Record<SetupStepStatus, { chip: string; dot: string; mark: string }> = {
   complete: {
     chip: "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-500/30",
@@ -99,8 +99,8 @@ const STEP_STATUS_STYLE: Record<SetupStepStatus, { chip: string; dot: string; ma
     mark: "✓",
   },
   in_progress: {
-    chip: "bg-sky-50 text-sky-700 ring-sky-200 dark:bg-sky-500/10 dark:text-sky-300 dark:ring-sky-500/30",
-    dot: "bg-sky-500 text-white",
+    chip: "bg-blue-50 text-blue-700 ring-blue-200 dark:bg-blue-500/10 dark:text-blue-300 dark:ring-blue-500/30",
+    dot: "bg-blue-600 text-white",
     mark: "",
   },
   attention: {
@@ -109,7 +109,7 @@ const STEP_STATUS_STYLE: Record<SetupStepStatus, { chip: string; dot: string; ma
     mark: "!",
   },
   pending: {
-    chip: "bg-slate-100 text-slate-500 ring-slate-200 dark:bg-white/5 dark:text-slate-400 dark:ring-white/10",
+    chip: "bg-slate-100 text-slate-700 ring-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700",
     dot: "bg-slate-300 text-slate-600 dark:bg-slate-600 dark:text-slate-200",
     mark: "",
   },
@@ -142,6 +142,10 @@ export default function PortfolioConfigSection({
   const [loadingKeys, setLoadingKeys] = useState<Record<string, boolean>>({});
   const [fetchErrors, setFetchErrors] = useState<Record<string, string>>({});
   const [applyMessage, setApplyMessage] = useState<string | null>(null);
+  // clean 상태의 저장된 설정은 모바일 첫 화면에서 접어 KPI/비교를 우선한다.
+  // 보완이 필요하면 아래 effect가 자동으로 펼쳐 다음 작업을 바로 보이게 한다.
+  const [isMobileConfigOpen, setIsMobileConfigOpen] = useState(() => !config || !appliedAssumptions);
+  const hasInitializedMobileConfigRef = useRef(false);
 
   // 진행 중인 자동 계산 요청을 티커 키별로 추적한다. 같은 키의 새 요청이 시작되면
   // 이전 요청을 abort 해 최신 요청만 반영하고, 언마운트 시 모두 취소한다.
@@ -412,16 +416,48 @@ export default function PortfolioConfigSection({
     return { tone: "muted", label: "자동 계산 또는 수동 보완 필요" };
   })();
 
+  useEffect(() => {
+    if (!config) return;
+    if (!hasInitializedMobileConfigRef.current) {
+      setIsMobileConfigOpen(applyState !== "clean");
+      hasInitializedMobileConfigRef.current = true;
+      return;
+    }
+    if (applyState !== "clean") setIsMobileConfigOpen(true);
+  }, [applyState, config]);
+
+  const mobileSetupSummary = !config
+    ? "포트폴리오 설정 · 아직 설정 전"
+    : `포트폴리오 설정 · 절세 ${config.taxSaving.holdings.length}종목 · 위탁 ${config.brokerage.holdings.length}종목 · ${
+        applyState === "clean" ? "가정 적용됨" : applyPill?.label ?? "보완 필요"
+      }`;
+
   return (
     <section
       aria-labelledby="portfolio-config-heading"
       className="overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-[#273032] dark:bg-[#171d1e] sm:p-5"
     >
-      <div className="flex flex-col gap-2">
+      <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 id="portfolio-config-heading" className="text-[17px] font-bold text-slate-900 dark:text-white">
             포트폴리오 설정
           </h2>
+          <p className="mt-1 break-keep text-[12px] leading-relaxed text-slate-600 dark:text-slate-300 lg:hidden">
+            {mobileSetupSummary}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setIsMobileConfigOpen((open) => !open)}
+          aria-expanded={isMobileConfigOpen}
+          className="shrink-0 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-[12px] font-semibold text-slate-700 transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400 dark:border-[#2c3638] dark:bg-[#171d1e] dark:text-slate-300 dark:hover:bg-white/5 lg:hidden"
+        >
+          {isMobileConfigOpen ? "설정 접기" : "설정 펼치기"}
+        </button>
+      </div>
+
+      <div className={`mt-3 ${isMobileConfigOpen ? "block" : "hidden lg:block"}`}>
+        <div className="flex flex-col gap-2">
           <p className="mt-1 text-[13px] leading-6 text-slate-600 dark:text-slate-400">
             티커와 비중을 입력하고 가정을 적용하면 안전성 결과에 반영됩니다.
           </p>
@@ -450,10 +486,9 @@ export default function PortfolioConfigSection({
           })}
         </ol>
         <p className="text-[12px] text-slate-600 dark:text-slate-400">적용 전의 계산 결과는 시뮬레이션에 반영되지 않습니다.</p>
-      </div>
 
       {!config ? (
-        <div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 dark:border-[#2c3638] dark:bg-[#12181a] sm:p-5">
+          <div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 dark:border-[#2c3638] dark:bg-[#12181a] sm:p-5">
           <p className="text-center text-[13.5px] text-slate-600 dark:text-slate-300">
             아직 포트폴리오 설정이 없습니다. 예시 포트폴리오로 시작하거나 빈 설정으로 시작할 수 있습니다.
           </p>
@@ -484,7 +519,7 @@ export default function PortfolioConfigSection({
             <button
               type="button"
               onClick={() => onConfigChange(buildDefaultPortfolioConfig())}
-              className="rounded-lg bg-slate-900 px-3 py-2 text-[13px] font-semibold text-white transition hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-500 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
+              className="rounded-lg bg-blue-600 px-3 py-2 text-[13px] font-semibold text-white transition hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400"
             >
               예시 포트폴리오 불러오기
             </button>
@@ -530,7 +565,7 @@ export default function PortfolioConfigSection({
                       <h3 className="text-[14.5px] font-bold text-slate-800 dark:text-slate-100">
                         {ACCOUNT_SHORT_LABELS[accountType]}
                       </h3>
-                      <span className="text-[12px] text-slate-500 dark:text-slate-400">· {holdingCount}종목</span>
+                      <span className="text-[12px] text-slate-600 dark:text-slate-300">· {holdingCount}종목</span>
                       <StatusBadge tone={weight.tone}>{weight.label}</StatusBadge>
                     </div>
                     <button
@@ -538,11 +573,16 @@ export default function PortfolioConfigSection({
                       onClick={() => void runResolveAll(accountType)}
                       disabled={!hasAutoTicker || accountLoading}
                       aria-busy={accountLoading || undefined}
-                      className="rounded-lg border border-sky-300 px-2.5 py-1.5 text-[12.5px] font-semibold text-sky-700 transition hover:bg-sky-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400 disabled:cursor-not-allowed disabled:opacity-50 dark:border-sky-500/40 dark:text-sky-300 dark:hover:bg-sky-500/10"
+              className="rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-[12.5px] font-semibold text-slate-700 transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-200 disabled:text-slate-500 disabled:hover:bg-slate-200 dark:border-[#2c3638] dark:bg-[#171d1e] dark:text-slate-300 dark:hover:bg-white/5 dark:disabled:border-slate-700 dark:disabled:bg-slate-800 dark:disabled:text-slate-500"
                     >
                       {accountLoading ? "자동 계산 중…" : "전체 자동 계산"}
                     </button>
                   </div>
+                  {!hasAutoTicker && (
+                    <p className="mt-1.5 text-[11px] text-slate-600 dark:text-slate-400">
+                      자동 계산할 티커를 입력하면 사용할 수 있습니다.
+                    </p>
+                  )}
 
                   <div className="mt-3 space-y-3">
                     {account.holdings.length === 0 ? (
@@ -598,7 +638,7 @@ export default function PortfolioConfigSection({
                         onClick={() => void runResolveFailed(accountType)}
                         disabled={accountLoading}
                         aria-busy={accountLoading || undefined}
-                        className="rounded-lg border border-amber-300 px-2.5 py-1.5 text-[12.5px] font-semibold text-amber-700 transition hover:bg-amber-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400 disabled:cursor-not-allowed disabled:opacity-50 dark:border-amber-500/40 dark:text-amber-300 dark:hover:bg-amber-500/10"
+                        className="rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-[12.5px] font-semibold text-slate-700 transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-200 disabled:text-slate-500 disabled:hover:bg-slate-200 dark:border-[#2c3638] dark:bg-[#171d1e] dark:text-slate-300 dark:hover:bg-white/5 dark:disabled:border-slate-700 dark:disabled:bg-slate-800 dark:disabled:text-slate-500"
                       >
                         실패한 티커만 다시 계산 ({failedCount})
                       </button>
@@ -617,7 +657,7 @@ export default function PortfolioConfigSection({
                 onClick={handleApply}
                 disabled={!canApply}
                 aria-disabled={!canApply || undefined}
-                className="rounded-lg bg-sky-600 px-3.5 py-2 text-[13px] font-semibold text-white transition hover:bg-sky-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-sky-600"
+                className="rounded-lg bg-blue-600 px-3.5 py-2 text-[13px] font-semibold text-white transition hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500 disabled:hover:bg-slate-200 dark:disabled:bg-slate-800 dark:disabled:text-slate-500"
               >
                 포트폴리오 가정 적용
               </button>
@@ -625,7 +665,7 @@ export default function PortfolioConfigSection({
             </div>
 
             {anyLoading && (
-              <p className="mt-2 text-[12.5px] leading-relaxed text-slate-500 dark:text-slate-400" role="status" aria-live="polite">
+              <p className="mt-2 text-[12.5px] leading-relaxed text-slate-600 dark:text-slate-300" role="status" aria-live="polite">
                 {APPLY_WHILE_LOADING_HINT}
               </p>
             )}
@@ -673,6 +713,7 @@ export default function PortfolioConfigSection({
           )}
         </div>
       )}
+      </div>
     </section>
   );
 }
@@ -739,7 +780,7 @@ function HoldingRow({
             onChange={(event) => onTickerChange(event.target.value)}
             placeholder="예: SCHD"
             aria-label={`${accountType === "taxSaving" ? "절세계좌" : "위탁계좌"} 티커`}
-            className="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-[13px] uppercase text-slate-800 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-[#2c3638] dark:bg-[#12181a] dark:text-slate-100 dark:focus:ring-sky-500/30"
+            className="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-[13px] uppercase text-slate-800 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100 dark:border-[#2c3638] dark:bg-[#12181a] dark:text-slate-100 dark:focus:ring-blue-500/20"
           />
         </label>
         <label className="flex w-20 flex-col gap-1">
@@ -755,7 +796,7 @@ function HoldingRow({
             onBlur={onBlurField}
             onChange={(event) => onWeightChange(event.target.value)}
             aria-label="비중 퍼센트"
-            className="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-[13px] text-slate-800 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-[#2c3638] dark:bg-[#12181a] dark:text-slate-100 dark:focus:ring-sky-500/30"
+            className="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-[13px] text-slate-800 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100 dark:border-[#2c3638] dark:bg-[#12181a] dark:text-slate-100 dark:focus:ring-blue-500/20"
           />
         </label>
         <div className="flex flex-col gap-1">
@@ -769,7 +810,7 @@ function HoldingRow({
                 aria-pressed={holding.metricMode === mode}
                 className={`px-2.5 py-1.5 text-[12px] font-semibold transition ${
                   holding.metricMode === mode
-                    ? "bg-sky-600 text-white"
+                    ? "bg-blue-600 text-white"
                     : "bg-white text-slate-600 hover:bg-slate-100 dark:bg-[#12181a] dark:text-slate-300 dark:hover:bg-[#1c2426]"
                 }`}
               >
@@ -782,7 +823,7 @@ function HoldingRow({
           type="button"
           onClick={onRemove}
           aria-label={`${holding.ticker || "빈"} 행 삭제`}
-          className="rounded-md border border-slate-300 px-2 py-1.5 text-[12px] font-semibold text-slate-500 transition hover:bg-rose-50 hover:text-rose-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-400 dark:border-[#2c3638] dark:text-slate-400 dark:hover:bg-rose-500/10"
+          className="rounded-md border border-slate-300 px-2 py-1.5 text-[12px] font-semibold text-slate-600 transition hover:bg-rose-50 hover:text-rose-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-400 dark:border-[#2c3638] dark:text-slate-300 dark:hover:bg-rose-500/10"
         >
           삭제
         </button>
@@ -806,7 +847,7 @@ function HoldingRow({
           <div className="flex flex-wrap gap-2">
             {MANUAL_FIELDS[accountType].map((field) => (
               <label key={field.key} className="flex w-28 flex-col gap-1">
-                <span className="text-[11px] text-slate-500 dark:text-slate-400">{field.label}</span>
+                <span className="text-[11px] text-slate-600 dark:text-slate-300">{field.label}</span>
                 <input
                   type="number"
                   inputMode="decimal"
@@ -816,7 +857,7 @@ function HoldingRow({
                   onBlur={onBlurField}
                   onChange={(event) => onManualChange(field.key, event.target.value)}
                   aria-label={`${field.label} 수동 입력 (%)`}
-                  className="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-[13px] text-slate-800 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-[#2c3638] dark:bg-[#171d1e] dark:text-slate-100 dark:focus:ring-sky-500/30"
+                  className="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-[13px] text-slate-800 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100 dark:border-[#2c3638] dark:bg-[#171d1e] dark:text-slate-100 dark:focus:ring-blue-500/20"
                 />
               </label>
             ))}
@@ -830,7 +871,7 @@ function HoldingRow({
               type="button"
               onClick={onRecalculate}
               disabled={loading || !normalizePortfolioTicker(holding.ticker)}
-              className="rounded-md border border-sky-300 px-2 py-1 text-[11.5px] font-semibold text-sky-700 transition hover:bg-sky-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400 disabled:opacity-50 dark:border-sky-500/40 dark:text-sky-300 dark:hover:bg-sky-500/10"
+              className="rounded-md border border-slate-300 bg-white px-2 py-1 text-[11.5px] font-semibold text-slate-700 transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-200 disabled:text-slate-500 disabled:hover:bg-slate-200 dark:border-[#2c3638] dark:bg-[#171d1e] dark:text-slate-300 dark:hover:bg-white/5 dark:disabled:border-slate-700 dark:disabled:bg-slate-800 dark:disabled:text-slate-500"
             >
               {loading ? "계산 중…" : "이 티커 다시 계산"}
             </button>
@@ -875,7 +916,7 @@ function MetricLine({
   if (!metric) {
     return (
       <div className="flex flex-wrap items-center justify-between gap-2 text-[12px]">
-        <span className="min-w-0 text-slate-500 dark:text-slate-400">{label}</span>
+        <span className="min-w-0 text-slate-600 dark:text-slate-300">{label}</span>
         <span className="text-slate-400 dark:text-slate-500">—</span>
       </div>
     );
@@ -883,7 +924,7 @@ function MetricLine({
   const descriptor = describeMetricStatus(metric, { isDividendMetric });
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 text-[12px]">
-      <span className="min-w-0 text-slate-500 dark:text-slate-400">{label}</span>
+      <span className="min-w-0 text-slate-600 dark:text-slate-300">{label}</span>
       <span className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
         {showValue && <span className="font-semibold text-slate-800 dark:text-slate-100">{formatPct(metric.valuePct)}</span>}
         <StatusBadge tone={descriptor.tone}>{descriptor.label}</StatusBadge>
@@ -908,7 +949,7 @@ function AutoMetrics({
   }
   if (!resolution) {
     return (
-      <p className="text-[12px] text-slate-400 dark:text-slate-500">
+      <p className="text-[12px] text-slate-600 dark:text-slate-300">
         {loading ? "자동 계산 중입니다…" : "아직 결과가 없습니다. “이 티커 다시 계산”을 눌러 주세요."}
       </p>
     );
@@ -938,7 +979,7 @@ function AutoMetrics({
           </>
         )}
         <div className="flex items-center justify-between gap-2 text-[12px]">
-          <span className="text-slate-500 dark:text-slate-400">관측 기간</span>
+          <span className="text-slate-600 dark:text-slate-300">관측 기간</span>
           <span className="text-slate-600 dark:text-slate-300">{formatYears(observationYears)}</span>
         </div>
       </div>
@@ -966,12 +1007,12 @@ function PortfolioSummaryCard({ summary }: { summary: PortfolioProjectionSummary
     <div className="rounded-xl border border-sky-200 bg-sky-50/60 p-3 dark:border-sky-500/30 dark:bg-sky-500/5 sm:p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-[14px] font-bold text-slate-800 dark:text-slate-100">적용된 포트폴리오 가정</h3>
-        <span className="text-[11.5px] text-slate-500 dark:text-slate-400">적용 시각 {appliedAtLabel}</span>
+        <span className="text-[11.5px] text-slate-600 dark:text-slate-300">적용 시각 {appliedAtLabel}</span>
       </div>
       <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="rounded-lg border border-slate-200 bg-white p-2.5 dark:border-[#2c3638] dark:bg-[#171d1e]">
           <p className="text-[12px] font-semibold text-slate-700 dark:text-slate-200">절세계좌</p>
-          <p className="mt-1 text-[12px] text-slate-500 dark:text-slate-400">
+          <p className="mt-1 text-[12px] text-slate-600 dark:text-slate-300">
             적용 티커: <span className="break-all">{summary.taxSaving.tickers.join(", ") || "—"}</span>
           </p>
           <p className="mt-0.5 text-[12px] text-slate-600 dark:text-slate-300">
@@ -980,7 +1021,7 @@ function PortfolioSummaryCard({ summary }: { summary: PortfolioProjectionSummary
         </div>
         <div className="rounded-lg border border-slate-200 bg-white p-2.5 dark:border-[#2c3638] dark:bg-[#171d1e]">
           <p className="text-[12px] font-semibold text-slate-700 dark:text-slate-200">위탁계좌</p>
-          <p className="mt-1 text-[12px] text-slate-500 dark:text-slate-400">
+          <p className="mt-1 text-[12px] text-slate-600 dark:text-slate-300">
             적용 티커: <span className="break-all">{summary.brokerage.tickers.join(", ") || "—"}</span>
           </p>
           <div className="mt-0.5 grid grid-cols-1 gap-1 text-[12px] text-slate-600 dark:text-slate-300 sm:grid-cols-3">

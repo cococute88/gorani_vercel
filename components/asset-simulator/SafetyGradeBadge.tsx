@@ -16,10 +16,10 @@ type Props = {
 
 const LG_BADGE_TONE: Record<UiTone, string> = {
   positive: "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-500/30",
-  neutral: "bg-slate-100 text-slate-800 ring-slate-200 dark:bg-slate-500/10 dark:text-slate-100 dark:ring-slate-500/30",
+  neutral: "bg-slate-100 text-slate-800 ring-slate-200 dark:bg-slate-800 dark:text-slate-100 dark:ring-slate-700",
   caution: "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:ring-amber-500/30",
   warning: "bg-rose-50 text-rose-700 ring-rose-200 dark:bg-rose-500/10 dark:text-rose-300 dark:ring-rose-500/30",
-  muted: "bg-slate-100 text-slate-600 ring-slate-200 dark:bg-slate-500/10 dark:text-slate-300 dark:ring-slate-500/30",
+  muted: "bg-slate-100 text-slate-600 ring-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700",
 };
 
 const SM_TEXT_TONE: Record<UiTone, string> = {
@@ -27,7 +27,7 @@ const SM_TEXT_TONE: Record<UiTone, string> = {
   neutral: "text-slate-800 dark:text-slate-100",
   caution: "text-amber-600 dark:text-amber-400",
   warning: "text-rose-600 dark:text-rose-400",
-  muted: "text-slate-500 dark:text-slate-400",
+  muted: "text-slate-600 dark:text-slate-300",
 };
 
 export default function SafetyGradeBadge({ display, size = "sm", caption }: Props) {
@@ -35,15 +35,15 @@ export default function SafetyGradeBadge({ display, size = "sm", caption }: Prop
   if (!display.showScore) {
     if (size === "lg") {
       return (
-        <div className="flex h-16 w-16 shrink-0 flex-col items-center justify-center rounded-2xl bg-slate-100 px-1 text-center ring-1 ring-inset ring-slate-200 dark:bg-slate-500/10 dark:ring-slate-500/30">
-          <span className="break-keep text-[10.5px] font-semibold leading-tight text-slate-500 dark:text-slate-400">
+        <div className="flex h-16 w-16 shrink-0 flex-col items-center justify-center rounded-2xl bg-slate-100 px-1 text-center ring-1 ring-inset ring-slate-200 dark:bg-slate-800 dark:ring-slate-700">
+          <span className="break-keep text-[10.5px] font-semibold leading-tight text-slate-600 dark:text-slate-300">
             {display.gradeLabel}
           </span>
         </div>
       );
     }
     return (
-      <span className="break-keep text-[11.5px] font-semibold text-slate-500 dark:text-slate-400">
+      <span className="break-keep text-[11.5px] font-semibold text-slate-600 dark:text-slate-300">
         {display.gradeLabel}
       </span>
     );
