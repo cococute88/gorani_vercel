@@ -4,7 +4,8 @@
 // Firestore 저장/삭제/동기화가 실제로 성공한 시점의 timestamp(ms)를 기록하고,
 // 포트폴리오 관리 화면 우측 상단에서 "최근 클라우드 동기화 시각"으로 표시한다.
 //
-// - 백엔드 없음. localStorage 로만 보관(브라우저별 마지막 성공 시각).
+// - Firestore metadata read-back 이후 즉시 렌더링을 깨우는 보조 cache다.
+// - 표시 SSOT는 components/portfolio/PortfolioCloudSyncStatus.tsx 의 metadata.lastSyncedAt 이다.
 // - SSR 안전: typeof window 가드.
 // - React 구독: useSyncExternalStore (portfolio-store 와 동일 패턴).
 //
@@ -50,29 +51,6 @@ export function markPortfolioCloudSyncNow(timestamp: number = Date.now()): void 
 
 export function getPortfolioCloudSyncTime(): number | null {
   return read();
-}
-
-// =============================================================
-// 서버 권위(authoritative) 동기화 시각 파싱.
-//
-// "최근 클라우드 동기화" 시각의 실제 진실은 브라우저 로컬 Date.now() 가 아니라,
-// 현재 화면이 사용하는 활성 Firestore 스냅샷이 실제로 생성/저장된 서버 시각
-// (generated_at → PortfolioSnapshot.createdAt)이다. 이 값을 우선 사용하면
-//   - 같은 계정의 모든 기기/브라우저에서 동일하게 표시되고,
-//   - 새로고침 후에도 동일 스냅샷을 다시 읽어 같은 값을 보이며,
-//   - "최신화"로 새 스냅샷이 게시되면 즉시 갱신되고,
-//   - 오래된 localStorage 캐시나 로그인 시점 Date.now() 오염이 사라진다.
-//
-// 매핑 계층(snapshot-viewmodel)은 generated_at 이 없을 때 createdAt 을
-// new Date(0)(1970)로 폴백하므로, 2001-01-01 이전 값은 "없음"으로 간주한다.
-// =============================================================
-const MIN_VALID_SYNC_MS = Date.UTC(2001, 0, 1);
-
-export function parsePortfolioSnapshotSyncTime(createdAt: string | null | undefined): number | null {
-  if (typeof createdAt !== "string" || createdAt.trim() === "") return null;
-  const parsed = Date.parse(createdAt);
-  if (!Number.isFinite(parsed) || parsed < MIN_VALID_SYNC_MS) return null;
-  return parsed;
 }
 
 function subscribe(callback: () => void): () => void {

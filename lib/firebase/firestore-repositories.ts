@@ -161,6 +161,15 @@ function userDoc(uid: string) {
   return doc(requireDb(), "users", uid);
 }
 
+export function portfolioSyncMetadataPath(uid: string): string {
+  return `users/${uid}/portfolioSyncMetadata/status`;
+}
+
+function devPortfolioSyncLog(message: string, details: Record<string, unknown> = {}): void {
+  if (process.env.NODE_ENV === "production") return;
+  console.info("[Portfolio Sync]", message, details);
+}
+
 export async function ensureUserProfile(user: User): Promise<void> {
   const ref = userDoc(user.uid);
   const existing = await getDoc(ref);
@@ -179,12 +188,15 @@ export async function ensureUserProfile(user: User): Promise<void> {
 }
 
 export type PortfolioSyncMetadata = {
+  exists: boolean;
   lastSyncedAtMs: number | null;
   lastSyncedAtIso: string | null;
+  updatedAtMs: number | null;
+  updatedAtIso: string | null;
 };
 
 function portfolioSyncMetadataDoc(uid: string) {
-  return doc(requireDb(), "users", uid, "portfolioSyncMetadata", "status");
+  return doc(requireDb(), portfolioSyncMetadataPath(uid));
 }
 
 function firestoreTimeToMs(value: unknown): number | null {
@@ -201,18 +213,62 @@ function firestoreTimeToMs(value: unknown): number | null {
   return null;
 }
 
+function metadataFromSnapshot(snap: { exists: () => boolean; data: () => DocumentData | undefined }): PortfolioSyncMetadata {
+  const data = snap.exists() ? snap.data() : null;
+  const lastSyncedAtMs = data ? firestoreTimeToMs(data.lastSyncedAt) : null;
+  const updatedAtMs = data ? firestoreTimeToMs(data.updatedAt) : null;
+  return {
+    exists: snap.exists(),
+    lastSyncedAtMs,
+    lastSyncedAtIso: lastSyncedAtMs ? new Date(lastSyncedAtMs).toISOString() : null,
+    updatedAtMs,
+    updatedAtIso: updatedAtMs ? new Date(updatedAtMs).toISOString() : null,
+  };
+}
+
 export async function recordPortfolioCloudSyncSuccess(uid: string): Promise<PortfolioSyncMetadata> {
+  const path = portfolioSyncMetadataPath(uid);
   const ref = portfolioSyncMetadataDoc(uid);
-  await setDoc(ref, { lastSyncedAt: serverTimestamp(), updatedAt: serverTimestamp() }, { merge: true });
+  devPortfolioSyncLog("metadata write start", { uid, path });
+  try {
+    await setDoc(ref, { lastSyncedAt: serverTimestamp(), updatedAt: serverTimestamp() }, { merge: true });
+    devPortfolioSyncLog("metadata write success", { uid, path });
+  } catch (err) {
+    console.error("[Portfolio Sync] Firestore metadata write FAILED", {
+      uid,
+      path,
+      reason: err instanceof Error ? err.message : String(err),
+      error: err,
+    });
+    throw err;
+  }
+
+  devPortfolioSyncLog("metadata read start", { uid, path });
   const snap = await getDoc(ref);
-  const ms = snap.exists() ? firestoreTimeToMs(snap.data().lastSyncedAt) : null;
-  return { lastSyncedAtMs: ms, lastSyncedAtIso: ms ? new Date(ms).toISOString() : null };
+  const metadata = metadataFromSnapshot(snap);
+  devPortfolioSyncLog("metadata read success", {
+    uid,
+    path,
+    exists: metadata.exists,
+    lastSyncedAt: metadata.lastSyncedAtIso,
+    updatedAt: metadata.updatedAtIso,
+  });
+  return metadata;
 }
 
 export async function loadPortfolioSyncMetadata(uid: string): Promise<PortfolioSyncMetadata> {
+  const path = portfolioSyncMetadataPath(uid);
+  devPortfolioSyncLog("metadata read start", { uid, path });
   const snap = await getDoc(portfolioSyncMetadataDoc(uid));
-  const ms = snap.exists() ? firestoreTimeToMs(snap.data().lastSyncedAt) : null;
-  return { lastSyncedAtMs: ms, lastSyncedAtIso: ms ? new Date(ms).toISOString() : null };
+  const metadata = metadataFromSnapshot(snap);
+  devPortfolioSyncLog("metadata read success", {
+    uid,
+    path,
+    exists: metadata.exists,
+    lastSyncedAt: metadata.lastSyncedAtIso,
+    updatedAt: metadata.updatedAtIso,
+  });
+  return metadata;
 }
 
 export async function savePortfolioSnapshot(uid: string, snapshot: PortfolioSnapshot): Promise<PortfolioSyncMetadata> {

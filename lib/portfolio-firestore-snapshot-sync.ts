@@ -36,7 +36,10 @@
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { PortfolioSnapshot } from "./portfolio-types";
-import { isSnapshotDateDeleted } from "./portfolio-snapshot-deletions";
+import { isSnapshotDateDeleted, unmarkSnapshotDateDeleted } from "./portfolio-snapshot-deletions";
+import { firebaseAuth } from "./firebase/client";
+import { recordPortfolioCloudSyncSuccess, removeDeletedSnapshotDateFromCloud } from "./firebase/firestore-repositories";
+import { markPortfolioCloudSyncNow } from "./portfolio-cloud-sync-time";
 
 const ENDPOINT = "/api/portfolio/latest-snapshot";
 
@@ -190,7 +193,7 @@ type FetchedSnapshot =
   | { kind: "empty" }
   | { kind: "error" };
 
-async function fetchLatestSnapshot(): Promise<FetchedSnapshot> {
+async function fetchLatestSnapshot(options: { respectDeletedTombstone?: boolean } = {}): Promise<FetchedSnapshot> {
   try {
     const res = await fetch(ENDPOINT, { cache: "no-store" });
     if (!res.ok) return { kind: "error" };
@@ -202,7 +205,12 @@ async function fetchLatestSnapshot(): Promise<FetchedSnapshot> {
       // 이렇게 해야 새로고침/재진입 후에도 삭제 상태가 유지된다(읽기 전용이라 원본
       // 문서를 클라이언트가 지울 수 없으므로 게시 단계에서 차단). store 는 null 로
       // 남아 화면은 localStorage 데이터로 폴백한다 — "empty" 와 동일하게 처리.
-      if (isSnapshotDateDeleted(body.snapshotDate)) {
+      if (options.respectDeletedTombstone !== false && isSnapshotDateDeleted(body.snapshotDate)) {
+        if (process.env.NODE_ENV !== "production") {
+          console.info("[Portfolio Sync] snapshot reload skipped by deleted tombstone", {
+            snapshotDate: body.snapshotDate,
+          });
+        }
         return { kind: "empty" };
       }
       return {
@@ -218,6 +226,36 @@ async function fetchLatestSnapshot(): Promise<FetchedSnapshot> {
   }
 }
 
+
+async function recordLatestSnapshotMetadata(scope: string, snapshotDate: string): Promise<void> {
+  const uid = firebaseAuth?.currentUser?.uid ?? null;
+  if (!uid) {
+    if (process.env.NODE_ENV !== "production") {
+      console.info("[Portfolio Sync] metadata write skipped", {
+        scope,
+        snapshotDate,
+        reason: "No authenticated Firebase user is available.",
+      });
+    }
+    return;
+  }
+
+  if (process.env.NODE_ENV !== "production") {
+    console.info("[Portfolio Sync] latest snapshot metadata sync start", { uid, scope, snapshotDate });
+  }
+  const metadata = await recordPortfolioCloudSyncSuccess(uid);
+  markPortfolioCloudSyncNow(metadata.lastSyncedAtMs ?? Date.now());
+  if (process.env.NODE_ENV !== "production") {
+    console.info("[Portfolio Sync] latest snapshot metadata sync complete", {
+      uid,
+      scope,
+      snapshotDate,
+      exists: metadata.exists,
+      lastSyncedAt: metadata.lastSyncedAtIso,
+      updatedAt: metadata.updatedAtIso,
+    });
+  }
+}
 /**
  * On mount, ensure the latest Firestore snapshot is the active data source for
  * the Portfolio screen.
@@ -257,9 +295,10 @@ export function usePortfolioFirestoreSnapshot(): FirestoreSnapshotSyncState {
 
     (async () => {
       try {
-        const result = await fetchLatestSnapshot();
+        const result = await fetchLatestSnapshot({ respectDeletedTombstone: true });
 
         if (result.kind === "firestore") {
+          await recordLatestSnapshotMetadata("on-mount latest-snapshot", result.snapshotDate);
           // Publish to the shared store regardless of this mount's lifetime so
           // subscribers (incl. a remounted page) always see the snapshot.
           setFirestoreSnapshot(result.snapshot, result.snapshotDate);
@@ -332,9 +371,30 @@ export async function applyLatestFirestoreSnapshot(): Promise<PortfolioRefreshOu
   applyInFlight = true;
 
   try {
-    const result = await fetchLatestSnapshot();
+    const result = await fetchLatestSnapshot({ respectDeletedTombstone: false });
 
     if (result.kind === "firestore") {
+      await recordLatestSnapshotMetadata("manual/pipeline latest-snapshot", result.snapshotDate);
+      unmarkSnapshotDateDeleted(result.snapshotDate);
+      const uid = firebaseAuth?.currentUser?.uid ?? null;
+      if (uid) {
+        await removeDeletedSnapshotDateFromCloud(uid, result.snapshotDate).catch((err) => {
+          console.error("[Portfolio Sync] Snapshot create failed", {
+            function: "removeDeletedSnapshotDateFromCloud",
+            documentPath: `users/${uid}/portfolioSnapshotState/state`,
+            reason: err instanceof Error ? err.message : String(err),
+            exception: err,
+          });
+        });
+      }
+      if (process.env.NODE_ENV !== "production") {
+        console.info("[Portfolio Sync] snapshot reload", {
+          snapshotId: result.snapshot.id,
+          snapshotDate: result.snapshotDate,
+          snapshotCreated: result.snapshot.createdAt,
+          snapshotSelected: true,
+        });
+      }
       // 같은 날짜라도 파이프라인이 재생성해 서버 생성 시각(generated_at → createdAt)이
       // 갱신되었으면 "변경"으로 취급해 새로 게시한다. 이렇게 해야 같은 날 여러 번
       // 최신화해도 "최근 클라우드 동기화" 시각이 즉시 갱신된다(요구사항: 최신화 즉시 변경).

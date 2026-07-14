@@ -72,7 +72,7 @@ import AssetMapSection from "@/components/asset-map/AssetMapSection";
 import { useResolvedTheme } from "@/components/theme/ThemeProvider";
 import { usePortfolioCloudSync } from "@/lib/portfolio-cloud-sync";
 import { USE_FIRESTORE_CONTRACT } from "@/lib/feature-flags";
-import { markPortfolioCloudSyncNow, parsePortfolioSnapshotSyncTime } from "@/lib/portfolio-cloud-sync-time";
+import { markPortfolioCloudSyncNow } from "@/lib/portfolio-cloud-sync-time";
 
 function snapshotToResult(s: PortfolioSnapshot): ParseResult {
   return {
@@ -143,6 +143,25 @@ export default function PortfolioPage() {
   // 활성 Firestore 스냅샷 객체(없으면 null → 로컬로 폴백).
   // 투자현황 화면이 보는 것과 동일한 소스다(usePortfolioView 도 이 값을 읽는다).
   const firestoreSnapshot = usePortfolioFirestoreSnapshotData();
+
+  // Auth hydration보다 latest-snapshot fetch가 먼저 성공하면 metadata write가
+  // user 없음으로 skip될 수 있다. 활성 Firestore snapshot + 로그인 user가 둘 다
+  // 준비된 시점에 metadata를 보강해 Preview에서 "동기화 없음"으로 남지 않게 한다.
+  useEffect(() => {
+    if (!user || !firestoreSnapshot) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const metadata = await recordPortfolioCloudSyncSuccess(user.uid);
+        if (!cancelled) markPortfolioCloudSyncNow(metadata.lastSyncedAtMs ?? Date.now());
+      } catch (err) {
+        warnFirestoreFallback("portfolioSyncMetadata.activeSnapshot", err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [firestoreSnapshot, user]);
 
   // 사용자가 히스토리에서 삭제한 스냅샷 날짜(영구 묘비). mergedSnapshots 에서 제외해
   // 어떤 소스(localStorage/계약/오버레이)에서 다시 올라오더라도 삭제 상태를 유지한다.
@@ -623,12 +642,17 @@ export default function PortfolioPage() {
   // 상단 스냅샷 컨트롤용 값.
   // 활성(현재) 스냅샷 날짜는 투자현황과 동일하게 portfolioView 기준으로 잡는다.
   const activeSnapshotDate = portfolioView.snapshot?.snapshotDate ?? null;
-  // "최근 클라우드 동기화" 시각의 서버 권위 소스: 현재 활성 Firestore 스냅샷이 실제로
-  // 생성/저장된 서버 시각(generated_at → createdAt). 이 값이 있으면 브라우저 로컬
-  // Date.now() 대신 이 시각을 표시해 모든 기기에서 동일하고, 새로고침/최신화 후에도
-  // 실제 저장 시점과 항상 일치한다. Firestore 스냅샷이 없을 때만 localStorage 로 폴백한다.
-  const serverSyncedAtMs = useMemo(
-    () => (firestoreSnapshot ? parsePortfolioSnapshotSyncTime(firestoreSnapshot.createdAt) : null),
+  // "최근 클라우드 동기화"는 PortfolioCloudSyncStatus 내부에서 Firestore
+  // metadata.lastSyncedAt 만 SSOT로 선택한다. 스냅샷 timestamp는 디버깅 로그에만
+  // 전달하고, 동기화 시간 후보로 사용하지 않는다.
+  const snapshotSyncDebugInfo = useMemo(
+    () => (firestoreSnapshot
+      ? {
+          createdAt: firestoreSnapshot.createdAt,
+          updatedAt: (firestoreSnapshot as PortfolioSnapshot & { updatedAt?: unknown }).updatedAt,
+          snapshotDate: firestoreSnapshot.snapshotDate,
+        }
+      : null),
     [firestoreSnapshot],
   );
   // 드롭다운 항목: 통합 스냅샷 목록(mergedSnapshots)의 날짜(최신 우선). 하단 히스토리와 동일한
@@ -696,7 +720,7 @@ export default function PortfolioPage() {
       <main className="mx-auto w-full min-w-0 max-w-[1640px] overflow-x-hidden px-4 py-6 sm:px-6 lg:px-8">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-[20px] font-extrabold text-slate-900 dark:text-white">포트폴리오 관리</h1>
-          <PortfolioCloudSyncStatus serverSyncedAtMs={serverSyncedAtMs} />
+          <PortfolioCloudSyncStatus snapshotDebugInfo={snapshotSyncDebugInfo} />
         </div>
 
         {/* 데이터 관리 영역: 현재 스냅샷 선택 + 최신화.
