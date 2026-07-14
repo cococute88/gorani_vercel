@@ -72,7 +72,7 @@ import AssetMapSection from "@/components/asset-map/AssetMapSection";
 import { useResolvedTheme } from "@/components/theme/ThemeProvider";
 import { usePortfolioCloudSync } from "@/lib/portfolio-cloud-sync";
 import { USE_FIRESTORE_CONTRACT } from "@/lib/feature-flags";
-import { markPortfolioCloudSyncNow, parsePortfolioSnapshotSyncTime } from "@/lib/portfolio-cloud-sync-time";
+import { markPortfolioCloudSyncNow } from "@/lib/portfolio-cloud-sync-time";
 
 function snapshotToResult(s: PortfolioSnapshot): ParseResult {
   return {
@@ -623,12 +623,17 @@ export default function PortfolioPage() {
   // 상단 스냅샷 컨트롤용 값.
   // 활성(현재) 스냅샷 날짜는 투자현황과 동일하게 portfolioView 기준으로 잡는다.
   const activeSnapshotDate = portfolioView.snapshot?.snapshotDate ?? null;
-  // "최근 클라우드 동기화" 시각의 서버 권위 소스: 현재 활성 Firestore 스냅샷이 실제로
-  // 생성/저장된 서버 시각(generated_at → createdAt). 이 값이 있으면 브라우저 로컬
-  // Date.now() 대신 이 시각을 표시해 모든 기기에서 동일하고, 새로고침/최신화 후에도
-  // 실제 저장 시점과 항상 일치한다. Firestore 스냅샷이 없을 때만 localStorage 로 폴백한다.
-  const serverSyncedAtMs = useMemo(
-    () => (firestoreSnapshot ? parsePortfolioSnapshotSyncTime(firestoreSnapshot.createdAt) : null),
+  // "최근 클라우드 동기화"는 PortfolioCloudSyncStatus 내부에서 Firestore
+  // metadata.lastSyncedAt 만 SSOT로 선택한다. 스냅샷 timestamp는 디버깅 로그에만
+  // 전달하고, 동기화 시간 후보로 사용하지 않는다.
+  const snapshotSyncDebugInfo = useMemo(
+    () => (firestoreSnapshot
+      ? {
+          createdAt: firestoreSnapshot.createdAt,
+          updatedAt: (firestoreSnapshot as PortfolioSnapshot & { updatedAt?: unknown }).updatedAt,
+          snapshotDate: firestoreSnapshot.snapshotDate,
+        }
+      : null),
     [firestoreSnapshot],
   );
   // 드롭다운 항목: 통합 스냅샷 목록(mergedSnapshots)의 날짜(최신 우선). 하단 히스토리와 동일한
@@ -696,7 +701,7 @@ export default function PortfolioPage() {
       <main className="mx-auto w-full min-w-0 max-w-[1640px] overflow-x-hidden px-4 py-6 sm:px-6 lg:px-8">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-[20px] font-extrabold text-slate-900 dark:text-white">포트폴리오 관리</h1>
-          <PortfolioCloudSyncStatus serverSyncedAtMs={serverSyncedAtMs} />
+          <PortfolioCloudSyncStatus snapshotDebugInfo={snapshotSyncDebugInfo} />
         </div>
 
         {/* 데이터 관리 영역: 현재 스냅샷 선택 + 최신화.

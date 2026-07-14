@@ -179,8 +179,11 @@ export async function ensureUserProfile(user: User): Promise<void> {
 }
 
 export type PortfolioSyncMetadata = {
+  exists: boolean;
   lastSyncedAtMs: number | null;
   lastSyncedAtIso: string | null;
+  updatedAtMs: number | null;
+  updatedAtIso: string | null;
 };
 
 function portfolioSyncMetadataDoc(uid: string) {
@@ -205,14 +208,30 @@ export async function recordPortfolioCloudSyncSuccess(uid: string): Promise<Port
   const ref = portfolioSyncMetadataDoc(uid);
   await setDoc(ref, { lastSyncedAt: serverTimestamp(), updatedAt: serverTimestamp() }, { merge: true });
   const snap = await getDoc(ref);
-  const ms = snap.exists() ? firestoreTimeToMs(snap.data().lastSyncedAt) : null;
-  return { lastSyncedAtMs: ms, lastSyncedAtIso: ms ? new Date(ms).toISOString() : null };
+  const data = snap.exists() ? snap.data() : null;
+  const lastSyncedAtMs = data ? firestoreTimeToMs(data.lastSyncedAt) : null;
+  const updatedAtMs = data ? firestoreTimeToMs(data.updatedAt) : null;
+  return {
+    exists: snap.exists(),
+    lastSyncedAtMs,
+    lastSyncedAtIso: lastSyncedAtMs ? new Date(lastSyncedAtMs).toISOString() : null,
+    updatedAtMs,
+    updatedAtIso: updatedAtMs ? new Date(updatedAtMs).toISOString() : null,
+  };
 }
 
 export async function loadPortfolioSyncMetadata(uid: string): Promise<PortfolioSyncMetadata> {
   const snap = await getDoc(portfolioSyncMetadataDoc(uid));
-  const ms = snap.exists() ? firestoreTimeToMs(snap.data().lastSyncedAt) : null;
-  return { lastSyncedAtMs: ms, lastSyncedAtIso: ms ? new Date(ms).toISOString() : null };
+  const data = snap.exists() ? snap.data() : null;
+  const lastSyncedAtMs = data ? firestoreTimeToMs(data.lastSyncedAt) : null;
+  const updatedAtMs = data ? firestoreTimeToMs(data.updatedAt) : null;
+  return {
+    exists: snap.exists(),
+    lastSyncedAtMs,
+    lastSyncedAtIso: lastSyncedAtMs ? new Date(lastSyncedAtMs).toISOString() : null,
+    updatedAtMs,
+    updatedAtIso: updatedAtMs ? new Date(updatedAtMs).toISOString() : null,
+  };
 }
 
 export async function savePortfolioSnapshot(uid: string, snapshot: PortfolioSnapshot): Promise<PortfolioSyncMetadata> {
