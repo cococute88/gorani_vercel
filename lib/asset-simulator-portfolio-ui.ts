@@ -275,7 +275,7 @@ export function describeAccountDiagnosis(
         ? account === "brokerage"
           ? "위탁계좌 잔고 또는 배당 데이터가 있으면 평가됩니다."
           : "평가할 데이터가 준비되면 등급이 표시됩니다."
-        : "수동 보완 또는 포트폴리오 가정 적용 후 다시 확인할 수 있습니다.";
+        : "가정 수정에서 수동 보완한 뒤 결과를 다시 확인할 수 있습니다.";
     return { changeText: basicDisplay.gradeLabel, reason, tone: "muted", evaluated: false, basisShort };
   }
 
@@ -304,7 +304,7 @@ export function describeAccountDiagnosis(
     tone = "caution";
     reason =
       account === "taxSaving"
-        ? "하락장에서는 자산 보존율이 약해집니다."
+        ? "하락장에서는 실가치보존율이 약해집니다."
         : account === "brokerage"
           ? "하락장에서는 배당 현금흐름이 약해질 수 있습니다."
           : "하락장에서 충당률이 약해져 조정 검토가 필요합니다.";
@@ -440,7 +440,7 @@ export function buildScenarioComparisonRows(
     const tone: UiTone = direction === "down" ? (reduction >= 0.25 ? "warning" : "caution") : "muted";
     rows.push({
       key: "preservation",
-      label: "자산 보존율",
+      label: "실가치보존율",
       basicText: formatPreservationRatio(basicPres),
       stressText: formatPreservationRatio(stressPres),
       deltaText: deltaPointText(deltaPP, reduction, capped, direction),

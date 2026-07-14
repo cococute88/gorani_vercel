@@ -257,8 +257,9 @@ const section = readFileSync("components/asset-simulator/PortfolioConfigSection.
 assert.match(section, /resolvePortfolioHoldingMetricsClient/, "resilient client fetch 사용");
 assert.match(section, /AbortController/, "AbortController 로 최신 요청만 반영");
 assert.match(section, /disabled=\{!canApply\}/, "미해결 이슈 시 적용 버튼 차단");
-assert.match(section, /실패한 티커만 다시 계산/, "실패 티커만 재계산 버튼");
-assert.match(section, /수동 입력으로 전환/, "실패 시 수동 입력 전환 버튼");
+assert.match(section, /가정 수정/, "필요할 때만 가정 수정으로 수동 입력 노출");
+assert.match(section, /자동값으로 되돌리기/, "수동 보정 후 자동값 복원 제공");
+assert.doesNotMatch(section, /전체 자동 계산/, "전체 자동 계산 버튼 제거");
 assert.match(section, /aria-busy/, "로딩 상태 aria-busy 표시");
 
 console.log("asset simulator portfolio resilience checks passed");

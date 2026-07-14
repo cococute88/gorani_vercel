@@ -61,7 +61,7 @@ export default function SafetyAccountDetailPanel({ label, result, stress = false
         <>
           <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[11.5px]">
             <div className="flex items-center justify-between gap-1">
-              <dt className="text-slate-600 dark:text-slate-400">자산 보존율</dt>
+              <dt className="text-slate-600 dark:text-slate-400">실가치보존율</dt>
               <dd
                 className="font-semibold text-slate-800 dark:text-slate-200"
                 title={metrics.preservationRatio >= 10 ? formatPct(metrics.preservationRatio * 100, 0) : undefined}
