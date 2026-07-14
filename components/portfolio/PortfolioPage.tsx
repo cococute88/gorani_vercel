@@ -144,6 +144,25 @@ export default function PortfolioPage() {
   // 투자현황 화면이 보는 것과 동일한 소스다(usePortfolioView 도 이 값을 읽는다).
   const firestoreSnapshot = usePortfolioFirestoreSnapshotData();
 
+  // Auth hydration보다 latest-snapshot fetch가 먼저 성공하면 metadata write가
+  // user 없음으로 skip될 수 있다. 활성 Firestore snapshot + 로그인 user가 둘 다
+  // 준비된 시점에 metadata를 보강해 Preview에서 "동기화 없음"으로 남지 않게 한다.
+  useEffect(() => {
+    if (!user || !firestoreSnapshot) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const metadata = await recordPortfolioCloudSyncSuccess(user.uid);
+        if (!cancelled) markPortfolioCloudSyncNow(metadata.lastSyncedAtMs ?? Date.now());
+      } catch (err) {
+        warnFirestoreFallback("portfolioSyncMetadata.activeSnapshot", err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [firestoreSnapshot, user]);
+
   // 사용자가 히스토리에서 삭제한 스냅샷 날짜(영구 묘비). mergedSnapshots 에서 제외해
   // 어떤 소스(localStorage/계약/오버레이)에서 다시 올라오더라도 삭제 상태를 유지한다.
   const deletedSnapshotDates = useDeletedSnapshotDates();

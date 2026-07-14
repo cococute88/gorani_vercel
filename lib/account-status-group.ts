@@ -29,6 +29,8 @@ const BROKERAGE_SIGNALS = [
   "국내주식",
   "예수금",
   "현금",
+  "증권",
+  "BROKER",
   "과세",
 ];
 
@@ -44,6 +46,24 @@ function includesSignal(haystack: string, signals: string[]): boolean {
   return signals.some((signal) => upper.includes(signal.toUpperCase()));
 }
 
+function devLogAccountClassification(
+  input: AccountStatusClassifiable,
+  result: AccountStatusGroup,
+  matchedRule: string,
+  fallbackReason?: string,
+): void {
+  if (process.env.NODE_ENV === "production") return;
+  console.info("[Account Classification]", {
+    accountName: input.name ?? null,
+    accountGroup: input.statusGroup ?? null,
+    accountCategory: input.type ?? null,
+    accountType: input.tax ?? null,
+    matchedRule,
+    fallbackReason: fallbackReason ?? null,
+    result,
+  });
+}
+
 // 계좌 카드/보유 신호를 보고 위탁/절세를 판단한다. 신호가 전혀 없으면 "미확인".
 export function classifyAccountStatusGroup(input: AccountStatusClassifiable): AccountStatusGroup {
   const haystack = [input.name, input.type, input.statusGroup, input.tax]
@@ -51,8 +71,15 @@ export function classifyAccountStatusGroup(input: AccountStatusClassifiable): Ac
     .join(" ");
 
   // 절세 신호를 먼저 검사한다 (비과세 ⊃ 과세 문자열 충돌 회피).
-  if (includesSignal(haystack, TAX_SAVING_SIGNALS)) return "절세";
-  if (includesSignal(haystack, BROKERAGE_SIGNALS)) return "위탁";
+  if (includesSignal(haystack, TAX_SAVING_SIGNALS)) {
+    devLogAccountClassification(input, "절세", "tax-saving-signal");
+    return "절세";
+  }
+  if (includesSignal(haystack, BROKERAGE_SIGNALS)) {
+    devLogAccountClassification(input, "위탁", "brokerage-signal");
+    return "위탁";
+  }
+  devLogAccountClassification(input, "미확인", "fallback", "no tax-saving or brokerage signal matched");
   return "미확인";
 }
 
