@@ -37,6 +37,9 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { PortfolioSnapshot } from "./portfolio-types";
 import { isSnapshotDateDeleted } from "./portfolio-snapshot-deletions";
+import { firebaseAuth } from "./firebase/client";
+import { recordPortfolioCloudSyncSuccess } from "./firebase/firestore-repositories";
+import { markPortfolioCloudSyncNow } from "./portfolio-cloud-sync-time";
 
 const ENDPOINT = "/api/portfolio/latest-snapshot";
 
@@ -218,6 +221,36 @@ async function fetchLatestSnapshot(): Promise<FetchedSnapshot> {
   }
 }
 
+
+async function recordLatestSnapshotMetadata(scope: string, snapshotDate: string): Promise<void> {
+  const uid = firebaseAuth?.currentUser?.uid ?? null;
+  if (!uid) {
+    if (process.env.NODE_ENV !== "production") {
+      console.info("[Portfolio Sync] metadata write skipped", {
+        scope,
+        snapshotDate,
+        reason: "No authenticated Firebase user is available.",
+      });
+    }
+    return;
+  }
+
+  if (process.env.NODE_ENV !== "production") {
+    console.info("[Portfolio Sync] latest snapshot metadata sync start", { uid, scope, snapshotDate });
+  }
+  const metadata = await recordPortfolioCloudSyncSuccess(uid);
+  markPortfolioCloudSyncNow(metadata.lastSyncedAtMs ?? Date.now());
+  if (process.env.NODE_ENV !== "production") {
+    console.info("[Portfolio Sync] latest snapshot metadata sync complete", {
+      uid,
+      scope,
+      snapshotDate,
+      exists: metadata.exists,
+      lastSyncedAt: metadata.lastSyncedAtIso,
+      updatedAt: metadata.updatedAtIso,
+    });
+  }
+}
 /**
  * On mount, ensure the latest Firestore snapshot is the active data source for
  * the Portfolio screen.
@@ -260,6 +293,7 @@ export function usePortfolioFirestoreSnapshot(): FirestoreSnapshotSyncState {
         const result = await fetchLatestSnapshot();
 
         if (result.kind === "firestore") {
+          await recordLatestSnapshotMetadata("on-mount latest-snapshot", result.snapshotDate);
           // Publish to the shared store regardless of this mount's lifetime so
           // subscribers (incl. a remounted page) always see the snapshot.
           setFirestoreSnapshot(result.snapshot, result.snapshotDate);
@@ -335,6 +369,7 @@ export async function applyLatestFirestoreSnapshot(): Promise<PortfolioRefreshOu
     const result = await fetchLatestSnapshot();
 
     if (result.kind === "firestore") {
+      await recordLatestSnapshotMetadata("manual/pipeline latest-snapshot", result.snapshotDate);
       // 같은 날짜라도 파이프라인이 재생성해 서버 생성 시각(generated_at → createdAt)이
       // 갱신되었으면 "변경"으로 취급해 새로 게시한다. 이렇게 해야 같은 날 여러 번
       // 최신화해도 "최근 클라우드 동기화" 시각이 즉시 갱신된다(요구사항: 최신화 즉시 변경).

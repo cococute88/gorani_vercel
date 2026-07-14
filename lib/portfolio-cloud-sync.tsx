@@ -72,10 +72,12 @@ export function usePortfolioCloudSync(): PortfolioCloudSyncState {
     // exists but every document is invalid) keep the user's local data intact.
     if (USE_FIRESTORE_CONTRACT) {
       loadPortfolioContract(user.uid)
-        .then((adapted) => {
+        .then(async (adapted) => {
           if (cancelled) return;
           if (adapted.outcome === "ok") {
             replaceSnapshots(adapted.snapshots);
+            const metadata = await recordPortfolioCloudSyncSuccess(user.uid);
+            markPortfolioCloudSyncNow(metadata.lastSyncedAtMs ?? Date.now());
             setState({ status: "synced", error: null });
             return;
           }
@@ -113,11 +115,11 @@ export function usePortfolioCloudSync(): PortfolioCloudSyncState {
         const cloudDates = new Set(cloudSnapshots.map((snapshot) => snapshot.snapshotDate));
         const localOnlySnapshots = merged.filter((snapshot) => !cloudDates.has(snapshot.snapshotDate));
         await Promise.all(localOnlySnapshots.map((snapshot) => savePortfolioSnapshot(user.uid, snapshot)));
-        // 로컬 전용 스냅샷을 실제로 Firestore 에 올린 경우에만 Firestore metadata SSOT를 갱신한다.
-        if (localOnlySnapshots.length > 0) {
-          const metadata = await recordPortfolioCloudSyncSuccess(user.uid);
-          markPortfolioCloudSyncNow(metadata.lastSyncedAtMs ?? Date.now());
-        }
+        // Firestore load/merge/upload sequence completed successfully. Even when
+        // there were no local-only snapshots to upload, this is a successful
+        // cloud sync path and must create/update portfolioSyncMetadata/status.
+        const metadata = await recordPortfolioCloudSyncSuccess(user.uid);
+        markPortfolioCloudSyncNow(metadata.lastSyncedAtMs ?? Date.now());
 
         if (!cancelled) setState({ status: "synced", error: null });
       })

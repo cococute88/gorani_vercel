@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Cloud } from "lucide-react";
 import { useFirebaseAuth } from "@/lib/firebase/auth";
 import { useResolvedTheme } from "@/components/theme/ThemeProvider";
-import { loadPortfolioSyncMetadata, warnFirestoreFallback, type PortfolioSyncMetadata } from "@/lib/firebase/firestore-repositories";
+import { loadPortfolioSyncMetadata, portfolioSyncMetadataPath, warnFirestoreFallback, type PortfolioSyncMetadata } from "@/lib/firebase/firestore-repositories";
 import {
   formatPortfolioCloudSyncTime,
   usePortfolioCloudSyncTime,
@@ -101,6 +101,9 @@ export default function PortfolioCloudSyncStatus({ className = "", snapshotDebug
     if (!configured || loading || !user) return;
     /* eslint-disable no-console */
     console.log("[Portfolio Sync]", {
+      uid: user.uid,
+      documentPath: portfolioSyncMetadataPath(user.uid),
+      metadataExists: metadata.exists,
       "metadata.lastSyncedAt": metadata.lastSyncedAtIso,
       "metadata.updatedAt": metadata.updatedAtIso,
       "snapshot.createdAt": debugValue(snapshotDebugInfo?.createdAt),
