@@ -1,40 +1,55 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
-import {
-  buildScenarioComparisonRows,
-  deriveAdjustmentCandidates,
-  describeSafetyBasis,
-  STRESS_SCENARIO_NOTE,
-  summarizeWorsenedMetrics,
-} from "@/lib/asset-simulator-portfolio-ui";
+import { useMemo } from "react";
+import { buildMonthlySupplyRows } from "@/lib/asset-simulator-safety-chart-ui";
+import { buildScenarioComparisonRows, formatPreservationRatio } from "@/lib/asset-simulator-portfolio-ui";
+import { formatManwonMoney } from "@/lib/format";
 import type { SafetyResult, SimulatorProjection } from "@/lib/asset-simulator-types";
-import SafetyScenarioCompareTable from "./SafetyScenarioCompareTable";
-import SafetyAdjustmentCandidates from "./SafetyAdjustmentCandidates";
 import SafetyAssetTrajectoryChart from "./SafetyAssetTrajectoryChart";
 import SafetyMonthlySupplyChart from "./SafetyMonthlySupplyChart";
+import SafetyScenarioCompareTable from "./SafetyScenarioCompareTable";
 
-// 기본/하락장 통합 안전성을 단일 비교표로 보여주는 섹션.
-// 카드 2장을 나란히 두던 방식 대신, 지표별 기본/하락장/변화를 한 표에서 대조한다.
-// 계좌별 상세는 아래 은퇴 안전성 분석(RetirementSafetySection)에서 확인한다.
+type PreservationComparison = {
+  basic: number;
+  stress: number;
+};
+
 type Props = {
   basic: SafetyResult;
-  // 표시용으로 보정된 하락장 통합 결과(기본 점수를 넘지 않도록 cap 처리됨).
   stress: SafetyResult;
+  taxSavingPreservation: PreservationComparison;
+  brokeragePreservation: PreservationComparison;
   hasTarget: boolean;
-  // 통합 안전성 평가 기준 문구(목표 월생활비 / 임시 인출 기준)에 사용.
   targetMonthlyExpenseReal: number | null;
-  // 최종 실질자산(만원).
   basicFinalReal: number;
   stressFinalReal: number;
-  // 기존 계산 결과를 그대로 차트 표시용으로 전달한다.
   projection: SimulatorProjection;
   stressProjection: SimulatorProjection | null;
 };
 
+function firstSupply(projection: SimulatorProjection | null) {
+  return projection?.totalWithdrawRows.find((row) => row.isWithdraw) ?? projection?.totalWithdrawRows.at(0) ?? null;
+}
+
+function targetDifferenceText(value: number | null): string {
+  if (value === null) return "—";
+  return value >= 0 ? `${formatManwonMoney(value)} 여유` : `${formatManwonMoney(Math.abs(value))} 부족`;
+}
+
+function StressMetric({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="min-w-0 border-l border-slate-200 px-3 first:border-l-0 dark:border-[#2c3638]">
+      <p className="text-[10.5px] font-semibold text-slate-500 dark:text-slate-400">{label}</p>
+      <div className="mt-1 break-keep text-[14px] font-extrabold text-slate-900 dark:text-white">{children}</div>
+    </div>
+  );
+}
+
 export default function SafetyScenarioComparison({
   basic,
   stress,
+  taxSavingPreservation,
+  brokeragePreservation,
   hasTarget,
   targetMonthlyExpenseReal,
   basicFinalReal,
@@ -42,81 +57,49 @@ export default function SafetyScenarioComparison({
   projection,
   stressProjection,
 }: Props) {
-  const rows = useMemo(
-    () => buildScenarioComparisonRows(basic, stress, basicFinalReal, stressFinalReal, hasTarget),
-    [basic, stress, basicFinalReal, stressFinalReal, hasTarget],
-  );
-  const worsened = useMemo(() => summarizeWorsenedMetrics(rows), [rows]);
-  const candidates = useMemo(() => deriveAdjustmentCandidates(basic, stress, hasTarget), [basic, stress, hasTarget]);
-  const basis = describeSafetyBasis("combined", targetMonthlyExpenseReal);
-
-  // 목표 미입력 시 Hero 의 목표 입력창으로 포커스를 이동시킨다.
-  const focusTargetInput = useCallback(() => {
-    if (typeof document === "undefined") return;
-    const input = document.getElementById("target-monthly-expense");
-    if (input instanceof HTMLElement) {
-      input.scrollIntoView({ behavior: "smooth", block: "center" });
-      input.focus({ preventScroll: true });
-    }
-  }, []);
+  const baseSupply = firstSupply(projection)?.totalMonthlyIncomeReal ?? null;
+  const stressSupply = firstSupply(stressProjection)?.totalMonthlyIncomeReal ?? null;
+  const baseDifference = hasTarget && baseSupply !== null ? baseSupply - targetMonthlyExpenseReal! : null;
+  const stressDifference = hasTarget && stressSupply !== null ? stressSupply - targetMonthlyExpenseReal! : null;
+  const rows = useMemo(() => buildScenarioComparisonRows(basic, stress, basicFinalReal, stressFinalReal, hasTarget), [basic, stress, basicFinalReal, stressFinalReal, hasTarget]);
+  const shortfallStart = useMemo(() => {
+    if (!stressProjection || targetMonthlyExpenseReal === null) return null;
+    const supplyRows = buildMonthlySupplyRows(projection, stressProjection, targetMonthlyExpenseReal);
+    return supplyRows?.find((row) => row.stressSupply !== null && row.stressSupply < targetMonthlyExpenseReal)?.year ?? null;
+  }, [projection, stressProjection, targetMonthlyExpenseReal]);
 
   return (
-    <section
-      aria-label="기본·하락장 통합 안전성 비교"
-      className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-[#273032] dark:bg-[#171d1e] sm:p-5"
-    >
-      <div className="min-w-0">
-        <h3 className="text-[15px] font-bold text-slate-900 dark:text-white">기본 · 하락장 비교</h3>
-        {/* 하락장 설명은 여기 한 곳에서만 노출한다(중복 배너 방지). */}
-        <p className="mt-1 break-keep text-[12px] leading-relaxed text-slate-600 dark:text-slate-400">
-          {STRESS_SCENARIO_NOTE}
-        </p>
-        <p className="mt-1 text-[11.5px] font-semibold text-slate-700 dark:text-slate-300">{basis.label}</p>
-      </div>
-
-      <div className="mt-3 grid min-w-0 grid-cols-1 gap-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] xl:items-start">
-        <SafetyScenarioCompareTable basic={basic} stress={stress} rows={rows} />
-        <div className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-[#273032] dark:bg-white/[0.03] sm:p-4">
-          <div className="mb-2">
-            <h4 className="text-[13px] font-bold text-slate-900 dark:text-slate-100">실질 총자산 추이</h4>
-            <p className="mt-0.5 text-[11.5px] leading-relaxed text-slate-600 dark:text-slate-400">기본과 하락장 시나리오의 자산 격차가 벌어지는 시점을 확인합니다.</p>
-          </div>
-          <SafetyAssetTrajectoryChart projection={projection} stressProjection={stressProjection} />
+    <section aria-label="하락장 비교와 보조 차트" className="min-w-0 space-y-4">
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-[#273032] dark:bg-[#171d1e] sm:p-5">
+        <h3 className="text-[15px] font-bold text-slate-900 dark:text-white">하락장 비교</h3>
+        <p className="mt-1 text-[11.5px] text-slate-600 dark:text-slate-400">기본 시나리오와 은퇴 초반 하락장 가정의 현금흐름 변화를 함께 확인합니다.</p>
+        <div className="mt-3 grid grid-cols-1 gap-y-3 sm:grid-cols-4 sm:gap-y-0">
+          <StressMetric label="월 현금">
+            <span>기본 {baseSupply === null ? "—" : formatManwonMoney(baseSupply)}</span>
+            <span className="mx-1 text-slate-400">→</span>
+            <span className="text-blue-600 dark:text-blue-400">하락장 {stressSupply === null ? "—" : formatManwonMoney(stressSupply)}</span>
+          </StressMetric>
+          <StressMetric label="목표 대비">
+            <span>기본 {targetDifferenceText(baseDifference)}</span>
+            <span className="mx-1 text-slate-400">→</span>
+            <span className={stressDifference !== null && stressDifference < 0 ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400"}>하락장 {targetDifferenceText(stressDifference)}</span>
+          </StressMetric>
+          <StressMetric label="실가치보존율">
+            <span>절세 {formatPreservationRatio(taxSavingPreservation.basic)} → {formatPreservationRatio(taxSavingPreservation.stress)}</span>
+            <span className="block text-[12px] font-semibold text-slate-600 dark:text-slate-300">위탁 {formatPreservationRatio(brokeragePreservation.basic)} → {formatPreservationRatio(brokeragePreservation.stress)}</span>
+          </StressMetric>
+          <StressMetric label="부족 시작">{shortfallStart ? `${shortfallStart}년` : "부족 없음"}</StressMetric>
         </div>
       </div>
-
-      <div className="mt-5 min-w-0">
-        <SafetyMonthlySupplyChart
-          projection={projection}
-          stressProjection={stressProjection}
-          targetMonthlyExpenseReal={targetMonthlyExpenseReal}
-          safetyResult={basic}
-          stressSafetyResult={stress}
-          onFocusTargetInput={focusTargetInput}
-        />
-      </div>
-
-      {/* 악화 항목 요약 */}
-      <div className="mt-3 rounded-lg bg-slate-50 px-3 py-2 dark:bg-white/[0.03]">
-        {worsened.items.length === 0 ? (
-          <p className="break-keep text-[12px] leading-relaxed text-slate-700 dark:text-slate-300">{worsened.headline}</p>
-        ) : (
-          <p className="break-keep text-[12px] leading-relaxed text-slate-700 dark:text-slate-300">
-            <span className="font-semibold">{worsened.headline}:</span>{" "}
-            {worsened.items.map((item, index) => (
-              <span
-                key={item.label}
-                className={item.tone === "warning" ? "font-bold text-rose-600 dark:text-rose-400" : "text-slate-700 dark:text-slate-300"}
-              >
-                {index > 0 ? ", " : ""}
-                {item.label} {item.deltaText}
-              </span>
-            ))}
-          </p>
-        )}
-      </div>
-
-      <SafetyAdjustmentCandidates candidates={candidates} />
+      <SafetyMonthlySupplyChart projection={projection} stressProjection={stressProjection} targetMonthlyExpenseReal={targetMonthlyExpenseReal} safetyResult={basic} stressSafetyResult={stress} />
+      <details className="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-[#273032] dark:bg-[#171d1e] sm:p-5">
+        <summary className="flex cursor-pointer list-none items-center justify-between text-[14px] font-bold text-slate-900 dark:text-white [&::-webkit-details-marker]:hidden"><span>계좌별 실가치 자산 추이</span><span className="text-slate-400 transition group-open:rotate-90">›</span></summary>
+        <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-[#273032] dark:bg-white/[0.03]"><SafetyAssetTrajectoryChart projection={projection} stressProjection={stressProjection} /></div>
+      </details>
+      <details className="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-[#273032] dark:bg-[#171d1e] sm:p-5">
+        <summary className="flex cursor-pointer list-none items-center justify-between text-[13px] font-semibold text-slate-700 dark:text-slate-200 [&::-webkit-details-marker]:hidden"><span>기존 안전성 점수 참고</span><span className="text-slate-400 transition group-open:rotate-90">›</span></summary>
+        <SafetyScenarioCompareTable basic={basic} stress={stress} rows={rows} />
+      </details>
     </section>
   );
 }

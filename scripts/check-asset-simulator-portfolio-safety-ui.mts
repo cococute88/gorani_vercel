@@ -192,11 +192,35 @@ assert.match(page, /<RetirementSafetySection/, "은퇴 안전성 섹션 렌더")
 assert.match(page, /onApply=\{setPortfolioAssumptions\}/, "적용 버튼이 portfolioAssumptions 를 갱신");
 
 const section = read("components/asset-simulator/PortfolioConfigSection.tsx");
-assert.match(section, /절세계좌 포트폴리오|ACCOUNT_LABELS/, "절세/위탁 분리 라벨 사용");
-assert.match(section, /포트폴리오 가정 적용/, "적용 버튼 문구");
-assert.match(section, /예시 포트폴리오 불러오기/, "예시 불러오기 버튼");
+assert.match(section, /절세계좌 · 인출 기반[\s\S]*위탁계좌 · 배당 현금흐름 기반/, "절세/위탁 현금흐름 기준 라벨 사용");
+assert.match(section, /결과 확인/, "결과 확인 CTA 문구");
+assert.match(section, /예시 포트폴리오로 시작/, "예시 시작 버튼");
+assert.doesNotMatch(section, /포트폴리오 가정 적용/, "이전 가정 적용 CTA 제거");
+assert.match(section, /자동 환산/, "환산 금액 readonly 표시");
+assert.match(section, /가정 수정/, "접힘 가정 수정 UX");
+assert.doesNotMatch(section, /전체 자동 계산/, "전체 자동 계산 버튼 제거");
+assert.doesNotMatch(section, /자동 계산\s*\/\s*수동 입력/, "자동/수동 토글 제거");
 assert.match(section, /overflow-hidden/, "가로 넘침 방지용 overflow-hidden 사용");
 assert.match(section, /aria-label/, "접근성 라벨 사용");
+assert.match(section, /resolveEffectivePortfolioProjectionAssumptions/, "현재 holdings 기준 자동 요약 산출");
+assert.match(section, /비중 100% 입력 후 계산/, "비중 불완전 시 확정 수익률 대신 확인 안내");
+assert.match(section, /setResolutions\(keepActive\)/, "삭제 종목 resolver 결과 정리");
+assert.match(section, /onSave/, "결과 확인 옆 저장 동작 연결");
+
+const hero = read("components/asset-simulator/SafetyHeroCard.tsx");
+assert.match(hero, /목표 월생활비[\s\S]*기간[\s\S]*물가상승률/, "목표 설정 입력 구조");
+assert.doesNotMatch(hero, /시작 연도|시작년도/, "시작 연도 입력 제거");
+
+const kpis = read("components/asset-simulator/SafetyKpiCards.tsx");
+assert.match(kpis, /총 월 현금[\s\S]*절세계좌 월 현금[\s\S]*위탁계좌 월 현금[\s\S]*충당률/, "월 현금 중심 결과");
+assert.match(kpis, /실가치보존율/, "실가치보존율 표기");
+assert.doesNotMatch(kpis, /하락장 손상폭/, "하락장 손상폭 KPI 제거");
+
+const comparison = read("components/asset-simulator/SafetyScenarioComparison.tsx");
+assert.match(comparison, /월 현금/, "하락장 비교의 월 현금 표기");
+assert.match(comparison, /targetDifferenceText/, "여유·부족을 부호 대신 문구로 표기");
+assert.doesNotMatch(comparison, /월 공급/, "하락장 비교의 공급 용어 제거");
+assert.match(comparison, /기존 안전성 점수 참고/, "등급 비교는 보조 접힘 정보");
 
 const safety = read("components/asset-simulator/RetirementSafetySection.tsx");
 assert.match(safety, /은퇴 안전성 분석/, "안전성 섹션 제목");

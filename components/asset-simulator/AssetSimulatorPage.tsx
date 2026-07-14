@@ -448,21 +448,24 @@ export default function AssetSimulatorPage() {
           <SafetyCheckDashboard
             projection={projection}
             stressProjection={stressProjection}
-            portfolioApplied={portfolioAssumptions !== null}
             targetMonthlyExpenseReal={targetMonthlyExpenseReal}
             onTargetMonthlyExpenseChange={setTargetMonthlyExpenseReal}
-            lastSavedAtMs={lastSavedAtMs}
-            onSave={handleSave}
-            saving={saving}
-            saveMessage={saveMessage}
-            saveError={saveError}
+            inputs={inputs}
+            onInputsChange={handleInputsChange}
             configPanel={
               <PortfolioConfigSection
                 config={portfolioConfig}
                 onConfigChange={setPortfolioConfig}
                 appliedAssumptions={portfolioAssumptions}
                 onApply={setPortfolioAssumptions}
-                portfolioSummary={projection.summary.portfolioSummary}
+                inputs={inputs}
+                onInputsChange={handleInputsChange}
+                taxMonthlySupply={projection.totalWithdrawRows.find((row) => row.isWithdraw)?.taxSavingMonthlyReal ?? null}
+                brokerageMonthlySupply={projection.totalWithdrawRows.find((row) => row.isWithdraw)?.taxableMonthlyDividendReal ?? null}
+                onSave={handleSave}
+                saving={saving}
+                saveMessage={saveMessage}
+                saveError={saveError}
               />
             }
             safetyPanel={

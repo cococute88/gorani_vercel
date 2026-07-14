@@ -279,20 +279,24 @@ function fixture(options: FixtureOptions = {}): SimulatorProjection {
   assert.match(page, /onTargetMonthlyExpenseChange=\{setTargetMonthlyExpenseReal\}/, "대시보드에 setter 전달");
   assert.match(page, /setTargetMonthlyExpenseReal\(null\)/, "초기화 시 목표 월생활비 해제");
 
-  // 목표 월생활비 입력은 은퇴 안전성 섹션에서 SafetyHeroCard 로 이동했다.
-  // 대시보드는 setter 를 Hero 까지 전달하고, Hero 가 입력 UI/문구를 갖는다.
+  // 목표 월생활비 입력은 목표 설정 단계의 SafetyHeroCard 에 둔다.
+  // 대시보드는 목표와 기간/물가 입력을 Hero 까지 전달한다.
   const dashboard = read("components/asset-simulator/SafetyCheckDashboard.tsx");
   assert.match(dashboard, /onTargetMonthlyExpenseChange=\{onTargetMonthlyExpenseChange\}/, "대시보드가 Hero 로 setter 전달");
+  assert.match(dashboard, /inputs=\{inputs\}/, "대시보드가 Hero 로 시뮬레이션 입력 전달");
 
   const hero = read("components/asset-simulator/SafetyHeroCard.tsx");
   assert.match(hero, /id="target-monthly-expense"/, "Hero 목표 월생활비 입력 id");
   assert.match(hero, /목표 월생활비/, "목표 월생활비 입력 라벨");
   assert.match(hero, /현재 가치 기준/, "현재 가치 기준 안내");
-  assert.match(hero, /목표 생활비 기준으로 평가합니다/, "미입력 안내 문구");
-  assert.match(hero, /참고용 임시 평가/, "미입력 임시 평가 문구");
-  assert.match(hero, /기준으로 평가 중/, "입력 시 평가 기준 문구");
-  assert.match(hero, /충당률/, "월 공급 대비 충당률 표시");
-  assert.match(hero, /onTargetMonthlyExpenseChange\(parseTargetInput\(next\)\)/, "Hero 가 파싱된 목표 값을 상위로 전달");
+  assert.match(hero, /기간/, "기간 입력 라벨");
+  assert.match(hero, /물가상승률/, "물가상승률 입력 라벨");
+  assert.match(hero, /onTargetMonthlyExpenseChange/, "Hero 가 목표 값을 상위로 전달");
+
+  const resultCards = read("components/asset-simulator/SafetyKpiCards.tsx");
+  assert.match(resultCards, /월생활비 충당 결과/, "월생활비 충당 결과 표시");
+  assert.match(resultCards, /총 월 현금[\s\S]*절세계좌 월 현금[\s\S]*위탁계좌 월 현금[\s\S]*월 여유\/부족/, "계좌별 월 현금과 여유·부족 표시");
+  assert.match(resultCards, /충당률[\s\S]*100%[\s\S]*150%/, "충당률 기준 표시");
 
   const section = read("components/asset-simulator/RetirementSafetySection.tsx");
   assert.match(section, /calculateRetirementSafety\(projection, \{ targetMonthlyExpenseReal \}\)/, "섹션이 목표 월생활비를 Safety 에 전달");

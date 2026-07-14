@@ -5,6 +5,7 @@ import {
   buildAppliedPortfolioAssumptions,
   doPortfolioAssumptionsMatchConfig,
   isPortfolioAssumptionsStale,
+  resolveEffectivePortfolioProjectionAssumptions,
 } from "../lib/asset-simulator-portfolio-assumptions.ts";
 import {
   buildFirestoreSimulatorConfigPayload,
@@ -215,6 +216,21 @@ assert.equal(doPortfolioAssumptionsMatchConfig(manualConfig(), manual), true, "�
 const changedManual = manualConfig();
 changedManual.brokerage.holdings[0].manual!.dividendYieldPct = 7.9;
 assert.equal(doPortfolioAssumptionsMatchConfig(changedManual, manual), false, "manual 값 변경 감지");
+
+// 종목 삭제 뒤에는 현재 holdings만 aggregate에 반영한다. 비중이 50%로 남으면
+// assumptions를 만들지 않아 UI가 이전 확정 CAGR을 재사용할 수 없다.
+const deletedHoldingConfig = manualConfig();
+deletedHoldingConfig.taxSaving.holdings = [
+  { id: "tax-schd", ticker: "SCHD", weightPct: 50, metricMode: "manual", manual: { totalReturnCagrPct: 8 } },
+  { id: "tax-qld", ticker: "QLD", weightPct: 50, metricMode: "manual", manual: { totalReturnCagrPct: 40 } },
+];
+const beforeDelete = requireAssumptions(buildAppliedPortfolioAssumptions(deletedHoldingConfig, [], NOW).assumptions);
+assert.equal(resolveEffectivePortfolioProjectionAssumptions(beforeDelete).taxSavingTotalReturnPct, 24, "삭제 전 가중 CAGR 확인");
+deletedHoldingConfig.taxSaving.holdings = [deletedHoldingConfig.taxSaving.holdings[0]];
+assert.equal(buildAppliedPortfolioAssumptions(deletedHoldingConfig, [], NOW).assumptions, null, "비중 50%만 남으면 확정 assumptions 생성 차단");
+deletedHoldingConfig.taxSaving.holdings[0].weightPct = 100;
+const afterDelete = requireAssumptions(buildAppliedPortfolioAssumptions(deletedHoldingConfig, [], NOW).assumptions);
+assert.equal(resolveEffectivePortfolioProjectionAssumptions(afterDelete).taxSavingTotalReturnPct, 8, "삭제 후 남은 SCHD만 aggregate에 반영");
 
 const plans = buildDefaultYearPlans(DEFAULT_SIMULATOR_INPUTS.startYear, DEFAULT_SIMULATOR_INPUTS.years);
 const stored = buildStoredSimulatorConfig(DEFAULT_SIMULATOR_INPUTS, plans, NOW.toISOString(), {
