@@ -458,11 +458,14 @@ export default function AssetSimulatorPage() {
                 onConfigChange={setPortfolioConfig}
                 appliedAssumptions={portfolioAssumptions}
                 onApply={setPortfolioAssumptions}
-                portfolioSummary={projection.summary.portfolioSummary}
                 inputs={inputs}
                 onInputsChange={handleInputsChange}
                 taxMonthlySupply={projection.totalWithdrawRows.find((row) => row.isWithdraw)?.taxSavingMonthlyReal ?? null}
                 brokerageMonthlySupply={projection.totalWithdrawRows.find((row) => row.isWithdraw)?.taxableMonthlyDividendReal ?? null}
+                onSave={handleSave}
+                saving={saving}
+                saveMessage={saveMessage}
+                saveError={saveError}
               />
             }
             safetyPanel={

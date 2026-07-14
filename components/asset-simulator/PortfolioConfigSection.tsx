@@ -10,6 +10,7 @@ import {
   buildAppliedPortfolioAssumptions,
   doPortfolioAssumptionsMatchConfig,
   isPortfolioAssumptionsStale,
+  resolveEffectivePortfolioProjectionAssumptions,
 } from "@/lib/asset-simulator-portfolio-assumptions";
 import { resolvePortfolioHoldingMetricsClient } from "@/lib/asset-simulator-portfolio-client";
 import {
@@ -29,7 +30,6 @@ import type {
   PortfolioHoldingInput,
   PortfolioHoldingResolution,
   PortfolioManualMetrics,
-  PortfolioProjectionSummary,
   PortfolioValidationIssue,
   SimulatorInputs,
 } from "@/lib/asset-simulator-types";
@@ -39,11 +39,14 @@ type Props = {
   onConfigChange: (config: AssetSimulatorPortfolioConfigV1) => void;
   appliedAssumptions: AppliedPortfolioAssumptionsV1 | null;
   onApply: (assumptions: AppliedPortfolioAssumptionsV1) => void;
-  portfolioSummary?: PortfolioProjectionSummary;
   inputs: SimulatorInputs;
   onInputsChange: (inputs: SimulatorInputs) => void;
   taxMonthlySupply: number | null;
   brokerageMonthlySupply: number | null;
+  onSave: () => void;
+  saving: boolean;
+  saveMessage: string | null;
+  saveError: string | null;
 };
 
 const ACCOUNT_ORDER: PortfolioAccountType[] = ["taxSaving", "brokerage"];
@@ -53,7 +56,7 @@ const ACCOUNT_COPY: Record<PortfolioAccountType, {
   subtitle: string;
   accent: "emerald" | "orange";
 }> = {
-  taxSaving: { title: "절세계좌 · 인출 기반", subtitle: "잔고와 연 인출률을 기준으로 월 공급액을 계산합니다.", accent: "emerald" },
+  taxSaving: { title: "절세계좌 · 인출 기반", subtitle: "잔고와 연 인출률을 기준으로 월 현금을 계산합니다.", accent: "emerald" },
   brokerage: { title: "위탁계좌 · 배당 현금흐름 기반", subtitle: "원금 매도 없이 세후 배당 현금흐름을 중심으로 봅니다.", accent: "orange" },
 };
 
@@ -121,11 +124,14 @@ export default function PortfolioConfigSection({
   onConfigChange,
   appliedAssumptions,
   onApply,
-  portfolioSummary,
   inputs,
   onInputsChange,
   taxMonthlySupply,
   brokerageMonthlySupply,
+  onSave,
+  saving,
+  saveMessage,
+  saveError,
 }: Props) {
   const [resolutions, setResolutions] = useState<Record<string, PortfolioHoldingResolution>>({});
   const [loadingKeys, setLoadingKeys] = useState<Record<string, boolean>>({});
@@ -171,6 +177,12 @@ export default function PortfolioConfigSection({
     [config, resolutions],
   );
   const canApply = Boolean(applyPreview.assumptions) && !anyLoading;
+  const currentPortfolioSummary = useMemo(
+    () => applyPreview.assumptions
+      ? resolveEffectivePortfolioProjectionAssumptions(applyPreview.assumptions).portfolioSummary
+      : null,
+    [applyPreview.assumptions],
+  );
   const applyState: PortfolioApplyState = useMemo(() => {
     if (!config || !appliedAssumptions) return "none";
     if (!doPortfolioAssumptionsMatchConfig(config, appliedAssumptions)) return "config_changed";
@@ -180,7 +192,41 @@ export default function PortfolioConfigSection({
   const updateAccount = (accountType: PortfolioAccountType, holdings: PortfolioHoldingInput[]) => {
     const base = config ?? buildDefaultPortfolioConfig();
     const nextAccount: AccountPortfolioConfig = { accountType, holdings };
-    onConfigChange({ ...base, [accountType]: nextAccount });
+    const nextConfig = { ...base, [accountType]: nextAccount };
+    const activeResolutionKeys = new Set(
+      ACCOUNT_ORDER.flatMap((type) => nextConfig[type].holdings
+        .filter((holding) => holding.metricMode === "auto")
+        .map((holding) => {
+          const ticker = normalizePortfolioTicker(holding.ticker);
+          return ticker ? resolutionKey(type, ticker) : null;
+        })
+        .filter((key): key is string => key !== null)),
+    );
+    const activeTimerKeys = new Set(
+      ACCOUNT_ORDER.flatMap((type) => nextConfig[type].holdings.map((holding) => `${type}:${holding.id}`)),
+    );
+
+    // 삭제하거나 티커를 바꾼 종목의 조회값은 남겨 두지 않는다. 적용 스냅샷뿐 아니라
+    // 화면용 자동 계산값도 현재 holdings만 참조하게 한다.
+    controllersRef.current.forEach((controller, key) => {
+      if (!activeResolutionKeys.has(key)) {
+        controller.abort();
+        controllersRef.current.delete(key);
+      }
+    });
+    resolveTimersRef.current.forEach((timer, key) => {
+      if (!activeTimerKeys.has(key)) {
+        clearTimeout(timer);
+        resolveTimersRef.current.delete(key);
+      }
+    });
+    const keepActive = <T,>(current: Record<string, T>) => Object.fromEntries(
+      Object.entries(current).filter(([key]) => activeResolutionKeys.has(key)),
+    ) as Record<string, T>;
+    setResolutions(keepActive);
+    setLoadingKeys(keepActive);
+    setFetchErrors(keepActive);
+    onConfigChange(nextConfig);
   };
 
   const updateHolding = (accountType: PortfolioAccountType, holdingId: string, patch: Partial<PortfolioHoldingInput>) => {
@@ -315,6 +361,8 @@ export default function PortfolioConfigSection({
 
   const calculationStatus: { label: string; tone: UiTone } = anyLoading
     ? { label: "자동 계산 중", tone: "neutral" }
+    : validationIssues.length > 0
+      ? { label: "비중 또는 입력 확인 필요", tone: "caution" }
     : Object.keys(fetchErrors).length > 0
       ? { label: "가정 일부 확인 필요", tone: "caution" }
       : { label: applyState === "clean" ? "결과가 최신입니다" : "자동 계산 완료", tone: "positive" };
@@ -335,10 +383,12 @@ export default function PortfolioConfigSection({
           const copy = ACCOUNT_COPY[accountType];
           const isTaxSaving = accountType === "taxSaving";
           const totalManwon = isTaxSaving ? taxTotalManwon : brokerageTotalManwon;
-          const monthlySupply = isTaxSaving ? taxMonthlySupply : brokerageMonthlySupply;
+          const monthlyCash = isTaxSaving ? taxMonthlySupply : brokerageMonthlySupply;
           const summaryValue = isTaxSaving
-            ? portfolioSummary?.taxSaving.effectiveTotalReturnPct
-            : portfolioSummary?.brokerage.effectiveDividendYieldPct;
+            ? currentPortfolioSummary?.taxSaving.effectiveTotalReturnPct
+            : currentPortfolioSummary?.brokerage.effectiveDividendYieldPct;
+          const canShowCurrentMetrics = currentPortfolioSummary !== null && canApply;
+          const canShowProjectedCash = applyState === "clean";
           const weight = describeAccountWeight(account.holdings);
           const accent = copy.accent === "emerald"
             ? "border-emerald-300 bg-emerald-50/30 dark:border-emerald-500/40 dark:bg-emerald-500/[0.03]"
@@ -374,11 +424,27 @@ export default function PortfolioConfigSection({
                   )}
                 </div>
                 <div className="rounded-lg border border-white/80 bg-white/80 p-2.5 shadow-sm dark:border-white/10 dark:bg-black/10">
-                  <p className="flex items-center justify-between text-[11px] font-semibold text-slate-600 dark:text-slate-300"><span>자동 계산</span><span className="text-emerald-600 dark:text-emerald-400">● 완료</span></p>
-                  <div className={`mt-1 grid gap-2 ${isTaxSaving ? "grid-cols-2" : "grid-cols-2"}`}>
-                    <div><p className="text-[10.5px] text-slate-500 dark:text-slate-400">{isTaxSaving ? "예상 CAGR" : "예상 세후 배당률"}</p><p className="text-[19px] font-extrabold text-slate-900 dark:text-white">{typeof summaryValue === "number" ? formatPct(summaryValue, 1) : "—"}</p></div>
-                    <div><p className="text-[10.5px] text-slate-500 dark:text-slate-400">예상 월 공급</p><p className="text-[19px] font-extrabold text-slate-900 dark:text-white">{monthlySupply === null ? "—" : formatManwonMoney(monthlySupply)}</p></div>
+                  <p className="flex items-center justify-between text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                    <span>자동 계산</span>
+                    <span className={canShowCurrentMetrics ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}>
+                      {canShowCurrentMetrics ? "● 완료" : "● 확인 필요"}
+                    </span>
+                  </p>
+                  <div className="mt-1 grid grid-cols-2 gap-2">
+                    <div>
+                      <p className="text-[10.5px] text-slate-500 dark:text-slate-400">{isTaxSaving ? "예상 CAGR" : "예상 세후 배당률"}</p>
+                      <p className="text-[19px] font-extrabold text-slate-900 dark:text-white">
+                        {canShowCurrentMetrics && typeof summaryValue === "number" ? formatPct(summaryValue, 1) : "확인 필요"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10.5px] text-slate-500 dark:text-slate-400">예상 월 현금</p>
+                      <p className="text-[19px] font-extrabold text-slate-900 dark:text-white">
+                        {canShowProjectedCash && monthlyCash !== null ? formatManwonMoney(monthlyCash) : "결과 확인 후"}
+                      </p>
+                    </div>
                   </div>
+                  {!canShowCurrentMetrics && <p className="mt-1.5 text-[10.5px] text-amber-700 dark:text-amber-300">비중 100% 입력 후 계산</p>}
                 </div>
               </div>
 
@@ -402,8 +468,11 @@ export default function PortfolioConfigSection({
       </div>
 
       <div className="mt-4 flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 dark:border-[#2c3638] dark:bg-[#12181a] sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-[12px] text-slate-600 dark:text-slate-300" role="status">{applyMessage ?? (anyLoading ? "종목 가정을 자동으로 계산하고 있습니다." : "자동 계산 결과는 입력값을 바꾸면 다시 갱신됩니다.")}</p>
-        <div className="flex shrink-0 gap-2"><button type="button" onClick={handleApply} disabled={!canApply} className="rounded-lg bg-blue-600 px-4 py-2 text-[13px] font-bold text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-slate-300 dark:disabled:bg-slate-700">결과 확인</button></div>
+        <p className="text-[12px] text-slate-600 dark:text-slate-300" role="status">{saveError ?? saveMessage ?? applyMessage ?? (anyLoading ? "종목 가정을 자동으로 계산하고 있습니다." : "자동 계산 결과는 입력값을 바꾸면 다시 갱신됩니다.")}</p>
+        <div className="flex shrink-0 gap-2">
+          <button type="button" onClick={onSave} disabled={saving} className="rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-[13px] font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-[#465456] dark:bg-[#171d1e] dark:text-slate-200 dark:hover:bg-[#222b2d]">{saving ? "저장 중" : "저장"}</button>
+          <button type="button" onClick={handleApply} disabled={!canApply} className="rounded-lg bg-blue-600 px-4 py-2 text-[13px] font-bold text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-slate-300 dark:disabled:bg-slate-700">결과 확인</button>
+        </div>
       </div>
       {!canApply && !anyLoading && applyPreview.issues.length > 0 && <ul className="mt-2 space-y-1 text-[11.5px] text-rose-600 dark:text-rose-400">{applyPreview.issues.map((issue, index) => <li key={`${issue.code}-${index}`}>• {issue.message}</li>)}</ul>}
     </section>

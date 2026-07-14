@@ -295,7 +295,7 @@ function fixture(options: FixtureOptions = {}): SimulatorProjection {
 
   const resultCards = read("components/asset-simulator/SafetyKpiCards.tsx");
   assert.match(resultCards, /월생활비 충당 결과/, "월생활비 충당 결과 표시");
-  assert.match(resultCards, /총 월 공급[\s\S]*절세계좌[\s\S]*위탁계좌[\s\S]*월 여유/, "계좌별 월 공급과 여유 표시");
+  assert.match(resultCards, /총 월 현금[\s\S]*절세계좌 월 현금[\s\S]*위탁계좌 월 현금[\s\S]*월 여유\/부족/, "계좌별 월 현금과 여유·부족 표시");
   assert.match(resultCards, /충당률[\s\S]*100%[\s\S]*150%/, "충당률 기준 표시");
 
   const section = read("components/asset-simulator/RetirementSafetySection.tsx");

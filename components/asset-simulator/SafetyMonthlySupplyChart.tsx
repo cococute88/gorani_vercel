@@ -98,7 +98,7 @@ function ChartHeader({
   return (
     <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
       <div className="min-w-0">
-        <h4 className="text-[13px] font-bold text-slate-900 dark:text-slate-100">월 공급 vs 목표 월생활비</h4>
+        <h4 className="text-[13px] font-bold text-slate-900 dark:text-slate-100">월 현금 vs 목표 월생활비</h4>
         {hasTarget ? (
           <p className="mt-0.5 text-[11.5px] leading-relaxed text-slate-600 dark:text-slate-400">
             {formatManwonMoney(target!)} 기준 · 기본 부족 {basicShortfallYears ?? 0}년 · 하락장 부족 {stressShortfallYears ?? 0}년
@@ -147,7 +147,7 @@ export default function SafetyMonthlySupplyChart({
     return (
       <section className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-[#273032] dark:bg-white/[0.03] sm:p-4">
         <ChartHeader hasTarget={hasTarget} target={target} onFocusTargetInput={onFocusTargetInput} />
-        <EmptyState>인출 구간이 준비되면 월 공급 차트를 표시합니다.</EmptyState>
+        <EmptyState>인출 구간이 준비되면 월 현금 차트를 표시합니다.</EmptyState>
       </section>
     );
   }
@@ -157,8 +157,8 @@ export default function SafetyMonthlySupplyChart({
   const basicConsecutiveShortfallYears = safetyResult.metrics.consecutiveShortfallYears;
   const stressConsecutiveShortfallYears = stressSafetyResult?.metrics.consecutiveShortfallYears ?? null;
   const ariaLabel = hasTarget
-    ? `월 공급 차트: 목표 ${formatManwonMoney(target!)} 기준으로 기본 시나리오 부족 ${basicShortfallYears}년, 하락장 부족 ${stressShortfallYears ?? "결과 없음"}년입니다. 연속 부족은 기본 ${basicConsecutiveShortfallYears}년, 하락장 ${stressConsecutiveShortfallYears ?? "결과 없음"}년입니다.`
-    : "월 공급 차트: 기본 시나리오는 막대, 하락장 시나리오는 점선으로 인출 구간의 월 공급 추이를 보여줍니다. 목표 월생활비를 입력하면 기준선과 부족 연도가 표시됩니다.";
+    ? `월 현금 차트: 목표 ${formatManwonMoney(target!)} 기준으로 기본 시나리오 부족 ${basicShortfallYears}년, 하락장 부족 ${stressShortfallYears ?? "결과 없음"}년입니다. 연속 부족은 기본 ${basicConsecutiveShortfallYears}년, 하락장 ${stressConsecutiveShortfallYears ?? "결과 없음"}년입니다.`
+    : "월 현금 차트: 기본 시나리오는 막대, 하락장 시나리오는 점선으로 인출 구간의 월 현금 추이를 보여줍니다. 목표 월생활비를 입력하면 기준선과 부족 연도가 표시됩니다.";
 
   return (
     <section className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-[#273032] dark:bg-white/[0.03] sm:p-4">
@@ -169,9 +169,9 @@ export default function SafetyMonthlySupplyChart({
         stressShortfallYears={stressShortfallYears}
         onFocusTargetInput={onFocusTargetInput}
       />
-      <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1.5" aria-label="월 공급 차트 범례">
-        <SupplyLegend label="기본 월 공급 (막대)" type="base" />
-        <SupplyLegend label="하락장 월 공급 (점선)" type="stress" />
+      <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1.5" aria-label="월 현금 차트 범례">
+        <SupplyLegend label="기본 월 현금 (막대)" type="base" />
+        <SupplyLegend label="하락장 월 현금 (점선)" type="stress" />
         {hasTarget && <SupplyLegend label="목표 월생활비 (점선)" type="target" />}
       </div>
       <div className="safety-monthly-supply min-w-0" role="img" aria-label={ariaLabel}>
@@ -183,8 +183,8 @@ export default function SafetyMonthlySupplyChart({
               <YAxis stroke="var(--safety-monthly-axis)" tick={{ fontSize: 11 }} tickFormatter={formatAxisAmount} tickLine={false} axisLine={false} width={58} label={{ value: "만원/월", angle: -90, position: "insideLeft", fill: "var(--safety-monthly-axis)", fontSize: 10 }} />
               <Tooltip content={<MonthlySupplyTooltip />} cursor={{ fill: "rgba(148, 163, 184, 0.12)" }} />
               {hasTarget && <ReferenceLine y={target!} stroke="var(--safety-monthly-target)" strokeDasharray="5 4" ifOverflow="extendDomain" label={{ value: formatTargetLabel(target!), position: "insideTopRight", fill: "var(--safety-monthly-target)", fontSize: 10 }} />}
-              <Bar dataKey="baseSupply" name="기본 월 공급" fill="var(--safety-monthly-base)" radius={[3, 3, 0, 0]} maxBarSize={28} />
-              <Line type="monotone" dataKey="stressSupply" name="하락장 월 공급" stroke="var(--safety-monthly-stress)" strokeWidth={2} strokeDasharray="6 4" dot={false} connectNulls />
+              <Bar dataKey="baseSupply" name="기본 월 현금" fill="var(--safety-monthly-base)" radius={[3, 3, 0, 0]} maxBarSize={28} />
+              <Line type="monotone" dataKey="stressSupply" name="하락장 월 현금" stroke="var(--safety-monthly-stress)" strokeWidth={2} strokeDasharray="6 4" dot={false} connectNulls />
             </ComposedChart>
           </ResponsiveContainer>
         </div>
