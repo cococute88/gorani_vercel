@@ -91,3 +91,8 @@ export function formatManwonMoney(value: number): string {
   if (eok > 0) return `${sign}${eok.toLocaleString("ko-KR")}억원`;
   return `${sign}${man.toLocaleString("ko-KR")}만원`;
 }
+
+// 안전성 탭 공통 표기: 앞은 현재가치(실질), 괄호 안은 해당 연도 명목가치다.
+export function formatRealAndNominalManwon(real: number, nominal: number): string {
+  return `${formatManwonMoney(real)}(${formatManwonMoney(nominal)})`;
+}

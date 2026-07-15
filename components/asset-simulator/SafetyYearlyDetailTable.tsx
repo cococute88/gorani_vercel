@@ -43,7 +43,7 @@ function formatValue(value: number | null): string {
 function formatStatus(row: SafetyYearlyDetailRow): string {
   if (row.baseStatus === "no_target") return STATUS_LABEL.no_target;
   if (row.baseStatus === row.stressStatus) return STATUS_LABEL[row.baseStatus];
-  return `기본 ${STATUS_LABEL[row.baseStatus]} · 하락장 ${STATUS_LABEL[row.stressStatus]}`;
+  return `Good ${STATUS_LABEL[row.baseStatus]} · Bad ${STATUS_LABEL[row.stressStatus]}`;
 }
 
 function statusClass(row: SafetyYearlyDetailRow): string {
@@ -58,24 +58,24 @@ export default function SafetyYearlyDetailTable({ projection, stressProjection, 
   return (
     <details className="group mt-3 rounded-lg border border-slate-200 bg-white/60 dark:border-[#273032] dark:bg-white/[0.02]">
       <summary className="cursor-pointer list-none px-3 py-2.5 text-[11.5px] font-semibold text-slate-700 dark:text-slate-200 [&::-webkit-details-marker]:hidden">
-        <span className="underline decoration-dotted underline-offset-2">연도별 공급/자산 보기</span>
-        <span className="ml-1.5 font-normal text-slate-600 dark:text-slate-400">(기본 접힘)</span>
+        <span className="underline decoration-dotted underline-offset-2">연도별 월 현금흐름/자산 보기</span>
+        <span className="ml-1.5 font-normal text-slate-600 dark:text-slate-400">(Good 접힘)</span>
       </summary>
       {rows.length === 0 ? (
         <p className="border-t border-slate-200 px-3 py-3 text-[11.5px] text-slate-600 dark:border-[#273032] dark:text-slate-400">인출 구간 데이터가 준비되면 연도별 상세를 표시합니다.</p>
       ) : (
         <div className="overflow-x-auto border-t border-slate-200 dark:border-[#273032]">
           <table className="min-w-[760px] w-full border-separate border-spacing-0 text-left text-[11px]">
-            <caption className="sr-only">기본 및 하락장 시나리오의 연도별 월 현금, 목표 대비, 실질 총자산 상세</caption>
+            <caption className="sr-only">Good 및 Bad 시나리오의 연도별 월 현금흐름, 목표 대비, 실질 총자산 상세</caption>
             <thead className="bg-slate-100 text-slate-700 dark:bg-white/[0.04] dark:text-slate-300">
               <tr>
                 <th scope="col" className="sticky left-0 z-10 bg-slate-100 px-3 py-2 font-semibold dark:bg-[#1b2223]">연도</th>
                 <th scope="col" className="px-3 py-2 font-semibold">상태</th>
-                <th scope="col" className="px-3 py-2 font-semibold">기본 월 현금</th>
-                <th scope="col" className="px-3 py-2 font-semibold">하락장 월 현금</th>
+                <th scope="col" className="px-3 py-2 font-semibold">Good 월 현금흐름</th>
+                <th scope="col" className="px-3 py-2 font-semibold">Bad 월 현금흐름</th>
                 <th scope="col" className="px-3 py-2 font-semibold">목표 대비</th>
-                <th scope="col" className="px-3 py-2 font-semibold">기본 실질 총자산</th>
-                <th scope="col" className="px-3 py-2 font-semibold">하락장 실질 총자산</th>
+                <th scope="col" className="px-3 py-2 font-semibold">Good 실질 총자산</th>
+                <th scope="col" className="px-3 py-2 font-semibold">Bad 실질 총자산</th>
               </tr>
             </thead>
             <tbody>
@@ -85,7 +85,7 @@ export default function SafetyYearlyDetailTable({ projection, stressProjection, 
                   <td className={`px-3 py-2 font-medium ${statusClass(row)}`}>{formatStatus(row)}</td>
                   <td className="px-3 py-2 text-slate-700 dark:text-slate-300">{formatValue(row.baseSupply)}/월</td>
                   <td className="px-3 py-2 text-slate-700 dark:text-slate-300">{formatValue(row.stressSupply)}/월</td>
-                  <td className="px-3 py-2 text-slate-700 dark:text-slate-300">기본 {formatCoverage(row.baseSupply, targetMonthlyExpenseReal)} · 하락장 {formatCoverage(row.stressSupply, targetMonthlyExpenseReal)}</td>
+                  <td className="px-3 py-2 text-slate-700 dark:text-slate-300">Good {formatCoverage(row.baseSupply, targetMonthlyExpenseReal)} · Bad {formatCoverage(row.stressSupply, targetMonthlyExpenseReal)}</td>
                   <td className="px-3 py-2 text-slate-700 dark:text-slate-300">{formatValue(row.base)}</td>
                   <td className="px-3 py-2 text-slate-700 dark:text-slate-300">{formatValue(row.stress)}</td>
                 </tr>

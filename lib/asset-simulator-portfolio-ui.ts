@@ -122,16 +122,17 @@ export function describeSafety(result: SafetyResult): SafetyDisplay {
     };
   }
 
-  const toneByGrade: Record<string, { toneLabel: string; tone: UiTone }> = {
-    S: { toneLabel: "매우 안정적", tone: "positive" },
-    A: { toneLabel: "안정적", tone: "positive" },
-    B: { toneLabel: "양호", tone: "positive" },
-    C: { toneLabel: "점검 필요", tone: "caution" },
-    D: { toneLabel: "보수적 조정 권장", tone: "warning" },
-    F: { toneLabel: "보수적 조정 권장", tone: "warning" },
-  };
-  const descriptor = toneByGrade[result.grade] ?? { toneLabel: "점검 필요", tone: "caution" as UiTone };
-  return { gradeLabel: result.grade, toneLabel: descriptor.toneLabel, tone: descriptor.tone, showScore: true };
+  const score = result.score;
+  const depleted = result.metrics.depleted;
+  const severeShortfall = result.metrics.consecutiveShortfallYears >= 2 || result.metrics.shortfallYears >= 3;
+  const descriptor = depleted || score < 50
+    ? { gradeLabel: "위험", toneLabel: "고갈위험 높음", tone: "warning" as UiTone }
+    : severeShortfall || score < 65
+      ? { gradeLabel: "주의", toneLabel: "부족 구간 점검", tone: "caution" as UiTone }
+      : score < 80
+        ? { gradeLabel: "보통", toneLabel: "일부 보수적 점검", tone: "caution" as UiTone }
+        : { gradeLabel: "안전", toneLabel: "고갈위험 낮음", tone: "positive" as UiTone };
+  return { ...descriptor, showScore: true };
 }
 
 function capStressResultForDisplay(base: SafetyResult, stress: SafetyResult): SafetyResult {
@@ -157,7 +158,7 @@ export function calibrateStressSafetyForDisplay(
   };
 }
 
-// 충당률(월 수요 대비 월 공급 평균, 0~1)을 백분율 문자열로 표시한다. 값이 없으면 대시.
+// 충당률(월 수요 대비 월 현금흐름 평균, 0~1)을 백분율 문자열로 표시한다. 값이 없으면 대시.
 export function formatCoverageRatio(ratio: number | null | undefined): string {
   if (typeof ratio !== "number" || !Number.isFinite(ratio)) return "—";
   return formatPct(ratio * 100, 0);
@@ -245,19 +246,19 @@ export function accountBasisShort(
 }
 
 export type AccountDiagnosis = {
-  // 기본→하락장 변화 요약. 미평가면 회색 보조 문구 하나만 담는다.
+  // Good→Bad 변화 요약. 미평가면 회색 보조 문구 하나만 담는다.
   changeText: string;
   // 한줄 근거.
   reason: string;
   tone: UiTone;
-  // 기본 status === "evaluated" 여부. false 면 큰 등급처럼 표시하지 않는다.
+  // Good status === "evaluated" 여부. false 면 큰 등급처럼 표시하지 않는다.
   evaluated: boolean;
   basisShort: string;
 };
 
 // 계좌 진단 한 행의 변화 요약/근거/톤을 파생한다.
-// - 기본이 미평가(not_applicable/data_insufficient)면 등급 대신 회색 안내로 강등한다.
-// - 평가된 경우 기본/하락장 tier 를 비교해 "안정 / 하락장 약화 / 점검 필요" 근거를 만든다.
+// - Good이 미평가(not_applicable/data_insufficient)면 등급 대신 회색 안내로 강등한다.
+// - 평가된 경우 Good/Bad tier 를 비교해 "안정 / Bad 약화 / 점검 필요" 근거를 만든다.
 export function describeAccountDiagnosis(
   account: SafetyAccountKey,
   basic: SafetyResult,
@@ -299,32 +300,32 @@ export function describeAccountDiagnosis(
         : "현재 입력 기준으로도 점검이 필요합니다.";
   } else if (basicTier === "strong" && stressTier === "strong") {
     tone = "positive";
-    reason = "기본과 하락장 모두 안정적입니다.";
+    reason = "Good과 Bad 모두 안정적입니다.";
   } else if (basicTier === "strong") {
     tone = "caution";
     reason =
       account === "taxSaving"
-        ? "하락장에서는 실가치보존율이 약해집니다."
+        ? "Bad에서는 자산 보존율이 약해집니다."
         : account === "brokerage"
-          ? "하락장에서는 배당 현금흐름이 약해질 수 있습니다."
-          : "하락장에서 충당률이 약해져 조정 검토가 필요합니다.";
+          ? "Bad에서는 배당 현금흐름이 약해질 수 있습니다."
+          : "Bad에서 충당률이 약해져 조정 검토가 필요합니다.";
   } else {
     // basicTier === "moderate"
     tone = "caution";
-    reason = "대체로 안정적이나 하락장에서는 일부 항목 점검이 필요합니다.";
+    reason = "대체로 안정적이나 Bad에서는 일부 항목 점검이 필요합니다.";
   }
 
   return { changeText, reason, tone, evaluated: true, basisShort };
 }
 
 // ---------------------------------------------------------------------------
-// 기본/하락장 단일 비교표(SafetyScenarioCompareTable) 파생 헬퍼.
+// Good/Bad 단일 비교표(SafetyScenarioCompareTable) 파생 헬퍼.
 // 새 계산 로직을 만들지 않고, 이미 계산된 SafetyResult/metrics 를 표시용으로 가공만 한다.
 // ---------------------------------------------------------------------------
 
-// 하락장 시나리오 설명은 한 곳에서만 노출한다(중복 배너 방지).
+// Bad 시나리오 설명은 한 곳에서만 노출한다(중복 배너 방지).
 export const STRESS_SCENARIO_NOTE =
-  "하락장은 은퇴 초반 하락·첫 3년 저수익·배당 20% 삭감을 가정한 보수적 점검입니다. 점수 경쟁이 아니라 기본 대비 손상 정도를 확인하는 영역입니다.";
+  "Bad는 은퇴 직후 -30% 충격, 2~3년차 0% 정체, 이후 장기 성장률 65%·배당성장 50%·배당률 20% 삭감을 가정한 보수적 점검입니다. 점수 경쟁이 아니라 Good 대비 손상 정도를 확인하는 영역입니다.";
 
 const DELTA_EPSILON = 1e-9;
 
@@ -335,7 +336,7 @@ export type ScenarioCompareRowKey = "grade" | "coverage" | "preservation" | "ass
 export type ScenarioCompareRow = {
   key: ScenarioCompareRowKey;
   label: string;
-  // 기본/하락장 셀에 표시할 문자열.
+  // Good/Bad 셀에 표시할 문자열.
   basicText: string;
   stressText: string;
   // 변화 열 본문(방향 기호 제외). 예: "25%p", "2억 4,167만원", "B → D (-28.6점)".
@@ -362,7 +363,7 @@ function deltaPointText(deltaPP: number, reduction: number, capped: boolean, dir
   return `${Math.abs(Math.round(deltaPP))}%p`;
 }
 
-// 기본/하락장 비교표의 4개 행(등급·충당률·보존율·최종자산)을 구성한다.
+// Good/Bad 비교표의 4개 행(등급·충당률·보존율·최종자산)을 구성한다.
 export function buildScenarioComparisonRows(
   basic: SafetyResult,
   stress: SafetyResult,
@@ -411,7 +412,7 @@ export function buildScenarioComparisonRows(
     const deltaPP = Math.round(stressCov * 100) - Math.round(basicCov * 100);
     const reduction = basicCov > DELTA_EPSILON ? Math.max(0, (basicCov - stressCov) / basicCov) : 0;
     const direction = directionOf(deltaPP);
-    // rose 승격: 하락장 충당률이 90% 미만으로 떨어질 때.
+    // rose 승격: Bad 충당률이 90% 미만으로 떨어질 때.
     const tone: UiTone = direction === "down" ? (stressCov < 0.9 ? "warning" : "caution") : "muted";
     rows.push({
       key: "coverage",
@@ -477,15 +478,15 @@ export function buildScenarioComparisonRows(
 export type WorsenedItem = { label: string; deltaText: string; tone: UiTone };
 export type WorsenedSummary = { headline: string; items: WorsenedItem[]; hasSevere: boolean };
 
-// 비교표 아래 "하락장에서 약해진 항목" 한 줄 요약을 구성한다.
+// 비교표 아래 "Bad에서 약해진 항목" 한 줄 요약을 구성한다.
 export function summarizeWorsenedMetrics(rows: ScenarioCompareRow[]): WorsenedSummary {
   const items: WorsenedItem[] = rows
     .filter((row) => row.showBar && row.direction === "down" && (row.tone === "caution" || row.tone === "warning"))
     .map((row) => ({ label: row.label, deltaText: `-${row.deltaText}`, tone: row.tone }));
   return {
     headline: items.length === 0
-      ? "하락장에서도 핵심 지표가 크게 약해지지 않았습니다."
-      : "하락장에서 약해진 항목",
+      ? "Bad에서도 핵심 지표가 크게 약해지지 않았습니다."
+      : "Bad에서 약해진 항목",
     items,
     hasSevere: items.some((item) => item.tone === "warning"),
   };
@@ -530,7 +531,36 @@ export type SafetyVerdict = {
   subline?: string;
 };
 
-// 통합 안전성(기본 + 하락장) 결과에서 한줄 판단을 파생한다.
+export type ScenarioRiskVerdict = {
+  label: "안전" | "보통" | "주의" | "위험";
+  score: number;
+  description: string;
+};
+
+// Good/Normal/Bad의 실제 고갈·부족 신호를 함께 해석한다. 기존 S/A/B/F는 원자료로만 남긴다.
+export function describeScenarioRisk(
+  good: SafetyResult,
+  normal: SafetyResult,
+  bad: SafetyResult,
+): ScenarioRiskVerdict {
+  const results = [good, normal, bad];
+  const score = Math.round(Math.min(...results.map((result) => result.score)));
+  const depleted = (result: SafetyResult) => result.metrics.depleted || result.metrics.endingRealAssets <= 0;
+  const shortfalls = (result: SafetyResult) => result.metrics.shortfallYears;
+
+  if (depleted(good) || depleted(normal) || shortfalls(normal) >= 2 || shortfalls(bad) >= 3) {
+    return { label: "위험", score, description: "Normal 또는 Bad에서 장기 부족이나 자산 고갈 신호가 있습니다." };
+  }
+  if (shortfalls(normal) > 0 || depleted(bad) || bad.metrics.preservationRatio < 0.5) {
+    return { label: "주의", score, description: "Normal 또는 Bad에서 생활비 부족·자산 보존 약화가 확인됩니다." };
+  }
+  if (shortfalls(bad) > 0 || bad.metrics.preservationRatio < 0.8) {
+    return { label: "보통", score, description: "Bad에서 일부 보수적 점검이 필요하지만 자산 고갈은 없습니다." };
+  }
+  return { label: "안전", score, description: "Good·Normal·Bad 모두 목표 월생활비와 자산 잔고를 유지합니다." };
+}
+
+// 통합 안전성(Good + Bad) 결과에서 한줄 판단을 파생한다.
 // 계산 로직을 새로 만들지 않고, 기존 SafetyResult 의 등급/상태만 해석한다.
 export function describeSafetyVerdict(
   basicCombined: SafetyResult,
@@ -562,8 +592,8 @@ export function describeSafetyVerdict(
   if (basicTier === "strong" && stressTier === "strong") {
     return {
       headline: hasTarget
-        ? "현재 입력 기준으로 기본과 하락장 모두 목표 생활비를 충당합니다."
-        : "현재 입력 기준으로 기본과 하락장 모두 안정적입니다.",
+        ? "현재 입력 기준으로 Good과 Bad 모두 목표 생활비를 충당합니다."
+        : "현재 입력 기준으로 Good과 Bad 모두 안정적입니다.",
       tone: "positive",
       subline,
     };
@@ -571,15 +601,15 @@ export function describeSafetyVerdict(
 
   if (basicTier === "strong") {
     return {
-      headline: "기본 시나리오는 안정적이지만, 하락장에서는 조정 권장입니다.",
+      headline: "Good 시나리오는 안정적이지만, Bad에서는 조정 권장입니다.",
       tone: "caution",
       subline,
     };
   }
 
-  // 기본이 "보통(C)" 구간인 경우.
+  // Good이 "보통(C)" 구간인 경우.
   return {
-    headline: "기본 시나리오는 대체로 안정적이나 일부 항목은 점검이 필요합니다.",
+    headline: "Good 시나리오는 대체로 안정적이나 일부 항목은 점검이 필요합니다.",
     tone: "caution",
     subline,
   };

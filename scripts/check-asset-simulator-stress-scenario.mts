@@ -236,8 +236,10 @@ assert.match(section, /calibrateStressSafetyForDisplay\(safety, stressSafety\)/,
 // 보존율 상한 포맷은 PR-3 에서 계좌 상세 패널(SafetyAccountDetailPanel)로 이동했다.
 const detailPanel = readFileSync("components/asset-simulator/SafetyAccountDetailPanel.tsx", "utf8");
 assert.match(detailPanel, /formatPreservationRatio/, "보존율 상한 포맷 연결(계좌 상세 패널)");
-assert.match(section, /기본 시나리오/, "기본 시나리오 UI");
-assert.match(section, /하락장 시나리오/, "하락장 시나리오 UI");
+assert.match(page, /const normalProjection = useMemo/, "Normal projection 별도 계산");
+assert.match(page, /returnMultiplier: 0\.85/, "Normal 성장률 보정 연결");
+assert.match(section, /Good 시나리오/, "Good 시나리오 UI");
+assert.match(section, /Bad 시나리오/, "Bad 시나리오 UI");
 assert.match(section, /첫 3년 저수익/, "stress 가정 안내");
 assert.match(section, /배당 20% 삭감/, "배당 삭감 안내");
 assert.match(section, /손상 정도를 확인/, "stress 비교 목적 안내");

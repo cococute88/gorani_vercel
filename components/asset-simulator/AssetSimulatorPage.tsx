@@ -184,14 +184,31 @@ export default function AssetSimulatorPage() {
     [inputs, yearPlans, exitMode, portfolioAssumptions],
   );
 
-  // 기본 화면/차트는 projection 을 계속 사용하고, 보수적 stress projection 은
-  // 은퇴 안전성 비교에만 전달한다. 두 계산에는 동일한 입력과 portfolio assumptions 를 쓴다.
-  const stressProjection = useMemo(
-    () => calculateAssetSimulatorPreview(inputs, yearPlans, exitMode, {
+  const safetyInputs = useMemo(() => ({ ...inputs, withdrawalDelayYears: 0 }), [inputs]);
+  // 안전성 탭은 기본 시뮬레이터의 은퇴/인출 연도와 별개로 현재년도부터 즉시 은퇴·인출하는 기준이다.
+  const goodProjection = useMemo(
+    () => calculateAssetSimulatorPreview(safetyInputs, yearPlans, true, { portfolioAssumptions }),
+    [safetyInputs, yearPlans, portfolioAssumptions],
+  );
+  const normalProjection = useMemo(
+    () => calculateAssetSimulatorPreview(safetyInputs, yearPlans, true, {
       portfolioAssumptions,
+      returnMultiplier: 0.85,
+      priceReturnMultiplier: 0.85,
+      dividendGrowthMultiplier: 0.85,
+    }),
+    [safetyInputs, yearPlans, portfolioAssumptions],
+  );
+  const stressProjection = useMemo(
+    () => calculateAssetSimulatorPreview(safetyInputs, yearPlans, true, {
+      portfolioAssumptions,
+      returnMultiplier: 0.65,
+      priceReturnMultiplier: 0.65,
+      dividendGrowthMultiplier: 0.5,
+      dividendYieldMultiplier: 0.8,
       stressScenario: { version: 1, preset: "early_downturn" },
     }),
-    [inputs, yearPlans, exitMode, portfolioAssumptions],
+    [safetyInputs, yearPlans, portfolioAssumptions],
   );
 
   // "지금탈출" 모달 전용 계산 결과.
@@ -447,7 +464,8 @@ export default function AssetSimulatorPage() {
             설정/상세 섹션은 슬롯으로 전달해 기존 상태 보존 구조와 회귀 검증 배선을 그대로 유지한다.
           */}
           <SafetyCheckDashboard
-            projection={projection}
+            projection={goodProjection}
+            normalProjection={normalProjection}
             stressProjection={stressProjection}
             targetMonthlyExpenseReal={targetMonthlyExpenseReal}
             onTargetMonthlyExpenseChange={setTargetMonthlyExpenseReal}
@@ -471,7 +489,8 @@ export default function AssetSimulatorPage() {
             }
             safetyPanel={
               <RetirementSafetySection
-                projection={projection}
+                projection={goodProjection}
+                normalProjection={normalProjection}
                 stressProjection={stressProjection}
                 portfolioApplied={portfolioAssumptions !== null}
                 targetMonthlyExpenseReal={targetMonthlyExpenseReal}

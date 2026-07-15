@@ -10,14 +10,14 @@ import { formatManwonMoney } from "@/lib/format";
 import type { SafetyResult } from "@/lib/asset-simulator-types";
 import SafetyGradeBadge from "./SafetyGradeBadge";
 
-// 계좌 상세 아코디언 안의 한 시나리오(기본 또는 하락장) 열.
+// 계좌 상세 아코디언 안의 한 시나리오(Good 또는 Bad) 열.
 // 기존 카드에서 보여주던 등급/점수/positives/warnings/metrics 를 삭제하지 않고 이 열에 모은다.
 // raw metrics(shortfall 등)는 중첩 details 로 접어 첫 화면을 짧게 유지한다.
 type Props = {
-  // "기본 시나리오" | "하락장 시나리오"
+  // "Good 시나리오" | "Bad 시나리오"
   label: string;
   result: SafetyResult;
-  // 하락장 열은 옅은 호박 배경으로 구분한다.
+  // Bad 열은 옅은 호박 배경으로 구분한다.
   stress?: boolean;
 };
 
@@ -61,7 +61,7 @@ export default function SafetyAccountDetailPanel({ label, result, stress = false
         <>
           <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[11.5px]">
             <div className="flex items-center justify-between gap-1">
-              <dt className="text-slate-600 dark:text-slate-400">실가치보존율</dt>
+              <dt className="text-slate-600 dark:text-slate-400">인출 시작 대비 실질자산 보존율</dt>
               <dd
                 className="font-semibold text-slate-800 dark:text-slate-200"
                 title={metrics.preservationRatio >= 10 ? formatPct(metrics.preservationRatio * 100, 0) : undefined}
@@ -80,6 +80,7 @@ export default function SafetyAccountDetailPanel({ label, result, stress = false
               </div>
             )}
           </dl>
+          <p className="mt-1 text-[10.5px] text-slate-500 dark:text-slate-400">최종 실질자산 / 인출 시작 실질자산</p>
 
           {positives.length > 0 && (
             <ul className="mt-2 space-y-0.5">
@@ -96,18 +97,18 @@ export default function SafetyAccountDetailPanel({ label, result, stress = false
             </ul>
           )}
 
-          {/* raw metrics: 기본 접힘. 삭제하지 않고 필요할 때만 펼쳐 본다. */}
+          {/* raw metrics: Good 접힘. 삭제하지 않고 필요할 때만 펼쳐 본다. */}
           <details className="group mt-2">
             <summary className="cursor-pointer list-none text-[10.5px] font-medium text-slate-600 dark:text-slate-300 [&::-webkit-details-marker]:hidden">
               <span className="underline decoration-dotted underline-offset-2">원자료 보기</span>
             </summary>
             <dl className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1 text-[10.5px]">
               <div className="flex items-center justify-between gap-1">
-                <dt className="text-slate-600 dark:text-slate-300">부족 연수</dt>
+                <dt className="text-slate-600 dark:text-slate-300">생활비 미달 기간</dt>
                 <dd className="font-medium text-slate-700 dark:text-slate-300">{metrics.shortfallYears}년</dd>
               </div>
               <div className="flex items-center justify-between gap-1">
-                <dt className="text-slate-600 dark:text-slate-300">연속 부족</dt>
+                <dt className="text-slate-600 dark:text-slate-300">연속 생활비 미달</dt>
                 <dd className="font-medium text-slate-700 dark:text-slate-300">{metrics.consecutiveShortfallYears}년</dd>
               </div>
               <div className="flex items-center justify-between gap-1">

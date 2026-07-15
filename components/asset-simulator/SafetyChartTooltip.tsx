@@ -1,6 +1,6 @@
 "use client";
 
-import { formatManwonMoney } from "@/lib/format";
+import { formatManwonMoney, formatRealAndNominalManwon } from "@/lib/format";
 import type { SafetyAssetTrajectoryRow } from "@/lib/asset-simulator-safety-chart-ui";
 
 type TooltipPayload = {
@@ -27,6 +27,7 @@ export default function SafetyChartTooltip({ active, payload }: Props) {
   if (!row || !Number.isFinite(row.year)) return null;
 
   const base = toFiniteNumber(row.base);
+  const normal = toFiniteNumber(row.normal);
   const stress = toFiniteNumber(row.stress);
   const difference = base !== null && stress !== null ? stress - base : null;
 
@@ -35,8 +36,9 @@ export default function SafetyChartTooltip({ active, payload }: Props) {
   return (
     <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-[12px] shadow-lg dark:border-slate-700 dark:bg-[#12181a]">
       <p className="font-bold text-slate-900 dark:text-slate-100">{row.year}년</p>
-      {base !== null && <p className="mt-1 text-slate-700 dark:text-slate-300">기본: {formatManwonMoney(base)}</p>}
-      {stress !== null && <p className="text-slate-700 dark:text-slate-300">하락장: {formatManwonMoney(stress)}</p>}
+      {base !== null && <p className="mt-1 text-slate-700 dark:text-slate-300">Good: {formatRealAndNominalManwon(base, row.baseNominal ?? base)}</p>}
+      {normal !== null && <p className="text-slate-700 dark:text-slate-300">Normal: {formatRealAndNominalManwon(normal, row.normalNominal ?? normal)}</p>}
+      {stress !== null && <p className="text-slate-700 dark:text-slate-300">Bad: {formatRealAndNominalManwon(stress, row.stressNominal ?? stress)}</p>}
       {difference !== null && (
         <p className="text-slate-600 dark:text-slate-400">
           차이: {difference > 0 ? "+" : ""}{formatManwonMoney(difference)}

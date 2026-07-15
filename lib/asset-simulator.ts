@@ -74,7 +74,7 @@ export function normalizeInputs(inputs: Partial<SimulatorInputs> = {}): Simulato
     inflationRate: clampNumber(inputs.inflationRate, DEFAULT_SIMULATOR_INPUTS.inflationRate, 0, 50),
     withdrawalRate: clampNumber(inputs.withdrawalRate, DEFAULT_SIMULATOR_INPUTS.withdrawalRate, 0, 100),
     withdrawalGrowthRate: clampNumber(inputs.withdrawalGrowthRate, DEFAULT_SIMULATOR_INPUTS.withdrawalGrowthRate, 0, 100),
-    withdrawalDelayYears: Math.round(clampNumber(inputs.withdrawalDelayYears, DEFAULT_SIMULATOR_INPUTS.withdrawalDelayYears, 1, 15)),
+    withdrawalDelayYears: Math.round(clampNumber(inputs.withdrawalDelayYears, DEFAULT_SIMULATOR_INPUTS.withdrawalDelayYears, 0, 15)),
   };
 }
 
@@ -708,7 +708,7 @@ export function calculateAssetSimulatorPreview(
   const effectivePortfolio = options.portfolioAssumptions
     ? resolveEffectivePortfolioProjectionAssumptions(options.portfolioAssumptions)
     : null;
-  const taxSavingReturnRate = effectivePortfolio?.taxSavingTotalReturnPct ?? inputs.annualReturnRate;
+  const taxSavingReturnRate = (effectivePortfolio?.taxSavingTotalReturnPct ?? inputs.annualReturnRate) * (options.returnMultiplier ?? 1);
   // EXIT 모드: 연도별 투자 계획표 입력값을 전부 무시하고 현재 보유 자산만 시작 자산으로 사용한다.
   // buildExitYearPlans 는 모든 적립액을 0 으로 두므로 assign_statuses 가 첫 해(=시작년도)를
   // "은퇴" 로 표시한다. 즉 retireIdx === 0, 은퇴년도 === inputs.startYear 가 보장되고,
@@ -729,9 +729,9 @@ export function calculateAssetSimulatorPreview(
   const withdrawPlan = simulate_tax_account_withdraw(inputs, results, timeline, taxSavingReturnRate, stress);
   const taxWithdrawRows = withdrawPlan?.rows ?? [];
   const dividendRows = simulate_dividend_brokerage(inputs, results, taxWithdrawRows, effectivePortfolio ? {
-    priceReturnPct: effectivePortfolio.brokeragePriceReturnPct,
-    dividendYieldPct: effectivePortfolio.brokerageDividendYieldPct,
-    dividendGrowthPct: effectivePortfolio.brokerageDividendGrowthPct,
+    priceReturnPct: effectivePortfolio.brokeragePriceReturnPct * (options.priceReturnMultiplier ?? options.returnMultiplier ?? 1),
+    dividendYieldPct: effectivePortfolio.brokerageDividendYieldPct * (options.dividendYieldMultiplier ?? 1),
+    dividendGrowthPct: effectivePortfolio.brokerageDividendGrowthPct * (options.dividendGrowthMultiplier ?? options.returnMultiplier ?? 1),
   } : undefined, stress);
   const taxByYear = new Map(taxWithdrawRows.map((row) => [row.year, row]));
   const dividendByYear = new Map(dividendRows.map((row) => [row.year, row]));
