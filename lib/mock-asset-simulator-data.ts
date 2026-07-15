@@ -5,11 +5,11 @@ export const ASSET_SIMULATOR_STORAGE_KEY = STORAGE_KEYS.assetSimulatorConfigs;
 
 export const DEFAULT_SIMULATOR_INPUTS: SimulatorInputs = {
   startYear: 2026,
-  years: 30,
-  initialIsa: 2000,
-  initialPension: 11897,
+  years: 70,
+  initialIsa: 0,
+  initialPension: 11900,
   reserveCash: 0,
-  initialTaxableDividend: 0,
+  initialTaxableDividend: 15000,
   annualReturnRate: 6,
   inflationRate: 3,
   withdrawalRate: 3.5,

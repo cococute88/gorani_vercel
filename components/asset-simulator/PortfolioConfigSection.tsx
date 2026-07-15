@@ -138,6 +138,8 @@ export default function PortfolioConfigSection({
   const [fetchErrors, setFetchErrors] = useState<Record<string, string>>({});
   const [openAssumptions, setOpenAssumptions] = useState<Record<string, boolean>>({});
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [accountTotalDrafts, setAccountTotalDrafts] = useState<Partial<Record<PortfolioAccountType, string>>>({});
+  const [withdrawalRateDraft, setWithdrawalRateDraft] = useState(String(inputs.withdrawalRate));
   const [focusedKey, setFocusedKey] = useState<string | null>(null);
   const [applyMessage, setApplyMessage] = useState<string | null>(null);
   const controllersRef = useRef<Map<string, AbortController>>(new Map());
@@ -146,6 +148,15 @@ export default function PortfolioConfigSection({
   const draftKey = (holdingId: string, field: string) => `${holdingId}:${field}`;
   const taxTotalManwon = inputs.initialIsa + inputs.initialPension;
   const brokerageTotalManwon = inputs.initialTaxableDividend;
+
+  useEffect(() => {
+    setAccountTotalDrafts((current) => ({
+      ...current,
+      taxSaving: focusedKey === "taxSaving:total" ? current.taxSaving : formatEokInput(inputs.initialIsa + inputs.initialPension),
+      brokerage: focusedKey === "brokerage:total" ? current.brokerage : formatEokInput(inputs.initialTaxableDividend),
+    }));
+    setWithdrawalRateDraft((current) => focusedKey === "taxSaving:withdrawalRate" ? current : String(inputs.withdrawalRate));
+  }, [focusedKey, inputs.initialIsa, inputs.initialPension, inputs.initialTaxableDividend, inputs.withdrawalRate]);
 
   useEffect(() => () => {
     controllersRef.current.forEach((controller) => controller.abort());
@@ -329,14 +340,24 @@ export default function PortfolioConfigSection({
   };
 
   const updateAccountTotal = (accountType: PortfolioAccountType, raw: string) => {
+    setAccountTotalDrafts((current) => ({ ...current, [accountType]: raw }));
+    if (raw.trim() === "") return;
     const eok = Number(raw);
     if (!Number.isFinite(eok)) return;
-    const total = Math.max(0, eok * 10_000);
+    const total = Math.max(0, Math.round(eok * 10_000));
     if (accountType === "taxSaving") {
-      onInputsChange({ ...inputs, initialPension: Math.max(0, total - inputs.initialIsa) });
+      onInputsChange({ ...inputs, initialIsa: 0, initialPension: total });
     } else {
       onInputsChange({ ...inputs, initialTaxableDividend: total });
     }
+  };
+
+  const updateWithdrawalRate = (raw: string) => {
+    setWithdrawalRateDraft(raw);
+    if (raw.trim() === "") return;
+    const value = Number(raw);
+    if (!Number.isFinite(value)) return;
+    onInputsChange({ ...inputs, withdrawalRate: Math.max(0, Math.min(100, value)) });
   };
 
   const handleApply = () => {
@@ -409,7 +430,7 @@ export default function PortfolioConfigSection({
                   <label className="min-w-0">
                     <span className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300">총자산</span>
                     <span className="mt-1 flex overflow-hidden rounded-lg border border-slate-300 bg-white dark:border-[#334044] dark:bg-[#101618]">
-                      <input type="number" min={0} step={0.1} value={formatEokInput(totalManwon)} onChange={(event) => updateAccountTotal(accountType, event.target.value)} className="min-w-0 flex-1 bg-transparent px-2.5 py-2 text-right text-[14px] font-bold text-slate-900 outline-none focus:ring-2 focus:ring-blue-100 dark:text-white dark:focus:ring-blue-500/20" aria-label={`${copy.title} 총자산 억원`} />
+                      <input type="number" min={0} step={0.1} value={accountTotalDrafts[accountType] ?? formatEokInput(totalManwon)} onFocus={() => setFocusedKey(`${accountType}:total`)} onBlur={() => setFocusedKey(null)} onChange={(event) => updateAccountTotal(accountType, event.target.value)} className="min-w-0 flex-1 bg-transparent px-2.5 py-2 text-right text-[14px] font-bold text-slate-900 outline-none focus:ring-2 focus:ring-blue-100 dark:text-white dark:focus:ring-blue-500/20" aria-label={`${copy.title} 총자산 억원`} />
                       <span className="flex items-center pr-2 text-[11px] font-semibold text-slate-500">억원</span>
                     </span>
                   </label>
@@ -417,7 +438,7 @@ export default function PortfolioConfigSection({
                     <label className="min-w-0">
                       <span className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300">연 인출률</span>
                       <span className="mt-1 flex overflow-hidden rounded-lg border border-slate-300 bg-white dark:border-[#334044] dark:bg-[#101618]">
-                        <input type="number" min={0} max={100} step={0.1} value={inputs.withdrawalRate} onChange={(event) => onInputsChange({ ...inputs, withdrawalRate: Number(event.target.value) || 0 })} className="min-w-0 flex-1 bg-transparent px-2.5 py-2 text-right text-[14px] font-bold text-slate-900 outline-none focus:ring-2 focus:ring-blue-100 dark:text-white dark:focus:ring-blue-500/20" aria-label="절세계좌 연 인출률" />
+                        <input type="number" min={0} max={100} step={0.1} value={withdrawalRateDraft} onFocus={() => setFocusedKey("taxSaving:withdrawalRate")} onBlur={() => setFocusedKey(null)} onChange={(event) => updateWithdrawalRate(event.target.value)} className="min-w-0 flex-1 bg-transparent px-2.5 py-2 text-right text-[14px] font-bold text-slate-900 outline-none focus:ring-2 focus:ring-blue-100 dark:text-white dark:focus:ring-blue-500/20" aria-label="절세계좌 연 인출률" />
                         <span className="flex items-center pr-2 text-[11px] font-semibold text-slate-500">%</span>
                       </span>
                     </label>

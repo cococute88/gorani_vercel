@@ -142,15 +142,15 @@ export function buildDefaultPortfolioConfig(): AssetSimulatorPortfolioConfigV1 {
     taxSaving: {
       accountType: "taxSaving",
       holdings: [
-        { id: "tax-saving-schd", ticker: "SCHD", weightPct: 50, metricMode: "auto" },
-        { id: "tax-saving-qld", ticker: "QLD", weightPct: 50, metricMode: "auto" },
+        { id: "tax-saving-qqq", ticker: "QQQ", weightPct: 50, metricMode: "auto" },
+        { id: "tax-saving-spy", ticker: "SPY", weightPct: 50, metricMode: "auto" },
       ],
     },
     brokerage: {
       accountType: "brokerage",
       holdings: [
-        { id: "brokerage-schd", ticker: "SCHD", weightPct: 70, metricMode: "auto" },
-        { id: "brokerage-jepq", ticker: "JEPQ", weightPct: 30, metricMode: "auto" },
+        { id: "brokerage-schd", ticker: "SCHD", weightPct: 90, metricMode: "auto" },
+        { id: "brokerage-jepq", ticker: "JEPQ", weightPct: 10, metricMode: "auto" },
       ],
     },
   };
