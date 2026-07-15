@@ -3,11 +3,11 @@
 import { useEffect, useState } from "react";
 import type { SimulatorInputs } from "@/lib/asset-simulator-types";
 
-export const SIMULATION_YEAR_PRESETS = [20, 30, 40, 50, 60] as const;
+export const SIMULATION_YEAR_PRESETS = [20, 30, 40, 50, 60, 70] as const;
 
 const INPUTS: Array<{ key: keyof SimulatorInputs; label: string; suffix: string; step?: number; min?: number; max?: number }> = [
   { key: "startYear", label: "시작년도", suffix: "년", step: 1, min: 2020 },
-  { key: "years", label: "시뮬레이션 기간(년)", suffix: "년", step: 1, min: 1, max: 60 },
+  { key: "years", label: "시뮬레이션 기간(년)", suffix: "년", step: 1, min: 1, max: 70 },
   { key: "annualReturnRate", label: "예상 연간 수익률(%)", suffix: "%", step: 0.1, min: -50 },
   { key: "inflationRate", label: "물가상승률(%)", suffix: "%", step: 0.1, min: 0 },
   { key: "initialIsa", label: "기존 ISA 잔고(만원)", suffix: "만원", step: 100, min: 0 },

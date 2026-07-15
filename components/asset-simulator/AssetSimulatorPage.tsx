@@ -37,6 +37,7 @@ import ExitSummaryModal from "./ExitSummaryModal";
 import PortfolioConfigSection from "./PortfolioConfigSection";
 import RetirementSafetySection from "./RetirementSafetySection";
 import SafetyCheckDashboard from "./SafetyCheckDashboard";
+import { buildDefaultPortfolioConfig } from "@/lib/asset-simulator-portfolio";
 import {
   doPortfolioAssumptionsMatchConfig,
   isPortfolioAssumptionsStale,
@@ -72,13 +73,13 @@ export default function AssetSimulatorPage() {
   const { user, configured } = useFirebaseAuth();
   const [inputs, setInputs] = useState<SimulatorInputs>(DEFAULT_SIMULATOR_INPUTS);
   const [yearPlans, setYearPlans] = useState<YearPlanRow[]>(DEFAULT_YEAR_PLANS);
-  // 포트폴리오 설정과 "적용된" 가정. 기존 사용자에게 자동 주입하지 않으므로 기본값은 비어 있다.
-  // portfolioAssumptions 는 적용 버튼을 눌렀을 때만 채워지고, projection 에 반영된다.
-  const [portfolioConfig, setPortfolioConfig] = useState<AssetSimulatorPortfolioConfigV1 | null>(null);
+  // 포트폴리오 설정과 "적용된" 가정. 최초 진입에는 스크린샷 기준 기본 포트폴리오를 보여주되,
+  // portfolioAssumptions 는 적용 버튼을 눌렀을 때만 채워지고 projection 에 반영된다.
+  const [portfolioConfig, setPortfolioConfig] = useState<AssetSimulatorPortfolioConfigV1 | null>(() => buildDefaultPortfolioConfig());
   const [portfolioAssumptions, setPortfolioAssumptions] = useState<AppliedPortfolioAssumptionsV1 | null>(null);
   // 목표 월생활비(현재 가치 기준, 만원). 입력이 있으면 은퇴 안전성 통합 평가가 target 기준으로 전환된다.
   // 값이 없으면(null) 기존 proxy 기반 임시 평가를 유지한다.
-  const [targetMonthlyExpenseReal, setTargetMonthlyExpenseReal] = useState<number | null>(null);
+  const [targetMonthlyExpenseReal, setTargetMonthlyExpenseReal] = useState<number | null>(100);
   // "지금 EXIT?" 모드는 로컬 UI 상태로만 관리한다. Firebase/로컬 저장 금지, 새로고침 시 초기화.
   const [exitMode, setExitMode] = useState(false);
   // 연도별 투자 계획표 펼침/접힘 상태. 일반 모드 기본값은 열림.
@@ -287,9 +288,9 @@ export default function AssetSimulatorPage() {
     const plans = buildDefaultYearPlans();
     setInputs(DEFAULT_SIMULATOR_INPUTS);
     setYearPlans(plans);
-    setPortfolioConfig(null);
+    setPortfolioConfig(buildDefaultPortfolioConfig());
     setPortfolioAssumptions(null);
-    setTargetMonthlyExpenseReal(null);
+    setTargetMonthlyExpenseReal(100);
 
     if (typeof window !== "undefined") {
       try {

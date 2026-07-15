@@ -19,6 +19,7 @@ import type {
 const MIN_RETURN_PCT = -99;
 const MAX_RETURN_PCT = 100;
 const MAX_DIVIDEND_YIELD_PCT = 100;
+const CONSERVATIVE_AUTO_TOTAL_RETURN_CAP_PCT = 12;
 
 function clampProjectionPct(value: number, min: number, max: number): number {
   if (!Number.isFinite(value)) return 0;
@@ -192,12 +193,20 @@ function buildAutoHolding(
   holding: PortfolioHoldingInput,
   resolution: PortfolioHoldingResolution,
 ): AppliedPortfolioHoldingAssumption {
+  const rawTotalReturnCagrPct = resolution.totalReturnCagr.valuePct;
+  const totalReturnCagrPct = typeof rawTotalReturnCagrPct === "number" && Number.isFinite(rawTotalReturnCagrPct)
+    ? Math.min(rawTotalReturnCagrPct, CONSERVATIVE_AUTO_TOTAL_RETURN_CAP_PCT)
+    : rawTotalReturnCagrPct;
+  const warnings = uniqueWarnings(resolution);
+  if (typeof rawTotalReturnCagrPct === "number" && Number.isFinite(rawTotalReturnCagrPct) && rawTotalReturnCagrPct > CONSERVATIVE_AUTO_TOTAL_RETURN_CAP_PCT) {
+    warnings.push(`자동 CAGR ${rawTotalReturnCagrPct.toFixed(1)}%는 장기 전망 기본값에서 ${CONSERVATIVE_AUTO_TOTAL_RETURN_CAP_PCT}%로 보수 조정했습니다.`);
+  }
   return {
     holdingId: holding.id,
     ticker: normalizePortfolioTicker(holding.ticker),
     weightPct: holding.weightPct,
     metricMode: "auto",
-    totalReturnCagrPct: resolution.totalReturnCagr.valuePct,
+    totalReturnCagrPct,
     priceCagrPct: resolution.priceCagr.valuePct,
     dividendYieldPct: resolution.dividendYield.valuePct,
     dividendGrowthPct: resolution.dividendGrowth.valuePct,
@@ -213,7 +222,7 @@ function buildAutoHolding(
       dividendYield: resolution.dividendYield.status,
       dividendGrowth: resolution.dividendGrowth.status,
     },
-    warnings: uniqueWarnings(resolution),
+    warnings,
   };
 }
 

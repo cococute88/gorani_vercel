@@ -62,7 +62,7 @@ function annual(plan: YearPlan): number {
 export function normalizeInputs(inputs: Partial<SimulatorInputs> = {}): SimulatorInputs {
   return {
     startYear: Math.round(clampNumber(inputs.startYear, DEFAULT_SIMULATOR_INPUTS.startYear, 1900, 2200)),
-    years: Math.round(clampNumber(inputs.years, DEFAULT_SIMULATOR_INPUTS.years, 1, 60)),
+    years: Math.round(clampNumber(inputs.years, DEFAULT_SIMULATOR_INPUTS.years, 1, 70)),
     initialIsa: maybeMigrateWonToManwon(inputs.initialIsa, DEFAULT_SIMULATOR_INPUTS.initialIsa),
     initialPension: maybeMigrateWonToManwon(inputs.initialPension, DEFAULT_SIMULATOR_INPUTS.initialPension),
     reserveCash: maybeMigrateWonToManwon(inputs.reserveCash, DEFAULT_SIMULATOR_INPUTS.reserveCash),

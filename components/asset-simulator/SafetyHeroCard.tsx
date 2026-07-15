@@ -50,7 +50,7 @@ export default function SafetyHeroCard({ inputs, onInputsChange, targetMonthlyEx
         </div>
         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-[220px_220px_220px_minmax(0,1fr)] lg:items-end">
           <Field id="target-monthly-expense" label="목표 월생활비" suffix="만원" value={targetMonthlyExpenseReal} onChange={onTargetMonthlyExpenseChange} step={10} />
-          <Field id="safety-simulation-years" label="기간" suffix="년" value={inputs.years} onChange={(value) => onInputsChange({ ...inputs, years: Math.max(1, Math.min(60, Math.round(value ?? 1))) })} min={1} />
+          <Field id="safety-simulation-years" label="기간" suffix="년" value={inputs.years} onChange={(value) => onInputsChange({ ...inputs, years: Math.max(1, Math.min(70, Math.round(value ?? 1))) })} min={1} />
           <Field id="safety-inflation-rate" label="물가상승률" suffix="%" value={inputs.inflationRate} onChange={(value) => onInputsChange({ ...inputs, inflationRate: Math.max(0, value ?? 0) })} step={0.1} />
           <p className="pb-2 text-[12px] leading-relaxed text-slate-600 dark:text-slate-300">목표 생활비와 자산은 물가상승률을 반영한 현재가치로 비교합니다.</p>
         </div>
