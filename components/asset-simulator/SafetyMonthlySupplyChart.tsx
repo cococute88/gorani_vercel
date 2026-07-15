@@ -104,7 +104,7 @@ function ChartHeader({
         <h4 className="text-[13px] font-bold text-slate-900 dark:text-slate-100">월 현금흐름 vs 목표 월생활비</h4>
         {hasTarget ? (
           <p className="mt-0.5 text-[11.5px] leading-relaxed text-slate-600 dark:text-slate-400">
-            {formatManwonMoney(target!)} 기준 · Good 부족 {basicShortfallYears ?? 0}년 · Bad 부족 {stressShortfallYears ?? 0}년
+            {formatManwonMoney(target!)} 기준 · Good 생활비 미달 {basicShortfallYears ?? 0}년 · Bad 생활비 미달 {stressShortfallYears ?? 0}년
           </p>
         ) : (
           <p className="mt-0.5 text-[11.5px] leading-relaxed text-slate-600 dark:text-slate-400">
@@ -161,7 +161,7 @@ export default function SafetyMonthlySupplyChart({
   const basicConsecutiveShortfallYears = safetyResult.metrics.consecutiveShortfallYears;
   const stressConsecutiveShortfallYears = stressSafetyResult?.metrics.consecutiveShortfallYears ?? null;
   const ariaLabel = hasTarget
-    ? `월 현금흐름 차트: 목표 ${formatManwonMoney(target!)} 기준으로 Good 시나리오 부족 ${basicShortfallYears}년, Bad 부족 ${stressShortfallYears ?? "결과 없음"}년입니다. 연속 부족은 Good ${basicConsecutiveShortfallYears}년, Bad ${stressConsecutiveShortfallYears ?? "결과 없음"}년입니다.`
+    ? `월 현금흐름 차트: 목표 ${formatManwonMoney(target!)} 기준으로 Good 시나리오 생활비 미달 ${basicShortfallYears}년, Bad 생활비 미달 ${stressShortfallYears ?? "결과 없음"}년입니다. 연속 생활비 미달은 Good ${basicConsecutiveShortfallYears}년, Bad ${stressConsecutiveShortfallYears ?? "결과 없음"}년입니다.`
     : "월 현금흐름 차트: Good 시나리오는 막대, Bad 시나리오는 점선으로 인출 구간의 월 현금흐름 추이를 보여줍니다. 목표 월생활비를 입력하면 기준선과 부족 연도가 표시됩니다.";
 
   return (

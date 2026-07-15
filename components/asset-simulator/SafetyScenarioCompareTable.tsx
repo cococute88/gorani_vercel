@@ -1,111 +1,37 @@
 "use client";
 
-import {
-  describeSafety,
-  type ScenarioCompareRow,
-  type ScenarioDeltaDirection,
-  type UiTone,
-} from "@/lib/asset-simulator-portfolio-ui";
-import type { SafetyResult } from "@/lib/asset-simulator-types";
-import SafetyDeltaBar from "./SafetyDeltaBar";
+import { describeSafety, formatCoverageRatio, formatPreservationRatio } from "@/lib/asset-simulator-portfolio-ui";
+import { formatManwonMoney } from "@/lib/format";
+import type { SafetyResult, SimulatorProjection } from "@/lib/asset-simulator-types";
 
-// Good/Bad 단일 비교표.
-// 열: 지표 · Good 시나리오 · Bad 시나리오 · 변화.
-// 데스크톱은 4열 그리드, 모바일(375px)은 세로 카드형 row 로 전환해 가로 스크롤을 피한다.
 type Props = {
-  basic: SafetyResult;
-  stress: SafetyResult;
-  rows: ScenarioCompareRow[];
+  good: SafetyResult;
+  normal: SafetyResult;
+  bad: SafetyResult;
+  goodProjection: SimulatorProjection;
+  normalProjection: SimulatorProjection;
+  badProjection: SimulatorProjection;
 };
 
-const TONE_DELTA_TEXT: Record<UiTone, string> = {
-  positive: "text-emerald-600 dark:text-emerald-400",
-  neutral: "text-slate-700 dark:text-slate-200",
-  caution: "text-amber-600 dark:text-amber-400",
-  warning: "text-rose-600 dark:text-rose-400 font-bold",
-  muted: "text-slate-600 dark:text-slate-300",
-};
-
-const GRADE_TONE_TEXT: Record<UiTone, string> = {
-  positive: "text-emerald-600 dark:text-emerald-400",
-  neutral: "text-slate-800 dark:text-slate-100",
-  caution: "text-amber-600 dark:text-amber-400",
-  warning: "text-rose-600 dark:text-rose-400",
-  muted: "text-slate-600 dark:text-slate-300",
-};
-
-function directionMark(direction: ScenarioDeltaDirection): string {
-  if (direction === "down") return "▼";
-  if (direction === "up") return "▲";
-  return "—";
+function statusText(result: SafetyResult): string {
+  const display = describeSafety(result);
+  return display.showScore ? `${display.gradeLabel} · ${result.score}점` : display.gradeLabel;
 }
 
-export default function SafetyScenarioCompareTable({ basic, stress, rows }: Props) {
-  const basicGradeTone = describeSafety(basic).tone;
-  const stressGradeTone = describeSafety(stress).tone;
-
-  // 등급 행의 Good/Bad 셀은 각 시나리오 등급 톤으로 강조한다.
-  const valueClass = (row: ScenarioCompareRow, which: "basic" | "stress") => {
-    if (row.key === "grade") {
-      return `font-bold ${GRADE_TONE_TEXT[which === "basic" ? basicGradeTone : stressGradeTone]}`;
-    }
-    return "font-semibold text-slate-900 dark:text-slate-100";
-  };
-
+export default function SafetyScenarioCompareTable({ good, normal, bad, goodProjection, normalProjection, badProjection }: Props) {
+  const values = [
+    ["판단", statusText(good), statusText(normal), statusText(bad)],
+    ["월생활비 충당률", formatCoverageRatio(good.metrics.monthlyIncomeCoverageRatio), formatCoverageRatio(normal.metrics.monthlyIncomeCoverageRatio), formatCoverageRatio(bad.metrics.monthlyIncomeCoverageRatio)],
+    ["생활비 미달 기간", `${good.metrics.shortfallYears}년`, `${normal.metrics.shortfallYears}년`, `${bad.metrics.shortfallYears}년`],
+    ["인출 시작 대비 보존율", formatPreservationRatio(good.metrics.preservationRatio), formatPreservationRatio(normal.metrics.preservationRatio), formatPreservationRatio(bad.metrics.preservationRatio)],
+    ["최종 실질자산", formatManwonMoney(goodProjection.summary.combinedRealBalance), formatManwonMoney(normalProjection.summary.combinedRealBalance), formatManwonMoney(badProjection.summary.combinedRealBalance)],
+  ];
   return (
-    <div className="mt-3 min-w-0" role="table" aria-label="Good Bad 지표 비교표">
-      {/* 헤더: 데스크톱에서만 표시. 모바일은 각 행에 인라인 라벨을 둔다. */}
-      <div
-        role="row"
-        className="hidden grid-cols-[1.1fr_1fr_1fr_1.3fr] items-center gap-x-3 border-b border-slate-200 pb-2 dark:border-[#273032] md:grid"
-      >
-        <span role="columnheader" className="text-[11px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">지표</span>
-        <span role="columnheader" className="text-[11px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">Good 시나리오</span>
-        <span role="columnheader" className="text-[11px] font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">Bad 시나리오</span>
-        <span role="columnheader" className="text-[11px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">변화</span>
-      </div>
-
-      <div className="divide-y divide-slate-100 dark:divide-[#232b2d]">
-        {rows.map((row) => (
-          <div
-            key={row.key}
-            role="row"
-            className="grid grid-cols-2 gap-x-3 gap-y-1 py-2.5 md:grid-cols-[1.1fr_1fr_1fr_1.3fr] md:items-center"
-          >
-            {/* 지표 */}
-            <div role="cell" className="col-span-2 md:col-span-1">
-              <span className="text-[12.5px] font-semibold text-slate-800 dark:text-slate-100">{row.label}</span>
-            </div>
-
-            {/* Good */}
-            <div role="cell" className="min-w-0">
-              <span className="mr-1 text-[10.5px] text-slate-600 dark:text-slate-300 md:hidden">Good</span>
-              <span className={`break-keep text-[13.5px] ${valueClass(row, "basic")}`}>{row.basicText}</span>
-            </div>
-
-            {/* Bad */}
-            <div role="cell" className="min-w-0">
-              <span className="mr-1 text-[10.5px] text-amber-600 dark:text-amber-400 md:hidden">Bad</span>
-              <span className={`break-keep text-[13.5px] ${valueClass(row, "stress")}`}>{row.stressText}</span>
-            </div>
-
-            {/* 변화 */}
-            <div role="cell" className="col-span-2 min-w-0 md:col-span-1">
-              <span className="mr-1 text-[10.5px] text-slate-600 dark:text-slate-300 md:hidden">변화</span>
-              <span className={`break-keep text-[12.5px] font-semibold ${TONE_DELTA_TEXT[row.tone]}`}>
-                {row.key === "grade" ? (
-                  row.deltaText
-                ) : (
-                  <>
-                    <span aria-hidden className="mr-0.5">{directionMark(row.direction)}</span>
-                    {row.deltaText}
-                  </>
-                )}
-              </span>
-              {row.showBar && <SafetyDeltaBar magnitude={row.magnitude} tone={row.tone} />}
-            </div>
-          </div>
-        ))}
+    <div className="min-w-0 overflow-x-auto rounded-xl border border-slate-200 dark:border-[#273032]" role="table" aria-label="Good Normal Bad 안전성 비교표">
+      <p className="px-3 pt-3 text-[11px] text-slate-500 dark:text-slate-400">생활비 미달 기간은 월 현금흐름이 목표 월생활비보다 낮은 연도 수이며, 자산 고갈 기간이 아닙니다.</p>
+      <div className="min-w-[560px] p-3">
+        <div role="row" className="grid grid-cols-4 gap-2 border-b border-slate-200 pb-2 text-[11px] font-semibold dark:border-[#273032]"><span>지표</span><span className="text-blue-600 dark:text-blue-400">Good</span><span className="text-emerald-600 dark:text-emerald-400">Normal</span><span className="text-amber-700 dark:text-amber-400">Bad</span></div>
+        {values.map(([label, goodValue, normalValue, badValue]) => <div key={label} role="row" className="grid grid-cols-4 gap-2 border-b border-slate-100 py-2 text-[11.5px] last:border-0 dark:border-[#232b2d]"><span className="font-semibold text-slate-700 dark:text-slate-300">{label}</span><span className="font-semibold text-slate-900 dark:text-slate-100">{goodValue}</span><span className="font-semibold text-slate-900 dark:text-slate-100">{normalValue}</span><span className="font-semibold text-slate-900 dark:text-slate-100">{badValue}</span></div>)}
       </div>
     </div>
   );

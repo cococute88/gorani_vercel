@@ -104,11 +104,11 @@ export default function SafetyAccountDetailPanel({ label, result, stress = false
             </summary>
             <dl className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1 text-[10.5px]">
               <div className="flex items-center justify-between gap-1">
-                <dt className="text-slate-600 dark:text-slate-300">부족 연수</dt>
+                <dt className="text-slate-600 dark:text-slate-300">생활비 미달 기간</dt>
                 <dd className="font-medium text-slate-700 dark:text-slate-300">{metrics.shortfallYears}년</dd>
               </div>
               <div className="flex items-center justify-between gap-1">
-                <dt className="text-slate-600 dark:text-slate-300">연속 부족</dt>
+                <dt className="text-slate-600 dark:text-slate-300">연속 생활비 미달</dt>
                 <dd className="font-medium text-slate-700 dark:text-slate-300">{metrics.consecutiveShortfallYears}년</dd>
               </div>
               <div className="flex items-center justify-between gap-1">

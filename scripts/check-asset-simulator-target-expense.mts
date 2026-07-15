@@ -294,8 +294,10 @@ function fixture(options: FixtureOptions = {}): SimulatorProjection {
   assert.match(hero, /onTargetMonthlyExpenseChange/, "Hero 가 목표 값을 상위로 전달");
 
   const resultCards = read("components/asset-simulator/SafetyKpiCards.tsx");
-  assert.match(resultCards, /월생활비 충당 결과/, "월생활비 충당 결과 표시");
-  assert.match(resultCards, /총 월 현금흐름[\s\S]*절세계좌 월 현금흐름[\s\S]*위탁계좌 월 현금흐름[\s\S]*월 여유\/부족/, "계좌별 월 현금흐름과 여유·부족 표시");
+  assert.doesNotMatch(resultCards, /월생활비 충당 결과/, "단일 대표 충당 결과 제거");
+  assert.match(resultCards, /ScenarioSummaryCard[\s\S]*생활비 미달[\s\S]*보존율/, "시나리오별 핵심 결과 카드 표시");
+  assert.match(dashboard, /label: "Good"[\s\S]*label: "Normal"[\s\S]*label: "Bad"/, "Good Normal Bad 결과 연결");
+  assert.match(resultCards, /생활비 미달/, "생활비 미달 기간 의미 표시");
   assert.match(resultCards, /formatCoverageRatio/, "충당률 표시");
 
   const section = read("components/asset-simulator/RetirementSafetySection.tsx");
