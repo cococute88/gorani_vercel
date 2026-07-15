@@ -124,12 +124,13 @@ export function describeSafety(result: SafetyResult): SafetyDisplay {
 
   const score = result.score;
   const depleted = result.metrics.depleted;
-  const severeShortfall = result.metrics.consecutiveShortfallYears >= 2 || result.metrics.shortfallYears >= 3;
-  const descriptor = depleted || score < 50
+  const severeShortfall = result.metrics.consecutiveSevereShortfallYears >= 2 || result.metrics.severeShortfallYears >= 3;
+  const persistentSevereShortfall = severeShortfall && (result.metrics.monthlyIncomeCoverageRatio ?? 1) < 0.8;
+  const descriptor = depleted || result.metrics.failed || score < 50
     ? { gradeLabel: "위험", toneLabel: "고갈위험 높음", tone: "warning" as UiTone }
-    : severeShortfall || score < 65
+    : persistentSevereShortfall || score < 65
       ? { gradeLabel: "주의", toneLabel: "부족 구간 점검", tone: "caution" as UiTone }
-      : score < 80
+      : severeShortfall || score < 80
         ? { gradeLabel: "보통", toneLabel: "일부 보수적 점검", tone: "caution" as UiTone }
         : { gradeLabel: "안전", toneLabel: "고갈위험 낮음", tone: "positive" as UiTone };
   return { ...descriptor, showScore: true };
@@ -547,9 +548,13 @@ export function describeScenarioRisk(
   const score = Math.round(Math.min(...results.map((result) => result.score)));
   const depleted = (result: SafetyResult) => result.metrics.depleted || result.metrics.endingRealAssets <= 0;
   const shortfalls = (result: SafetyResult) => result.metrics.shortfallYears;
+  const severeShortfall = (result: SafetyResult) => result.metrics.consecutiveSevereShortfallYears >= 2
+    || result.metrics.severeShortfallYears >= 3;
+  const persistentSevereShortfall = (result: SafetyResult) => severeShortfall(result)
+    && (result.metrics.monthlyIncomeCoverageRatio ?? 1) < 0.8;
 
-  if (depleted(good) || depleted(normal) || shortfalls(normal) >= 2 || shortfalls(bad) >= 3) {
-    return { label: "위험", score, description: "Normal 또는 Bad에서 장기 부족이나 자산 고갈 신호가 있습니다." };
+  if (depleted(good) || depleted(normal) || good.metrics.failed || normal.metrics.failed || bad.metrics.failed || persistentSevereShortfall(normal) || persistentSevereShortfall(bad)) {
+    return { label: "위험", score, description: "Good·Normal·Bad 중 자산 고갈·낮은 보존율·큰 생활비 부족 신호가 있습니다." };
   }
   if (shortfalls(normal) > 0 || depleted(bad) || bad.metrics.preservationRatio < 0.5) {
     return { label: "주의", score, description: "Normal 또는 Bad에서 생활비 부족·자산 보존 약화가 확인됩니다." };

@@ -6,6 +6,7 @@ import { calculateRetirementSafety } from "../lib/asset-simulator-safety.ts";
 import { buildAssetTrajectoryRows } from "../lib/asset-simulator-safety-chart-ui.ts";
 import {
   calibrateStressSafetyForDisplay,
+  describeSafety,
   formatPreservationRatio,
 } from "../lib/asset-simulator-portfolio-ui.ts";
 import {
@@ -76,6 +77,28 @@ const portfolioAssumptions: AppliedPortfolioAssumptionsV1 = {
       dividendYieldPct: 8,
       dividendGrowthPct: 2,
     })],
+  },
+};
+
+// 2026-07-15 Preview에서 화면으로 확인한 저장 적용값의 표시 정밀도 fixture.
+// 자동 계산 원본의 소수점 이하 값은 UI에 노출되지 않으므로, 화면에 보이는 값만 사용하고
+// 결과는 반올림 오차를 허용하는 범위로 검증한다.
+const previewVisibleAssumptions: AppliedPortfolioAssumptionsV1 = {
+  version: 1,
+  appliedAt: "2026-07-15T07:31:00.000Z",
+  taxSaving: {
+    accountType: "taxSaving",
+    holdings: [
+      { ...holding("preview-qqq", "QQQ", { totalReturnCagrPct: 9 }), weightPct: 50 },
+      { ...holding("preview-spy", "SPY", { totalReturnCagrPct: 7 }), weightPct: 50 },
+    ],
+  },
+  brokerage: {
+    accountType: "brokerage",
+    holdings: [
+      { ...holding("preview-schd", "SCHD", { priceCagrPct: 4, dividendYieldPct: 3.2, dividendGrowthPct: 5 }), weightPct: 90 },
+      { ...holding("preview-jepq", "JEPQ", { priceCagrPct: 1, dividendYieldPct: 9, dividendGrowthPct: 0 }), weightPct: 10 },
+    ],
   },
 };
 
@@ -303,6 +326,57 @@ for (const [label, actual, expectedStart, expectedEnd] of [
   assertApprox(actual.startingRealAssets, expectedStart, `${label} 보존율 분모는 실제 인출 시작 행`);
   assertApprox(actual.preservationRatio, expectedEnd / expectedStart, `${label} 보존율 계산식`);
 }
+
+// Preview 화면에 표시된 저장 적용값(절세계좌 1.19억, 인출률 3.1%, 위탁 1.50억,
+// QQQ/SPY 50:50, SCHD/JEPQ 90:10)을 명시적인 fixture로 고정한다.
+// 이를 통해 기본 입력값만 사용한 이전 진단과 저장 적용값 경로가 섞이지 않게 한다.
+const previewInputs = {
+  ...DEFAULT_SIMULATOR_INPUTS,
+  withdrawalRate: 3.1,
+  withdrawalDelayYears: 0,
+};
+const previewPlans = buildDefaultYearPlans(previewInputs.startYear, previewInputs.years);
+const previewGood = calculateAssetSimulatorPreview(previewInputs, previewPlans, true, {
+  portfolioAssumptions: previewVisibleAssumptions,
+});
+const previewNormal = calculateAssetSimulatorPreview(previewInputs, previewPlans, true, {
+  portfolioAssumptions: previewVisibleAssumptions,
+  returnMultiplier: 0.85,
+  priceReturnMultiplier: 0.85,
+  dividendGrowthMultiplier: 0.85,
+});
+const previewBad = calculateAssetSimulatorPreview(previewInputs, previewPlans, true, {
+  portfolioAssumptions: previewVisibleAssumptions,
+  ...BAD_SCENARIO_OPTIONS,
+});
+const previewGoodSafety = calculateRetirementSafety(previewGood, { targetMonthlyExpenseReal: 100 });
+const previewNormalSafety = calculateRetirementSafety(previewNormal, { targetMonthlyExpenseReal: 100 });
+const previewBadSafety = calculateRetirementSafety(previewBad, { targetMonthlyExpenseReal: 100 });
+
+assertApprox(previewGood.summary.portfolioSummary!.taxSaving.effectiveTotalReturnPct, 8, "Preview 절세계좌 가중 CAGR 8%");
+assertApprox(previewGood.summary.portfolioSummary!.brokerage.effectivePriceReturnPct, 3.7, "Preview 위탁 가중 주가성장률 3.7%");
+assertApprox(previewGood.summary.portfolioSummary!.brokerage.effectiveDividendYieldPct, 3.78, "Preview 위탁 가중 배당률 3.78%");
+assertApprox(previewGood.summary.portfolioSummary!.brokerage.effectiveDividendGrowthPct, 3.8095238095238093, "Preview 위탁 배당률 가중 배당성장률");
+
+assert.ok(previewGoodSafety.combined.metrics.preservationRatio > 3.9 && previewGoodSafety.combined.metrics.preservationRatio < 4.2, "Preview Good 통합 보존율은 화면의 약 401% 범위");
+assert.ok(previewNormalSafety.combined.metrics.preservationRatio > 1.5 && previewNormalSafety.combined.metrics.preservationRatio < 1.7, "Preview Normal 통합 보존율은 화면의 약 157% 범위");
+assert.ok(previewBadSafety.taxSaving.metrics.preservationRatio > 0.05 && previewBadSafety.taxSaving.metrics.preservationRatio < 0.1, "Preview Bad 절세계좌 보존율은 화면의 약 7% 범위");
+assert.ok(previewBadSafety.brokerage.metrics.preservationRatio > 0.6 && previewBadSafety.brokerage.metrics.preservationRatio < 0.7, "Preview Bad 위탁계좌 보존율은 화면의 약 64% 범위");
+assert.ok(previewBadSafety.combined.metrics.preservationRatio > 0.35 && previewBadSafety.combined.metrics.preservationRatio < 0.45, "Preview Bad 통합 보존율은 화면의 약 39% 범위");
+assert.ok(previewGoodSafety.combined.score > 80 && previewNormalSafety.combined.score > 80, "높은 보존율·95% 이상 충당률 Good/Normal은 34점 hard cap을 피함");
+assert.equal(previewBadSafety.combined.score, 34, "Preview Bad의 장기 큰 부족만 34점 hard cap 적용");
+assert.equal(describeSafety(previewGoodSafety.combined).gradeLabel, "보통", "Preview Good은 위험으로 고정하지 않음");
+assert.equal(describeSafety(previewNormalSafety.combined).gradeLabel, "보통", "Preview Normal은 위험으로 고정하지 않음");
+assert.equal(describeSafety(previewBadSafety.combined).gradeLabel, "위험", "Preview Bad의 장기 큰 부족은 위험으로 표시");
+
+const previewWithdrawalStartIndex = previewBad.timeline.withdrawalStartIndex!;
+assert.equal(previewWithdrawalStartIndex, 1, "Preview 안전성 fixture 는 2027년부터 실제 인출 시작");
+assert.ok(previewBad.chartRows[previewWithdrawalStartIndex].combinedRealBalance < previewGood.chartRows[previewWithdrawalStartIndex].combinedRealBalance, "Preview Bad 첫 인출연도에 한 번만 충격");
+assertApprox(
+  previewBad.dividendRows[previewWithdrawalStartIndex + 3].taxableDividendBalanceNominal,
+  previewBad.dividendRows[previewWithdrawalStartIndex + 2].taxableDividendBalanceNominal * (1 + (3.7 * 0.65) / 100),
+  "Preview Bad 4년차 위탁 가격잔고는 가중 주가성장률 65%로 복귀",
+);
 
 // UI 배선: 기본 projection 과 stress projection 을 분리하고 동일 target 으로 Safety 를 계산한다.
 const page = readFileSync("components/asset-simulator/AssetSimulatorPage.tsx", "utf8");

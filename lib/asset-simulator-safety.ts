@@ -11,6 +11,8 @@ import type {
 
 const EPSILON = 1e-9;
 const MEANINGFUL_SHORTFALL_RATIO = 0.01;
+// 1~10%의 작은 부족은 경고/점수에 반영하되, 자산 고갈과 같은 hard failure로 취급하지 않는다.
+const SEVERE_SHORTFALL_RATIO = 0.1;
 const NEUTRAL_SCORE = 70;
 // hard failure 시 점수와 등급이 모순되지 않도록 표시 점수의 상한(F 구간).
 const HARD_FAILURE_SCORE_CEILING = 34;
@@ -27,6 +29,8 @@ type AccountSignals = {
   livingExpensesCovered: boolean | null;
   shortfallYears: number;
   consecutiveShortfallYears: number;
+  severeShortfallYears: number;
+  consecutiveSevereShortfallYears: number;
   incomeCoverageScore: number;
   coreCashFlowStopped: boolean;
   principalSold: boolean | null;
@@ -106,6 +110,8 @@ type LivingExpenseSignals = Pick<
   | "livingExpensesCovered"
   | "shortfallYears"
   | "consecutiveShortfallYears"
+  | "severeShortfallYears"
+  | "consecutiveSevereShortfallYears"
   | "incomeCoverageScore"
   | "coreCashFlowStopped"
   | "expenseDemandSource"
@@ -133,6 +139,8 @@ function livingExpenseSignals(
     livingExpensesCovered: null,
     shortfallYears: 0,
     consecutiveShortfallYears: 0,
+    severeShortfallYears: 0,
+    consecutiveSevereShortfallYears: 0,
     incomeCoverageScore: NEUTRAL_SCORE,
     coreCashFlowStopped: false,
     expenseDemandSource: demandSource,
@@ -160,18 +168,22 @@ function livingExpenseSignals(
         availableMonthlyReal,
         coverageRatio: requiredMonthlyReal > EPSILON ? Math.min(1, availableMonthlyReal / requiredMonthlyReal) : 1,
         meaningfulShortfall: shortage + EPSILON >= requiredMonthlyReal * MEANINGFUL_SHORTFALL_RATIO,
+        severeShortfall: shortage + EPSILON >= requiredMonthlyReal * SEVERE_SHORTFALL_RATIO,
       };
     });
 
   if (rows.length === 0) return emptyResult;
 
   const shortfalls = rows.map((row) => row.meaningfulShortfall);
+  const severeShortfalls = rows.map((row) => row.severeShortfall);
   const shortfallYears = shortfalls.filter(Boolean).length;
   const averageCoverage = average(rows.map((row) => row.coverageRatio));
   return {
     livingExpensesCovered: shortfallYears === 0,
     shortfallYears,
     consecutiveShortfallYears: maxConsecutive(shortfalls),
+    severeShortfallYears: severeShortfalls.filter(Boolean).length,
+    consecutiveSevereShortfallYears: maxConsecutive(severeShortfalls),
     incomeCoverageScore: clampScore(averageCoverage * 100),
     // 일부 연도의 약화와 구분해, 평가 가능한 전체 기간에서 흐름이 0일 때만 완전 중단으로 본다.
     coreCashFlowStopped: rows.every((row) => row.availableMonthlyReal <= EPSILON),
@@ -254,12 +266,14 @@ function resolveFailureReason(
   if (status !== "evaluated") return "DATA_INSUFFICIENT";
   if (endingRealAssets <= EPSILON || preservation <= 0.3) return "LOW_ASSET";
   if (signals.coreCashFlowStopped) return account === "brokerage" ? "DIVIDEND_STOPPED" : "INCOME_SHORTAGE";
-  // 목표 월생활비 입력이 있는 통합 평가에서만 장기 생활비 부족을 hard failure로 승격한다.
-  // (2년 연속 또는 총 3년 이상 부족)
+  // 목표 월생활비 입력이 있는 통합 평가에서만 장기·큰 생활비 부족을 hard failure로 승격한다.
+  // 작은 부족(목표의 1~10%)은 점수/경고에 남기되, 고갈과 동일한 실패로 보지 않는다.
   if (
     account === "combined"
     && signals.expenseDemandSource === "target"
-    && (signals.consecutiveShortfallYears >= 2 || signals.shortfallYears >= 3)
+    // 초반 부족 뒤에 회복되는 경로는 점수/주의로 남긴다. 평균 충당률도 낮은 장기 부족만 실패로 본다.
+    && (signals.monthlyIncomeCoverageRatio ?? 1) < 0.8
+    && (signals.consecutiveSevereShortfallYears >= 2 || signals.severeShortfallYears >= 3)
   ) {
     return "INCOME_SHORTAGE";
   }
@@ -337,7 +351,8 @@ function accountMessages(
       // 목표 월생활비 기준 평가: 명시적 수요 대비 월 현금흐름 충당 여부를 안내한다.
       if (metrics.livingExpensesCovered === true) positives.push("목표 월생활비를 월 현금흐름이 안정적으로 충당합니다.");
       else if (metrics.shortfallYears === 1) warnings.push("일부 연도에서 목표 월생활비 대비 월 현금흐름이 부족합니다.");
-      else if (metrics.shortfallYears > 1) warnings.push("여러 연도에서 목표 월생활비를 충당하지 못해 계획 조정을 검토할 필요가 있습니다.");
+      else if (metrics.severeShortfallYears > 0) warnings.push("목표 월생활비 대비 10% 이상 부족한 연도가 있어 계획 조정을 검토할 필요가 있습니다.");
+      else if (metrics.shortfallYears > 1) warnings.push("목표 월생활비보다 소폭 낮은 연도가 이어져 현금흐름 여유를 점검할 필요가 있습니다.");
       else warnings.push("목표 월생활비 대비 충당 여부를 판단할 데이터가 아직 부족합니다.");
     } else {
       // 목표 입력 전 임시(proxy) 기준 평가.
@@ -415,6 +430,8 @@ function evaluateAccount(account: AccountKind, retirementIndex: number, signals:
     dividendsContinued: status === "not_applicable" ? null : signals.dividendsContinued,
     shortfallYears: signals.shortfallYears,
     consecutiveShortfallYears: signals.consecutiveShortfallYears,
+    severeShortfallYears: signals.severeShortfallYears,
+    consecutiveSevereShortfallYears: signals.consecutiveSevereShortfallYears,
     preservationScore,
     incomeCoverageScore,
     depletionScore,
@@ -462,6 +479,8 @@ export function calculateRetirementSafety(
       livingExpensesCovered: null,
       shortfallYears: 0,
       consecutiveShortfallYears: 0,
+      severeShortfallYears: 0,
+      consecutiveSevereShortfallYears: 0,
       principalSold: false,
       expenseDemandSource: "legacy_proxy",
       targetMonthlyExpenseReal: null,
