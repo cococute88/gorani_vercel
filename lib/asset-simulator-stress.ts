@@ -48,8 +48,8 @@ export function buildStressSchedule(
 ): StressSchedule | null {
   const preset = resolveStressPreset(config);
   if (preset !== "early_downturn") return null;
-  // 안전성 탭은 withdrawalStartIndex가 0이므로 시작 첫해부터 shock이 적용된다.
-  // 일반 projection은 실제 인출 시작 연도를 기준으로 하므로 은퇴 준비 기간을 건드리지 않는다.
+  // 안전성 탭과 일반 projection 모두 실제 인출 시작 연도를 기준으로 한다.
+  // 따라서 은퇴 준비·인출 대기 구간은 shock 대상이 아니다.
   const retirementIndex = timeline.withdrawalStartIndex ?? timeline.retirementIndex;
   if (retirementIndex === null || retirementIndex < 0) return null;
 

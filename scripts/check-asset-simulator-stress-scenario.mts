@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 
 import { calculateAssetSimulatorPreview } from "../lib/asset-simulator.ts";
 import { calculateRetirementSafety } from "../lib/asset-simulator-safety.ts";
+import { buildAssetTrajectoryRows } from "../lib/asset-simulator-safety-chart-ui.ts";
 import {
   calibrateStressSafetyForDisplay,
   formatPreservationRatio,
@@ -18,6 +19,16 @@ import type { AppliedPortfolioAssumptionsV1, AppliedPortfolioHoldingAssumption }
 
 const EARLY_DOWNTURN = { version: 1 as const, preset: "early_downturn" as const };
 const NONE = { version: 1 as const, preset: "none" as const };
+const BAD_SCENARIO_OPTIONS = {
+  returnMultiplier: 0.65,
+  priceReturnMultiplier: 0.65,
+  dividendGrowthMultiplier: 0.5,
+  stressScenario: EARLY_DOWNTURN,
+} as const;
+
+function assertApprox(actual: number, expected: number, message: string): void {
+  assert.ok(Math.abs(actual - expected) <= 1e-8, `${message}: expected ${expected}, got ${actual}`);
+}
 
 function holding(
   holdingId: string,
@@ -96,7 +107,10 @@ assert.deepEqual(stress.yearPlans, base.yearPlans, "stress 는 계획표를 바�
 const retirementIndex = base.timeline.retirementIndex;
 assert.notEqual(retirementIndex, null, "검사 fixture 에 은퇴 시점 존재");
 const retireIdx = retirementIndex!;
-const firstStressIndex = retireIdx + 1;
+const withdrawalStartIndex = base.timeline.withdrawalStartIndex;
+assert.notEqual(withdrawalStartIndex, null, "검사 fixture 에 실제 인출 시작 시점 존재");
+const firstStressIndex = withdrawalStartIndex!;
+assert.equal(firstStressIndex, retireIdx + 1, "기본 fixture 에서는 은퇴 다음 행이 실제 인출 시작 행");
 assert.ok(firstStressIndex + 2 < base.results.length, "은퇴 후 3년 검사 구간 존재");
 
 // 은퇴 전과 은퇴 시점까지는 모든 계좌 projection 이 동일하다.
@@ -114,6 +128,16 @@ assert.equal(schedule!.brokeragePriceReturnPctAt(firstStressIndex), EARLY_DOWNTU
 assert.equal(schedule!.taxSavingReturnPctAt(firstStressIndex + 1), EARLY_DOWNTURN_LOW_RETURN_PCT, "은퇴 후 2년차 0% 저수익");
 assert.equal(schedule!.taxSavingReturnPctAt(firstStressIndex + 2), EARLY_DOWNTURN_LOW_RETURN_PCT, "은퇴 후 3년차 0% 저수익");
 assert.equal(schedule!.taxSavingReturnPctAt(firstStressIndex + 3), null, "3년 이후 기본 수익률 복귀");
+assertApprox(
+  stress.results[firstStressIndex + 3].pensionNominal,
+  stress.results[firstStressIndex + 2].pensionNominal * (1 + inputs.annualReturnRate / 100),
+  "4년차 절세계좌는 기본 장기 성장률로 복귀",
+);
+assertApprox(
+  stress.dividendRows[firstStressIndex + 3].taxableDividendBalanceNominal,
+  stress.dividendRows[firstStressIndex + 2].taxableDividendBalanceNominal * (1 + inputs.annualReturnRate / 100),
+  "4년차 위탁 가격잔고는 기본 장기 성장률로 복귀",
+);
 for (let offset = 0; offset < 3; offset += 1) {
   assert.equal(
     schedule!.brokerageDividendMultiplierAt(firstStressIndex + offset),
@@ -223,6 +247,62 @@ assert.notEqual(
   stress.dividendRows[firstStressIndex].afterTaxAnnualDividendNominal,
   "stress projection 이 portfolio 위탁 배당 assumptions 반영",
 );
+const portfolioBad = calculateAssetSimulatorPreview(inputs, plans, false, {
+  portfolioAssumptions,
+  ...BAD_SCENARIO_OPTIONS,
+});
+const badTaxSavingLongReturn = portfolioAssumptions.taxSaving.holdings[0].totalReturnCagrPct! * BAD_SCENARIO_OPTIONS.returnMultiplier;
+const badBrokerageLongPriceReturn = portfolioAssumptions.brokerage.holdings[0].priceCagrPct! * BAD_SCENARIO_OPTIONS.priceReturnMultiplier;
+assertApprox(
+  portfolioBad.results[firstStressIndex + 3].pensionNominal,
+  portfolioBad.results[firstStressIndex + 2].pensionNominal * (1 + badTaxSavingLongReturn / 100),
+  "Bad 4년차 절세계좌는 입력 총수익률의 65%로 복귀",
+);
+assertApprox(
+  portfolioBad.dividendRows[firstStressIndex + 3].taxableDividendBalanceNominal,
+  portfolioBad.dividendRows[firstStressIndex + 2].taxableDividendBalanceNominal * (1 + badBrokerageLongPriceReturn / 100),
+  "Bad 4년차 위탁 가격잔고는 입력 가격성장률의 65%로 복귀",
+);
+const initialDividendYield = portfolioAssumptions.brokerage.holdings[0].dividendYieldPct! / 100;
+const badDividendGrowthRate = (portfolioAssumptions.brokerage.holdings[0].dividendGrowthPct! * BAD_SCENARIO_OPTIONS.dividendGrowthMultiplier) / 100;
+const firstDividendBase = portfolioBad.dividendRows[firstStressIndex - 1].taxableDividendBalanceNominal;
+const expectedFirstBadDividend = firstDividendBase
+  * initialDividendYield
+  * Math.pow(1 + badDividendGrowthRate, firstStressIndex)
+  * EARLY_DOWNTURN_DIVIDEND_CUT_MULTIPLIER
+  * 0.85;
+assertApprox(
+  portfolioBad.dividendRows[firstStressIndex].afterTaxAnnualDividendNominal,
+  expectedFirstBadDividend,
+  "Bad 첫 3년 배당률 haircut은 20%만 한 번 적용",
+);
+const recoveryDividendIndex = firstStressIndex + 3;
+const recoveryDividendBase = portfolioBad.dividendRows[recoveryDividendIndex - 1].taxableDividendBalanceNominal;
+const expectedRecoveryBadDividend = recoveryDividendBase
+  * initialDividendYield
+  * Math.pow(1 + badDividendGrowthRate, recoveryDividendIndex)
+  * 0.85;
+assertApprox(
+  portfolioBad.dividendRows[recoveryDividendIndex].afterTaxAnnualDividendNominal,
+  expectedRecoveryBadDividend,
+  "Bad 4년차 배당률 haircut은 복귀하고 배당성장률 50%만 유지",
+);
+const trajectoryRows = buildAssetTrajectoryRows(portfolioBase, null, portfolioBad);
+for (const index of [firstStressIndex, firstStressIndex + 1, firstStressIndex + 2, firstStressIndex + 3]) {
+  const row = trajectoryRows.find((item) => item.year === portfolioBad.chartRows[index].year);
+  assert.equal(row?.stress, portfolioBad.chartRows[index].combinedRealBalance, `Bad 차트 ${index + 1}년차는 projection 실질자산을 사용`);
+}
+const portfolioStressSafety = calculateRetirementSafety(portfolioBad);
+const preservationStartIndex = portfolioBad.timeline.withdrawalStartIndex;
+assert.notEqual(preservationStartIndex, null, "portfolio stress 실제 인출 시작 행 존재");
+for (const [label, actual, expectedStart, expectedEnd] of [
+  ["절세계좌", portfolioStressSafety.taxSaving.metrics, portfolioBad.chartRows[preservationStartIndex!].realTaxSavingBalance, portfolioBad.chartRows.at(-1)!.realTaxSavingBalance],
+  ["위탁계좌", portfolioStressSafety.brokerage.metrics, portfolioBad.chartRows[preservationStartIndex!].taxableDividendBalanceReal, portfolioBad.chartRows.at(-1)!.taxableDividendBalanceReal],
+  ["통합", portfolioStressSafety.combined.metrics, portfolioBad.chartRows[preservationStartIndex!].combinedRealBalance, portfolioBad.chartRows.at(-1)!.combinedRealBalance],
+] as const) {
+  assertApprox(actual.startingRealAssets, expectedStart, `${label} 보존율 분모는 실제 인출 시작 행`);
+  assertApprox(actual.preservationRatio, expectedEnd / expectedStart, `${label} 보존율 계산식`);
+}
 
 // UI 배선: 기본 projection 과 stress projection 을 분리하고 동일 target 으로 Safety 를 계산한다.
 const page = readFileSync("components/asset-simulator/AssetSimulatorPage.tsx", "utf8");
@@ -238,6 +318,9 @@ const detailPanel = readFileSync("components/asset-simulator/SafetyAccountDetail
 assert.match(detailPanel, /formatPreservationRatio/, "보존율 상한 포맷 연결(계좌 상세 패널)");
 assert.match(page, /const normalProjection = useMemo/, "Normal projection 별도 계산");
 assert.match(page, /returnMultiplier: 0\.85/, "Normal 성장률 보정 연결");
+assert.match(page, /returnMultiplier: 0\.65/, "Bad 장기 성장률 65% 연결");
+assert.match(page, /dividendGrowthMultiplier: 0\.5/, "Bad 배당성장률 50% 연결");
+assert.doesNotMatch(page, /dividendYieldMultiplier/, "Bad 배당률 haircut은 stress schedule 한 곳에서만 적용");
 assert.match(section, /Good 시나리오/, "Good 시나리오 UI");
 assert.match(section, /Bad 시나리오/, "Bad 시나리오 UI");
 assert.match(section, /첫 3년 저수익/, "stress 가정 안내");

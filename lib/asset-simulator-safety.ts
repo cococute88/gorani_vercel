@@ -183,10 +183,11 @@ function livingExpenseSignals(
 
 function brokerageDividendSignals(
   source: SimulatorProjection,
-  retirementIndex: number,
+  withdrawalStartIndex: number,
 ): Pick<AccountSignals, "dividendsContinued" | "incomeCoverageScore" | "coreCashFlowStopped" | "cashFlowWeakening"> {
   const dividends = source.dividendRows
-    .slice(retirementIndex + 1)
+    // 보존율·생활비 평가와 동일하게 실제 인출 시작 행부터 배당 현금흐름을 평가한다.
+    .slice(withdrawalStartIndex)
     .map((row) => nonNegative(row.afterTaxAnnualDividendReal));
   if (dividends.length === 0) {
     return {
@@ -438,23 +439,26 @@ export function calculateRetirementSafety(
   options: RetirementSafetyOptions = {},
 ): RetirementSafetyResult {
   const retirementIndex = source.timeline.retirementIndex ?? -1;
-  const retirementRows = retirementIndex >= 0 ? source.chartRows.slice(retirementIndex) : [];
+  // UI의 "인출 시작 대비" 정의를 그대로 따른다. 인출 대기 구간이 있으면 은퇴 행보다
+  // 실제 첫 인출 행을 우선하며, 과거 저장값처럼 인출 인덱스가 없을 때만 은퇴 행으로 보완한다.
+  const preservationStartIndex = source.timeline.withdrawalStartIndex ?? retirementIndex;
+  const preservationRows = preservationStartIndex >= 0 ? source.chartRows.slice(preservationStartIndex) : [];
   const targetMonthlyExpenseReal = resolveTargetMonthlyExpense(options.targetMonthlyExpenseReal);
   // 목표는 통합 생활비 수요에만 적용한다. 절세계좌 단독 평가는 기존 proxy 기준을 유지한다.
   const taxLivingExpenses = livingExpenseSignals(source, "taxSaving", targetMonthlyExpenseReal);
   const combinedLivingExpenses = livingExpenseSignals(source, "combined", targetMonthlyExpenseReal);
-  const brokerageDividends = brokerageDividendSignals(source, retirementIndex);
+  const brokerageDividends = brokerageDividendSignals(source, preservationStartIndex);
 
   return {
-    taxSaving: evaluateAccount("taxSaving", retirementIndex, {
-      assets: retirementRows.map((row) => nonNegative(row.realTaxSavingBalance)),
+    taxSaving: evaluateAccount("taxSaving", preservationStartIndex, {
+      assets: preservationRows.map((row) => nonNegative(row.realTaxSavingBalance)),
       ...taxLivingExpenses,
       principalSold: null,
       dividendsContinued: null,
       cashFlowWeakening: false,
     }),
-    brokerage: evaluateAccount("brokerage", retirementIndex, {
-      assets: retirementRows.map((row) => nonNegative(row.taxableDividendBalanceReal)),
+    brokerage: evaluateAccount("brokerage", preservationStartIndex, {
+      assets: preservationRows.map((row) => nonNegative(row.taxableDividendBalanceReal)),
       livingExpensesCovered: null,
       shortfallYears: 0,
       consecutiveShortfallYears: 0,
@@ -464,8 +468,8 @@ export function calculateRetirementSafety(
       monthlyIncomeCoverageRatio: null,
       ...brokerageDividends,
     }),
-    combined: evaluateAccount("combined", retirementIndex, {
-      assets: retirementRows.map((row) => nonNegative(row.combinedRealBalance)),
+    combined: evaluateAccount("combined", preservationStartIndex, {
+      assets: preservationRows.map((row) => nonNegative(row.combinedRealBalance)),
       ...combinedLivingExpenses,
       principalSold: null,
       dividendsContinued: null,
