@@ -198,6 +198,10 @@ export type AssetSimulatorPreviewOptions = {
   // 은퇴 스트레스 시나리오. 없거나 preset "none" 이면 기존 projection 과 deep-equal 을 유지한다.
   // 값이 있으면 은퇴 직후 구간에만 계좌 단위 스트레스를 반영한 별도 projection 을 만든다.
   stressScenario?: RetirementStressScenarioConfigV1 | null;
+  returnMultiplier?: number;
+  priceReturnMultiplier?: number;
+  dividendGrowthMultiplier?: number;
+  dividendYieldMultiplier?: number;
 };
 
 export type SimulatorProjection = {

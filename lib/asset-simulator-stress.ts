@@ -8,10 +8,10 @@ import type {
 // 현재 projection 은 holding 별 세부 자산 시계열이 아니라 effective assumptions 기반이므로,
 // 이번 PR 에서는 은퇴 직후 구간에 계좌(절세/위탁) 단위 스트레스를 적용한다.
 //
-// 은퇴 인덱스 다음 해(offset 1)부터 EARLY_DOWNTURN_STRESS_YEARS(3년) 동안:
-//   offset 1        → 주식성 자산/가격 총수익 -30% shock (은퇴 직후 하락장)
-//   offset 2, 3     → 0% 저수익 (은퇴 초반 저수익 지속)
-//   offset 1 ~ 3    → 위탁 배당률 20% 삭감
+// 인출 시작 연도(offset 0)부터 EARLY_DOWNTURN_STRESS_YEARS(3년) 동안:
+//   offset 0        → 주식성 자산/가격 총수익 -30% shock (은퇴·인출 첫해 하락장)
+//   offset 1, 2     → 0% 정체 (은퇴 초반 회복 지연)
+//   offset 0 ~ 2    → 위탁 배당률 20% 삭감
 // 현금/예비금(reserve)에는 이번 PR 에서 별도 shock 을 적용하지 않는다.
 export const EARLY_DOWNTURN_SHOCK_RETURN_PCT = -30;
 export const EARLY_DOWNTURN_LOW_RETURN_PCT = 0;
@@ -48,14 +48,16 @@ export function buildStressSchedule(
 ): StressSchedule | null {
   const preset = resolveStressPreset(config);
   if (preset !== "early_downturn") return null;
-  const retirementIndex = timeline.retirementIndex;
+  // 안전성 탭은 withdrawalStartIndex가 0이므로 시작 첫해부터 shock이 적용된다.
+  // 일반 projection은 실제 인출 시작 연도를 기준으로 하므로 은퇴 준비 기간을 건드리지 않는다.
+  const retirementIndex = timeline.withdrawalStartIndex ?? timeline.retirementIndex;
   if (retirementIndex === null || retirementIndex < 0) return null;
 
   // 주식성 자산(절세)과 위탁 가격은 동일한 시퀀스(-30% shock → 0% 저수익)를 따른다.
   const equityReturnPctAt = (index: number): number | null => {
     const offset = index - retirementIndex;
-    if (offset === 1) return EARLY_DOWNTURN_SHOCK_RETURN_PCT;
-    if (offset >= 2 && offset <= EARLY_DOWNTURN_STRESS_YEARS) return EARLY_DOWNTURN_LOW_RETURN_PCT;
+    if (offset === 0) return EARLY_DOWNTURN_SHOCK_RETURN_PCT;
+    if (offset > 0 && offset < EARLY_DOWNTURN_STRESS_YEARS) return EARLY_DOWNTURN_LOW_RETURN_PCT;
     return null;
   };
 
@@ -66,7 +68,7 @@ export function buildStressSchedule(
     brokeragePriceReturnPctAt: equityReturnPctAt,
     brokerageDividendMultiplierAt: (index: number): number => {
       const offset = index - retirementIndex;
-      return offset >= 1 && offset <= EARLY_DOWNTURN_STRESS_YEARS
+      return offset >= 0 && offset < EARLY_DOWNTURN_STRESS_YEARS
         ? EARLY_DOWNTURN_DIVIDEND_CUT_MULTIPLIER
         : 1;
     },

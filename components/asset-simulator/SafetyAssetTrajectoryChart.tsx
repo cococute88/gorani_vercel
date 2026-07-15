@@ -9,6 +9,7 @@ import SafetyChartTooltip from "./SafetyChartTooltip";
 
 type Props = {
   projection: SimulatorProjection;
+  normalProjection?: SimulatorProjection | null;
   stressProjection: SimulatorProjection | null;
 };
 
@@ -47,19 +48,20 @@ function EmptyState({ children }: { children: ReactNode }) {
   );
 }
 
-export default function SafetyAssetTrajectoryChart({ projection, stressProjection }: Props) {
+export default function SafetyAssetTrajectoryChart({ projection, normalProjection = null, stressProjection }: Props) {
   if (!stressProjection) {
-    return <EmptyState>하락장 시나리오 결과가 준비되지 않았습니다.</EmptyState>;
+    return <EmptyState>Bad 시나리오 결과가 준비되지 않았습니다.</EmptyState>;
   }
 
-  const data = buildAssetTrajectoryRows(projection, stressProjection);
+  const data = buildAssetTrajectoryRows(projection, normalProjection, stressProjection);
   const chartFinalBase = [...data].reverse().find((row) => row.base !== null)?.base ?? null;
+  const chartFinalNormal = [...data].reverse().find((row) => row.normal !== null)?.normal ?? null;
   const chartFinalStress = [...data].reverse().find((row) => row.stress !== null)?.stress ?? null;
   const finalBase = toFiniteNumber(projection.summary.combinedRealBalance) ?? chartFinalBase;
   const finalStress = toFiniteNumber(stressProjection.summary.combinedRealBalance) ?? chartFinalStress;
   const retirementYear = toFiniteNumber(projection.timeline.retirementYear);
   const withdrawalStartYear = toFiniteNumber(projection.timeline.withdrawalStartYear);
-  const ariaLabel = `실질 총자산 추이: 기본 시나리오는 ${finalBase !== null ? formatManwonMoney(finalBase) : "결과 없음"}, 하락장 시나리오는 ${finalStress !== null ? formatManwonMoney(finalStress) : "결과 없음"}으로 종료됩니다.`;
+  const ariaLabel = `실질 총자산 추이: Good 시나리오는 ${finalBase !== null ? formatManwonMoney(finalBase) : "결과 없음"}, Bad 시나리오는 ${finalStress !== null ? formatManwonMoney(finalStress) : "결과 없음"}으로 종료됩니다.`;
 
   if (data.length === 0 || (finalBase === null && finalStress === null)) {
     return <EmptyState>시뮬레이션 결과가 준비되면 자산 추이 차트를 표시합니다.</EmptyState>;
@@ -68,8 +70,9 @@ export default function SafetyAssetTrajectoryChart({ projection, stressProjectio
   return (
     <div className="safety-asset-trajectory min-w-0" role="img" aria-label={ariaLabel}>
       <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1.5" aria-label="차트 범례">
-        <ScenarioLegend label="기본" value={finalBase} />
-        <ScenarioLegend label="하락장" value={finalStress} stress />
+        <ScenarioLegend label="Good" value={finalBase} />
+        <ScenarioLegend label="Normal" value={chartFinalNormal} stress />
+        <ScenarioLegend label="Bad" value={finalStress} stress />
         <span className="text-[11px] text-slate-600 dark:text-slate-400">실선/점선으로도 구분</span>
       </div>
       <div className="h-[200px] w-full md:h-[260px]">
@@ -79,7 +82,7 @@ export default function SafetyAssetTrajectoryChart({ projection, stressProjectio
             <XAxis dataKey="year" stroke="var(--safety-chart-axis)" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
             <YAxis stroke="var(--safety-chart-axis)" tick={{ fontSize: 11 }} tickFormatter={formatAxisAmount} tickLine={false} axisLine={false} width={50} />
             <Tooltip content={<SafetyChartTooltip />} cursor={{ stroke: "var(--safety-chart-axis)", strokeDasharray: "3 3" }} />
-            {retirementYear !== null && (
+            {retirementYear !== null && retirementYear !== projection.inputs.startYear && (
               <ReferenceLine
                 x={retirementYear}
                 stroke="var(--safety-chart-reference)"
@@ -97,8 +100,9 @@ export default function SafetyAssetTrajectoryChart({ projection, stressProjectio
                 label={{ value: "인출", position: "insideBottomRight", fill: "var(--safety-chart-reference)", fontSize: 10 }}
               />
             )}
-            <Line type="monotone" dataKey="base" name="기본 실질 총자산" stroke="var(--safety-chart-base)" strokeWidth={2} dot={false} connectNulls />
-            <Line type="monotone" dataKey="stress" name="하락장 실질 총자산" stroke="var(--safety-chart-stress)" strokeWidth={2} strokeDasharray="6 4" dot={false} connectNulls />
+            <Line type="monotone" dataKey="base" name="Good 실질 총자산" stroke="var(--safety-chart-base)" strokeWidth={2} dot={false} connectNulls />
+            <Line type="monotone" dataKey="normal" name="Normal 실질 총자산" stroke="#10b981" strokeWidth={2} strokeDasharray="3 3" dot={false} connectNulls />
+            <Line type="monotone" dataKey="stress" name="Bad 실질 총자산" stroke="var(--safety-chart-stress)" strokeWidth={2} strokeDasharray="6 4" dot={false} connectNulls />
           </LineChart>
         </ResponsiveContainer>
       </div>

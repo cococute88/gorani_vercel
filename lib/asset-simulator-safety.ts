@@ -119,11 +119,11 @@ function livingExpenseSignals(
   targetMonthlyExpenseReal: number | null,
 ): LivingExpenseSignals {
   // 목표 월생활비 입력이 있으면 통합(combined) 평가는 명시적 수요를 기준으로 한다.
-  //   월 공급 = taxSavingMonthlyReal (+ taxableMonthlyDividendReal, combined)
+  //   월 현금흐름 = taxSavingMonthlyReal (+ taxableMonthlyDividendReal, combined)
   //   월 수요 = targetMonthlyExpenseReal (연도 무관 고정)
   // 목표가 없으면 기존처럼 preview 의 realWithdraw 를 임시 수요 proxy 로 사용한다.
-  // proxy 는 공급과 다른 legacy 모델에서 나오므로 부족 횟수/비율은 score/warnings 참고용으로만 쓰인다.
-  // 단, 평가 가능한 전체 기간의 공급 자체가 0인 경우는 핵심 현금흐름 중단 신호로 유지한다.
+  // proxy 는 월 현금흐름과 다른 legacy 모델에서 나오므로 부족 횟수/비율은 score/warnings 참고용으로만 쓰인다.
+  // 단, 평가 가능한 전체 기간의 월 현금흐름 자체가 0인 경우는 핵심 현금흐름 중단 신호로 유지한다.
   // 또한 실제 인출 시작 전 대기 구간은 비교 모델 차이로 생기는 가짜 부족이므로 평가에서 제외한다.
   const useTarget = account === "combined" && targetMonthlyExpenseReal !== null;
   const demandSource: ExpenseDemandSource = useTarget ? "target" : "legacy_proxy";
@@ -144,7 +144,7 @@ function livingExpenseSignals(
   if (withdrawalStartIndex === null) return emptyResult;
 
   // 월 부족액이 해당 연도 수요의 1% 미만이면 계산 오차 수준으로 보고 부족 연도에서 제외한다.
-  // (= 공급이 수요의 99% 미만일 때만 부족으로 본다.)
+  // (= 월 현금흐름이 수요의 99% 미만일 때만 부족으로 본다.)
   const rows = source.totalWithdrawRows
     .slice(withdrawalStartIndex)
     // proxy 는 realWithdraw 가 0 인 연도를 제외했지만, 목표 수요는 연도와 무관하게 고정이므로
@@ -333,9 +333,9 @@ function accountMessages(
 
   if (account !== "brokerage") {
     if (metrics.expenseDemandSource === "target") {
-      // 목표 월생활비 기준 평가: 명시적 수요 대비 공급 충당 여부를 안내한다.
-      if (metrics.livingExpensesCovered === true) positives.push("목표 월생활비를 월 공급이 안정적으로 충당합니다.");
-      else if (metrics.shortfallYears === 1) warnings.push("일부 연도에서 목표 월생활비 대비 월 공급이 부족합니다.");
+      // 목표 월생활비 기준 평가: 명시적 수요 대비 월 현금흐름 충당 여부를 안내한다.
+      if (metrics.livingExpensesCovered === true) positives.push("목표 월생활비를 월 현금흐름이 안정적으로 충당합니다.");
+      else if (metrics.shortfallYears === 1) warnings.push("일부 연도에서 목표 월생활비 대비 월 현금흐름이 부족합니다.");
       else if (metrics.shortfallYears > 1) warnings.push("여러 연도에서 목표 월생활비를 충당하지 못해 계획 조정을 검토할 필요가 있습니다.");
       else warnings.push("목표 월생활비 대비 충당 여부를 판단할 데이터가 아직 부족합니다.");
     } else {
@@ -361,6 +361,8 @@ function accountMessages(
 }
 
 function evaluateAccount(account: AccountKind, retirementIndex: number, signals: AccountSignals): SafetyResult {
+  // assets[0]은 withdrawalStartIndex(안전성 탭에서는 시작년도)의 실질 잔고다.
+  // 따라서 preservationRatio = 최종 실질자산 / 인출 시작 시점 실질자산이다.
   const startingRealAssets = signals.assets[0] ?? 0;
   const endingRealAssets = signals.assets.at(-1) ?? 0;
   const ratio = preservationRatio(startingRealAssets, endingRealAssets);

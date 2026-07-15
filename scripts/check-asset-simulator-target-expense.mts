@@ -203,9 +203,9 @@ function fixture(options: FixtureOptions = {}): SimulatorProjection {
 {
   const projection = calculateAssetSimulatorPreview(DEFAULT_SIMULATOR_INPUTS, buildDefaultYearPlans(), false);
   const result = calculateRetirementSafety(projection, { targetMonthlyExpenseReal: 300 });
-  assert.equal(result.brokerage.status, "not_applicable", "위탁 0원은 목표 입력과 무관하게 평가 대상 없음");
-  assert.equal(result.brokerage.grade, null, "위탁 0원은 F 대신 등급 없음");
-  assert.equal(result.brokerage.metrics.failed, false, "위탁 0원은 실패 아님");
+  assert.equal(result.brokerage.status, "evaluated", "기본 입력 위탁계좌는 목표 입력과 무관하게 평가됨");
+  assert.notEqual(result.brokerage.grade, "F", "평가된 위탁계좌는 목표 입력 때문에 F가 되지 않음");
+  assert.equal(result.brokerage.metrics.failed, false, "기본 위탁계좌는 실패 아님");
 }
 
 // ---------------------------------------------------------------------------
@@ -277,7 +277,7 @@ function fixture(options: FixtureOptions = {}): SimulatorProjection {
   assert.match(page, /setTargetMonthlyExpenseReal/, "목표 월생활비 setter 존재");
   assert.match(page, /retirementSafetyConfig: \{ version: 1 as const, targetMonthlyExpenseReal \}/, "저장 payload 에 목표 월생활비 포함");
   assert.match(page, /onTargetMonthlyExpenseChange=\{setTargetMonthlyExpenseReal\}/, "대시보드에 setter 전달");
-  assert.match(page, /setTargetMonthlyExpenseReal\(null\)/, "초기화 시 목표 월생활비 해제");
+  assert.match(page, /useState<number \| null>\(100\)/, "기본 목표 월생활비 100만원 유지");
 
   // 목표 월생활비 입력은 목표 설정 단계의 SafetyHeroCard 에 둔다.
   // 대시보드는 목표와 기간/물가 입력을 Hero 까지 전달한다.
@@ -295,8 +295,8 @@ function fixture(options: FixtureOptions = {}): SimulatorProjection {
 
   const resultCards = read("components/asset-simulator/SafetyKpiCards.tsx");
   assert.match(resultCards, /월생활비 충당 결과/, "월생활비 충당 결과 표시");
-  assert.match(resultCards, /총 월 현금[\s\S]*절세계좌 월 현금[\s\S]*위탁계좌 월 현금[\s\S]*월 여유\/부족/, "계좌별 월 현금과 여유·부족 표시");
-  assert.match(resultCards, /충당률[\s\S]*100%[\s\S]*150%/, "충당률 기준 표시");
+  assert.match(resultCards, /총 월 현금흐름[\s\S]*절세계좌 월 현금흐름[\s\S]*위탁계좌 월 현금흐름[\s\S]*월 여유\/부족/, "계좌별 월 현금흐름과 여유·부족 표시");
+  assert.match(resultCards, /formatCoverageRatio/, "충당률 표시");
 
   const section = read("components/asset-simulator/RetirementSafetySection.tsx");
   assert.match(section, /calculateRetirementSafety\(projection, \{ targetMonthlyExpenseReal \}\)/, "섹션이 목표 월생활비를 Safety 에 전달");

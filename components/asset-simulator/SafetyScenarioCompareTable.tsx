@@ -9,8 +9,8 @@ import {
 import type { SafetyResult } from "@/lib/asset-simulator-types";
 import SafetyDeltaBar from "./SafetyDeltaBar";
 
-// 기본/하락장 단일 비교표.
-// 열: 지표 · 기본 시나리오 · 하락장 시나리오 · 변화.
+// Good/Bad 단일 비교표.
+// 열: 지표 · Good 시나리오 · Bad 시나리오 · 변화.
 // 데스크톱은 4열 그리드, 모바일(375px)은 세로 카드형 row 로 전환해 가로 스크롤을 피한다.
 type Props = {
   basic: SafetyResult;
@@ -44,7 +44,7 @@ export default function SafetyScenarioCompareTable({ basic, stress, rows }: Prop
   const basicGradeTone = describeSafety(basic).tone;
   const stressGradeTone = describeSafety(stress).tone;
 
-  // 등급 행의 기본/하락장 셀은 각 시나리오 등급 톤으로 강조한다.
+  // 등급 행의 Good/Bad 셀은 각 시나리오 등급 톤으로 강조한다.
   const valueClass = (row: ScenarioCompareRow, which: "basic" | "stress") => {
     if (row.key === "grade") {
       return `font-bold ${GRADE_TONE_TEXT[which === "basic" ? basicGradeTone : stressGradeTone]}`;
@@ -53,15 +53,15 @@ export default function SafetyScenarioCompareTable({ basic, stress, rows }: Prop
   };
 
   return (
-    <div className="mt-3 min-w-0" role="table" aria-label="기본 하락장 지표 비교표">
+    <div className="mt-3 min-w-0" role="table" aria-label="Good Bad 지표 비교표">
       {/* 헤더: 데스크톱에서만 표시. 모바일은 각 행에 인라인 라벨을 둔다. */}
       <div
         role="row"
         className="hidden grid-cols-[1.1fr_1fr_1fr_1.3fr] items-center gap-x-3 border-b border-slate-200 pb-2 dark:border-[#273032] md:grid"
       >
         <span role="columnheader" className="text-[11px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">지표</span>
-        <span role="columnheader" className="text-[11px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">기본 시나리오</span>
-        <span role="columnheader" className="text-[11px] font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">하락장 시나리오</span>
+        <span role="columnheader" className="text-[11px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">Good 시나리오</span>
+        <span role="columnheader" className="text-[11px] font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">Bad 시나리오</span>
         <span role="columnheader" className="text-[11px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">변화</span>
       </div>
 
@@ -77,15 +77,15 @@ export default function SafetyScenarioCompareTable({ basic, stress, rows }: Prop
               <span className="text-[12.5px] font-semibold text-slate-800 dark:text-slate-100">{row.label}</span>
             </div>
 
-            {/* 기본 */}
+            {/* Good */}
             <div role="cell" className="min-w-0">
-              <span className="mr-1 text-[10.5px] text-slate-600 dark:text-slate-300 md:hidden">기본</span>
+              <span className="mr-1 text-[10.5px] text-slate-600 dark:text-slate-300 md:hidden">Good</span>
               <span className={`break-keep text-[13.5px] ${valueClass(row, "basic")}`}>{row.basicText}</span>
             </div>
 
-            {/* 하락장 */}
+            {/* Bad */}
             <div role="cell" className="min-w-0">
-              <span className="mr-1 text-[10.5px] text-amber-600 dark:text-amber-400 md:hidden">하락장</span>
+              <span className="mr-1 text-[10.5px] text-amber-600 dark:text-amber-400 md:hidden">Bad</span>
               <span className={`break-keep text-[13.5px] ${valueClass(row, "stress")}`}>{row.stressText}</span>
             </div>
 
