@@ -202,10 +202,6 @@ export default function AssetSimulatorPage() {
   const stressProjection = useMemo(
     () => calculateAssetSimulatorPreview(safetyInputs, yearPlans, true, {
       portfolioAssumptions,
-      returnMultiplier: 0.65,
-      priceReturnMultiplier: 0.65,
-      dividendGrowthMultiplier: 0.5,
-      dividendYieldMultiplier: 0.8,
       stressScenario: { version: 1, preset: "early_downturn" },
     }),
     [safetyInputs, yearPlans, portfolioAssumptions],
