@@ -206,8 +206,10 @@ export default function AssetSimulatorPage() {
   const stressProjection = useMemo(
     () => calculateAssetSimulatorPreview(safetyInputs, yearPlans, true, {
       portfolioAssumptions,
-      returnMultiplier: 0.65,
-      priceReturnMultiplier: 0.65,
+      // Bad는 초기 순서위험을 더한 Normal이다. 초기 3년 충격 뒤에는
+      // Normal과 같은 장기 가격 성장률(사용자 가정의 85%)을 적용한다.
+      returnMultiplier: 0.85,
+      priceReturnMultiplier: 0.85,
       dividendGrowthMultiplier: 0.5,
       stressScenario: { version: 1, preset: "early_downturn" },
     }),

@@ -21,8 +21,8 @@ import type { AppliedPortfolioAssumptionsV1, AppliedPortfolioHoldingAssumption }
 const EARLY_DOWNTURN = { version: 1 as const, preset: "early_downturn" as const };
 const NONE = { version: 1 as const, preset: "none" as const };
 const BAD_SCENARIO_OPTIONS = {
-  returnMultiplier: 0.65,
-  priceReturnMultiplier: 0.65,
+  returnMultiplier: 0.85,
+  priceReturnMultiplier: 0.85,
   dividendGrowthMultiplier: 0.5,
   stressScenario: EARLY_DOWNTURN,
 } as const;
@@ -250,6 +250,12 @@ assert.equal(invertedStressSafety.taxSaving.metrics.preservationRatio, Math.max(
 
 // portfolio mode에서도 동일한 effective assumptions 를 사용한 뒤 stress 를 덧씌운다.
 const portfolioBase = calculateAssetSimulatorPreview(inputs, plans, false, { portfolioAssumptions });
+const portfolioNormal = calculateAssetSimulatorPreview(inputs, plans, false, {
+  portfolioAssumptions,
+  returnMultiplier: 0.85,
+  priceReturnMultiplier: 0.85,
+  dividendGrowthMultiplier: 0.85,
+});
 const portfolioStress = calculateAssetSimulatorPreview(inputs, plans, false, {
   portfolioAssumptions,
   stressScenario: EARLY_DOWNTURN,
@@ -274,17 +280,20 @@ const portfolioBad = calculateAssetSimulatorPreview(inputs, plans, false, {
   portfolioAssumptions,
   ...BAD_SCENARIO_OPTIONS,
 });
+assert.notDeepEqual(portfolioBase, portfolioNormal, "Good과 Normal은 같은 입력에서도 별도 projection");
+assert.notDeepEqual(portfolioNormal, portfolioBad, "Normal과 Bad는 초기 순서위험으로 별도 projection");
+assert.notDeepEqual(portfolioBase, portfolioBad, "Good과 Bad는 별도 projection");
 const badTaxSavingLongReturn = portfolioAssumptions.taxSaving.holdings[0].totalReturnCagrPct! * BAD_SCENARIO_OPTIONS.returnMultiplier;
 const badBrokerageLongPriceReturn = portfolioAssumptions.brokerage.holdings[0].priceCagrPct! * BAD_SCENARIO_OPTIONS.priceReturnMultiplier;
 assertApprox(
   portfolioBad.results[firstStressIndex + 3].pensionNominal,
   portfolioBad.results[firstStressIndex + 2].pensionNominal * (1 + badTaxSavingLongReturn / 100),
-  "Bad 4년차 절세계좌는 입력 총수익률의 65%로 복귀",
+  "Bad 4년차 절세계좌는 Normal과 같은 입력 총수익률의 85%로 복귀",
 );
 assertApprox(
   portfolioBad.dividendRows[firstStressIndex + 3].taxableDividendBalanceNominal,
   portfolioBad.dividendRows[firstStressIndex + 2].taxableDividendBalanceNominal * (1 + badBrokerageLongPriceReturn / 100),
-  "Bad 4년차 위탁 가격잔고는 입력 가격성장률의 65%로 복귀",
+  "Bad 4년차 위탁 가격잔고는 Normal과 같은 입력 가격성장률의 85%로 복귀",
 );
 const initialDividendYield = portfolioAssumptions.brokerage.holdings[0].dividendYieldPct! / 100;
 const badDividendGrowthRate = (portfolioAssumptions.brokerage.holdings[0].dividendGrowthPct! * BAD_SCENARIO_OPTIONS.dividendGrowthMultiplier) / 100;
@@ -360,27 +369,34 @@ assertApprox(previewGood.summary.portfolioSummary!.brokerage.effectiveDividendGr
 
 assert.ok(previewGoodSafety.combined.metrics.preservationRatio > 3.9 && previewGoodSafety.combined.metrics.preservationRatio < 4.2, "Preview Good 통합 보존율은 화면의 약 401% 범위");
 assert.ok(previewNormalSafety.combined.metrics.preservationRatio > 1.5 && previewNormalSafety.combined.metrics.preservationRatio < 1.7, "Preview Normal 통합 보존율은 화면의 약 157% 범위");
-assert.ok(previewBadSafety.taxSaving.metrics.preservationRatio > 0.05 && previewBadSafety.taxSaving.metrics.preservationRatio < 0.1, "Preview Bad 절세계좌 보존율은 화면의 약 7% 범위");
-assert.ok(previewBadSafety.brokerage.metrics.preservationRatio > 0.6 && previewBadSafety.brokerage.metrics.preservationRatio < 0.7, "Preview Bad 위탁계좌 보존율은 화면의 약 64% 범위");
-assert.ok(previewBadSafety.combined.metrics.preservationRatio > 0.35 && previewBadSafety.combined.metrics.preservationRatio < 0.45, "Preview Bad 통합 보존율은 화면의 약 39% 범위");
+assert.ok(previewBadSafety.taxSaving.metrics.preservationRatio > 1.08 && previewBadSafety.taxSaving.metrics.preservationRatio < 1.10, "Preview Bad 절세계좌 보존율은 약 109% 범위");
+assert.ok(previewBadSafety.brokerage.metrics.preservationRatio > 1.03 && previewBadSafety.brokerage.metrics.preservationRatio < 1.04, "Preview Bad 위탁계좌 보존율은 약 103% 범위");
+assert.ok(previewBadSafety.combined.metrics.preservationRatio > 1.05 && previewBadSafety.combined.metrics.preservationRatio < 1.07, "Preview Bad 통합 보존율은 약 106% 범위");
+assert.equal(previewInputs.years, 70, "대표 fixture 는 70년 기간");
+assert.ok(previewGood.summary.combinedRealBalance >= previewNormal.summary.combinedRealBalance, "70년 fixture 최종 실질자산 Good >= Normal");
+assert.ok(previewNormal.summary.combinedRealBalance >= previewBad.summary.combinedRealBalance, "70년 fixture 최종 실질자산 Normal >= Bad");
+assert.ok(previewGoodSafety.combined.metrics.preservationRatio >= previewNormalSafety.combined.metrics.preservationRatio, "70년 fixture 보존율 Good >= Normal");
+assert.ok(previewNormalSafety.combined.metrics.preservationRatio >= previewBadSafety.combined.metrics.preservationRatio, "70년 fixture 보존율 Normal >= Bad");
 assert.ok(previewGoodSafety.combined.score > 80 && previewNormalSafety.combined.score > 80, "높은 보존율·95% 이상 충당률 Good/Normal은 34점 hard cap을 피함");
-assert.equal(previewBadSafety.combined.score, 34, "Preview Bad의 장기 큰 부족만 34점 hard cap 적용");
+assert.equal(previewBadSafety.combined.score, 34, "Preview Bad의 현금흐름 부족은 34점 hard cap으로 별도 평가");
 assert.equal(describeSafety(previewGoodSafety.combined).gradeLabel, "보통", "Preview Good은 위험으로 고정하지 않음");
 assert.equal(describeSafety(previewNormalSafety.combined).gradeLabel, "보통", "Preview Normal은 위험으로 고정하지 않음");
-assert.equal(describeSafety(previewBadSafety.combined).gradeLabel, "위험", "Preview Bad의 장기 큰 부족은 위험으로 표시");
+assert.equal(describeSafety(previewBadSafety.combined).gradeLabel, "위험", "Preview Bad의 현금흐름 부족은 위험으로 표시");
 
 const previewWithdrawalStartIndex = previewBad.timeline.withdrawalStartIndex!;
 assert.equal(previewWithdrawalStartIndex, 1, "Preview 안전성 fixture 는 2027년부터 실제 인출 시작");
 assert.ok(previewBad.chartRows[previewWithdrawalStartIndex].combinedRealBalance < previewGood.chartRows[previewWithdrawalStartIndex].combinedRealBalance, "Preview Bad 첫 인출연도에 한 번만 충격");
 assertApprox(
   previewBad.dividendRows[previewWithdrawalStartIndex + 3].taxableDividendBalanceNominal,
-  previewBad.dividendRows[previewWithdrawalStartIndex + 2].taxableDividendBalanceNominal * (1 + (3.7 * 0.65) / 100),
-  "Preview Bad 4년차 위탁 가격잔고는 가중 주가성장률 65%로 복귀",
+  previewBad.dividendRows[previewWithdrawalStartIndex + 2].taxableDividendBalanceNominal * (1 + (3.7 * 0.85) / 100),
+  "Preview Bad 4년차 위탁 가격잔고는 Normal과 같은 가중 주가성장률 85%로 복귀",
 );
 
 // UI 배선: 기본 projection 과 stress projection 을 분리하고 동일 target 으로 Safety 를 계산한다.
 const page = readFileSync("components/asset-simulator/AssetSimulatorPage.tsx", "utf8");
 const section = readFileSync("components/asset-simulator/RetirementSafetySection.tsx", "utf8");
+const comparison = readFileSync("components/asset-simulator/SafetyScenarioComparison.tsx", "utf8");
+const portfolioUi = readFileSync("lib/asset-simulator-portfolio-ui.ts", "utf8");
 assert.match(page, /const stressProjection = useMemo/, "페이지에서 stress projection 별도 계산");
 assert.match(page, /stressScenario: \{ version: 1, preset: "early_downturn" \}/, "early_downturn preset 연결");
 assert.match(page, /stressProjection=\{stressProjection\}/, "안전성 섹션에 stress projection 전달");
@@ -392,7 +408,10 @@ const detailPanel = readFileSync("components/asset-simulator/SafetyAccountDetail
 assert.match(detailPanel, /formatPreservationRatio/, "보존율 상한 포맷 연결(계좌 상세 패널)");
 assert.match(page, /const normalProjection = useMemo/, "Normal projection 별도 계산");
 assert.match(page, /returnMultiplier: 0\.85/, "Normal 성장률 보정 연결");
-assert.match(page, /returnMultiplier: 0\.65/, "Bad 장기 성장률 65% 연결");
+assert.match(page, /returnMultiplier: 0\.85/, "Bad 장기 성장률은 Normal과 같은 85% 연결");
+assert.match(page, /priceReturnMultiplier: 0\.85/, "Bad 위탁 가격성장률은 Normal과 같은 85% 연결");
+assert.doesNotMatch(page, /returnMultiplier: 0\.65/, "Bad 장기 성장률 65% 영구 축소 제거");
+assert.doesNotMatch(page, /priceReturnMultiplier: 0\.65/, "Bad 위탁 가격성장률 65% 영구 축소 제거");
 assert.match(page, /dividendGrowthMultiplier: 0\.5/, "Bad 배당성장률 50% 연결");
 assert.doesNotMatch(page, /dividendYieldMultiplier/, "Bad 배당률 haircut은 stress schedule 한 곳에서만 적용");
 assert.match(section, /Good 시나리오/, "Good 시나리오 UI");
@@ -400,6 +419,8 @@ assert.match(section, /Bad 시나리오/, "Bad 시나리오 UI");
 assert.match(section, /첫 3년 저수익/, "stress 가정 안내");
 assert.match(section, /배당 20% 삭감/, "배당 삭감 안내");
 assert.match(section, /손상 정도를 확인/, "stress 비교 목적 안내");
+assert.match(comparison, /4년 차부터 Normal과 같은 성장률 85%/, "비교 UI는 Bad의 85% 장기 성장률 안내");
+assert.match(portfolioUi, /장기성장률 65%가 영구 적용되는 시나리오가 아닙니다/, "Bad는 65% 장기침체 시나리오가 아님을 안내");
 assert.match(section, /grid-cols-1/, "모바일 단일 열 레이아웃");
 assert.match(section, /dark:/, "다크모드 스타일 유지");
 
