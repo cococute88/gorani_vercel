@@ -248,6 +248,9 @@ export type SafetyMetrics = {
   dividendsContinued: boolean | null;
   shortfallYears: number;
   consecutiveShortfallYears: number;
+  // 목표 월생활비 대비 10% 이상 부족한 연도. 작은 부족과 hard failure를 구분한다.
+  severeShortfallYears: number;
+  consecutiveSevereShortfallYears: number;
   preservationScore: number;
   incomeCoverageScore: number;
   depletionScore: number;

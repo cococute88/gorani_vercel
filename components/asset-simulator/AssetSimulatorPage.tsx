@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import TopNav from "@/components/TopNav";
 import StorageModeBadge from "@/components/common/StorageModeBadge";
-import { calculateAssetSimulatorPreview, normalizeInputs, normalizeYearPlans } from "@/lib/asset-simulator";
+import { calculateAssetSimulatorPreview, normalizeInputs, normalizeYearPlans, normalizeYearPlansPreservingOutsidePeriod } from "@/lib/asset-simulator";
 import type {
   AppliedPortfolioAssumptionsV1,
   AssetSimulatorPortfolioConfigV1,
@@ -62,6 +62,7 @@ function resolveSimulatorTab(tabParam: string | null): SimulatorTabKey {
 // 안정성 체크 탭 상태 도트 색상.
 // - 적용 가정 없음: 회색 / 있으나 config 불일치 또는 stale: 호박 / 적용·일치·최신: 초록
 type SafetyDotState = "none" | "attention" | "ready";
+type CalculationBasisSource = SimulatorHydrationSource | "session";
 
 export default function AssetSimulatorPage() {
   const theme = useResolvedTheme();
@@ -77,6 +78,8 @@ export default function AssetSimulatorPage() {
   // portfolioAssumptions 는 적용 버튼을 눌렀을 때만 채워지고 projection 에 반영된다.
   const [portfolioConfig, setPortfolioConfig] = useState<AssetSimulatorPortfolioConfigV1 | null>(() => buildDefaultPortfolioConfig());
   const [portfolioAssumptions, setPortfolioAssumptions] = useState<AppliedPortfolioAssumptionsV1 | null>(null);
+  // 안전성 결과가 기본값인지, 저장 복원값인지, 현재 화면에서 적용한 값인지 추적한다.
+  const [calculationBasisSource, setCalculationBasisSource] = useState<CalculationBasisSource>("default");
   // 목표 월생활비(현재 가치 기준, 만원). 입력이 있으면 은퇴 안전성 통합 평가가 target 기준으로 전환된다.
   // 값이 없으면(null) 기존 proxy 기반 임시 평가를 유지한다.
   const [targetMonthlyExpenseReal, setTargetMonthlyExpenseReal] = useState<number | null>(100);
@@ -137,6 +140,7 @@ export default function AssetSimulatorPage() {
           ? config.portfolioAssumptions
           : null,
       );
+      setCalculationBasisSource(source);
       // 저장된 목표 월생활비를 복원한다. 없으면 null(임시 평가 유지).
       setTargetMonthlyExpenseReal(config.retirementSafetyConfig?.targetMonthlyExpenseReal ?? null);
       setLastSavedAtMs(config.updatedAtMs);
@@ -202,6 +206,11 @@ export default function AssetSimulatorPage() {
   const stressProjection = useMemo(
     () => calculateAssetSimulatorPreview(safetyInputs, yearPlans, true, {
       portfolioAssumptions,
+      // Bad는 초기 순서위험을 더한 Normal이다. 초기 3년 충격 뒤에는
+      // Normal과 같은 장기 가격 성장률(사용자 가정의 85%)을 적용한다.
+      returnMultiplier: 0.85,
+      priceReturnMultiplier: 0.85,
+      dividendGrowthMultiplier: 0.5,
       stressScenario: { version: 1, preset: "early_downturn" },
     }),
     [safetyInputs, yearPlans, portfolioAssumptions],
@@ -260,7 +269,13 @@ export default function AssetSimulatorPage() {
   const handleInputsChange = (nextInputs: SimulatorInputs) => {
     const normalizedInputs = normalizeInputs(nextInputs);
     setInputs(normalizedInputs);
-    setYearPlans((currentPlans) => normalizeYearPlans(normalizedInputs, currentPlans));
+    setYearPlans((currentPlans) => normalizeYearPlansPreservingOutsidePeriod(normalizedInputs, currentPlans));
+  };
+
+  const handleYearPlansChange = (nextActivePlans: YearPlanRow[]) => {
+    setYearPlans((currentPlans) =>
+      normalizeYearPlansPreservingOutsidePeriod(normalizeInputs(inputs), [...nextActivePlans, ...currentPlans]),
+    );
   };
 
   const handleSave = async () => {
@@ -269,7 +284,7 @@ export default function AssetSimulatorPage() {
     setSaveError(null);
     const updatedAt = new Date().toISOString();
     const normalizedInputs = normalizeInputs(inputs);
-    const normalizedPlans = normalizeYearPlans(normalizedInputs, yearPlans);
+    const normalizedPlans = normalizeYearPlansPreservingOutsidePeriod(normalizedInputs, yearPlans);
 
     try {
       const storedConfig = writeLocalConfig(normalizedInputs, normalizedPlans, updatedAt);
@@ -303,6 +318,7 @@ export default function AssetSimulatorPage() {
     setYearPlans(plans);
     setPortfolioConfig(buildDefaultPortfolioConfig());
     setPortfolioAssumptions(null);
+    setCalculationBasisSource("default");
     setTargetMonthlyExpenseReal(100);
 
     if (typeof window !== "undefined") {
@@ -443,7 +459,7 @@ export default function AssetSimulatorPage() {
           className="space-y-5"
         >
           <SimulatorInputPanel inputs={inputs} onChange={handleInputsChange} onReset={handleReset} onSave={handleSave} saving={saving} saveMessage={saveMessage} saveError={saveError} exitMode={exitMode} onExitModeChange={handleExitModeChange} />
-          <YearPlanTable plans={tablePlans} onChange={setYearPlans} open={planTableOpen} onToggleOpen={() => setPlanTableOpen((prev) => !prev)} exitMode={exitMode} />
+          <YearPlanTable plans={tablePlans} onChange={handleYearPlansChange} open={planTableOpen} onToggleOpen={() => setPlanTableOpen((prev) => !prev)} exitMode={exitMode} />
           <SimulatorMetricCards summary={projection.summary} />
           <SimulatorResultTabs projection={projection} />
           {savedFooter}
@@ -467,12 +483,16 @@ export default function AssetSimulatorPage() {
             onTargetMonthlyExpenseChange={setTargetMonthlyExpenseReal}
             inputs={inputs}
             onInputsChange={handleInputsChange}
+            calculationBasisSource={portfolioAssumptions ? calculationBasisSource : "default"}
             configPanel={
               <PortfolioConfigSection
                 config={portfolioConfig}
                 onConfigChange={setPortfolioConfig}
                 appliedAssumptions={portfolioAssumptions}
-                onApply={setPortfolioAssumptions}
+                onApply={(assumptions) => {
+                  setPortfolioAssumptions(assumptions);
+                  setCalculationBasisSource("session");
+                }}
                 inputs={inputs}
                 onInputsChange={handleInputsChange}
                 taxMonthlySupply={projection.totalWithdrawRows.find((row) => row.isWithdraw)?.taxSavingMonthlyReal ?? null}

@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import TableCsvMenu from "@/components/ui/TableCsvMenu";
 import type { YearPlanRow } from "@/lib/asset-simulator-types";
+import { getVisibleYearPlanRows } from "@/lib/asset-simulator-year-plan-view";
 import { DEFAULT_CONTRIBUTION_YEARS, DEFAULT_MONTHLY_CONTRIBUTION } from "@/lib/mock-asset-simulator-data";
 
 type Props = {
@@ -25,6 +26,7 @@ const CHECKBOX_FIELDS: Array<{ key: keyof Pick<YearPlanRow, "isaContribution" | 
 
 export default function YearPlanTable({ plans, onChange, open = true, onToggleOpen, exitMode = false }: Props) {
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const visiblePlans = useMemo(() => getVisibleYearPlanRows(plans), [plans]);
   const collapsible = typeof onToggleOpen === "function";
   const bodyVisible = !collapsible || open;
   const updatePlan = (index: number, patch: Partial<YearPlanRow>) => {
@@ -40,6 +42,7 @@ export default function YearPlanTable({ plans, onChange, open = true, onToggleOp
         <div>
           <h2 className="text-base font-extrabold text-white">연도별 투자 계획표</h2>
         <p className="mt-1 break-keep text-[13px] text-slate-400">기본 계획은 초기 {DEFAULT_CONTRIBUTION_YEARS}년 월 {DEFAULT_MONTHLY_CONTRIBUTION}만원 적립입니다. 체크 여부와 월적립액을 바꾸면 즉시 재계산됩니다.</p>
+        <p className="mt-1 break-keep text-[12px] text-slate-500">화면에는 시작연도부터 최대 20년만 표시합니다. 전체 계획은 계산·저장·CSV 내보내기에 그대로 유지됩니다.</p>
         {exitMode ? (
           <p className="mt-1 break-keep text-[12px] font-semibold text-cyan-300">지금 EXIT? 모드에서는 이 계획표가 계산에 사용되지 않습니다.</p>
         ) : null}
@@ -72,7 +75,7 @@ export default function YearPlanTable({ plans, onChange, open = true, onToggleOp
       {/* 모바일: 연도별 카드 (가로 스크롤 없이 카드 안에 모두 표시).
           연차가 많으면(기본 30년) 카드 영역 안에서만 세로 스크롤하여 페이지가 과도하게 늘어나지 않게 한다. */}
       <div className="-mr-1 max-h-[60vh] space-y-2 overflow-y-auto pr-1 sm:hidden">
-        {plans.map((plan, index) => (
+        {visiblePlans.map((plan, index) => (
           <div key={plan.year} className="rounded-xl border border-[#263033] bg-[#111516] p-3">
             <div className="flex items-center justify-between gap-3">
               <span className="text-[14px] font-bold text-slate-100">{plan.year}</span>
@@ -123,7 +126,7 @@ export default function YearPlanTable({ plans, onChange, open = true, onToggleOp
             </tr>
           </thead>
           <tbody>
-            {plans.map((plan, index) => (
+            {visiblePlans.map((plan, index) => (
               <tr key={plan.year} className="border-t border-[#263033] text-slate-200 odd:bg-white/[0.015]">
                 <td className="px-3 py-2 font-bold text-slate-100">{plan.year}</td>
                 <td className="px-3 py-2 text-right">

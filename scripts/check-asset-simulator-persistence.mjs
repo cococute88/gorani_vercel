@@ -88,7 +88,7 @@ function assertHydrationPolicy() {
 
 function assertNormalizationAndUi() {
   assert.match(persistence, /normalizeInputs\(config\.inputs\)/, "Firestore payload builder normalizes inputs");
-  assert.match(persistence, /normalizeYearPlans\(normalizedInputs, config\.yearPlans \?\? \[\]\)/, "Firestore payload builder normalizes yearPlans");
+  assert.match(persistence, /normalizeYearPlansPreservingOutsidePeriod\(normalizedInputs, config\.yearPlans \?\? \[\]\)/, "Firestore payload builder normalizes active plans while preserving out-of-period rows");
   assert.match(panel, /disabled=\{saving\}/, "Save button disables during save");
   assert.match(panel, /저장 중\.\.\./, "Save button shows saving label");
   assert.match(panel, /role="alert"/, "Save failure message is announced");

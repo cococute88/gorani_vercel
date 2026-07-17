@@ -124,12 +124,13 @@ export function describeSafety(result: SafetyResult): SafetyDisplay {
 
   const score = result.score;
   const depleted = result.metrics.depleted;
-  const severeShortfall = result.metrics.consecutiveShortfallYears >= 2 || result.metrics.shortfallYears >= 3;
-  const descriptor = depleted || score < 50
+  const severeShortfall = result.metrics.consecutiveSevereShortfallYears >= 2 || result.metrics.severeShortfallYears >= 3;
+  const persistentSevereShortfall = severeShortfall && (result.metrics.monthlyIncomeCoverageRatio ?? 1) < 0.8;
+  const descriptor = depleted || result.metrics.failed || score < 50
     ? { gradeLabel: "위험", toneLabel: "고갈위험 높음", tone: "warning" as UiTone }
-    : severeShortfall || score < 65
+    : persistentSevereShortfall || score < 65
       ? { gradeLabel: "주의", toneLabel: "부족 구간 점검", tone: "caution" as UiTone }
-      : score < 80
+      : severeShortfall || score < 80
         ? { gradeLabel: "보통", toneLabel: "일부 보수적 점검", tone: "caution" as UiTone }
         : { gradeLabel: "안전", toneLabel: "고갈위험 낮음", tone: "positive" as UiTone };
   return { ...descriptor, showScore: true };
@@ -325,7 +326,7 @@ export function describeAccountDiagnosis(
 
 // Bad 시나리오 설명은 한 곳에서만 노출한다(중복 배너 방지).
 export const STRESS_SCENARIO_NOTE =
-  "Bad는 은퇴 직후 -30% 충격, 2~3년차 0% 정체, 이후 장기 성장률 65%·배당성장 50%·배당률 20% 삭감을 가정한 보수적 점검입니다. 점수 경쟁이 아니라 Good 대비 손상 정도를 확인하는 영역입니다.";
+  "Bad는 첫 인출연도 -30% 충격과 이후 2년 정체를 적용한 순서위험 시나리오입니다. 4년 차부터는 Normal과 같은 입력 성장률의 85%를 적용하며, 장기성장률 65%가 영구 적용되는 시나리오가 아닙니다. 배당성장률은 50%로 유지하고 배당률은 첫 3년만 20% 삭감합니다.";
 
 const DELTA_EPSILON = 1e-9;
 
@@ -547,9 +548,13 @@ export function describeScenarioRisk(
   const score = Math.round(Math.min(...results.map((result) => result.score)));
   const depleted = (result: SafetyResult) => result.metrics.depleted || result.metrics.endingRealAssets <= 0;
   const shortfalls = (result: SafetyResult) => result.metrics.shortfallYears;
+  const severeShortfall = (result: SafetyResult) => result.metrics.consecutiveSevereShortfallYears >= 2
+    || result.metrics.severeShortfallYears >= 3;
+  const persistentSevereShortfall = (result: SafetyResult) => severeShortfall(result)
+    && (result.metrics.monthlyIncomeCoverageRatio ?? 1) < 0.8;
 
-  if (depleted(good) || depleted(normal) || shortfalls(normal) >= 2 || shortfalls(bad) >= 3) {
-    return { label: "위험", score, description: "Normal 또는 Bad에서 장기 부족이나 자산 고갈 신호가 있습니다." };
+  if (depleted(good) || depleted(normal) || good.metrics.failed || normal.metrics.failed || bad.metrics.failed || persistentSevereShortfall(normal) || persistentSevereShortfall(bad)) {
+    return { label: "위험", score, description: "Good·Normal·Bad 중 자산 고갈·낮은 보존율·큰 생활비 부족 신호가 있습니다." };
   }
   if (shortfalls(normal) > 0 || depleted(bad) || bad.metrics.preservationRatio < 0.5) {
     return { label: "주의", score, description: "Normal 또는 Bad에서 생활비 부족·자산 보존 약화가 확인됩니다." };

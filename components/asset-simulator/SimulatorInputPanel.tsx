@@ -3,8 +3,6 @@
 import { useEffect, useState } from "react";
 import type { SimulatorInputs } from "@/lib/asset-simulator-types";
 
-export const SIMULATION_YEAR_PRESETS = [20, 30, 40, 50, 60, 70] as const;
-
 const INPUTS: Array<{ key: keyof SimulatorInputs; label: string; suffix: string; step?: number; min?: number; max?: number }> = [
   { key: "startYear", label: "시작년도", suffix: "년", step: 1, min: 2020 },
   { key: "years", label: "시뮬레이션 기간(년)", suffix: "년", step: 1, min: 1, max: 70 },
@@ -72,12 +70,6 @@ export default function SimulatorInputPanel({ inputs, onChange, onReset, onSave,
     const value = updateInput(key, draftValues[key] ?? String(inputs[key]));
     setDraftValues((current) => ({ ...current, [key]: displayInputValue(key, value) }));
     setFocusedKey((current) => (current === key ? null : current));
-  };
-
-  const selectSimulationYears = (years: number) => {
-    setFocusedKey(null);
-    setDraftValues((current) => ({ ...current, years: String(years) }));
-    onChange({ ...inputs, years });
   };
 
   return (
@@ -156,28 +148,6 @@ export default function SimulatorInputPanel({ inputs, onChange, onReset, onSave,
               />
               <span className="w-12 text-[12px] font-semibold text-slate-500">{item.suffix}</span>
             </div>
-            {item.key === "years" ? (
-              <div className="mt-2 grid grid-cols-5 gap-1.5" role="group" aria-label="시뮬레이션 기간 빠른 선택">
-                {SIMULATION_YEAR_PRESETS.map((years) => {
-                  const selected = inputs.years === years;
-                  return (
-                    <button
-                      key={years}
-                      type="button"
-                      aria-pressed={selected}
-                      onClick={() => selectSimulationYears(years)}
-                      className={`min-w-0 rounded-lg border px-1 py-1.5 text-[11px] font-bold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
-                        selected
-                          ? "border-blue-600 bg-blue-600 text-white dark:border-cyan-400 dark:bg-cyan-400/20 dark:text-cyan-200"
-                          : "border-slate-300 bg-slate-50 text-slate-600 hover:border-blue-400 hover:text-blue-700 dark:border-[#303a3d] dark:bg-[#0c1011] dark:text-slate-300 dark:hover:border-cyan-500 dark:hover:text-cyan-200"
-                      }`}
-                    >
-                      {years}년
-                    </button>
-                  );
-                })}
-              </div>
-            ) : null}
           </div>
         ))}
       </div>

@@ -107,6 +107,30 @@ export function normalizeYearPlans(inputs: SimulatorInputs, yearPlans: YearPlanR
   });
 }
 
+// 표시·계산 대상 기간 밖의 기존 계획도 상태와 저장소에는 보존한다. 기간을 줄였다가
+// 다시 늘릴 때 사용자가 편집한 21년차 이후 계획이 기본값으로 바뀌지 않게 한다.
+export function normalizeYearPlansPreservingOutsidePeriod(
+  inputs: SimulatorInputs,
+  yearPlans: YearPlanRow[] = [],
+): YearPlanRow[] {
+  const activePlans = normalizeYearPlans(inputs, yearPlans);
+  const firstYear = inputs.startYear;
+  const lastYear = inputs.startYear + inputs.years - 1;
+  const inactivePlans = yearPlans
+    .filter((plan) => Number.isFinite(plan.year) && (plan.year < firstYear || plan.year > lastYear))
+    .map((plan) => ({
+      year: Math.round(plan.year),
+      monthlyContribution: clampNumber(plan.monthlyContribution, 0, 0),
+      isaContribution: Boolean(plan.isaContribution),
+      pensionContribution: Boolean(plan.pensionContribution),
+      isaToPensionTransfer: Boolean(plan.isaToPensionTransfer),
+      status: plan.status,
+    }))
+    .sort((left, right) => left.year - right.year);
+
+  return [...activePlans, ...inactivePlans];
+}
+
 // EXIT("지금 EXIT?") 모드 전용 계획표를 만든다.
 // 연도별 투자 계획표의 모든 적립/납입 계획을 무시하고, 현재 보유 자산만으로
 // 즉시 은퇴(시작년도) 후 인출 조건만 적용하도록 모든 적립 항목을 0/false 로 둔다.

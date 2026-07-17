@@ -1,4 +1,4 @@
-import { normalizeInputs, normalizeYearPlans } from "./asset-simulator";
+import { normalizeInputs, normalizeYearPlansPreservingOutsidePeriod } from "./asset-simulator";
 import { normalizePortfolioAssumptions, normalizePortfolioConfig } from "./asset-simulator-portfolio";
 import type {
   AssetSimulatorPortfolioConfigV1,
@@ -78,7 +78,7 @@ export function normalizePersistedSimulatorConfig(
   const retirementSafetyConfig = normalizeRetirementSafetyConfig(config.retirementSafetyConfig);
   return {
     inputs,
-    yearPlans: normalizeYearPlans(inputs, config.yearPlans ?? []),
+    yearPlans: normalizeYearPlansPreservingOutsidePeriod(inputs, config.yearPlans ?? []),
     ...(portfolioConfig ? { portfolioConfig } : {}),
     ...(portfolioAssumptions ? { portfolioAssumptions } : {}),
     ...(retirementSafetyConfig ? { retirementSafetyConfig } : {}),
@@ -107,7 +107,7 @@ export function buildStoredSimulatorConfig(
   const retirementSafetyConfig = normalizeRetirementSafetyConfig(portfolio.retirementSafetyConfig);
   return {
     inputs: normalizedInputs,
-    yearPlans: normalizeYearPlans(normalizedInputs, yearPlans),
+    yearPlans: normalizeYearPlansPreservingOutsidePeriod(normalizedInputs, yearPlans),
     ...(portfolioConfig ? { portfolioConfig } : {}),
     ...(portfolioAssumptions ? { portfolioAssumptions } : {}),
     ...(retirementSafetyConfig ? { retirementSafetyConfig } : {}),
@@ -169,7 +169,7 @@ export function buildFirestoreSimulatorConfigPayload(config: StoredSimulatorPrev
   const retirementSafetyConfig = normalizeRetirementSafetyConfig(config.retirementSafetyConfig);
   const normalizedConfig: StoredSimulatorPreview = {
     inputs: normalizedInputs,
-    yearPlans: normalizeYearPlans(normalizedInputs, config.yearPlans ?? []),
+    yearPlans: normalizeYearPlansPreservingOutsidePeriod(normalizedInputs, config.yearPlans ?? []),
     ...(portfolioConfig ? { portfolioConfig } : {}),
     ...(portfolioAssumptions ? { portfolioAssumptions } : {}),
     ...(retirementSafetyConfig ? { retirementSafetyConfig } : {}),

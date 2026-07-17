@@ -63,6 +63,7 @@ export default function SafetyKpiCards({ scenarios, targetMonthlyExpenseReal, ri
       <div className="rounded-2xl border border-blue-200 bg-white p-4 shadow-sm dark:border-blue-500/30 dark:bg-[#171d1e] sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-2"><h2 id="safety-results-heading" className="text-[17px] font-bold text-slate-900 dark:text-white"><span className="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-[11px] text-white">3</span>결과 확인</h2><span className={riskLabel === "안전" ? "text-[14px] font-bold text-emerald-700 dark:text-emerald-300" : riskLabel === "위험" ? "text-[14px] font-bold text-rose-700 dark:text-rose-300" : "text-[14px] font-bold text-amber-700 dark:text-amber-300"}>{riskLabel} {riskScore}점</span></div>
         <p className="mt-1 text-[11.5px] text-slate-600 dark:text-slate-400">{riskDescription}</p>
+        <p className="mt-1 text-[10.5px] text-slate-500 dark:text-slate-500">종합 점수는 Good·Normal·Bad 통합 결과 중 가장 낮은 점수이며, 각 시나리오의 판단과 점수는 아래 비교표에서 따로 확인할 수 있습니다.</p>
         <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-500">앞은 현재가치 기준, 괄호 안은 해당 연도 명목금액입니다. 안전성 탭은 현재년도부터 은퇴와 인출이 동시에 시작됩니다.</p>
         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">{scenarios.map((scenario) => <ScenarioSummaryCard key={scenario.label} scenario={scenario} targetMonthlyExpenseReal={targetMonthlyExpenseReal} />)}</div>
       </div>
