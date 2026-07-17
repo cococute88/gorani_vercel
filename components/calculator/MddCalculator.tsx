@@ -502,6 +502,25 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
       </div>
     ) : null;
 
+  const marketSelector = (
+    <div className="inline-flex shrink-0 rounded-md border border-slate-600/70 p-px" role="group" aria-label="티커 시장 선택">
+      {(["US", "KR"] as const).map((option) => {
+        const selected = market === option;
+        return (
+          <button
+            key={option}
+            type="button"
+            aria-pressed={selected}
+            onClick={() => handleMarketChange(option)}
+            className={`min-h-7 rounded-[5px] px-2 text-[11px] font-bold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#151a1b] ${selected ? "border border-blue-400/70 bg-blue-600 text-white" : "border border-transparent text-slate-300 hover:bg-slate-700"}`}
+          >
+            {option === "US" ? "미국" : "한국"}
+          </button>
+        );
+      })}
+    </div>
+  );
+
   const clearAnalysis = () => {
     setSubmitted(null);
     setLoading(false);
@@ -551,29 +570,10 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
           </button>
         </div>
 
-        <div className="mt-4 grid gap-3 text-[13px] sm:grid-cols-2 md:grid-cols-3">
-          <div className="rounded-xl border border-[#2a3336] bg-[#151a1b] px-4 py-3">
-            <span className="block text-[11.5px] text-slate-500">시장 선택</span>
-            <div className="mt-2 inline-flex rounded-lg border border-slate-600/70 p-0.5" role="group" aria-label="티커 시장 선택">
-              {(["US", "KR"] as const).map((option) => {
-                const selected = market === option;
-                return (
-                  <button
-                    key={option}
-                    type="button"
-                    aria-pressed={selected}
-                    onClick={() => handleMarketChange(option)}
-                    className={`rounded-md px-3 py-1.5 text-[12px] font-bold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#151a1b] ${selected ? "bg-blue-600 text-white" : "text-slate-300 hover:bg-slate-700"}`}
-                  >
-                    {option === "US" ? "미국" : "한국"}
-                  </button>
-                );
-              })}
-            </div>
-            <p className="mt-2 text-[11.5px] text-slate-500">{market === "KR" ? "6자리 코드 또는 .KS/.KQ를 입력하세요." : "미국 거래소 티커를 입력하세요."}</p>
-          </div>
+        <div className="mt-4 grid gap-3 text-[13px] md:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
           <TextInput
             label="티커"
+            labelTrailing={marketSelector}
             value={input.ticker}
             placeholder={market === "KR" ? "예: 000660, 005930, 247540" : "예: SPY, QQQ, AAPL"}
             inputMode={market === "KR" ? "numeric" : "text"}
