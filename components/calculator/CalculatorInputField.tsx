@@ -1,14 +1,28 @@
-import { ReactNode, useId } from "react";
+import { ReactNode, type KeyboardEventHandler, type Ref, useId } from "react";
 
 const fieldBase = "rounded-xl border border-[#2a3336] bg-[#151a1b] px-4 py-3";
 
-export function TextInput({ label, value, onChange, placeholder, inputMode, labelTrailing, compact = false }: { label: string; value: string; onChange: (value: string) => void; placeholder?: string; inputMode?: "text" | "numeric"; labelTrailing?: ReactNode; compact?: boolean }) {
+export function TextInput({ label, value, onChange, placeholder, inputMode, labelTrailing, compact = false, onKeyDown, inputRef, ariaAutocomplete, ariaControls, ariaExpanded, ariaActiveDescendant }: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  inputMode?: "text" | "numeric";
+  labelTrailing?: ReactNode;
+  compact?: boolean;
+  onKeyDown?: KeyboardEventHandler<HTMLInputElement>;
+  inputRef?: Ref<HTMLInputElement>;
+  ariaAutocomplete?: "none" | "inline" | "list" | "both";
+  ariaControls?: string;
+  ariaExpanded?: boolean;
+  ariaActiveDescendant?: string;
+}) {
   const inputId = useId();
 
   if (compact) {
     return (
       <div className="flex h-11 items-center gap-2 rounded-lg border border-[#2a3336] bg-[#151a1b] px-3">
-        <input id={inputId} aria-label={label} value={value} placeholder={placeholder} inputMode={inputMode} onChange={(e) => onChange(e.target.value)} className="min-w-0 flex-1 bg-transparent text-[13px] font-bold text-slate-100 outline-none placeholder:font-medium placeholder:text-slate-500" />
+        <input ref={inputRef} id={inputId} role={ariaAutocomplete === "list" ? "combobox" : undefined} aria-label={label} value={value} placeholder={placeholder} inputMode={inputMode} onChange={(e) => onChange(e.target.value)} onKeyDown={onKeyDown} aria-autocomplete={ariaAutocomplete} aria-controls={ariaControls} aria-expanded={ariaExpanded} aria-activedescendant={ariaActiveDescendant} className="min-w-0 flex-1 bg-transparent text-[13px] font-bold text-slate-100 outline-none placeholder:font-medium placeholder:text-slate-500" />
         {labelTrailing}
       </div>
     );
@@ -20,7 +34,7 @@ export function TextInput({ label, value, onChange, placeholder, inputMode, labe
         <label htmlFor={inputId} className="text-[11.5px] text-slate-500">{label}</label>
         {labelTrailing}
       </div>
-      <input id={inputId} value={value} placeholder={placeholder} inputMode={inputMode} onChange={(e) => onChange(e.target.value)} className="mt-1 w-full bg-transparent text-[13px] font-bold text-slate-100 outline-none placeholder:font-medium placeholder:text-slate-500" />
+      <input ref={inputRef} id={inputId} role={ariaAutocomplete === "list" ? "combobox" : undefined} value={value} placeholder={placeholder} inputMode={inputMode} onChange={(e) => onChange(e.target.value)} onKeyDown={onKeyDown} aria-autocomplete={ariaAutocomplete} aria-controls={ariaControls} aria-expanded={ariaExpanded} aria-activedescendant={ariaActiveDescendant} className="mt-1 w-full bg-transparent text-[13px] font-bold text-slate-100 outline-none placeholder:font-medium placeholder:text-slate-500" />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type KeyboardEvent, useEffect, useId, useMemo, useRef, useState } from "react";
 import { Search } from "lucide-react";
 import {
   Area,
@@ -43,6 +43,7 @@ import {
 import type { MddEpisode, MddInput, MddResult, MddSeriesPoint, PricePoint } from "@/lib/calculator-types";
 import type { QuoteMetadata, QuoteSource } from "@/lib/quote-types";
 import { resolveMddTicker, type MddMarket } from "@/lib/mdd-market";
+import { isKoreanStockNameQuery, type KoreanStockSearchResponse, type KoreanStockSearchResult } from "@/lib/korean-stock-search";
 import { nextSortState, sortArrow, sortRows, type SortColumnType, type SortState } from "@/lib/calculator-table-sort";
 import { useResolvedTheme } from "@/components/theme/ThemeProvider";
 
@@ -236,8 +237,14 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
   const [quote, setQuote] = useState<MddQuoteState>({ usdPrices: [], krwPrices: [], warnings: [] });
   const [loading, setLoading] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [koreanSearchState, setKoreanSearchState] = useState<"idle" | "searching" | "success" | "empty" | "error">("idle");
+  const [koreanSearchResults, setKoreanSearchResults] = useState<KoreanStockSearchResult[]>([]);
+  const [activeKoreanSearchIndex, setActiveKoreanSearchIndex] = useState(-1);
   const [segmentSort, setSegmentSort] = useState<SortState<EpisodeSortKey>>({ key: "mdd", direction: "asc" });
   const [priceSort, setPriceSort] = useState<SortState<MddSeriesSortKey>>({ key: "date", direction: "asc" });
+  const koreanSearchAbortRef = useRef<AbortController | null>(null);
+  const koreanSearchRequestRef = useRef(0);
+  const koreanSearchListId = useId();
 
   const colors: ChartColors = useMemo(
     () =>
@@ -307,6 +314,50 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
 
   const market: MddMarket = input.market ?? "US";
   const ticker = submitted?.ticker.trim().toUpperCase() || input.ticker.trim().toUpperCase() || "—";
+  const koreanStockNameSearchActive = market === "KR" && isKoreanStockNameQuery(input.ticker);
+
+  useEffect(() => {
+    koreanSearchAbortRef.current?.abort();
+    koreanSearchAbortRef.current = null;
+    const requestId = ++koreanSearchRequestRef.current;
+
+    if (!koreanStockNameSearchActive) {
+      setKoreanSearchState("idle");
+      setKoreanSearchResults([]);
+      setActiveKoreanSearchIndex(-1);
+      return;
+    }
+
+    const controller = new AbortController();
+    koreanSearchAbortRef.current = controller;
+    const debounceTimer = window.setTimeout(async () => {
+      setKoreanSearchState("searching");
+      setKoreanSearchResults([]);
+      setActiveKoreanSearchIndex(-1);
+      try {
+        const response = await fetch(`/api/quote/korean-stock-search?q=${encodeURIComponent(input.ticker.trim())}`, {
+          signal: controller.signal,
+        });
+        const payload = (await response.json()) as KoreanStockSearchResponse & { error?: string };
+        if (!response.ok) throw new Error(payload.error || "한국 종목 검색에 실패했습니다.");
+        if (controller.signal.aborted || requestId !== koreanSearchRequestRef.current) return;
+
+        const results = payload.results ?? [];
+        setKoreanSearchResults(results);
+        setKoreanSearchState(results.length > 0 ? "success" : "empty");
+      } catch {
+        if (controller.signal.aborted || requestId !== koreanSearchRequestRef.current) return;
+        setKoreanSearchResults([]);
+        setKoreanSearchState("error");
+      }
+    }, 250);
+
+    return () => {
+      window.clearTimeout(debounceTimer);
+      controller.abort();
+    };
+  }, [input.ticker, koreanStockNameSearchActive]);
+
   const currency: "USD" | "KRW" = quote.metadata?.currency ?? (market === "KR" ? "KRW" : "USD");
   const resolvedSymbol = quote.metadata?.resolvedSymbol || ticker;
   const displayName = quote.metadata?.displayName || resolvedSymbol;
@@ -468,7 +519,7 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
     }`;
 
   const periodButtons = (
-    <div className="flex flex-wrap gap-1.5">
+    <div className="flex flex-wrap gap-1.5" role="group" aria-label="분석 기간 선택">
       {MDD_PERIODS.map((p) => (
         <button
           key={p.key}
@@ -574,6 +625,10 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
 
   const handleMarketChange = (nextMarket: MddMarket) => {
     if (nextMarket === market) return;
+    koreanSearchAbortRef.current?.abort();
+    setKoreanSearchState("idle");
+    setKoreanSearchResults([]);
+    setActiveKoreanSearchIndex(-1);
     clearAnalysis();
     onChange({ ...input, market: nextMarket, currency: nextMarket === "KR" ? "KRW" : "USD", ticker: "" });
   };
@@ -583,7 +638,51 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
     onChange({ ...input, ticker: nextTicker });
   };
 
+  const selectKoreanStock = (candidate: KoreanStockSearchResult) => {
+    koreanSearchAbortRef.current?.abort();
+    ++koreanSearchRequestRef.current;
+    setKoreanSearchState("idle");
+    setKoreanSearchResults([]);
+    setActiveKoreanSearchIndex(-1);
+    clearAnalysis();
+    // 검색어가 아니라 6자리 KRX 코드를 분석 입력값으로 확정한다.
+    onChange({ ...input, ticker: candidate.code });
+  };
+
+  const handleTickerKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (koreanSearchState === "success" && koreanSearchResults.length > 0) {
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        setActiveKoreanSearchIndex((index) => (index + 1 + koreanSearchResults.length) % koreanSearchResults.length);
+        return;
+      }
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        setActiveKoreanSearchIndex((index) => (index <= 0 ? koreanSearchResults.length - 1 : index - 1));
+        return;
+      }
+      if (event.key === "Enter" && activeKoreanSearchIndex >= 0) {
+        event.preventDefault();
+        selectKoreanStock(koreanSearchResults[activeKoreanSearchIndex]);
+        return;
+      }
+    }
+
+    if (event.key === "Escape" && koreanSearchState !== "idle") {
+      event.preventDefault();
+      koreanSearchAbortRef.current?.abort();
+      ++koreanSearchRequestRef.current;
+      setKoreanSearchState("idle");
+      setKoreanSearchResults([]);
+      setActiveKoreanSearchIndex(-1);
+    }
+  };
+
   const handleSubmit = () => {
+    if (market === "KR" && isKoreanStockNameQuery(input.ticker)) {
+      setValidationError("종목명 검색 결과에서 원하는 종목을 선택해주세요. 6자리 종목코드도 직접 입력할 수 있습니다.");
+      return;
+    }
     const resolution = resolveMddTicker(input.ticker, market);
     if (!resolution.ok) {
       clearAnalysis();
@@ -615,24 +714,55 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
           </button>
         </div>
 
-        <div className="mt-4 grid gap-3 text-[13px] md:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
-          <TextInput
-            label="티커"
-            compact
-            labelTrailing={marketSelector}
-            value={input.ticker}
-            placeholder={market === "KR" ? "예: 000660, 005930, 247540" : "예: SPY, QQQ, AAPL"}
-            inputMode={market === "KR" ? "numeric" : "text"}
-            onChange={handleTickerChange}
-          />
-          <div>
-            <label className="mb-1 block text-[12px] font-medium text-slate-500 dark:text-slate-400">분석 기간</label>
+        <div className="mt-4 grid items-center gap-3 text-[13px] md:grid-cols-[minmax(0,1fr)_auto]">
+          <div className="relative min-w-0">
+            <TextInput
+              label="티커"
+              compact
+              labelTrailing={marketSelector}
+              value={input.ticker}
+              placeholder={market === "KR" ? "종목명 또는 예: 000660, 005930" : "예: SPY, QQQ, AAPL"}
+              inputMode="text"
+              onChange={handleTickerChange}
+              onKeyDown={handleTickerKeyDown}
+              ariaAutocomplete={market === "KR" ? "list" : "none"}
+              ariaControls={market === "KR" && koreanSearchState !== "idle" ? koreanSearchListId : undefined}
+              ariaExpanded={market === "KR" && koreanSearchState !== "idle"}
+              ariaActiveDescendant={activeKoreanSearchIndex >= 0 ? `${koreanSearchListId}-option-${activeKoreanSearchIndex}` : undefined}
+            />
+            {market === "KR" && koreanSearchState !== "idle" && (
+              <div id={koreanSearchListId} role="listbox" aria-label="한국 종목 검색 결과" className="absolute z-30 mt-1 max-h-72 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white p-1 text-[13px] shadow-lg dark:border-[#344044] dark:bg-[#151a1b]">
+                {koreanSearchState === "searching" && <p className="px-3 py-2 text-slate-500 dark:text-slate-400">종목을 검색하는 중입니다…</p>}
+                {koreanSearchState === "empty" && <p className="px-3 py-2 text-slate-500 dark:text-slate-400">일치하는 한국 종목을 찾지 못했습니다.</p>}
+                {koreanSearchState === "error" && <p className="px-3 py-2 text-rose-600 dark:text-rose-300">종목 검색에 실패했습니다. 6자리 종목코드를 직접 입력할 수 있습니다.</p>}
+                {koreanSearchState === "success" && koreanSearchResults.map((candidate, index) => {
+                  const active = activeKoreanSearchIndex === index;
+                  return (
+                    <button
+                      id={`${koreanSearchListId}-option-${index}`}
+                      key={`${candidate.code}-${candidate.symbol}`}
+                      role="option"
+                      aria-selected={active}
+                      type="button"
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => selectKoreanStock(candidate)}
+                      className={`flex min-h-10 w-full items-center rounded-md px-3 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${active ? "bg-blue-50 text-blue-950 dark:bg-blue-500/20 dark:text-blue-100" : "text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-[#222b2d]"}`}
+                    >
+                      <span className="min-w-0 truncate font-semibold">{candidate.displayName} ({candidate.code})</span>
+                      <span className="ml-2 shrink-0 text-[11px] text-slate-500 dark:text-slate-400">· {candidate.market}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          <div className="flex h-11 items-center md:justify-end">
             {periodButtons}
-            {customPickers}
           </div>
         </div>
+        {customPickers}
         <p className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] text-slate-500 dark:border-[#2a3336] dark:bg-[#151a1b] dark:text-slate-400">
-          {market === "KR" ? "한국 시장은 6자리 종목코드(예: 000660) 또는 .KS/.KQ 티커를 지원합니다. " : "미국 시장은 SPY, QQQ, AAPL 같은 티커를 지원합니다. "}
+          {market === "KR" ? "한국 시장은 종목명 또는 6자리 종목코드(예: 000660), .KS/.KQ 티커를 지원합니다. " : "미국 시장은 SPY, QQQ, AAPL 같은 티커를 지원합니다. "}
           분석 실행 후 기간 버튼(1년·3년·5년·최대)으로 분석 구간을 조정하세요. 보유 데이터가 선택한 기간보다 짧으면 자동으로 전체 기간을 보여줍니다. &ldquo;커스텀&rdquo;을 선택하면 해당 티커의 실제 데이터 범위에서 시작일·종료일을 직접 지정할 수 있습니다.
         </p>
       </form>

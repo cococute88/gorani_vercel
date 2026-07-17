@@ -32,6 +32,7 @@
     "check:tax-saving": "node scripts/check-tax-saving-calculator.mjs",
     "check:mdd-calculator-streamlit-port": "node scripts/check-mdd-calculator-streamlit-port.mjs",
     "check:mdd-market-metadata": "node scripts/check-mdd-market-metadata.mjs",
+    "check:mdd-korean-autocomplete": "node scripts/check-mdd-korean-autocomplete.mjs",
     "verify:mdd-daily-density": "node scripts/verify-mdd-daily-density.mjs",
     "check:asset-map": "node scripts/check-asset-map-exposure.mjs",
     "check:korean-etf": "node scripts/check-korean-etf-registry.mjs",
