@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import TopNav from "@/components/TopNav";
 import StorageModeBadge from "@/components/common/StorageModeBadge";
-import { calculateAssetSimulatorPreview, normalizeInputs, normalizeYearPlans } from "@/lib/asset-simulator";
+import { calculateAssetSimulatorPreview, normalizeInputs, normalizeYearPlans, normalizeYearPlansPreservingOutsidePeriod } from "@/lib/asset-simulator";
 import type {
   AppliedPortfolioAssumptionsV1,
   AssetSimulatorPortfolioConfigV1,
@@ -269,7 +269,13 @@ export default function AssetSimulatorPage() {
   const handleInputsChange = (nextInputs: SimulatorInputs) => {
     const normalizedInputs = normalizeInputs(nextInputs);
     setInputs(normalizedInputs);
-    setYearPlans((currentPlans) => normalizeYearPlans(normalizedInputs, currentPlans));
+    setYearPlans((currentPlans) => normalizeYearPlansPreservingOutsidePeriod(normalizedInputs, currentPlans));
+  };
+
+  const handleYearPlansChange = (nextActivePlans: YearPlanRow[]) => {
+    setYearPlans((currentPlans) =>
+      normalizeYearPlansPreservingOutsidePeriod(normalizeInputs(inputs), [...nextActivePlans, ...currentPlans]),
+    );
   };
 
   const handleSave = async () => {
@@ -278,7 +284,7 @@ export default function AssetSimulatorPage() {
     setSaveError(null);
     const updatedAt = new Date().toISOString();
     const normalizedInputs = normalizeInputs(inputs);
-    const normalizedPlans = normalizeYearPlans(normalizedInputs, yearPlans);
+    const normalizedPlans = normalizeYearPlansPreservingOutsidePeriod(normalizedInputs, yearPlans);
 
     try {
       const storedConfig = writeLocalConfig(normalizedInputs, normalizedPlans, updatedAt);
@@ -453,7 +459,7 @@ export default function AssetSimulatorPage() {
           className="space-y-5"
         >
           <SimulatorInputPanel inputs={inputs} onChange={handleInputsChange} onReset={handleReset} onSave={handleSave} saving={saving} saveMessage={saveMessage} saveError={saveError} exitMode={exitMode} onExitModeChange={handleExitModeChange} />
-          <YearPlanTable plans={tablePlans} onChange={setYearPlans} open={planTableOpen} onToggleOpen={() => setPlanTableOpen((prev) => !prev)} exitMode={exitMode} />
+          <YearPlanTable plans={tablePlans} onChange={handleYearPlansChange} open={planTableOpen} onToggleOpen={() => setPlanTableOpen((prev) => !prev)} exitMode={exitMode} />
           <SimulatorMetricCards summary={projection.summary} />
           <SimulatorResultTabs projection={projection} />
           {savedFooter}

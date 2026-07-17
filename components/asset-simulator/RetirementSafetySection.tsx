@@ -99,7 +99,7 @@ export default function RetirementSafetySection({
 
       {/* Bad 컨텍스트는 여기 한 줄로만 노출한다(중복 배너 방지). */}
       <p className="mt-3 break-keep text-[11.5px] leading-relaxed text-slate-500 dark:text-slate-500">
-        Bad은 은퇴 초반 하락·첫 3년 저수익·배당 20% 삭감을 가정한 보수적 점검입니다. 각 계좌의 Good 대비 손상 정도를 확인해 주세요.
+        Bad은 은퇴 직후 급락·정체에 따른 순서위험(Sequence-of-Returns Risk) 테스트입니다. 첫 인출연도 위험자산 가격 수익률 -30%, 이후 2년 0%, 초기 3년 배당률 20% 삭감을 적용합니다. 4년 차부터 가격성장률은 Normal과 같은 사용자 입력값의 85%를 적용하며, 장기성장률 65%가 영구 적용되는 시나리오가 아닙니다.
       </p>
 
       {/* 계좌 기준 상세 아코디언: Good 접힘. 펼치면 Good/Bad 2열(모바일 1열)로 비교한다. */}
