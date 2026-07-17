@@ -72,7 +72,7 @@ export function normalizeMddPrices(pricePoints: PricePoint[]) {
 
   const prices = Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date));
   const dropped = pricePoints.length - prices.length;
-  if (dropped > 0) warnings.push(`${dropped} invalid price point(s) were excluded before MDD calculation.`);
+  if (dropped > 0) warnings.push(`MDD 계산 전에 유효하지 않은 가격 데이터 ${dropped}개를 제외했습니다.`);
 
   return { prices, warnings };
 }
@@ -117,7 +117,7 @@ export function calculateMddFromPrices(input: MddInput, rawPrices: PricePoint[],
 
   const prices = normalized.prices;
   if (prices.length < 2) {
-    warnings.push("At least two valid close prices are required for MDD calculation.");
+    warnings.push("MDD를 계산하려면 유효한 종가 데이터가 2개 이상 필요합니다.");
     return emptyMddResult(input, meta.source ?? "sample", warnings, meta.updatedAt);
   }
 

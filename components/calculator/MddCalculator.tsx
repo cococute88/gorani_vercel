@@ -35,11 +35,12 @@ import {
   computeDrawdownEpisodes,
   computeVolatilityStats,
   computeYearlyReturns,
+  normalizeMddPrices,
   resolvePeriodWindow,
   slicePrices,
   type PeriodKey,
 } from "@/lib/mdd-calculator";
-import type { MddEpisode, MddInput, MddSeriesPoint, PricePoint } from "@/lib/calculator-types";
+import type { MddEpisode, MddInput, MddResult, MddSeriesPoint, PricePoint } from "@/lib/calculator-types";
 import type { QuoteMetadata, QuoteSource } from "@/lib/quote-types";
 import { resolveMddTicker, type MddMarket } from "@/lib/mdd-market";
 import { nextSortState, sortArrow, sortRows, type SortColumnType, type SortState } from "@/lib/calculator-table-sort";
@@ -202,6 +203,28 @@ function daysBetween(start: string, end: string): number | null {
   return Math.max(0, Math.round((e - s) / 86_400_000));
 }
 
+function pendingMddResult(input: MddInput, source: QuoteSource = "sample"): MddResult {
+  const fallbackDate = input.endDate || input.startDate || "";
+  return {
+    series: [],
+    segments: [],
+    source,
+    warnings: [],
+    currentPrice: 0,
+    peakPrice: 0,
+    currentDrawdown: 0,
+    maxDrawdown: 0,
+    highDate: fallbackDate,
+    lowDate: fallbackDate,
+    peakPrice2: 0,
+    troughPrice: 0,
+    recoveryDate: null,
+    recoveryDays: null,
+    recovered: false,
+    warning: "",
+  };
+}
+
 export default function MddCalculator({ input, onChange }: { input: MddInput; onChange: (input: MddInput) => void }) {
   const theme = useResolvedTheme();
   const [submitted, setSubmitted] = useState<MddInput | null>(null);
@@ -290,14 +313,14 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
   const priceTitle = currency === "KRW"
     ? `${displayName}${displayName !== resolvedSymbol ? `(${resolvedSymbol})` : ""} 원화 기준 가격`
     : `${resolvedSymbol} 달러 기준 가격`;
-  // 라이브 데이터가 실제로 들어왔을 때만 차트를 그린다 (가짜/샘플 차트 금지).
-  const dataAvailable = Boolean(submitted) && quote.usdSource !== "sample" && quote.usdPrices.length >= 2;
+  const quoteSettled = Boolean(submitted) && !loading && quote.ticker === submitted?.ticker;
+  const liveQuoteSucceeded = quoteSettled && !quote.error && quote.usdSource !== "sample";
   const krwAvailable = quote.krwSource !== "sample" && quote.krwPrices.length >= 2;
 
   // 현재 조회 대상 티커의 시세가 실제로 도착했는지. 티커를 바꾼 직후에는 아직
   // 이전 티커의 시세가 남아 있을 수 있으므로, 시세의 ticker 태그가 현재 티커와
   // 일치할 때만 "이 티커의 데이터"로 신뢰한다(요구사항 5·6: 로딩 중 잘못된 값 방지).
-  const tickerDataReady = submitted !== null && quote.ticker === submitted.ticker && quote.usdPrices.length > 0;
+  const tickerDataReady = quoteSettled && !quote.error && quote.usdPrices.length > 0;
 
   // 해당 티커의 실제 데이터 날짜 범위(커스텀 Date Picker 의 min/max, 초기값 산출용).
   // 티커별 상장 이후 최초 거래일 ~ 최신 거래일. 전역 데이터가 아니라 이 티커의 것.
@@ -336,6 +359,7 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
     return resolvePeriodWindow(quote.usdPrices, period);
   }, [quote.usdPrices, period, customStart, customEnd]);
   const windowUsd = useMemo(() => slicePrices(quote.usdPrices, analysisWindow.start, analysisWindow.end), [quote.usdPrices, analysisWindow]);
+  const normalizedWindowUsd = useMemo(() => normalizeMddPrices(windowUsd), [windowUsd]);
   const krwCloses = useMemo(
     () => (krwAvailable ? alignKrwCloses(quote.usdPrices, quote.krwPrices) : []),
     [krwAvailable, quote.usdPrices, quote.krwPrices],
@@ -343,9 +367,29 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
   const windowKrw = useMemo(() => slicePrices(krwCloses, analysisWindow.start, analysisWindow.end), [krwCloses, analysisWindow]);
 
   const result = useMemo(
-    () => calculateMddFromPrices(submitted ?? input, windowUsd, { source: quote.usdSource }),
-    [submitted, input, windowUsd, quote.usdSource],
+    () => liveQuoteSucceeded && normalizedWindowUsd.prices.length >= 2
+      ? calculateMddFromPrices(submitted ?? input, normalizedWindowUsd.prices, { source: quote.usdSource })
+      : pendingMddResult(submitted ?? input, quote.usdSource),
+    [liveQuoteSucceeded, normalizedWindowUsd.prices, submitted, input, quote.usdSource],
   );
+  // 라이브 요청이 끝난 뒤에만 MDD 결과를 계산·표시한다. 빈 배열인 요청 중간 상태는
+  // loading으로 분리해 경고/실패 UI가 먼저 보이지 않도록 한다.
+  const dataAvailable = liveQuoteSucceeded && result.series.length >= 2;
+  const dataInsufficient = liveQuoteSucceeded && normalizedWindowUsd.prices.length < 2;
+  const viewState = !submitted
+    ? "idle"
+    : loading || !quoteSettled
+      ? "loading"
+      : quote.error
+        ? "error"
+        : quote.usdSource === "sample"
+          ? "sample"
+          : dataInsufficient
+            ? "empty"
+            : "success";
+  const visibleWarnings = viewState === "success" || viewState === "empty"
+    ? [...quote.warnings, ...normalizedWindowUsd.warnings, ...(dataInsufficient ? ["MDD를 계산하려면 유효한 종가 데이터가 2개 이상 필요합니다."] : result.warnings)]
+    : [];
 
   const episodes = useMemo(() => computeDrawdownEpisodes(quote.usdPrices, { limit: 8 }), [quote.usdPrices]);
   const yearly = useMemo(() => computeYearlyReturns(quote.usdPrices), [quote.usdPrices]);
@@ -547,6 +591,7 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
       return;
     }
     setValidationError(null);
+    setLoading(true);
     setQuote({ usdPrices: [], krwPrices: [], warnings: [] });
     setSubmitted({ ...input, market, ticker: resolution.requestedTicker });
   };
@@ -558,7 +603,7 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className={cardTitle}>티커MDD 계산기 입력값</h2>
-            <CalculatorDataStatus source={submitted ? result.source : undefined} loading={loading} updatedAt={submitted ? result.updatedAt : undefined} loadingText="시세 불러오는 중" />
+            <CalculatorDataStatus source={viewState === "success" || viewState === "empty" || viewState === "sample" ? result.source : undefined} loading={viewState === "loading"} updatedAt={quoteSettled ? result.updatedAt : undefined} loadingText="시세 불러오는 중" />
           </div>
           <button
             type="submit"
@@ -566,13 +611,14 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
             className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-[13px] font-bold text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
           >
             <Search className="h-4 w-4" />
-            분석 실행
+            {loading ? "시세 불러오는 중" : "분석 실행"}
           </button>
         </div>
 
         <div className="mt-4 grid gap-3 text-[13px] md:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
           <TextInput
             label="티커"
+            compact
             labelTrailing={marketSelector}
             value={input.ticker}
             placeholder={market === "KR" ? "예: 000660, 005930, 247540" : "예: SPY, QQQ, AAPL"}
@@ -591,20 +637,28 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
         </p>
       </form>
 
-      <CalculatorWarningPanel warnings={submitted ? result.warnings : []} error={validationError ?? quote.error} />
+      <CalculatorWarningPanel warnings={visibleWarnings} error={viewState === "loading" ? null : validationError ?? quote.error} />
 
       {!submitted ? (
         <div className={`${panel} text-center`}>
           <p className="text-[14px] font-bold text-slate-700 dark:text-slate-200">시장과 티커를 선택해 분석을 시작하세요.</p>
           <p className="mt-2 text-[13px] text-slate-500 dark:text-slate-400">{market === "KR" ? "한국 종목은 6자리 코드만 입력해도 KOSPI·KOSDAQ를 자동으로 조회합니다." : "미국 티커를 입력하면 실제 시세 기준으로 MDD를 분석합니다."}</p>
         </div>
+      ) : viewState === "loading" ? (
+        <div className={`${panel} text-center`}>
+          <p className="text-[14px] font-bold text-slate-700 dark:text-slate-200">라이브 시세를 불러오는 중입니다…</p>
+          <p className="mt-2 text-[13px] text-slate-500 dark:text-slate-400">시세가 준비되면 MDD 분석을 시작합니다.</p>
+        </div>
+      ) : viewState === "empty" ? (
+        <div className={`${panel} text-center`}>
+          <p className="text-[14px] font-bold text-slate-700 dark:text-slate-200">선택한 기간의 가격 데이터가 부족합니다.</p>
+          <p className="mt-2 text-[13px] text-slate-500 dark:text-slate-400">MDD를 계산하려면 유효한 종가 데이터가 2개 이상 필요합니다.</p>
+        </div>
       ) : !dataAvailable ? (
         <div className={`${panel} text-center`}>
           <p className="text-[14px] font-bold text-slate-700 dark:text-slate-200">시세 데이터를 불러올 수 없습니다.</p>
           <p className="mt-2 text-[13px] text-slate-500 dark:text-slate-400">
-            {loading
-              ? "라이브 시세를 불러오는 중입니다…"
-              : `'${ticker}' 의 라이브 시세를 가져오지 못했습니다. 티커 철자나 네트워크 상태를 확인한 뒤 다시 시도해주세요. (가짜 데이터로 차트를 그리지 않습니다.)`}
+            {`'${ticker}' 의 라이브 시세를 가져오지 못했습니다. 티커 철자나 네트워크 상태를 확인한 뒤 다시 시도해주세요. (가짜 데이터로 차트를 그리지 않습니다.)`}
           </p>
         </div>
       ) : period === "custom" && !dateBounds ? (

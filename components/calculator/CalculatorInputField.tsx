@@ -2,8 +2,17 @@ import { ReactNode, useId } from "react";
 
 const fieldBase = "rounded-xl border border-[#2a3336] bg-[#151a1b] px-4 py-3";
 
-export function TextInput({ label, value, onChange, placeholder, inputMode, labelTrailing }: { label: string; value: string; onChange: (value: string) => void; placeholder?: string; inputMode?: "text" | "numeric"; labelTrailing?: ReactNode }) {
+export function TextInput({ label, value, onChange, placeholder, inputMode, labelTrailing, compact = false }: { label: string; value: string; onChange: (value: string) => void; placeholder?: string; inputMode?: "text" | "numeric"; labelTrailing?: ReactNode; compact?: boolean }) {
   const inputId = useId();
+
+  if (compact) {
+    return (
+      <div className="flex h-11 items-center gap-2 rounded-lg border border-[#2a3336] bg-[#151a1b] px-3">
+        <input id={inputId} aria-label={label} value={value} placeholder={placeholder} inputMode={inputMode} onChange={(e) => onChange(e.target.value)} className="min-w-0 flex-1 bg-transparent text-[13px] font-bold text-slate-100 outline-none placeholder:font-medium placeholder:text-slate-500" />
+        {labelTrailing}
+      </div>
+    );
+  }
 
   return (
     <div className={fieldBase}>
