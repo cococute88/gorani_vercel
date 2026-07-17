@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type KeyboardEvent, useEffect, useId, useMemo, useRef, useState } from "react";
 import { Search } from "lucide-react";
 import {
   Area,
@@ -35,12 +35,15 @@ import {
   computeDrawdownEpisodes,
   computeVolatilityStats,
   computeYearlyReturns,
+  normalizeMddPrices,
   resolvePeriodWindow,
   slicePrices,
   type PeriodKey,
 } from "@/lib/mdd-calculator";
-import type { MddEpisode, MddInput, MddSeriesPoint, PricePoint } from "@/lib/calculator-types";
-import type { QuoteSource } from "@/lib/quote-types";
+import type { MddEpisode, MddInput, MddResult, MddSeriesPoint, PricePoint } from "@/lib/calculator-types";
+import type { QuoteMetadata, QuoteSource } from "@/lib/quote-types";
+import { resolveMddTicker, type MddMarket } from "@/lib/mdd-market";
+import { isKoreanStockNameQuery, type KoreanStockSearchResponse, type KoreanStockSearchResult } from "@/lib/korean-stock-search";
 import { nextSortState, sortArrow, sortRows, type SortColumnType, type SortState } from "@/lib/calculator-table-sort";
 import { useResolvedTheme } from "@/components/theme/ThemeProvider";
 
@@ -68,12 +71,14 @@ function formatTooltipDate(iso: string): string {
   return `${iso.slice(0, 4)}.${iso.slice(5, 7)}.${iso.slice(8, 10)}`;
 }
 
-function fmtUsd(value: number | null | undefined): string {
+function fmtPrice(value: number | null | undefined, currency: "USD" | "KRW"): string {
   if (value === null || value === undefined || !Number.isFinite(value)) return "—";
-  return `$${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return currency === "KRW"
+    ? `₩${Math.round(value).toLocaleString("ko-KR")}`
+    : `$${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
-function fmtUsdAxis(value: number): string {
-  return `$${Math.round(value).toLocaleString("en-US")}`;
+function fmtPriceAxis(value: number, currency: "USD" | "KRW"): string {
+  return currency === "KRW" ? `₩${Math.round(value).toLocaleString("ko-KR")}` : `$${Math.round(value).toLocaleString("en-US")}`;
 }
 function fmtPct(value: number | null | undefined): string {
   if (value === null || value === undefined || !Number.isFinite(value)) return "—";
@@ -140,6 +145,7 @@ type MddQuoteState = {
   usdSource?: QuoteSource;
   krwPrices: PricePoint[];
   krwSource?: QuoteSource;
+  metadata?: QuoteMetadata;
   warnings: string[];
   updatedAt?: string;
   error?: string | null;
@@ -198,9 +204,31 @@ function daysBetween(start: string, end: string): number | null {
   return Math.max(0, Math.round((e - s) / 86_400_000));
 }
 
+function pendingMddResult(input: MddInput, source: QuoteSource = "sample"): MddResult {
+  const fallbackDate = input.endDate || input.startDate || "";
+  return {
+    series: [],
+    segments: [],
+    source,
+    warnings: [],
+    currentPrice: 0,
+    peakPrice: 0,
+    currentDrawdown: 0,
+    maxDrawdown: 0,
+    highDate: fallbackDate,
+    lowDate: fallbackDate,
+    peakPrice2: 0,
+    troughPrice: 0,
+    recoveryDate: null,
+    recoveryDays: null,
+    recovered: false,
+    warning: "",
+  };
+}
+
 export default function MddCalculator({ input, onChange }: { input: MddInput; onChange: (input: MddInput) => void }) {
   const theme = useResolvedTheme();
-  const [submitted, setSubmitted] = useState(input);
+  const [submitted, setSubmitted] = useState<MddInput | null>(null);
   // 기간 선택: 1년/3년/5년 프리셋 또는 "custom"(시작일/종료일 직접 선택).
   const [period, setPeriod] = useState<PeriodKey | "custom">("5y");
   // 커스텀 기간의 시작/종료일(YYYY-MM-DD). 데이터 로드 시 보유 범위로 초기화한다.
@@ -208,8 +236,15 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
   const [customEnd, setCustomEnd] = useState<string>("");
   const [quote, setQuote] = useState<MddQuoteState>({ usdPrices: [], krwPrices: [], warnings: [] });
   const [loading, setLoading] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [koreanSearchState, setKoreanSearchState] = useState<"idle" | "searching" | "success" | "empty" | "error">("idle");
+  const [koreanSearchResults, setKoreanSearchResults] = useState<KoreanStockSearchResult[]>([]);
+  const [activeKoreanSearchIndex, setActiveKoreanSearchIndex] = useState(-1);
   const [segmentSort, setSegmentSort] = useState<SortState<EpisodeSortKey>>({ key: "mdd", direction: "asc" });
   const [priceSort, setPriceSort] = useState<SortState<MddSeriesSortKey>>({ key: "date", direction: "asc" });
+  const koreanSearchAbortRef = useRef<AbortController | null>(null);
+  const koreanSearchRequestRef = useRef(0);
+  const koreanSearchListId = useId();
 
   const colors: ChartColors = useMemo(
     () =>
@@ -237,19 +272,21 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
     let cancelled = false;
 
     async function loadHistory() {
+      if (!submitted) return;
       setLoading(true);
       try {
         const [usd, krw] = await Promise.all([
-          fetchQuoteHistory({ ticker: submitted.ticker, range: "max" }),
-          fetchQuoteHistory({ ticker: "KRW=X", range: "max" }),
+          fetchQuoteHistory({ ticker: submitted.ticker, market: submitted.market, range: "max" }),
+          submitted.market === "US" ? fetchQuoteHistory({ ticker: "KRW=X", range: "max" }) : Promise.resolve(null),
         ]);
         if (cancelled) return;
         setQuote({
           ticker: submitted.ticker,
           usdPrices: usd.prices.map((p) => ({ date: p.date, close: p.close })),
           usdSource: usd.source,
-          krwPrices: krw.prices.map((p) => ({ date: p.date, close: p.close })),
-          krwSource: krw.source,
+          krwPrices: krw?.prices.map((p) => ({ date: p.date, close: p.close })) ?? [],
+          krwSource: krw?.source,
+          metadata: usd.metadata,
           warnings: usd.warnings,
           updatedAt: usd.updatedAt,
           error: null,
@@ -275,15 +312,66 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
     };
   }, [submitted]);
 
-  const ticker = submitted.ticker.trim().toUpperCase() || "QQQ";
-  // 라이브 데이터가 실제로 들어왔을 때만 차트를 그린다 (가짜/샘플 차트 금지).
-  const dataAvailable = quote.usdSource !== "sample" && quote.usdPrices.length >= 2;
+  const market: MddMarket = input.market ?? "US";
+  const ticker = submitted?.ticker.trim().toUpperCase() || input.ticker.trim().toUpperCase() || "—";
+  const koreanStockNameSearchActive = market === "KR" && isKoreanStockNameQuery(input.ticker);
+
+  useEffect(() => {
+    koreanSearchAbortRef.current?.abort();
+    koreanSearchAbortRef.current = null;
+    const requestId = ++koreanSearchRequestRef.current;
+
+    if (!koreanStockNameSearchActive) {
+      setKoreanSearchState("idle");
+      setKoreanSearchResults([]);
+      setActiveKoreanSearchIndex(-1);
+      return;
+    }
+
+    const controller = new AbortController();
+    koreanSearchAbortRef.current = controller;
+    const debounceTimer = window.setTimeout(async () => {
+      setKoreanSearchState("searching");
+      setKoreanSearchResults([]);
+      setActiveKoreanSearchIndex(-1);
+      try {
+        const response = await fetch(`/api/quote/korean-stock-search?q=${encodeURIComponent(input.ticker.trim())}`, {
+          signal: controller.signal,
+        });
+        const payload = (await response.json()) as KoreanStockSearchResponse & { error?: string };
+        if (!response.ok) throw new Error(payload.error || "한국 종목 검색에 실패했습니다.");
+        if (controller.signal.aborted || requestId !== koreanSearchRequestRef.current) return;
+
+        const results = payload.results ?? [];
+        setKoreanSearchResults(results);
+        setKoreanSearchState(results.length > 0 ? "success" : "empty");
+      } catch {
+        if (controller.signal.aborted || requestId !== koreanSearchRequestRef.current) return;
+        setKoreanSearchResults([]);
+        setKoreanSearchState("error");
+      }
+    }, 250);
+
+    return () => {
+      window.clearTimeout(debounceTimer);
+      controller.abort();
+    };
+  }, [input.ticker, koreanStockNameSearchActive]);
+
+  const currency: "USD" | "KRW" = quote.metadata?.currency ?? (market === "KR" ? "KRW" : "USD");
+  const resolvedSymbol = quote.metadata?.resolvedSymbol || ticker;
+  const displayName = quote.metadata?.displayName || resolvedSymbol;
+  const priceTitle = currency === "KRW"
+    ? `${displayName}${displayName !== resolvedSymbol ? `(${resolvedSymbol})` : ""} 원화 기준 가격`
+    : `${resolvedSymbol} 달러 기준 가격`;
+  const quoteSettled = Boolean(submitted) && !loading && quote.ticker === submitted?.ticker;
+  const liveQuoteSucceeded = quoteSettled && !quote.error && quote.usdSource !== "sample";
   const krwAvailable = quote.krwSource !== "sample" && quote.krwPrices.length >= 2;
 
   // 현재 조회 대상 티커의 시세가 실제로 도착했는지. 티커를 바꾼 직후에는 아직
   // 이전 티커의 시세가 남아 있을 수 있으므로, 시세의 ticker 태그가 현재 티커와
   // 일치할 때만 "이 티커의 데이터"로 신뢰한다(요구사항 5·6: 로딩 중 잘못된 값 방지).
-  const tickerDataReady = quote.ticker === submitted.ticker && quote.usdPrices.length > 0;
+  const tickerDataReady = quoteSettled && !quote.error && quote.usdPrices.length > 0;
 
   // 해당 티커의 실제 데이터 날짜 범위(커스텀 Date Picker 의 min/max, 초기값 산출용).
   // 티커별 상장 이후 최초 거래일 ~ 최신 거래일. 전역 데이터가 아니라 이 티커의 것.
@@ -322,6 +410,7 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
     return resolvePeriodWindow(quote.usdPrices, period);
   }, [quote.usdPrices, period, customStart, customEnd]);
   const windowUsd = useMemo(() => slicePrices(quote.usdPrices, analysisWindow.start, analysisWindow.end), [quote.usdPrices, analysisWindow]);
+  const normalizedWindowUsd = useMemo(() => normalizeMddPrices(windowUsd), [windowUsd]);
   const krwCloses = useMemo(
     () => (krwAvailable ? alignKrwCloses(quote.usdPrices, quote.krwPrices) : []),
     [krwAvailable, quote.usdPrices, quote.krwPrices],
@@ -329,9 +418,29 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
   const windowKrw = useMemo(() => slicePrices(krwCloses, analysisWindow.start, analysisWindow.end), [krwCloses, analysisWindow]);
 
   const result = useMemo(
-    () => calculateMddFromPrices(submitted, windowUsd, { source: quote.usdSource }),
-    [submitted, windowUsd, quote.usdSource],
+    () => liveQuoteSucceeded && normalizedWindowUsd.prices.length >= 2
+      ? calculateMddFromPrices(submitted ?? input, normalizedWindowUsd.prices, { source: quote.usdSource })
+      : pendingMddResult(submitted ?? input, quote.usdSource),
+    [liveQuoteSucceeded, normalizedWindowUsd.prices, submitted, input, quote.usdSource],
   );
+  // 라이브 요청이 끝난 뒤에만 MDD 결과를 계산·표시한다. 빈 배열인 요청 중간 상태는
+  // loading으로 분리해 경고/실패 UI가 먼저 보이지 않도록 한다.
+  const dataAvailable = liveQuoteSucceeded && result.series.length >= 2;
+  const dataInsufficient = liveQuoteSucceeded && normalizedWindowUsd.prices.length < 2;
+  const viewState = !submitted
+    ? "idle"
+    : loading || !quoteSettled
+      ? "loading"
+      : quote.error
+        ? "error"
+        : quote.usdSource === "sample"
+          ? "sample"
+          : dataInsufficient
+            ? "empty"
+            : "success";
+  const visibleWarnings = viewState === "success" || viewState === "empty"
+    ? [...quote.warnings, ...normalizedWindowUsd.warnings, ...(dataInsufficient ? ["MDD를 계산하려면 유효한 종가 데이터가 2개 이상 필요합니다."] : result.warnings)]
+    : [];
 
   const episodes = useMemo(() => computeDrawdownEpisodes(quote.usdPrices, { limit: 8 }), [quote.usdPrices]);
   const yearly = useMemo(() => computeYearlyReturns(quote.usdPrices), [quote.usdPrices]);
@@ -362,11 +471,11 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
 
   const chartDebugInfo = useMemo(
     () => [
-      buildChartDebugInfo(`${ticker} 달러 기준 가격`, priceChartData),
+      buildChartDebugInfo(priceTitle, priceChartData),
       buildChartDebugInfo("고점 대비 하락률 (Drawdown / MDD)", ddChartData),
       buildChartDebugInfo("달러 vs 원화 Drawdown 비교", compareData),
     ],
-    [ticker, priceChartData, ddChartData, compareData],
+    [priceTitle, priceChartData, ddChartData, compareData],
   );
 
   useEffect(() => {
@@ -410,7 +519,7 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
     }`;
 
   const periodButtons = (
-    <div className="flex flex-wrap gap-1.5">
+    <div className="flex flex-wrap gap-1.5" role="group" aria-label="분석 기간 선택">
       {MDD_PERIODS.map((p) => (
         <button
           key={p.key}
@@ -488,14 +597,112 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
       </div>
     ) : null;
 
+  const marketSelector = (
+    <div className="inline-flex shrink-0 rounded-md border border-slate-600/70 p-px" role="group" aria-label="티커 시장 선택">
+      {(["US", "KR"] as const).map((option) => {
+        const selected = market === option;
+        return (
+          <button
+            key={option}
+            type="button"
+            aria-pressed={selected}
+            onClick={() => handleMarketChange(option)}
+            className={`min-h-7 rounded-[5px] px-2 text-[11px] font-bold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#151a1b] ${selected ? "border border-blue-400/70 bg-blue-600 text-white" : "border border-transparent text-slate-300 hover:bg-slate-700"}`}
+          >
+            {option === "US" ? "미국" : "한국"}
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  const clearAnalysis = () => {
+    setSubmitted(null);
+    setLoading(false);
+    setValidationError(null);
+    setQuote({ usdPrices: [], krwPrices: [], warnings: [] });
+  };
+
+  const handleMarketChange = (nextMarket: MddMarket) => {
+    if (nextMarket === market) return;
+    koreanSearchAbortRef.current?.abort();
+    setKoreanSearchState("idle");
+    setKoreanSearchResults([]);
+    setActiveKoreanSearchIndex(-1);
+    clearAnalysis();
+    onChange({ ...input, market: nextMarket, currency: nextMarket === "KR" ? "KRW" : "USD", ticker: "" });
+  };
+
+  const handleTickerChange = (nextTicker: string) => {
+    clearAnalysis();
+    onChange({ ...input, ticker: nextTicker });
+  };
+
+  const selectKoreanStock = (candidate: KoreanStockSearchResult) => {
+    koreanSearchAbortRef.current?.abort();
+    ++koreanSearchRequestRef.current;
+    setKoreanSearchState("idle");
+    setKoreanSearchResults([]);
+    setActiveKoreanSearchIndex(-1);
+    clearAnalysis();
+    // 검색어가 아니라 6자리 KRX 코드를 분석 입력값으로 확정한다.
+    onChange({ ...input, ticker: candidate.code });
+  };
+
+  const handleTickerKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (koreanSearchState === "success" && koreanSearchResults.length > 0) {
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        setActiveKoreanSearchIndex((index) => (index + 1 + koreanSearchResults.length) % koreanSearchResults.length);
+        return;
+      }
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        setActiveKoreanSearchIndex((index) => (index <= 0 ? koreanSearchResults.length - 1 : index - 1));
+        return;
+      }
+      if (event.key === "Enter" && activeKoreanSearchIndex >= 0) {
+        event.preventDefault();
+        selectKoreanStock(koreanSearchResults[activeKoreanSearchIndex]);
+        return;
+      }
+    }
+
+    if (event.key === "Escape" && koreanSearchState !== "idle") {
+      event.preventDefault();
+      koreanSearchAbortRef.current?.abort();
+      ++koreanSearchRequestRef.current;
+      setKoreanSearchState("idle");
+      setKoreanSearchResults([]);
+      setActiveKoreanSearchIndex(-1);
+    }
+  };
+
+  const handleSubmit = () => {
+    if (market === "KR" && isKoreanStockNameQuery(input.ticker)) {
+      setValidationError("종목명 검색 결과에서 원하는 종목을 선택해주세요. 6자리 종목코드도 직접 입력할 수 있습니다.");
+      return;
+    }
+    const resolution = resolveMddTicker(input.ticker, market);
+    if (!resolution.ok) {
+      clearAnalysis();
+      setValidationError(resolution.error);
+      return;
+    }
+    setValidationError(null);
+    setLoading(true);
+    setQuote({ usdPrices: [], krwPrices: [], warnings: [] });
+    setSubmitted({ ...input, market, ticker: resolution.requestedTicker });
+  };
+
   return (
     <div className="space-y-4">
       {/* 입력 영역 */}
-      <form className={panel} onSubmit={(e) => { e.preventDefault(); setSubmitted(input); }}>
+      <form className={panel} onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className={cardTitle}>티커MDD 계산기 입력값</h2>
-            <CalculatorDataStatus source={result.source} loading={loading} updatedAt={result.updatedAt} loadingText="시세 불러오는 중" />
+            <CalculatorDataStatus source={viewState === "success" || viewState === "empty" || viewState === "sample" ? result.source : undefined} loading={viewState === "loading"} updatedAt={quoteSettled ? result.updatedAt : undefined} loadingText="시세 불러오는 중" />
           </div>
           <button
             type="submit"
@@ -503,32 +710,85 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
             className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-[13px] font-bold text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
           >
             <Search className="h-4 w-4" />
-            분석 실행
+            {loading ? "시세 불러오는 중" : "분석 실행"}
           </button>
         </div>
 
-        <div className="mt-4 grid gap-3 text-[13px] sm:grid-cols-2">
-          <TextInput label="티커" value={input.ticker} onChange={(v) => onChange({ ...input, ticker: v.toUpperCase() })} />
-          <div>
-            <label className="mb-1 block text-[12px] font-medium text-slate-500 dark:text-slate-400">분석 기간</label>
+        <div className="mt-4 grid items-center gap-3 text-[13px] md:grid-cols-[minmax(0,1fr)_auto]">
+          <div className="relative min-w-0">
+            <TextInput
+              label="티커"
+              compact
+              labelTrailing={marketSelector}
+              value={input.ticker}
+              placeholder={market === "KR" ? "종목명 또는 예: 000660, 005930" : "예: SPY, QQQ, AAPL"}
+              inputMode="text"
+              onChange={handleTickerChange}
+              onKeyDown={handleTickerKeyDown}
+              ariaAutocomplete={market === "KR" ? "list" : "none"}
+              ariaControls={market === "KR" && koreanSearchState !== "idle" ? koreanSearchListId : undefined}
+              ariaExpanded={market === "KR" && koreanSearchState !== "idle"}
+              ariaActiveDescendant={activeKoreanSearchIndex >= 0 ? `${koreanSearchListId}-option-${activeKoreanSearchIndex}` : undefined}
+            />
+            {market === "KR" && koreanSearchState !== "idle" && (
+              <div id={koreanSearchListId} role="listbox" aria-label="한국 종목 검색 결과" className="absolute z-30 mt-1 max-h-72 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white p-1 text-[13px] shadow-lg dark:border-[#344044] dark:bg-[#151a1b]">
+                {koreanSearchState === "searching" && <p className="px-3 py-2 text-slate-500 dark:text-slate-400">종목을 검색하는 중입니다…</p>}
+                {koreanSearchState === "empty" && <p className="px-3 py-2 text-slate-500 dark:text-slate-400">일치하는 한국 종목을 찾지 못했습니다.</p>}
+                {koreanSearchState === "error" && <p className="px-3 py-2 text-rose-600 dark:text-rose-300">종목 검색에 실패했습니다. 6자리 종목코드를 직접 입력할 수 있습니다.</p>}
+                {koreanSearchState === "success" && koreanSearchResults.map((candidate, index) => {
+                  const active = activeKoreanSearchIndex === index;
+                  return (
+                    <button
+                      id={`${koreanSearchListId}-option-${index}`}
+                      key={`${candidate.code}-${candidate.symbol}`}
+                      role="option"
+                      aria-selected={active}
+                      type="button"
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => selectKoreanStock(candidate)}
+                      className={`flex min-h-10 w-full items-center rounded-md px-3 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${active ? "bg-blue-50 text-blue-950 dark:bg-blue-500/20 dark:text-blue-100" : "text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-[#222b2d]"}`}
+                    >
+                      <span className="min-w-0 truncate font-semibold">{candidate.displayName} ({candidate.code})</span>
+                      <span className="ml-2 shrink-0 text-[11px] text-slate-500 dark:text-slate-400">· {candidate.market}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          <div className="flex h-11 items-center md:justify-end">
             {periodButtons}
-            {customPickers}
           </div>
         </div>
+        {customPickers}
         <p className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] text-slate-500 dark:border-[#2a3336] dark:bg-[#151a1b] dark:text-slate-400">
-          티커MDD 계산을 위해 티커를 입력하고 분석 실행을 누른 뒤, 기간 버튼(1년·3년·5년·최대)으로 분석 구간을 조정하세요. 보유 데이터가 선택한 기간보다 짧으면 자동으로 전체 기간을 보여줍니다. &ldquo;커스텀&rdquo;을 선택하면 해당 티커의 실제 데이터 범위에서 시작일·종료일을 직접 지정할 수 있습니다.
+          {market === "KR" ? "한국 시장은 종목명 또는 6자리 종목코드(예: 000660), .KS/.KQ 티커를 지원합니다. " : "미국 시장은 SPY, QQQ, AAPL 같은 티커를 지원합니다. "}
+          분석 실행 후 기간 버튼(1년·3년·5년·최대)으로 분석 구간을 조정하세요. 보유 데이터가 선택한 기간보다 짧으면 자동으로 전체 기간을 보여줍니다. &ldquo;커스텀&rdquo;을 선택하면 해당 티커의 실제 데이터 범위에서 시작일·종료일을 직접 지정할 수 있습니다.
         </p>
       </form>
 
-      <CalculatorWarningPanel warnings={result.warnings} error={quote.error} />
+      <CalculatorWarningPanel warnings={visibleWarnings} error={viewState === "loading" ? null : validationError ?? quote.error} />
 
-      {!dataAvailable ? (
+      {!submitted ? (
+        <div className={`${panel} text-center`}>
+          <p className="text-[14px] font-bold text-slate-700 dark:text-slate-200">시장과 티커를 선택해 분석을 시작하세요.</p>
+          <p className="mt-2 text-[13px] text-slate-500 dark:text-slate-400">{market === "KR" ? "한국 종목은 6자리 코드만 입력해도 KOSPI·KOSDAQ를 자동으로 조회합니다." : "미국 티커를 입력하면 실제 시세 기준으로 MDD를 분석합니다."}</p>
+        </div>
+      ) : viewState === "loading" ? (
+        <div className={`${panel} text-center`}>
+          <p className="text-[14px] font-bold text-slate-700 dark:text-slate-200">라이브 시세를 불러오는 중입니다…</p>
+          <p className="mt-2 text-[13px] text-slate-500 dark:text-slate-400">시세가 준비되면 MDD 분석을 시작합니다.</p>
+        </div>
+      ) : viewState === "empty" ? (
+        <div className={`${panel} text-center`}>
+          <p className="text-[14px] font-bold text-slate-700 dark:text-slate-200">선택한 기간의 가격 데이터가 부족합니다.</p>
+          <p className="mt-2 text-[13px] text-slate-500 dark:text-slate-400">MDD를 계산하려면 유효한 종가 데이터가 2개 이상 필요합니다.</p>
+        </div>
+      ) : !dataAvailable ? (
         <div className={`${panel} text-center`}>
           <p className="text-[14px] font-bold text-slate-700 dark:text-slate-200">시세 데이터를 불러올 수 없습니다.</p>
           <p className="mt-2 text-[13px] text-slate-500 dark:text-slate-400">
-            {loading
-              ? "라이브 시세를 불러오는 중입니다…"
-              : `'${ticker}' 의 라이브 시세를 가져오지 못했습니다. 티커 철자나 네트워크 상태를 확인한 뒤 다시 시도해주세요. (가짜 데이터로 차트를 그리지 않습니다.)`}
+            {`'${ticker}' 의 라이브 시세를 가져오지 못했습니다. 티커 철자나 네트워크 상태를 확인한 뒤 다시 시도해주세요. (가짜 데이터로 차트를 그리지 않습니다.)`}
           </p>
         </div>
       ) : period === "custom" && !dateBounds ? (
@@ -561,7 +821,12 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
           </div>
 
           <details className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-[12px] text-blue-900 dark:border-[#1e3a5f] dark:bg-[#101b2a] dark:text-blue-100">
-            <summary className="cursor-pointer text-[13px] font-bold">최종 Recharts data 배열 검증</summary>
+            <summary className="cursor-pointer list-none text-[13px] font-bold">
+              <span className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                <span>최종 Recharts data 배열 검증</span>
+                <span className="max-w-full truncate text-[12px] font-semibold text-blue-700 dark:text-blue-200">{displayName} · {resolvedSymbol}{quote.metadata?.exchange ? ` · ${quote.metadata.exchange}` : ""}</span>
+              </span>
+            </summary>
             <div className="mt-3 grid gap-3 lg:grid-cols-3">
               {chartDebugInfo.map((info) => (
                 <div key={info.name} className="rounded-xl border border-blue-100 bg-white/70 p-3 dark:border-[#284763] dark:bg-[#111827]">
@@ -580,11 +845,11 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
 
           {/* 상단 KPI */}
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <MetricCard label="현재가" value={fmtUsd(result.currentPrice)} sub={`${ticker} · ${result.source === "yahoo" ? "Yahoo" : result.source === "stooq" ? "Stooq" : result.source}`} tone="blue" />
-            <MetricCard label="기간 내 최고가" value={fmtUsd(result.peakPrice)} sub="기간 최고 종가" tone="green" />
+            <MetricCard label="현재가" value={fmtPrice(result.currentPrice, currency)} sub={`${displayName} · ${resolvedSymbol}${quote.metadata?.exchange ? ` · ${quote.metadata.exchange}` : ""} · ${result.source === "yahoo" ? "Yahoo" : result.source === "stooq" ? "Stooq" : result.source}`} tone="blue" />
+            <MetricCard label="기간 내 최고가" value={fmtPrice(result.peakPrice, currency)} sub="기간 최고 종가" tone="green" />
             <MetricCard label="현재 고점대비 하락률" value={fmtPct(result.currentDrawdown)} sub="누적 고점 대비" tone="orange" />
             <MetricCard label="최대 MDD" value={fmtPct(result.maxDrawdown)} sub="기간 내 최대 낙폭" tone="gray" />
-            <MetricCard label="MDD 고점일" value={result.highDate} sub={`고점가 ${fmtUsd(result.peakPrice2)}`} tone="green" />
+            <MetricCard label="MDD 고점일" value={result.highDate} sub={`고점가 ${fmtPrice(result.peakPrice2, currency)}`} tone="green" />
             <MetricCard
               label="MDD 저점일 → 회복일"
               value={result.recovered && result.recoveryDate ? `${result.lowDate} → ${result.recoveryDate}` : `${result.lowDate}`}
@@ -604,7 +869,7 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
           {/* 그래프 1 — 가격 */}
           <div className={panel}>
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <h2 className={cardTitle}>{ticker} 달러 기준 가격</h2>
+              <h2 className={cardTitle}>{priceTitle}</h2>
               {periodButtons}
             </div>
             <div className="h-[340px] min-w-0">
@@ -612,18 +877,18 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
                 <ComposedChart data={priceChartData} margin={{ top: 8, right: 16, bottom: 8, left: 4 }}>
                   <CartesianGrid stroke={colors.grid} strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="date" stroke={colors.axis} tick={{ fontSize: 11 }} tickFormatter={formatAxisDate} minTickGap={36} />
-                  <YAxis stroke={colors.axis} tick={{ fontSize: 11 }} tickFormatter={fmtUsdAxis} width={56} domain={["auto", "auto"]} />
+                  <YAxis stroke={colors.axis} tick={{ fontSize: 11 }} tickFormatter={(value) => fmtPriceAxis(value, currency)} width={currency === "KRW" ? 96 : 56} domain={["auto", "auto"]} />
                   <Tooltip
                     content={({ active, payload, label }) =>
                       active && payload && payload.length
                         ? tooltipCard(colors, formatTooltipDate(String(label)), [
-                            { label: "종가", value: fmtUsd(Number(payload[0]?.payload?.close)), color: C_PRICE },
+                            { label: displayName, value: fmtPrice(Number(payload[0]?.payload?.close), currency), color: C_PRICE },
                           ])
                         : null
                     }
                   />
                   <Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Line type="linear" dataKey="close" name={`${ticker} 종가`} stroke={C_PRICE} strokeWidth={1.8} dot={false} />
+                  <Line type="linear" dataKey="close" name={`${displayName} 종가`} stroke={C_PRICE} strokeWidth={1.8} dot={false} />
                   <Scatter dataKey="peakMarker" name="MDD 고점" shape={<TriangleUp />} legendType="triangle" fill={C_PEAK} isAnimationActive={false} />
                   <Scatter dataKey="troughMarker" name="MDD 저점" shape={<TriangleDown />} legendType="triangle" fill={C_TROUGH} isAnimationActive={false} />
                   <Scatter dataKey="recoveryMarker" name="회복일" shape={<CircleMarker />} legendType="circle" fill={C_RECOVERY} isAnimationActive={false} />
@@ -680,8 +945,8 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
             </p>
           </div>
 
-          {/* 그래프 3 — 달러 vs 원화 Drawdown 비교 */}
-          <div className={panel}>
+          {/* 그래프 3 — 미국 종목만 달러 vs 원화 Drawdown 비교 */}
+          {market === "US" ? <div className={panel}>
             <h2 className={`${cardTitle} mb-3`}>달러 vs 원화 Drawdown 비교</h2>
             <div className="h-[300px] min-w-0">
               <ResponsiveContainer width="100%" height="100%">
@@ -719,7 +984,7 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
                 ⚠️ USD/KRW 환율 데이터를 불러오지 못해 원화 기준 비교를 생략합니다. 달러 기준 낙폭만 표시합니다.
               </p>
             )}
-          </div>
+          </div> : null}
 
           {/* 역대 최대 낙폭/회복기간 */}
           <div className={panel}>
@@ -765,7 +1030,7 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
 
           {/* 연도별 수익률 */}
           <div className={panel}>
-            <h2 className={`${cardTitle} mb-3`}>{ticker} 주식 연도별 수익률</h2>
+            <h2 className={`${cardTitle} mb-3`}>{displayName} 주식 연도별 수익률</h2>
             {yearly.length === 0 ? (
               <p className="text-[13px] text-slate-500 dark:text-slate-400">연도별 수익률을 계산할 데이터가 부족합니다.</p>
             ) : (
@@ -830,12 +1095,12 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
 
             {/* 주요 변동성 지표 */}
             <div className={panel}>
-              <h2 className={`${cardTitle} mb-3`}>주요 변동성 지표 (단위: USD, %)</h2>
+              <h2 className={`${cardTitle} mb-3`}>주요 변동성 지표 (단위: {currency}, %)</h2>
               <table className="w-full text-left text-[12.5px]">
                 <tbody>
                   {[
-                    { label: "52주 최고가", value: fmtUsd(volatility.high52w) },
-                    { label: "52주 최저가", value: fmtUsd(volatility.low52w) },
+                    { label: "52주 최고가", value: fmtPrice(volatility.high52w, currency) },
+                    { label: "52주 최저가", value: fmtPrice(volatility.low52w, currency) },
                     { label: "1년전 대비 상승률", value: fmtPct(volatility.return1yPct) },
                     { label: "고점대비 하락률", value: fmtPct(volatility.currentDrawdownPct) },
                     { label: "최대 낙폭(MDD)", value: fmtPct(volatility.maxDrawdownPct) },
@@ -856,7 +1121,7 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
           <div className={panel}>
             <div className="mb-3 flex items-center justify-between gap-2">
               <h2 className={cardTitle}>최근 가격 및 Drawdown 상세</h2>
-              <TableCsvMenu filename={`mdd-recent-drawdown-${ticker}-${today}.csv`} rows={sortedRecent} columns={mddSeriesColumns.map((column) => ({ header: column.label, value: (row: MddSeriesPoint) => row[column.key] }))} />
+              <TableCsvMenu filename={`mdd-recent-drawdown-${resolvedSymbol}-${today}.csv`} rows={sortedRecent} columns={mddSeriesColumns.map((column) => ({ header: column.label, value: (row: MddSeriesPoint) => column.key === "close" || column.key === "peak" ? fmtPrice(row[column.key] as number, currency) : row[column.key] }))} />
             </div>
             <div className="-mx-5 max-h-[520px] min-w-0 overflow-auto px-5">
               <table className="w-full min-w-[600px] text-left text-[12.5px]">
@@ -875,8 +1140,8 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
                   {sortedRecent.map((row) => (
                     <tr key={row.date} className="border-b border-slate-100 text-slate-600 last:border-0 dark:border-[#222a2c] dark:text-slate-300">
                       <td className="py-2 font-semibold text-slate-900 dark:text-white">{row.date}</td>
-                      <td>{fmtUsd(row.close)}</td>
-                      <td>{fmtUsd(row.peak)}</td>
+                      <td>{fmtPrice(row.close, currency)}</td>
+                      <td>{fmtPrice(row.peak, currency)}</td>
                       <td className="text-orange-500 dark:text-orange-300">{fmtPct(row.drawdown)}</td>
                       <td>{row.value.toLocaleString("ko-KR")}</td>
                     </tr>
