@@ -1,4 +1,5 @@
 import type { QuoteSource } from "@/lib/quote-types";
+import type { MddMarket } from "@/lib/mdd-market";
 
 export type PricePoint = {
   date: string;
@@ -144,6 +145,7 @@ export type ConversionResult = {
 
 export type MddInput = {
   ticker: string;
+  market: MddMarket;
   startDate: string;
   endDate: string;
   analysisPeriod: "6m" | "1y" | "3y" | "5y" | "custom";

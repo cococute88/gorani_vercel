@@ -24,9 +24,21 @@ export type QuoteHistoryPrice = {
   volume: number | null;
 };
 
+export type QuoteMarket = "US" | "KR";
+
+export type QuoteMetadata = {
+  requestedTicker: string;
+  resolvedSymbol: string;
+  displayName: string;
+  market: QuoteMarket;
+  exchange?: string;
+  currency: "USD" | "KRW";
+};
+
 export type QuoteHistoryResponse = DataResultMeta<QuoteSource> & {
   ticker: string;
   normalizedTicker: string;
+  metadata: QuoteMetadata;
   prices: QuoteHistoryPrice[];
 };
 
