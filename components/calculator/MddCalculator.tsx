@@ -680,6 +680,11 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
 
   const handleSubmit = () => {
     if (market === "KR" && isKoreanStockNameQuery(input.ticker)) {
+      koreanSearchAbortRef.current?.abort();
+      ++koreanSearchRequestRef.current;
+      setKoreanSearchState("idle");
+      setKoreanSearchResults([]);
+      setActiveKoreanSearchIndex(-1);
       setValidationError("종목명 검색 결과에서 원하는 종목을 선택해주세요. 6자리 종목코드도 직접 입력할 수 있습니다.");
       return;
     }
@@ -749,7 +754,7 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
                       className={`flex min-h-10 w-full items-center rounded-md px-3 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${active ? "bg-blue-50 text-blue-950 dark:bg-blue-500/20 dark:text-blue-100" : "text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-[#222b2d]"}`}
                     >
                       <span className="min-w-0 truncate font-semibold">{candidate.displayName} ({candidate.code})</span>
-                      <span className="ml-2 shrink-0 text-[11px] text-slate-500 dark:text-slate-400">· {candidate.market}</span>
+                      <span className="ml-2 shrink-0 text-[11px] text-slate-500 dark:text-slate-400">· {candidate.market}{candidate.quoteType === "ETF" ? " ETF" : ""}</span>
                     </button>
                   );
                 })}
