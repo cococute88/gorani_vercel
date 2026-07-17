@@ -1,0 +1,276 @@
+import assert from "node:assert/strict";
+
+import { buildRetirementBootstrapInput } from "../lib/retirement-bootstrap-adapter.ts";
+import {
+  MAX_CENTERED_ANNUAL_RETURN_PCT,
+  MIN_CENTERED_ANNUAL_RETURN_PCT,
+  createSeededPrng,
+  geometricMeanRatePct,
+  recenterHistoricalRatesPct,
+  sampleMarketPatternBlocks,
+} from "../lib/retirement-bootstrap-data.ts";
+import {
+  buildRetirementBootstrapCheckpoints,
+  compileRetirementBootstrapModel,
+  runRetirementBootstrap,
+  simulateRetirementBootstrapPath,
+} from "../lib/retirement-bootstrap-engine.ts";
+import {
+  ETF_PATTERN_MAPPINGS,
+  INCOME_STRATEGY_DISTRIBUTION_POLICY,
+  distributionPaymentMultiplier,
+} from "../lib/retirement-bootstrap-mapping.ts";
+import type {
+  MarketPatternDatasetV1,
+  RetirementBootstrapAnnualRecord,
+} from "../lib/retirement-bootstrap-types.ts";
+import {
+  RETIREMENT_BOOTSTRAP_SYNTHETIC_FIXTURE,
+  buildRetirementBootstrapSyntheticInput,
+} from "./fixtures/retirement-bootstrap-synthetic.ts";
+
+function approx(actual: number, expected: number, tolerance = 1e-9): void {
+  assert.ok(Math.abs(actual - expected) <= tolerance, `expected ${expected}, got ${actual}`);
+}
+
+assert.equal(ETF_PATTERN_MAPPINGS.SPY.assetClass, "us_large_cap");
+assert.equal(ETF_PATTERN_MAPPINGS.QQQ.assetClass, "us_large_growth");
+assert.equal(ETF_PATTERN_MAPPINGS.SCHD.assetClass, "us_dividend_value");
+assert.equal(ETF_PATTERN_MAPPINGS.JEPQ.assetClass, "us_large_growth");
+assert.equal(ETF_PATTERN_MAPPINGS.JEPQ.distributionPolicy, "income_strategy");
+assert.equal(
+  distributionPaymentMultiplier("income_strategy", -25),
+  INCOME_STRATEGY_DISTRIBUTION_POLICY.severeDownturnPaymentMultiplier,
+  "JEPQ형 인컴전략은 위기 가격 패턴에서 독립적인 분배 조정",
+);
+assert.equal(distributionPaymentMultiplier("income_strategy", -19.9), 1);
+assert.equal(distributionPaymentMultiplier("standard_dividend", -40), 1, "일반 배당은 가격 하락률로 자동 삭감하지 않음");
+
+const historical = [20, -35, 8, 15, -5, 30, 4];
+const centered7 = recenterHistoricalRatesPct(historical, 7);
+const centered11 = recenterHistoricalRatesPct(historical, 11);
+approx(geometricMeanRatePct(centered7), 7, 1e-10);
+approx(geometricMeanRatePct(centered11), 11, 1e-10);
+assert.ok(centered11.every((value, index) => value > centered7[index]), "사용자 CAGR 상승은 같은 역사 편차의 전체 경로를 상향 이동");
+assert.ok(centered11.every((value) => value >= MIN_CENTERED_ANNUAL_RETURN_PCT && value <= MAX_CENTERED_ANNUAL_RETURN_PCT));
+assert.throws(() => recenterHistoricalRatesPct([-100, 5], 7), /-100%보다 커야/);
+
+const sampled = sampleMarketPatternBlocks(
+  RETIREMENT_BOOTSTRAP_SYNTHETIC_FIXTURE,
+  13,
+  5,
+  createSeededPrng(12345),
+);
+assert.equal(sampled.observations.length, 13);
+for (let offset = 0; offset < sampled.observationIndices.length; offset += 5) {
+  const block = sampled.observationIndices.slice(offset, offset + 5);
+  for (let index = 1; index < block.length; index += 1) {
+    assert.equal(block[index], block[index - 1] + 1, "5년 블록 내부 순서 보존");
+    assert.equal(
+      sampled.observations[offset + index].year,
+      sampled.observations[offset + index - 1].year + 1,
+      "원래 역사 연도 순서 보존",
+    );
+  }
+}
+sampled.observations.forEach((observation, index) => {
+  assert.equal(
+    observation,
+    RETIREMENT_BOOTSTRAP_SYNTHETIC_FIXTURE.observations[sampled.observationIndices[index]],
+    "자산군 편차·배당·인플레이션이 같은 연도 행으로 함께 이동",
+  );
+});
+
+const input = buildRetirementBootstrapSyntheticInput();
+const compiled = compileRetirementBootstrapModel(input, RETIREMENT_BOOTSTRAP_SYNTHETIC_FIXTURE, 5, true);
+const compiledJepq = compiled.brokerageHoldings.find((holding) => holding.ticker === "JEPQ")!;
+approx(geometricMeanRatePct(compiledJepq.centeredPriceReturnsPct), 2, 1e-10);
+approx(geometricMeanRatePct(compiledJepq.centeredDividendGrowthPct), 1, 1e-10);
+assert.equal(compiledJepq.initialDividendYieldPct, 9, "JEPQ 사용자 분배율을 역사 평균으로 덮어쓰지 않음");
+assert.throws(
+  () => runRetirementBootstrap(input, RETIREMENT_BOOTSTRAP_SYNTHETIC_FIXTURE, { seed: 1, iterations: 1 }),
+  /production 시뮬레이션에 사용할 수 없습니다/,
+  "synthetic fixture production 사용 차단",
+);
+
+const path70 = simulateRetirementBootstrapPath(input, RETIREMENT_BOOTSTRAP_SYNTHETIC_FIXTURE, {
+  years: 70,
+  periods: [30, 40, 50, 60, 70],
+  blockLength: 5,
+  seed: 20260717,
+  allowTestFixture: true,
+});
+const path70Repeat = simulateRetirementBootstrapPath(input, RETIREMENT_BOOTSTRAP_SYNTHETIC_FIXTURE, {
+  years: 70,
+  periods: [30, 40, 50, 60, 70],
+  blockLength: 5,
+  seed: 20260717,
+  allowTestFixture: true,
+});
+assert.deepEqual(path70Repeat, path70, "동일 데이터·입력·시드 완전 재현");
+assert.equal(path70.records.length, 70);
+assert.equal(path70.sampledBlockStarts.length, 14, "70년은 5년 블록 14개");
+assert.equal(path70.checkpoints.length, 5);
+
+const direct30 = simulateRetirementBootstrapPath(input, RETIREMENT_BOOTSTRAP_SYNTHETIC_FIXTURE, {
+  years: 30,
+  periods: [30],
+  blockLength: 5,
+  seed: 20260717,
+  allowTestFixture: true,
+});
+assert.deepEqual(path70.records.slice(0, 30), direct30.records, "같은 70년 경로의 30년 시점과 직접 30년 경로 일치");
+assert.deepEqual(path70.checkpoints[0], direct30.checkpoints[0]);
+
+const higherCagrInput = {
+  ...input,
+  taxSavingHoldings: input.taxSavingHoldings.map((holding) => ({
+    ...holding,
+    expectedTotalReturnCagrPct: holding.expectedTotalReturnCagrPct + 3,
+  })),
+};
+const baseDistribution = runRetirementBootstrap(input, RETIREMENT_BOOTSTRAP_SYNTHETIC_FIXTURE, {
+  seed: 991,
+  iterations: 500,
+  periods: [30],
+  allowTestFixture: true,
+});
+const higherDistribution = runRetirementBootstrap(higherCagrInput, RETIREMENT_BOOTSTRAP_SYNTHETIC_FIXTURE, {
+  seed: 991,
+  iterations: 500,
+  periods: [30],
+  allowTestFixture: true,
+});
+assert.ok(
+  higherDistribution.periods[0].averageEndingRealAssets > baseDistribution.periods[0].averageEndingRealAssets,
+  "동일 블록·시드에서 사용자 CAGR 상승 시 분포 중심이 상승",
+);
+
+const lowerBrokeragePriceInput = {
+  ...input,
+  initialIsa: 0,
+  initialPension: 0,
+  taxSavingHoldings: [],
+  brokerageHoldings: input.brokerageHoldings.map((holding) => ({
+    ...holding,
+    expectedPriceCagrPct: -5,
+  })),
+};
+const higherBrokeragePriceInput = {
+  ...lowerBrokeragePriceInput,
+  brokerageHoldings: lowerBrokeragePriceInput.brokerageHoldings.map((holding) => ({
+    ...holding,
+    expectedPriceCagrPct: 12,
+  })),
+};
+const lowerBrokeragePricePath = simulateRetirementBootstrapPath(
+  lowerBrokeragePriceInput,
+  RETIREMENT_BOOTSTRAP_SYNTHETIC_FIXTURE,
+  { years: 10, seed: 551, allowTestFixture: true },
+);
+const higherBrokeragePricePath = simulateRetirementBootstrapPath(
+  higherBrokeragePriceInput,
+  RETIREMENT_BOOTSTRAP_SYNTHETIC_FIXTURE,
+  { years: 10, seed: 551, allowTestFixture: true },
+);
+assert.deepEqual(
+  lowerBrokeragePricePath.records.map((row) => row.suppliedWithdrawalNet),
+  higherBrokeragePricePath.records.map((row) => row.suppliedWithdrawalNet),
+  "가격 CAGR 변경만으로 배당 현금흐름을 같은 비율로 흔들지 않음",
+);
+assert.notDeepEqual(
+  lowerBrokeragePricePath.records.map((row) => row.nominalAssets),
+  higherBrokeragePricePath.records.map((row) => row.nominalAssets),
+  "가격 CAGR은 위탁계좌 평가잔고에는 반영",
+);
+
+const zeroInflationDataset: MarketPatternDatasetV1 = {
+  ...RETIREMENT_BOOTSTRAP_SYNTHETIC_FIXTURE,
+  datasetId: "synthetic-zero-inflation",
+  observations: RETIREMENT_BOOTSTRAP_SYNTHETIC_FIXTURE.observations.map((row) => ({ ...row, inflationPct: 0 })),
+};
+const zeroInflationPath = simulateRetirementBootstrapPath(
+  { ...input, expectedInflationPct: 0 },
+  zeroInflationDataset,
+  { years: 30, seed: 44, allowTestFixture: true },
+);
+zeroInflationPath.records.forEach((row) => {
+  assert.equal(row.cumulativeInflation, 1);
+  assert.equal(row.nominalAssets, row.realAssets, "인플레이션 0%에서 명목·실질 일치");
+});
+
+function record(
+  yearNumber: number,
+  realAssets: number,
+  withdrawalSatisfied = true,
+  depleted = false,
+): RetirementBootstrapAnnualRecord {
+  return {
+    yearNumber,
+    calendarYear: 2030 + yearNumber,
+    sourceObservationYear: 2000 + yearNumber,
+    nominalAssets: realAssets,
+    realAssets,
+    cumulativeInflation: 1,
+    requiredWithdrawalNominal: 1,
+    suppliedWithdrawalNet: withdrawalSatisfied ? 1 : 0.5,
+    withdrawalSatisfied,
+    depleted,
+  };
+}
+
+const recovered = buildRetirementBootstrapCheckpoints(
+  [record(1, 40), record(2, 120)],
+  [2],
+  100,
+)[0];
+assert.equal(recovered.reachedRealPrincipal50Pct, true, "50% 이하 도달 뒤 회복해도 이력 유지");
+assert.equal(recovered.reachedRealPrincipal25Pct, false);
+const recoveredFrom25 = buildRetirementBootstrapCheckpoints(
+  [record(1, 20), record(2, 120)],
+  [2],
+  100,
+)[0];
+assert.equal(recoveredFrom25.reachedRealPrincipal25Pct, true, "25% 이하 도달 뒤 회복해도 이력 유지");
+const positiveBalanceShortfall = buildRetirementBootstrapCheckpoints(
+  [record(1, 100, false, false)],
+  [1],
+  100,
+)[0];
+assert.equal(positiveBalanceShortfall.success, false, "잔액 양수여도 필수 인출 일부 지급은 실패");
+assert.equal(positiveBalanceShortfall.firstWithdrawalShortfallYear, 2031);
+
+assert.throws(
+  () => buildRetirementBootstrapInput({
+    inputs: {
+      startYear: 2026,
+      years: 70,
+      annualReturnRate: 6,
+      inflationRate: 3,
+      initialIsa: 0,
+      initialPension: 1,
+      reserveCash: 0,
+      initialTaxableDividend: 1,
+      withdrawalRate: 4,
+      withdrawalGrowthRate: 2,
+      withdrawalDelayYears: 1,
+    },
+    portfolioAssumptions: null,
+    targetMonthlyExpenseReal: 100,
+  }),
+  /portfolioAssumptions/,
+  "적용 가정 누락 시 코드 기본값 혼용 금지",
+);
+
+const tenThousand = runRetirementBootstrap(input, RETIREMENT_BOOTSTRAP_SYNTHETIC_FIXTURE, {
+  seed: 730_401,
+  iterations: 10_000,
+  periods: [30, 40, 50, 60, 70],
+  allowTestFixture: true,
+});
+assert.equal(tenThousand.iterations, 10_000);
+assert.deepEqual(tenThousand.periods.map((row) => row.periodYears), [30, 40, 50, 60, 70]);
+assert.ok(tenThousand.periods.every((row) => row.simulationCount === 10_000));
+assert.ok(tenThousand.periods.every((row) => row.successCount === Math.round(row.successRate * 10_000)));
+
+console.log("retirement bootstrap engine checks passed");

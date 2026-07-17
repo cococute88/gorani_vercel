@@ -76,6 +76,8 @@
     "check:asset-simulator-target-expense": "npx --yes tsx scripts/check-asset-simulator-target-expense.mts",
     "check:asset-simulator-stress-scenario": "npx --yes tsx scripts/check-asset-simulator-stress-scenario.mts",
     "check:asset-simulator-period-presets": "npx --yes tsx scripts/check-asset-simulator-period-presets.mts",
+    "check:retirement-bootstrap-engine": "npx --yes tsx scripts/check-retirement-bootstrap-engine.mts",
+    "benchmark:retirement-bootstrap-engine": "npx --yes tsx scripts/benchmark-retirement-bootstrap-engine.mts",
     "check:nav-favorites-calculator-menu": "node scripts/check-nav-favorites-calculator-menu.mjs",
     "check:dividend-schd-goal-withdrawal-mode": "node scripts/check-dividend-schd-goal-withdrawal-mode.mjs",
     "check:dividends-performance-streamlit-port": "node scripts/check-dividends-performance-streamlit-port.mjs",
