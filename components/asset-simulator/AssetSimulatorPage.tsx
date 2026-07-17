@@ -38,10 +38,6 @@ import PortfolioConfigSection from "./PortfolioConfigSection";
 import RetirementSafetySection from "./RetirementSafetySection";
 import SafetyCheckDashboard from "./SafetyCheckDashboard";
 import { buildDefaultPortfolioConfig } from "@/lib/asset-simulator-portfolio";
-import {
-  doPortfolioAssumptionsMatchConfig,
-  isPortfolioAssumptionsStale,
-} from "@/lib/asset-simulator-portfolio-assumptions";
 import { useResolvedTheme } from "@/components/theme/ThemeProvider";
 import Image from "next/image";
 
@@ -59,9 +55,6 @@ function resolveSimulatorTab(tabParam: string | null): SimulatorTabKey {
   return tabParam === "safety" ? "safety" : "basic";
 }
 
-// 안정성 체크 탭 상태 도트 색상.
-// - 적용 가정 없음: 회색 / 있으나 config 불일치 또는 stale: 호박 / 적용·일치·최신: 초록
-type SafetyDotState = "none" | "attention" | "ready";
 type CalculationBasisSource = SimulatorHydrationSource | "session";
 
 export default function AssetSimulatorPage() {
@@ -83,6 +76,10 @@ export default function AssetSimulatorPage() {
   // 목표 월생활비(현재 가치 기준, 만원). 입력이 있으면 은퇴 안전성 통합 평가가 target 기준으로 전환된다.
   // 값이 없으면(null) 기존 proxy 기반 임시 평가를 유지한다.
   const [targetMonthlyExpenseReal, setTargetMonthlyExpenseReal] = useState<number | null>(100);
+  // 안전성 체크의 기간·물가상승률은 기본 시뮬레이터 inputs 와 완전히 분리한다.
+  // 기존 저장 데이터에 전용 필드가 없을 때만 하이드레이션에서 legacy inputs 값을 한 번 사용한다.
+  const [safetySimulationYears, setSafetySimulationYears] = useState(DEFAULT_SIMULATOR_INPUTS.years);
+  const [safetyInflationRate, setSafetyInflationRate] = useState(DEFAULT_SIMULATOR_INPUTS.inflationRate);
   // "지금 EXIT?" 모드는 로컬 UI 상태로만 관리한다. Firebase/로컬 저장 금지, 새로고침 시 초기화.
   const [exitMode, setExitMode] = useState(false);
   // 연도별 투자 계획표 펼침/접힘 상태. 일반 모드 기본값은 열림.
@@ -92,7 +89,16 @@ export default function AssetSimulatorPage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [lastSavedAtMs, setLastSavedAtMs] = useState(0);
   const [exitModalOpen, setExitModalOpen] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
   const lastLocalWriteAtRef = useRef(0);
+  const inputsRef = useRef<SimulatorInputs>(DEFAULT_SIMULATOR_INPUTS);
+  const yearPlansRef = useRef<YearPlanRow[]>(DEFAULT_YEAR_PLANS);
+  const safetySettingsRef = useRef({
+    simulationYears: DEFAULT_SIMULATOR_INPUTS.years,
+    inflationRate: DEFAULT_SIMULATOR_INPUTS.inflationRate,
+  });
+  const userEditedBasicInputsRef = useRef(false);
+  const userEditedSafetySettingsRef = useRef(false);
 
   const readLocalConfig = () => {
     if (typeof window === "undefined") return null;
@@ -112,8 +118,13 @@ export default function AssetSimulatorPage() {
     const config = buildStoredSimulatorConfig(nextInputs, nextYearPlans, updatedAt, {
       ...(portfolioConfig ? { portfolioConfig } : {}),
       ...(portfolioAssumptions ? { portfolioAssumptions } : {}),
-      // 목표 월생활비도 closure 에서 읽어 저장 payload 에 포함한다(호출부 시그니처는 유지).
-      ...(targetMonthlyExpenseReal !== null ? { retirementSafetyConfig: { version: 1 as const, targetMonthlyExpenseReal } } : {}),
+      // 안전성 체크 전용 값은 기본 시뮬레이터 inputs 와 별도 필드로 저장한다.
+      retirementSafetyConfig: {
+        version: 1 as const,
+        simulationYears: safetySettingsRef.current.simulationYears,
+        inflationRate: safetySettingsRef.current.inflationRate,
+        ...(targetMonthlyExpenseReal !== null ? { targetMonthlyExpenseReal } : {}),
+      },
     });
     if (typeof window !== "undefined") {
       window.localStorage.setItem(ASSET_SIMULATOR_STORAGE_KEY, JSON.stringify(config));
@@ -127,12 +138,18 @@ export default function AssetSimulatorPage() {
 
   useEffect(() => {
     let active = true;
+    setHydrated(false);
 
     const applyConfig = (config: ReturnType<typeof normalizePersistedSimulatorConfig>, source: SimulatorHydrationSource) => {
       if (!config || !active) return;
       if (lastLocalWriteAtRef.current > 0 && config.updatedAtMs < lastLocalWriteAtRef.current) return;
-      setInputs(config.inputs);
-      setYearPlans(config.yearPlans);
+      // 비동기 클라우드 로딩이 완료되기 전에 사용자가 입력한 값은 덮어쓰지 않는다.
+      if (!userEditedBasicInputsRef.current) {
+        inputsRef.current = config.inputs;
+        yearPlansRef.current = config.yearPlans;
+        setInputs(config.inputs);
+        setYearPlans(config.yearPlans);
+      }
       // 저장된 포트폴리오 설정/적용 가정을 복원한다. 적용 가정은 version 1(applied)만 projection 에 사용한다.
       setPortfolioConfig(config.portfolioConfig ?? null);
       setPortfolioAssumptions(
@@ -143,6 +160,15 @@ export default function AssetSimulatorPage() {
       setCalculationBasisSource(source);
       // 저장된 목표 월생활비를 복원한다. 없으면 null(임시 평가 유지).
       setTargetMonthlyExpenseReal(config.retirementSafetyConfig?.targetMonthlyExpenseReal ?? null);
+      // 전용 필드가 없는 배포 이전 데이터는 기존 공용 inputs 값을 안전성 체크 초기값으로만 사용한다.
+      // 다음 저장부터는 writeLocalConfig 가 전용 필드를 기록하므로 이후에는 서로 영향을 주지 않는다.
+      if (!userEditedSafetySettingsRef.current) {
+        const simulationYears = config.retirementSafetyConfig?.simulationYears ?? config.inputs.years;
+        const inflationRate = config.retirementSafetyConfig?.inflationRate ?? config.inputs.inflationRate;
+        safetySettingsRef.current = { simulationYears, inflationRate };
+        setSafetySimulationYears(simulationYears);
+        setSafetyInflationRate(inflationRate);
+      }
       setLastSavedAtMs(config.updatedAtMs);
       if (source === "cloud" && typeof window !== "undefined") {
         try {
@@ -175,6 +201,7 @@ export default function AssetSimulatorPage() {
 
       const selected = chooseLatestSimulatorConfig(cloudConfig, localConfig);
       applyConfig(selected, selected?.source ?? "default");
+      if (active) setHydrated(true);
     };
 
     void loadStoredConfig();
@@ -188,7 +215,15 @@ export default function AssetSimulatorPage() {
     [inputs, yearPlans, exitMode, portfolioAssumptions],
   );
 
-  const safetyInputs = useMemo(() => ({ ...inputs, withdrawalDelayYears: 0 }), [inputs]);
+  const safetyInputs = useMemo(
+    () => normalizeInputs({
+      ...inputs,
+      years: safetySimulationYears,
+      inflationRate: safetyInflationRate,
+      withdrawalDelayYears: 0,
+    }),
+    [inputs, safetyInflationRate, safetySimulationYears],
+  );
   // 안전성 탭은 기본 시뮬레이터의 은퇴/인출 연도와 별개로 현재년도부터 즉시 은퇴·인출하는 기준이다.
   const goodProjection = useMemo(
     () => calculateAssetSimulatorPreview(safetyInputs, yearPlans, true, { portfolioAssumptions }),
@@ -231,16 +266,6 @@ export default function AssetSimulatorPage() {
     [inputs, yearPlans],
   );
 
-  // 안정성 체크 탭 상태 도트. PortfolioConfigSection 의 applyState 판정과 동일한 기준을 쓴다.
-  const safetyDotState: SafetyDotState = useMemo(() => {
-    if (!portfolioAssumptions) return "none";
-    if (!portfolioConfig || !doPortfolioAssumptionsMatchConfig(portfolioConfig, portfolioAssumptions)) {
-      return "attention";
-    }
-    if (isPortfolioAssumptionsStale(portfolioAssumptions)) return "attention";
-    return "ready";
-  }, [portfolioAssumptions, portfolioConfig]);
-
   // "지금 EXIT?" 토글 시 계획표를 자동으로 접고/펼친다.
   // ON → 계산에 쓰이지 않으므로 즉시 접기, OFF → 기본 상태(열림) 복원.
   // 토글 사이에는 사용자가 직접 펼치기/접기 버튼으로 제어할 수 있다.
@@ -267,27 +292,54 @@ export default function AssetSimulatorPage() {
   );
 
   const handleInputsChange = (nextInputs: SimulatorInputs) => {
+    userEditedBasicInputsRef.current = true;
     const normalizedInputs = normalizeInputs(nextInputs);
+    inputsRef.current = normalizedInputs;
     setInputs(normalizedInputs);
-    setYearPlans((currentPlans) => normalizeYearPlansPreservingOutsidePeriod(normalizedInputs, currentPlans));
+    setYearPlans((currentPlans) => {
+      const nextPlans = normalizeYearPlansPreservingOutsidePeriod(normalizedInputs, currentPlans);
+      yearPlansRef.current = nextPlans;
+      return nextPlans;
+    });
+  };
+
+  const handleSafetySimulationYearsChange = (value: number) => {
+    userEditedSafetySettingsRef.current = true;
+    safetySettingsRef.current = { ...safetySettingsRef.current, simulationYears: value };
+    setSafetySimulationYears(value);
+  };
+
+  const handleSafetyInflationRateChange = (value: number) => {
+    userEditedSafetySettingsRef.current = true;
+    safetySettingsRef.current = { ...safetySettingsRef.current, inflationRate: value };
+    setSafetyInflationRate(value);
   };
 
   const handleYearPlansChange = (nextActivePlans: YearPlanRow[]) => {
-    setYearPlans((currentPlans) =>
-      normalizeYearPlansPreservingOutsidePeriod(normalizeInputs(inputs), [...nextActivePlans, ...currentPlans]),
-    );
+    userEditedBasicInputsRef.current = true;
+    setYearPlans((currentPlans) => {
+      const nextPlans = normalizeYearPlansPreservingOutsidePeriod(normalizeInputs(inputsRef.current), [...nextActivePlans, ...currentPlans]);
+      yearPlansRef.current = nextPlans;
+      return nextPlans;
+    });
   };
 
   const handleSave = async () => {
+    if (!hydrated) {
+      setSaveError("저장값을 불러오는 중입니다. 잠시 후 다시 저장해 주세요.");
+      return;
+    }
     setSaving(true);
     setSaveMessage(null);
     setSaveError(null);
     const updatedAt = new Date().toISOString();
-    const normalizedInputs = normalizeInputs(inputs);
-    const normalizedPlans = normalizeYearPlansPreservingOutsidePeriod(normalizedInputs, yearPlans);
+    const normalizedInputs = normalizeInputs(inputsRef.current);
+    const normalizedPlans = normalizeYearPlansPreservingOutsidePeriod(normalizedInputs, yearPlansRef.current);
 
     try {
       const storedConfig = writeLocalConfig(normalizedInputs, normalizedPlans, updatedAt);
+      inputsRef.current = normalizedInputs;
+      yearPlansRef.current = normalizedPlans;
       setInputs(normalizedInputs);
       setYearPlans(normalizedPlans);
 
@@ -316,10 +368,20 @@ export default function AssetSimulatorPage() {
     const plans = buildDefaultYearPlans();
     setInputs(DEFAULT_SIMULATOR_INPUTS);
     setYearPlans(plans);
+    inputsRef.current = DEFAULT_SIMULATOR_INPUTS;
+    yearPlansRef.current = plans;
     setPortfolioConfig(buildDefaultPortfolioConfig());
     setPortfolioAssumptions(null);
     setCalculationBasisSource("default");
     setTargetMonthlyExpenseReal(100);
+    setSafetySimulationYears(DEFAULT_SIMULATOR_INPUTS.years);
+    setSafetyInflationRate(DEFAULT_SIMULATOR_INPUTS.inflationRate);
+    safetySettingsRef.current = {
+      simulationYears: DEFAULT_SIMULATOR_INPUTS.years,
+      inflationRate: DEFAULT_SIMULATOR_INPUTS.inflationRate,
+    };
+    userEditedBasicInputsRef.current = false;
+    userEditedSafetySettingsRef.current = false;
 
     if (typeof window !== "undefined") {
       try {
@@ -428,18 +490,6 @@ export default function AssetSimulatorPage() {
                 }`}
               >
                 {tab.label}
-                {tab.key === "safety" && (
-                  <span
-                    aria-hidden
-                    className={`h-2 w-2 shrink-0 rounded-full ${
-                      safetyDotState === "ready"
-                        ? "bg-emerald-500"
-                        : safetyDotState === "attention"
-                          ? "bg-amber-500"
-                          : "bg-slate-400 dark:bg-slate-500"
-                    }`}
-                  />
-                )}
               </button>
             );
           })}
@@ -481,8 +531,10 @@ export default function AssetSimulatorPage() {
             stressProjection={stressProjection}
             targetMonthlyExpenseReal={targetMonthlyExpenseReal}
             onTargetMonthlyExpenseChange={setTargetMonthlyExpenseReal}
-            inputs={inputs}
-            onInputsChange={handleInputsChange}
+            simulationYears={safetySimulationYears}
+            inflationRate={safetyInflationRate}
+            onSimulationYearsChange={handleSafetySimulationYearsChange}
+            onInflationRateChange={handleSafetyInflationRateChange}
             calculationBasisSource={portfolioAssumptions ? calculationBasisSource : "default"}
             configPanel={
               <PortfolioConfigSection
@@ -495,8 +547,8 @@ export default function AssetSimulatorPage() {
                 }}
                 inputs={inputs}
                 onInputsChange={handleInputsChange}
-                taxMonthlySupply={projection.totalWithdrawRows.find((row) => row.isWithdraw)?.taxSavingMonthlyReal ?? null}
-                brokerageMonthlySupply={projection.totalWithdrawRows.find((row) => row.isWithdraw)?.taxableMonthlyDividendReal ?? null}
+                taxMonthlySupply={goodProjection.totalWithdrawRows.find((row) => row.isWithdraw)?.taxSavingMonthlyReal ?? null}
+                brokerageMonthlySupply={goodProjection.totalWithdrawRows.find((row) => row.isWithdraw)?.taxableMonthlyDividendReal ?? null}
                 onSave={handleSave}
                 saving={saving}
                 saveMessage={saveMessage}

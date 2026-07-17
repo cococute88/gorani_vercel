@@ -76,6 +76,7 @@
     "check:asset-simulator-golden": "npx --yes tsx scripts/check-asset-simulator-golden.mts",
     "check:asset-simulator-safety": "npx --yes tsx scripts/check-asset-simulator-safety.mts",
     "check:asset-simulator-target-expense": "npx --yes tsx scripts/check-asset-simulator-target-expense.mts",
+    "check:asset-simulator-safety-settings-isolation": "npx --yes tsx scripts/check-asset-simulator-safety-settings-isolation.mts",
     "check:asset-simulator-stress-scenario": "npx --yes tsx scripts/check-asset-simulator-stress-scenario.mts",
     "check:asset-simulator-period-presets": "npx --yes tsx scripts/check-asset-simulator-period-presets.mts",
     "check:nav-favorites-calculator-menu": "node scripts/check-nav-favorites-calculator-menu.mjs",

@@ -410,11 +410,15 @@ export type PortfolioValidationIssue = {
   message: string;
 };
 
-// 저장 가능한 은퇴 안전성 설정. 현재는 목표 월생활비(현재 가치 기준, 만원)만 담는다.
-// 값이 없거나 무효하면 targetMonthlyExpenseReal 은 null 또는 생략된다.
+// 저장 가능한 은퇴 안전성 설정.
+// 기본 시뮬레이터의 inputs.years / inputs.inflationRate 와 독립적으로
+// 안전성 체크의 기간·물가상승률을 보관한다. 기존 문서에는 두 필드가 없을 수 있으므로
+// 모두 optional 로 유지하고, 복원 시에는 기존 공용 inputs 값을 fallback 으로 사용한다.
 export type RetirementSafetyConfigV1 = {
   version: 1;
   targetMonthlyExpenseReal?: number | null;
+  simulationYears?: number;
+  inflationRate?: number;
 };
 
 export type StoredSimulatorPreview = {

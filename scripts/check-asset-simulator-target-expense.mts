@@ -275,7 +275,7 @@ function fixture(options: FixtureOptions = {}): SimulatorProjection {
   const page = read("components/asset-simulator/AssetSimulatorPage.tsx");
   assert.match(page, /targetMonthlyExpenseReal/, "페이지가 목표 월생활비 상태를 관리");
   assert.match(page, /setTargetMonthlyExpenseReal/, "목표 월생활비 setter 존재");
-  assert.match(page, /retirementSafetyConfig: \{ version: 1 as const, targetMonthlyExpenseReal \}/, "저장 payload 에 목표 월생활비 포함");
+  assert.match(page, /retirementSafetyConfig: \{[\s\S]*targetMonthlyExpenseReal/, "저장 payload 에 목표 월생활비 포함");
   assert.match(page, /onTargetMonthlyExpenseChange=\{setTargetMonthlyExpenseReal\}/, "대시보드에 setter 전달");
   assert.match(page, /useState<number \| null>\(100\)/, "기본 목표 월생활비 100만원 유지");
 
@@ -283,7 +283,7 @@ function fixture(options: FixtureOptions = {}): SimulatorProjection {
   // 대시보드는 목표와 기간/물가 입력을 Hero 까지 전달한다.
   const dashboard = read("components/asset-simulator/SafetyCheckDashboard.tsx");
   assert.match(dashboard, /onTargetMonthlyExpenseChange=\{onTargetMonthlyExpenseChange\}/, "대시보드가 Hero 로 setter 전달");
-  assert.match(dashboard, /inputs=\{inputs\}/, "대시보드가 Hero 로 시뮬레이션 입력 전달");
+  assert.match(dashboard, /simulationYears=\{simulationYears\}[\s\S]*inflationRate=\{inflationRate\}/, "대시보드가 Hero 로 안정성 전용 기간·물가 전달");
 
   const hero = read("components/asset-simulator/SafetyHeroCard.tsx");
   assert.match(hero, /id="target-monthly-expense"/, "Hero 목표 월생활비 입력 id");

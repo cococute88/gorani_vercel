@@ -1,21 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { SimulatorInputs } from "@/lib/asset-simulator-types";
-
 type Props = {
-  inputs: SimulatorInputs;
-  onInputsChange: (inputs: SimulatorInputs) => void;
+  simulationYears: number;
+  inflationRate: number;
+  onSimulationYearsChange: (value: number) => void;
+  onInflationRateChange: (value: number) => void;
   targetMonthlyExpenseReal: number | null;
   onTargetMonthlyExpenseChange: (value: number | null) => void;
 };
 
-function parsePositiveNumber(raw: string): number | null {
+function parseNumber(raw: string, min: number, allowZero: boolean): number | null {
+  if (raw.trim() === "") return null;
   const value = Number(raw);
-  return Number.isFinite(value) && value > 0 ? value : null;
+  return Number.isFinite(value) && value >= min && (allowZero || value > 0) ? value : null;
 }
 
-function Field({ label, suffix, value, onChange, id, min = 0, step = 1 }: {
+function Field({ label, suffix, value, onChange, id, min = 0, step = 1, allowZero = false }: {
   label: string;
   suffix: string;
   value: number | null;
@@ -23,6 +24,7 @@ function Field({ label, suffix, value, onChange, id, min = 0, step = 1 }: {
   id: string;
   min?: number;
   step?: number;
+  allowZero?: boolean;
 }) {
   const [draft, setDraft] = useState(value === null ? "" : String(value));
   useEffect(() => setDraft((current) => Number(current) === value ? current : value === null ? "" : String(value)), [value]);
@@ -30,14 +32,14 @@ function Field({ label, suffix, value, onChange, id, min = 0, step = 1 }: {
     <label className="min-w-0">
       <span className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300">{label}</span>
       <span className="mt-1 flex overflow-hidden rounded-lg border border-slate-300 bg-white dark:border-[#334044] dark:bg-[#101618]">
-        <input id={id} type="number" inputMode="decimal" min={min} step={step} value={draft} onChange={(event) => { setDraft(event.target.value); onChange(parsePositiveNumber(event.target.value)); }} className="min-w-0 flex-1 bg-transparent px-3 py-2 text-right text-[14px] font-bold text-slate-900 outline-none focus:ring-2 focus:ring-blue-100 dark:text-white dark:focus:ring-blue-500/20" />
+        <input id={id} type="number" inputMode="decimal" min={min} step={step} value={draft} onChange={(event) => { setDraft(event.target.value); onChange(parseNumber(event.target.value, min, allowZero)); }} className="min-w-0 flex-1 bg-transparent px-3 py-2 text-right text-[14px] font-bold text-slate-900 outline-none focus:ring-2 focus:ring-blue-100 dark:text-white dark:focus:ring-blue-500/20" />
         <span className="flex items-center pr-2.5 text-[11px] font-semibold text-slate-500">{suffix}</span>
       </span>
     </label>
   );
 }
 
-export default function SafetyHeroCard({ inputs, onInputsChange, targetMonthlyExpenseReal, onTargetMonthlyExpenseChange }: Props) {
+export default function SafetyHeroCard({ simulationYears, inflationRate, onSimulationYearsChange, onInflationRateChange, targetMonthlyExpenseReal, onTargetMonthlyExpenseChange }: Props) {
   return (
     <>
       <ol className="flex items-center justify-end gap-2 overflow-x-auto text-[12.5px] font-semibold text-slate-600 dark:text-slate-300" aria-label="안정성 체크 단계">
@@ -50,8 +52,8 @@ export default function SafetyHeroCard({ inputs, onInputsChange, targetMonthlyEx
         </div>
         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-[220px_220px_220px_minmax(0,1fr)] lg:items-end">
           <Field id="target-monthly-expense" label="목표 월생활비" suffix="만원" value={targetMonthlyExpenseReal} onChange={onTargetMonthlyExpenseChange} step={10} />
-          <Field id="safety-simulation-years" label="기간" suffix="년" value={inputs.years} onChange={(value) => onInputsChange({ ...inputs, years: Math.max(1, Math.min(70, Math.round(value ?? 1))) })} min={1} />
-          <Field id="safety-inflation-rate" label="물가상승률" suffix="%" value={inputs.inflationRate} onChange={(value) => onInputsChange({ ...inputs, inflationRate: Math.max(0, value ?? 0) })} step={0.1} />
+          <Field id="safety-simulation-years" label="기간" suffix="년" value={simulationYears} onChange={(value) => { if (value !== null) onSimulationYearsChange(Math.max(1, Math.min(70, Math.round(value)))); }} min={1} />
+          <Field id="safety-inflation-rate" label="물가상승률" suffix="%" value={inflationRate} onChange={(value) => { if (value !== null) onInflationRateChange(Math.max(0, Math.min(50, value))); }} step={0.1} allowZero />
           <p className="pb-2 text-[12px] leading-relaxed text-slate-600 dark:text-slate-300">목표 생활비와 자산은 물가상승률을 반영한 현재가치로 비교합니다.</p>
         </div>
       </section>
