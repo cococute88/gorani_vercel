@@ -81,6 +81,7 @@
     "check:asset-simulator-stress-scenario": "npx --yes tsx scripts/check-asset-simulator-stress-scenario.mts",
     "check:asset-simulator-period-presets": "npx --yes tsx scripts/check-asset-simulator-period-presets.mts",
     "check:retirement-bootstrap-engine": "npx --yes tsx scripts/check-retirement-bootstrap-engine.mts",
+    "check:retirement-bootstrap-ui": "npx --yes tsx scripts/check-retirement-bootstrap-ui.mts",
     "benchmark:retirement-bootstrap-engine": "npx --yes tsx scripts/benchmark-retirement-bootstrap-engine.mts",
     "build:retirement-bootstrap-production-data": "npx --yes tsx scripts/build-retirement-bootstrap-production-data.mts",
     "check:retirement-bootstrap-production-data": "npx --yes tsx scripts/build-retirement-bootstrap-production-data.mts --check",

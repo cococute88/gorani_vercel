@@ -405,6 +405,61 @@ assert.equal(afterTaxCashflowYear.withdrawalSatisfied, false, "세전 공급액�
 assert.equal(afterTaxCashflowPath.checkpoints[0].success, false);
 assert.equal(afterTaxCashflowPath.checkpoints[0].firstWithdrawalShortfallYear, 2051);
 
+const exactAfterTaxSupply = afterTaxCashflowYear.suppliedWithdrawalNet;
+const exactAfterTaxPath = simulateRetirementBootstrapPath(
+  { ...afterTaxCashflowInput, annualRequiredWithdrawalReal: exactAfterTaxSupply },
+  flatDataset(0),
+  { years: 1, seed: 2051, allowTestFixture: true },
+);
+assert.equal(exactAfterTaxPath.records[0].withdrawalSatisfied, true, "세후 공급액과 필요액이 정확히 같으면 성공");
+const oneWonShortPath = simulateRetirementBootstrapPath(
+  { ...afterTaxCashflowInput, annualRequiredWithdrawalReal: exactAfterTaxSupply + 0.0001 },
+  flatDataset(0),
+  { years: 1, seed: 2051, allowTestFixture: true },
+);
+assert.equal(oneWonShortPath.records[0].withdrawalSatisfied, false, "만원 내부 단위에서 1원 부족도 실패");
+
+const dividendOnlyExactInput: RetirementBootstrapInput = {
+  ...afterTaxCashflowInput,
+  initialIsa: 0,
+  initialPension: 0,
+  taxSavingHoldings: [],
+  annualRequiredWithdrawalReal: 85,
+};
+const dividendOnlyExactPath = simulateRetirementBootstrapPath(
+  dividendOnlyExactInput,
+  flatDataset(0),
+  { years: 1, seed: 2051, allowTestFixture: true },
+);
+assert.equal(dividendOnlyExactPath.records[0].grossBrokerageDividend, 100, "위탁 배당 세전 공급");
+assert.equal(dividendOnlyExactPath.records[0].netBrokerageDividend, 85, "배당세 15% 차감 후 공급");
+assert.equal(dividendOnlyExactPath.checkpoints[0].success, true, "세후 배당만으로 생활비를 정확히 충족");
+
+const delayedBoundaryPath = simulateRetirementBootstrapPath(
+  { ...dividendOnlyExactInput, withdrawalDelayYears: 2 },
+  flatDataset(0),
+  { years: 3, periods: [1, 2, 3], seed: 2051, allowTestFixture: true },
+);
+assert.equal(delayedBoundaryPath.records[0].requiredWithdrawalNominal, 0, "인출 시작 전년도에는 필수 생활비 판정 없음");
+assert.equal(delayedBoundaryPath.records[0].withdrawalSatisfied, true, "인출 전 축적기간은 실패 처리하지 않음");
+assert.equal(delayedBoundaryPath.records[1].requiredWithdrawalNominal, 85, "인출 시작연도부터 필수 생활비 판정");
+assert.equal(delayedBoundaryPath.records[2].requiredWithdrawalNominal, 85, "인출 시작 다음 연도에도 판정 유지");
+
+const allShortDiagnostics = runRetirementBootstrap(
+  { ...dividendOnlyExactInput, annualRequiredWithdrawalReal: 86 },
+  flatDataset(0),
+  { iterations: 25, periods: [1], seed: 2051, allowTestFixture: true },
+);
+assert.equal(allShortDiagnostics.periods[0].successCount, 0, "첫 인출연도 부족 fixture는 0% 가능");
+assert.equal(allShortDiagnostics.failureDiagnostics.periods[0].withdrawalShortfallOnlyCount, 25);
+assert.equal(allShortDiagnostics.failureDiagnostics.periods[0].depletionOnlyCount, 0);
+assert.deepEqual(allShortDiagnostics.failureDiagnostics.periods[0].firstFailureYears, [
+  { yearNumber: 1, calendarYear: 2051, count: 25 },
+]);
+assert.equal(allShortDiagnostics.failureDiagnostics.firstWithdrawalCashflow?.shortfallCount, 25);
+assert.equal(allShortDiagnostics.failureDiagnostics.firstWithdrawalCashflow?.averageRequiredWithdrawalNominal, 86);
+assert.equal(allShortDiagnostics.failureDiagnostics.firstWithdrawalCashflow?.averageSuppliedWithdrawalNet, 85);
+
 function record(
   yearNumber: number,
   realAssets: number,
@@ -419,6 +474,12 @@ function record(
     realAssets,
     cumulativeInflation: 1,
     requiredWithdrawalNominal: 1,
+    grossIsaWithdrawal: withdrawalSatisfied ? 1 : 0.5,
+    netIsaWithdrawal: withdrawalSatisfied ? 1 : 0.5,
+    grossPensionWithdrawal: 0,
+    netPensionWithdrawal: 0,
+    grossBrokerageDividend: 0,
+    netBrokerageDividend: 0,
     suppliedWithdrawalNet: withdrawalSatisfied ? 1 : 0.5,
     withdrawalSatisfied,
     depleted,

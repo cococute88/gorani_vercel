@@ -171,6 +171,12 @@ export type RetirementBootstrapAnnualRecord = {
   realAssets: number;
   cumulativeInflation: number;
   requiredWithdrawalNominal: number;
+  grossIsaWithdrawal: number;
+  netIsaWithdrawal: number;
+  grossPensionWithdrawal: number;
+  netPensionWithdrawal: number;
+  grossBrokerageDividend: number;
+  netBrokerageDividend: number;
   suppliedWithdrawalNet: number;
   withdrawalSatisfied: boolean;
   depleted: boolean;
@@ -206,6 +212,44 @@ export type RetirementBootstrapPeriodResult = {
   averageEndingRealAssets: number;
 };
 
+export type RetirementBootstrapFailureYearCount = {
+  yearNumber: number;
+  calendarYear: number;
+  count: number;
+};
+
+export type RetirementBootstrapPeriodFailureDiagnostics = {
+  periodYears: number;
+  successCount: number;
+  withdrawalShortfallOnlyCount: number;
+  depletionOnlyCount: number;
+  withdrawalShortfallAndDepletionCount: number;
+  otherFailureCount: number;
+  firstFailureYears: RetirementBootstrapFailureYearCount[];
+};
+
+export type RetirementBootstrapFirstWithdrawalCashflowDiagnostics = {
+  yearNumber: number;
+  calendarYear: number;
+  observedPathCount: number;
+  shortfallCount: number;
+  averageRequiredWithdrawalNominal: number;
+  averageGrossIsaWithdrawal: number;
+  averageNetIsaWithdrawal: number;
+  averageGrossPensionWithdrawal: number;
+  averageNetPensionWithdrawal: number;
+  averageGrossBrokerageDividend: number;
+  averageNetBrokerageDividend: number;
+  averageSuppliedWithdrawalNet: number;
+  minimumSuppliedWithdrawalNet: number;
+  maximumSuppliedWithdrawalNet: number;
+};
+
+export type RetirementBootstrapFailureDiagnostics = {
+  periods: RetirementBootstrapPeriodFailureDiagnostics[];
+  firstWithdrawalCashflow: RetirementBootstrapFirstWithdrawalCashflowDiagnostics | null;
+};
+
 export type RecenteringDiagnostics = {
   seriesId: string;
   targetGeometricRatePct: number;
@@ -231,4 +275,5 @@ export type RetirementBootstrapResult = {
   realValueBasis: "simulation_start_purchasing_power";
   recenteringDiagnostics: RecenteringDiagnostics[];
   periods: RetirementBootstrapPeriodResult[];
+  failureDiagnostics: RetirementBootstrapFailureDiagnostics;
 };
