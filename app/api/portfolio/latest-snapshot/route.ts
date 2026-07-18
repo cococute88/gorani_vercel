@@ -152,6 +152,20 @@ export async function GET(request: Request): Promise<NextResponse<LatestSnapshot
     });
 
     const snapshot = mapPortfolioSnapshotRecordToViewModel(record);
+    const metadataDiagnostics = {
+      holdingCount: snapshot.holdings.length,
+      recoveredTickerCount: snapshot.metadata?.recoveredTickerCount ?? 0,
+      recoveredAccountGroupCount: snapshot.metadata?.recoveredAccountGroupCount ?? 0,
+      unresolvedTickerCount: snapshot.metadata?.unresolvedTickerCount ?? 0,
+      unresolvedHoldingIds: snapshot.holdings.filter((holding) => !holding.ticker?.trim()).map((holding) => holding.id),
+    };
+    if (metadataDiagnostics.recoveredTickerCount > 0 || metadataDiagnostics.recoveredAccountGroupCount > 0 || metadataDiagnostics.unresolvedTickerCount > 0) {
+      // 비민감 진단만 기록한다. 상품명, 계좌번호, 금액, 인증정보는 포함하지 않는다.
+      console.info("[portfolio:latest-snapshot] metadata recovery", {
+        documentId: record.id,
+        ...metadataDiagnostics,
+      });
+    }
     logResolvedSnapshotInDev(
       record.id,
       snapshot.snapshotDate,

@@ -18,6 +18,7 @@
     "verify:backtest-daily-mdd": "node scripts/verify-backtest-daily-mdd.mjs",
     "check:performance-qld-snapshots": "node scripts/check-performance-qld-snapshots.mjs",
     "check:portfolio-parser": "node scripts/check-portfolio-parser.mjs",
+    "check:portfolio-sync-metadata": "node scripts/check-portfolio-sync-metadata.mjs",
     "check:portfolio-parser:private": "node scripts/check-portfolio-parser.mjs --private docs/fixtures/portfolio-parser/private/2025-06-12~2026-06-12.xlsx",
     "check:calendar-provider": "node scripts/check-calendar-provider.mjs",
     "check:us-market-calendar": "node scripts/check-us-market-calendar.mjs",

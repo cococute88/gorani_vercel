@@ -40,6 +40,8 @@ import { isSnapshotDateDeleted, unmarkSnapshotDateDeleted } from "./portfolio-sn
 import { firebaseAuth } from "./firebase/client";
 import { recordPortfolioCloudSyncSuccess, removeDeletedSnapshotDateFromCloud } from "./firebase/firestore-repositories";
 import { markPortfolioCloudSyncNow } from "./portfolio-cloud-sync-time";
+import { getSnapshots } from "./portfolio-store";
+import { mergePortfolioSnapshotMetadata } from "./portfolio-snapshot-metadata";
 
 const ENDPOINT = "/api/portfolio/latest-snapshot";
 
@@ -216,7 +218,10 @@ async function fetchLatestSnapshot(options: { respectDeletedTombstone?: boolean 
       return {
         kind: "firestore",
         snapshotDate: body.snapshotDate,
-        snapshot: body.snapshot,
+        snapshot: mergePortfolioSnapshotMetadata(
+          body.snapshot,
+          [firestoreSnapshot, ...getSnapshots()].filter((snapshot): snapshot is PortfolioSnapshot => snapshot !== null),
+        ),
       };
     }
     if (body.source === "empty") return { kind: "empty" };
