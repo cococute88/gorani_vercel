@@ -172,7 +172,7 @@ function InfoTip({ label, children }: { label: string; children: ReactNode }) {
           role="tooltip"
           data-tooltip-placement={position.placement}
           className="pointer-events-none fixed z-[1000] w-64 max-w-[calc(100vw-1rem)] rounded-xl bg-slate-950 px-3 py-2 text-left text-[11px] font-normal leading-5 text-white shadow-xl"
-          style={{ left: position.left, top: position.top }}
+          style={{ left: position.left, top: position.top, color: "#fff" }}
         >
           {children}
         </span>,
