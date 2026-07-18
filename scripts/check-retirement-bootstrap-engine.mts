@@ -193,6 +193,39 @@ assert.deepEqual(path70Repeat, path70, "동일 데이터·입력·시드 완전 
 assert.equal(path70.records.length, 70);
 assert.equal(path70.sampledBlockStarts.length, 14, "70년은 5년 블록 14개");
 assert.equal(path70.checkpoints.length, 5);
+
+const taxPath70 = simulateRetirementBootstrapPath(input, RETIREMENT_BOOTSTRAP_SYNTHETIC_FIXTURE, {
+  years: 70,
+  periods: [30, 40, 50, 60, 70],
+  blockLength: 5,
+  seed: 20260717,
+  allowTestFixture: true,
+  analysisScope: "tax",
+});
+const brokeragePath70 = simulateRetirementBootstrapPath(input, RETIREMENT_BOOTSTRAP_SYNTHETIC_FIXTURE, {
+  years: 70,
+  periods: [30, 40, 50, 60, 70],
+  blockLength: 5,
+  seed: 20260717,
+  allowTestFixture: true,
+  analysisScope: "brokerage",
+});
+assert.deepEqual(taxPath70.sampledObservationIndices, path70.sampledObservationIndices, "절세 scope도 동일 sampled path 공유");
+assert.deepEqual(brokeragePath70.sampledObservationIndices, path70.sampledObservationIndices, "위탁 scope도 동일 sampled path 공유");
+assert.equal(taxPath70.initialRealPrincipal, input.initialIsa + input.initialPension, "절세 시작 원금 denominator");
+assert.equal(brokeragePath70.initialRealPrincipal, input.initialBrokerage, "위탁 시작 원금 denominator");
+assert.equal(path70.initialRealPrincipal, input.initialIsa + input.initialPension + input.initialBrokerage, "종합 시작 원금 denominator");
+taxPath70.records.forEach((taxRow, index) => {
+  const brokerageRow = brokeragePath70.records[index];
+  const combinedRow = path70.records[index];
+  approx(combinedRow.nominalAssets, taxRow.nominalAssets + brokerageRow.nominalAssets, 1e-8);
+  approx(combinedRow.realAssets, taxRow.realAssets + brokerageRow.realAssets, 1e-8);
+  approx(combinedRow.suppliedAfterTaxCashflow, taxRow.suppliedAfterTaxCashflow + brokerageRow.suppliedAfterTaxCashflow, 1e-8);
+  assert.equal(taxRow.realNetBrokerageDividendCashflow, null, "절세 scope 배당 MDD 입력은 해당 없음");
+  assert.equal(taxRow.grossBrokerageDividend, 0, "절세 scope에서 위탁 배당 공급 제외");
+  assert.equal(brokerageRow.grossIsaWithdrawal + brokerageRow.grossPensionWithdrawal, 0, "위탁 scope에서 절세계좌 인출 제외");
+  assert.equal(brokerageRow.realNetBrokerageDividendCashflow, combinedRow.realNetBrokerageDividendCashflow);
+});
 for (let offset = 0; offset < path70.sampledObservationIndices.length; offset += 5) {
   const block = path70.sampledObservationIndices.slice(offset, offset + 5);
   assert.equal(block.length, 5, "70년 경로는 불완전한 마지막 블록이 없음");
@@ -634,7 +667,8 @@ const tenThousand = runRetirementBootstrap(input, RETIREMENT_BOOTSTRAP_SYNTHETIC
   allowTestFixture: true,
 });
 assert.equal(tenThousand.iterations, 10_000);
-assert.equal(tenThousand.schemaVersion, RETIREMENT_BOOTSTRAP_RESULT_SCHEMA_VERSION, "V2 result schema 노출");
+assert.equal(tenThousand.schemaVersion, RETIREMENT_BOOTSTRAP_RESULT_SCHEMA_VERSION, "V3 result schema 노출");
+assert.equal(tenThousand.analysisScope, "combined", "생략 시 기존 종합 계약 유지");
 assert.equal(tenThousand.datasetUpdatedAt, RETIREMENT_BOOTSTRAP_SYNTHETIC_FIXTURE.updatedAt);
 assert.equal(tenThousand.distributionStressPolicyId, null, "기본 production 분배 정책은 중립");
 assert.ok(tenThousand.recenteringDiagnostics.every((row) => row.clippedLowCount === 0 && row.clippedHighCount === 0));
@@ -674,6 +708,54 @@ for (const period of tenThousand.periods) {
     "배당 MDD threshold 확률은 하락폭이 커질수록 증가하지 않음",
   );
 }
+
+const scopeAggregates = (["tax", "brokerage", "combined"] as const).map((analysisScope) => runRetirementBootstrap(
+  input,
+  RETIREMENT_BOOTSTRAP_SYNTHETIC_FIXTURE,
+  {
+    seed: 330_217,
+    iterations: 500,
+    periods: [30, 60],
+    allowTestFixture: true,
+    analysisScope,
+  },
+));
+for (const [index, result] of scopeAggregates.entries()) {
+  assert.equal(result.analysisScope, (["tax", "brokerage", "combined"] as const)[index], "scope result 직렬화");
+  for (const period of result.periods) {
+    const distribution = period.finalRealAssetRetention;
+    assert.equal(distribution.denominatorPathCount, 500, `${result.analysisScope} 최종자산 denominator`);
+    assert.equal(
+      distribution.atLeast100PctCount
+        + distribution.from80To100PctCount
+        + distribution.from50To80PctCount
+        + distribution.from25To50PctCount
+        + distribution.below25PctCount,
+      500,
+      `${result.analysisScope} 최종자산 bucket 합`,
+    );
+  }
+}
+assert.ok(scopeAggregates[0].periods.every((period) => period.realAfterTaxDividendCashflowRisk.observedPathCount === 0), "절세 배당 위험 해당 없음");
+assert.ok(scopeAggregates[0].periods.every((period) => !period.realAfterTaxDividendCashflowRisk.applicable), "절세 배당 위험 applicable=false");
+assert.ok(scopeAggregates[1].periods.every((period) => period.realAfterTaxDividendCashflowRisk.observedPathCount === 500), "위탁 배당 위험 집계");
+assert.ok(scopeAggregates[1].periods.every((period) => period.realAfterTaxDividendCashflowRisk.applicable), "위탁 배당 위험 applicable=true");
+assert.ok(scopeAggregates[2].periods.every((period) => period.realAfterTaxDividendCashflowRisk.observedPathCount === 500), "종합 배당 위험 집계");
+const explicitCombined = runRetirementBootstrap(input, RETIREMENT_BOOTSTRAP_SYNTHETIC_FIXTURE, {
+  seed: 330_217,
+  iterations: 500,
+  periods: [30, 60],
+  allowTestFixture: true,
+  analysisScope: "combined",
+});
+assert.deepEqual(explicitCombined, scopeAggregates[2], "명시적 combined scope 기준선 일치");
+const defaultCombined = runRetirementBootstrap(input, RETIREMENT_BOOTSTRAP_SYNTHETIC_FIXTURE, {
+  seed: 330_217,
+  iterations: 500,
+  periods: [30, 60],
+  allowTestFixture: true,
+});
+assert.deepEqual(defaultCombined, explicitCombined, "scope 생략 시 PR #217 combined 계약 유지");
 
 const tenThousandRepeat = runRetirementBootstrap(input, RETIREMENT_BOOTSTRAP_SYNTHETIC_FIXTURE, {
   seed: 730_401,

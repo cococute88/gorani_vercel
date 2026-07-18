@@ -1,4 +1,5 @@
 import type {
+  RetirementBootstrapAnalysisScope,
   RetirementBootstrapInput,
   RetirementBootstrapResult,
 } from "./retirement-bootstrap-types";
@@ -21,6 +22,7 @@ export type RetirementBootstrapWorkerRunRequest = {
   type: "run";
   requestId: string;
   input: RetirementBootstrapInput;
+  analysisScope: RetirementBootstrapAnalysisScope;
   datasetVersion: string;
   resultSchemaVersion: number;
   simulationCount: number;

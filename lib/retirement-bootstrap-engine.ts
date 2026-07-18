@@ -20,6 +20,7 @@ import {
   type MarketPatternDatasetV1,
   type RecenteringDiagnostics,
   type RetirementBootstrapAnnualRecord,
+  type RetirementBootstrapAnalysisScope,
   type RetirementBootstrapInput,
   type RetirementBootstrapPathCheckpoint,
   type RetirementBootstrapPathResult,
@@ -36,6 +37,7 @@ const EPSILON = 1e-9;
 const FUNDING_RATIO_FLOAT_TOLERANCE_MULTIPLIER = 8;
 const WEIGHT_TOLERANCE = 1e-6;
 const MAX_PATH_YEARS = 70;
+const DEFAULT_ANALYSIS_SCOPE: RetirementBootstrapAnalysisScope = "combined";
 
 type CompiledTaxHolding = BootstrapTaxSavingHolding & { centeredTotalReturnsPct: number[] };
 type CompiledBrokerageHolding = BootstrapBrokerageHolding & {
@@ -301,6 +303,7 @@ function createCheckpoints(
     let dividendObserved = false;
     for (const row of withdrawalRows) {
       const current = row.realNetBrokerageDividendCashflow;
+      if (current === null) continue;
       if (!dividendObserved && current > 0) {
         dividendPeak = current;
         dividendObserved = true;
@@ -340,6 +343,33 @@ function createCheckpoints(
   });
 }
 
+function includesTaxScope(scope: RetirementBootstrapAnalysisScope): boolean {
+  return scope === "tax" || scope === "combined";
+}
+
+function includesBrokerageScope(scope: RetirementBootstrapAnalysisScope): boolean {
+  return scope === "brokerage" || scope === "combined";
+}
+
+function scopedAssetTotal(
+  scope: RetirementBootstrapAnalysisScope,
+  isa: number,
+  pension: number,
+  brokerage: number,
+): number {
+  if (scope === "tax") return isa + pension;
+  if (scope === "brokerage") return brokerage;
+  return isa + pension + brokerage;
+}
+
+function validateScopePrincipal(input: RetirementBootstrapInput, scope: RetirementBootstrapAnalysisScope): void {
+  const principal = scopedAssetTotal(scope, input.initialIsa, input.initialPension, input.initialBrokerage);
+  if (principal <= 0) {
+    const label = scope === "tax" ? "절세계좌" : scope === "brokerage" ? "위탁계좌" : "종합";
+    throw new Error(`${label} 분석의 초기자산은 0보다 커야 합니다.`);
+  }
+}
+
 export function buildRetirementBootstrapCheckpoints(
   records: RetirementBootstrapAnnualRecord[],
   periods: readonly number[],
@@ -352,6 +382,7 @@ function simulateCompiledPath(
   model: CompiledRetirementBootstrapModel,
   sampledPath: SampledMarketPath,
   periods: readonly number[],
+  analysisScope: RetirementBootstrapAnalysisScope,
   distributionStressPolicy?: DistributionStressPolicy,
 ): RetirementBootstrapPathResult {
   const { input, dataset } = model;
@@ -438,7 +469,7 @@ function simulateCompiledPath(
     assertFinite(grossDividend, `${yearNumber}년 차 총배당`);
     const netDividend = grossDividend * DIVIDEND_TAX_KEEP_RATE;
     const realAssetsBeforeWithdrawal = toStartPurchasingPower(
-      isaBalance + pensionBalance + brokerageBalance,
+      scopedAssetTotal(analysisScope, isaBalance, pensionBalance, brokerageBalance),
       cumulativeInflation,
     );
 
@@ -467,7 +498,11 @@ function simulateCompiledPath(
 
     isaBalance = Math.max(0, isaBalance - isaGross);
     pensionBalance = Math.max(0, pensionBalance - pensionGross);
-    const suppliedWithdrawalNet = isaGross * (1 - isaTaxRate) + pensionGross * (1 - pensionTaxRate) + netDividend;
+    const netIsaWithdrawal = isaGross * (1 - isaTaxRate);
+    const netPensionWithdrawal = pensionGross * (1 - pensionTaxRate);
+    const scopedTaxSupply = includesTaxScope(analysisScope) ? netIsaWithdrawal + netPensionWithdrawal : 0;
+    const scopedBrokerageSupply = includesBrokerageScope(analysisScope) ? netDividend : 0;
+    const suppliedWithdrawalNet = scopedTaxSupply + scopedBrokerageSupply;
     const requiredWithdrawalNominal = isWithdrawalYear
       ? input.annualRequiredWithdrawalReal * cumulativeInflation
       : 0;
@@ -477,7 +512,7 @@ function simulateCompiledPath(
     const fundingRatio = isWithdrawalYear
       ? suppliedWithdrawalNet / requiredWithdrawalNominal
       : null;
-    const nominalAssets = isaBalance + pensionBalance + brokerageBalance;
+    const nominalAssets = scopedAssetTotal(analysisScope, isaBalance, pensionBalance, brokerageBalance);
     const realAssets = toStartPurchasingPower(nominalAssets, cumulativeInflation);
     assertFinite(nominalAssets, `${yearNumber}년 차 명목자산`);
     assertFinite(realAssets, `${yearNumber}년 차 실질자산`);
@@ -494,14 +529,16 @@ function simulateCompiledPath(
       suppliedAfterTaxCashflow: suppliedWithdrawalNet,
       fundingRatio,
       realAssetsBeforeWithdrawal,
-      realNetBrokerageDividendCashflow: toStartPurchasingPower(netDividend, cumulativeInflation),
+      realNetBrokerageDividendCashflow: includesBrokerageScope(analysisScope)
+        ? toStartPurchasingPower(netDividend, cumulativeInflation)
+        : null,
       requiredWithdrawalNominal,
-      grossIsaWithdrawal: isaGross,
-      netIsaWithdrawal: isaGross * (1 - isaTaxRate),
-      grossPensionWithdrawal: pensionGross,
-      netPensionWithdrawal: pensionGross * (1 - pensionTaxRate),
-      grossBrokerageDividend: grossDividend,
-      netBrokerageDividend: netDividend,
+      grossIsaWithdrawal: includesTaxScope(analysisScope) ? isaGross : 0,
+      netIsaWithdrawal: includesTaxScope(analysisScope) ? netIsaWithdrawal : 0,
+      grossPensionWithdrawal: includesTaxScope(analysisScope) ? pensionGross : 0,
+      netPensionWithdrawal: includesTaxScope(analysisScope) ? netPensionWithdrawal : 0,
+      grossBrokerageDividend: includesBrokerageScope(analysisScope) ? grossDividend : 0,
+      netBrokerageDividend: includesBrokerageScope(analysisScope) ? netDividend : 0,
       suppliedWithdrawalNet,
       withdrawalSatisfied,
       depleted,
@@ -517,7 +554,12 @@ function simulateCompiledPath(
     }
   }
 
-  const initialRealPrincipal = input.initialIsa + input.initialPension + input.initialBrokerage;
+  const initialRealPrincipal = scopedAssetTotal(
+    analysisScope,
+    input.initialIsa,
+    input.initialPension,
+    input.initialBrokerage,
+  );
   return {
     initialRealPrincipal,
     records,
@@ -548,16 +590,19 @@ export function simulateRetirementBootstrapPath(
     seed: number;
     allowTestFixture?: boolean;
     distributionStressPolicy?: DistributionStressPolicy;
+    analysisScope?: RetirementBootstrapAnalysisScope;
   },
 ): RetirementBootstrapPathResult {
   validateDistributionStressPolicy(options.distributionStressPolicy);
+  const analysisScope = options.analysisScope ?? DEFAULT_ANALYSIS_SCOPE;
+  validateScopePrincipal(input, analysisScope);
   const periods = validatePeriods(options.periods ?? [options.years]);
   if (Math.max(...periods) > options.years) throw new Error("경로 길이보다 긴 집계 기간을 요청했습니다.");
   const blockLength = options.blockLength ?? DEFAULT_RETIREMENT_BOOTSTRAP_BLOCK_LENGTH;
   const model = compileRetirementBootstrapModel(input, dataset, blockLength, options.allowTestFixture);
   const random = createSeededPrng(options.seed);
   const sampled = sampleMarketPatternBlocks(model.dataset, options.years, blockLength, random);
-  return simulateCompiledPath(model, sampled, periods, options.distributionStressPolicy);
+  return simulateCompiledPath(model, sampled, periods, analysisScope, options.distributionStressPolicy);
 }
 
 export function runRetirementBootstrap(
@@ -566,6 +611,8 @@ export function runRetirementBootstrap(
   options: RetirementBootstrapRunOptions,
 ): RetirementBootstrapResult {
   validateDistributionStressPolicy(options.distributionStressPolicy);
+  const analysisScope = options.analysisScope ?? DEFAULT_ANALYSIS_SCOPE;
+  validateScopePrincipal(input, analysisScope);
   const iterations = options.iterations ?? DEFAULT_RETIREMENT_BOOTSTRAP_ITERATIONS;
   const blockLength = options.blockLength ?? DEFAULT_RETIREMENT_BOOTSTRAP_BLOCK_LENGTH;
   const periods = validatePeriods(options.periods ?? RETIREMENT_BOOTSTRAP_PERIODS);
@@ -631,7 +678,7 @@ export function runRetirementBootstrap(
 
   for (let iteration = 0; iteration < iterations; iteration += 1) {
     const sampled = sampleMarketPatternBlocks(model.dataset, maxYears, blockLength, random);
-    const path = simulateCompiledPath(model, sampled, periods, options.distributionStressPolicy);
+    const path = simulateCompiledPath(model, sampled, periods, analysisScope, options.distributionStressPolicy);
     const firstWithdrawal = path.records.find((row) => row.requiredWithdrawalNominal > 0);
     if (firstWithdrawal) {
       firstWithdrawalAggregate.yearNumber = firstWithdrawal.yearNumber;
@@ -796,6 +843,7 @@ export function runRetirementBootstrap(
         below50PctProbability: livingProbability(aggregate.below50Count),
       },
       realAfterTaxDividendCashflowRisk: {
+        applicable: analysisScope !== "tax",
         observedPathCount: dividendObservedCount,
         drop20PctOrMoreCount,
         drop20PctOrMoreProbability: dividendProbability(drop20PctOrMoreCount),
@@ -848,6 +896,7 @@ export function runRetirementBootstrap(
 
   return {
     schemaVersion: RETIREMENT_BOOTSTRAP_RESULT_SCHEMA_VERSION,
+    analysisScope,
     method: "five_year_block_bootstrap_recentered",
     iterations,
     blockLength,

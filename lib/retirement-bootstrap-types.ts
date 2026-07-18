@@ -3,8 +3,11 @@ import type { AppliedPortfolioAssumptionsV1, SimulatorInputs } from "./asset-sim
 export const RETIREMENT_BOOTSTRAP_PERIODS = [30, 40, 50, 60, 70] as const;
 export const DEFAULT_RETIREMENT_BOOTSTRAP_ITERATIONS = 10_000;
 export const DEFAULT_RETIREMENT_BOOTSTRAP_BLOCK_LENGTH = 5;
-export const RETIREMENT_BOOTSTRAP_RESULT_SCHEMA_VERSION = 2 as const;
+export const RETIREMENT_BOOTSTRAP_RESULT_SCHEMA_VERSION = 3 as const;
 export const RETIREMENT_BOOTSTRAP_SUSTAINABILITY_MIN_FUNDING_RATIO = 0.85;
+
+export const RETIREMENT_BOOTSTRAP_ANALYSIS_SCOPES = ["tax", "brokerage", "combined"] as const;
+export type RetirementBootstrapAnalysisScope = (typeof RETIREMENT_BOOTSTRAP_ANALYSIS_SCOPES)[number];
 
 export type RetirementBootstrapPeriod = (typeof RETIREMENT_BOOTSTRAP_PERIODS)[number];
 
@@ -154,6 +157,8 @@ export type RetirementBootstrapRunOptions = {
   blockLength?: number;
   periods?: readonly number[];
   seed: number;
+  /** 동일 sampled path에서 어떤 계좌 범위를 성공·자산·현금흐름 지표에 반영할지 결정한다. */
+  analysisScope?: RetirementBootstrapAnalysisScope;
   distributionStressPolicy?: DistributionStressPolicy;
   /** 테스트 fixture를 production 결과로 오용하지 못하도록 기본값은 false다. */
   allowTestFixture?: boolean;
@@ -181,7 +186,7 @@ export type RetirementBootstrapAnnualRecord = {
   /** 인출 적용 직전의 시작 시점 구매력 기준 총 실질자산. */
   realAssetsBeforeWithdrawal: number;
   /** 시작 시점 구매력 기준 위탁계좌 세후 배당/분배 현금흐름. */
-  realNetBrokerageDividendCashflow: number;
+  realNetBrokerageDividendCashflow: number | null;
   /** @deprecated requiredAfterTaxCashflow를 사용한다. */
   requiredWithdrawalNominal: number;
   grossIsaWithdrawal: number;
@@ -281,6 +286,7 @@ export type RetirementBootstrapLivingExpenseRisk = {
 };
 
 export type RetirementBootstrapDividendCashflowRisk = {
+  applicable: boolean;
   observedPathCount: number;
   drop20PctOrMoreCount: number;
   drop20PctOrMoreProbability: number;
@@ -345,6 +351,7 @@ export type RecenteringDiagnostics = {
 
 export type RetirementBootstrapResult = {
   schemaVersion: typeof RETIREMENT_BOOTSTRAP_RESULT_SCHEMA_VERSION;
+  analysisScope: RetirementBootstrapAnalysisScope;
   method: "five_year_block_bootstrap_recentered";
   iterations: number;
   blockLength: number;

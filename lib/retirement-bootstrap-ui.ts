@@ -3,6 +3,7 @@ import {
   RETIREMENT_BOOTSTRAP_UI_POLICY_VERSION,
 } from "./retirement-bootstrap-config";
 import type {
+  RetirementBootstrapAnalysisScope,
   RetirementBootstrapInput,
   RetirementBootstrapResult,
 } from "./retirement-bootstrap-types";
@@ -88,6 +89,7 @@ export function buildRetirementBootstrapCalculationIdentity(
   datasetVersion: string,
   simulationCount: number,
   blockLength: number,
+  analysisScope: RetirementBootstrapAnalysisScope = "combined",
 ): RetirementBootstrapCalculationIdentity {
   const normalizedInput = normalizeInputForIdentity(input);
   const seedMaterial = stableStringify({
@@ -102,6 +104,7 @@ export function buildRetirementBootstrapCalculationIdentity(
     simulationCount,
     blockLength,
     resultSchemaVersion: RETIREMENT_BOOTSTRAP_RESULT_SCHEMA_VERSION,
+    analysisScope,
     seed,
     normalizedInput,
   });

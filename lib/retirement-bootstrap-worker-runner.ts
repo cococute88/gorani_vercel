@@ -1,6 +1,7 @@
 import { runRetirementBootstrap } from "./retirement-bootstrap-engine";
 import { PRODUCTION_MARKET_PATTERN_DATA_ADAPTER } from "./retirement-bootstrap-production-adapter";
 import {
+  RETIREMENT_BOOTSTRAP_ANALYSIS_SCOPES,
   RETIREMENT_BOOTSTRAP_PERIODS,
   RETIREMENT_BOOTSTRAP_RESULT_SCHEMA_VERSION,
 } from "./retirement-bootstrap-types";
@@ -36,6 +37,17 @@ export async function executeRetirementBootstrapWorkerRequest(
   request: RetirementBootstrapWorkerRunRequest,
 ): Promise<RetirementBootstrapWorkerSuccessResponse | RetirementBootstrapWorkerFailureResponse> {
   const workerStartedAt = performance.now();
+  if (!RETIREMENT_BOOTSTRAP_ANALYSIS_SCOPES.includes(request.analysisScope)) {
+    return {
+      type: "error",
+      requestId: request.requestId,
+      error: {
+        code: "invalid_user_input",
+        message: `지원하지 않는 장기 분석 scope입니다: ${String(request.analysisScope)}`,
+        retryable: false,
+      },
+    };
+  }
   const datasetStartedAt = performance.now();
   let dataset;
   try {
@@ -62,6 +74,7 @@ export async function executeRetirementBootstrapWorkerRequest(
       blockLength: request.blockLength,
       periods: RETIREMENT_BOOTSTRAP_PERIODS,
       seed: request.seed,
+      analysisScope: request.analysisScope,
     });
     const calculationMs = performance.now() - calculationStartedAt;
     return {
