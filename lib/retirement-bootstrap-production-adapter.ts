@@ -1,4 +1,5 @@
 import productionDatasetJson from "../data/retirement-bootstrap/market-pattern-production-v1.json";
+import { PRODUCTION_MARKET_PATTERN_DATASET_VERSION } from "./retirement-bootstrap-config";
 import {
   ALL_RETIREMENT_BOOTSTRAP_ASSET_CLASSES,
   computeMarketPatternObservationsSha256,
@@ -10,7 +11,7 @@ import {
   type MarketPatternDatasetV1,
 } from "./retirement-bootstrap-types";
 
-export const PRODUCTION_MARKET_PATTERN_DATASET_VERSION = "2026.07.18-wikimedia-bls-v1";
+export { PRODUCTION_MARKET_PATTERN_DATASET_VERSION } from "./retirement-bootstrap-config";
 
 export async function assertMarketPatternDatasetIntegrity(dataset: MarketPatternDatasetV1): Promise<void> {
   const actual = await computeMarketPatternObservationsSha256(dataset.observations);

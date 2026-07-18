@@ -188,7 +188,7 @@ assert.ok(describeApplyState("stale")?.label.includes("오래"), "stale 배너 �
 const page = read("components/asset-simulator/AssetSimulatorPage.tsx");
 assert.match(page, /calculateAssetSimulatorPreview\(inputs, yearPlans, exitMode, \{ portfolioAssumptions \}\)/, "projection 에 portfolioAssumptions 전달");
 assert.match(page, /<PortfolioConfigSection/, "포트폴리오 설정 섹션 렌더");
-assert.match(page, /<RetirementSafetySection/, "은퇴 안전성 섹션 렌더");
+assert.match(page, /<LongTermSustainabilitySection/, "장기 지속 가능성 섹션 렌더");
 assert.match(page, /setPortfolioAssumptions\(assumptions\)[\s\S]*setCalculationBasisSource\("session"\)/, "적용 버튼이 portfolioAssumptions 와 현재 적용 가정 출처를 함께 갱신");
 
 const section = read("components/asset-simulator/PortfolioConfigSection.tsx");

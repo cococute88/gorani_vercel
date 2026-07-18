@@ -1,0 +1,210 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { buildRetirementBootstrapInput } from "../lib/retirement-bootstrap-adapter.ts";
+import { PRODUCTION_MARKET_PATTERN_DATASET_VERSION } from "../lib/retirement-bootstrap-config.ts";
+import {
+  buildRetirementBootstrapCalculationIdentity,
+  classifyRetirementBootstrapInputError,
+  clearRetirementBootstrapMemoryCache,
+  getRetirementBootstrapMemoryCache,
+  setRetirementBootstrapMemoryCache,
+} from "../lib/retirement-bootstrap-ui.ts";
+import { executeRetirementBootstrapWorkerRequest } from "../lib/retirement-bootstrap-worker-runner.ts";
+import type { AppliedPortfolioAssumptionsV1, SimulatorInputs } from "../lib/asset-simulator-types.ts";
+import type { RetirementBootstrapWorkerRunRequest } from "../lib/retirement-bootstrap-worker-protocol.ts";
+
+const inputs: SimulatorInputs = {
+  startYear: 2026,
+  years: 12,
+  annualReturnRate: 99,
+  inflationRate: 2.7,
+  initialIsa: 7_000,
+  initialPension: 11_000,
+  reserveCash: 500,
+  initialTaxableDividend: 15_000,
+  withdrawalRate: 3.5,
+  withdrawalGrowthRate: 2.5,
+  withdrawalDelayYears: 1,
+};
+
+const assumptions: AppliedPortfolioAssumptionsV1 = {
+  version: 1,
+  appliedAt: "2026-07-18T00:00:00.000Z",
+  taxSaving: {
+    accountType: "taxSaving",
+    holdings: [
+      {
+        holdingId: "tax-spy",
+        ticker: "SPY",
+        weightPct: 60,
+        metricMode: "manual",
+        totalReturnCagrPct: 7,
+        priceCagrPct: null,
+        dividendYieldPct: null,
+        dividendGrowthPct: null,
+        sources: { totalReturnCagr: "manual", priceCagr: "manual", dividendYield: "manual", dividendGrowth: "manual" },
+        statuses: { totalReturnCagr: "manual", priceCagr: "manual", dividendYield: "manual", dividendGrowth: "manual" },
+        warnings: [],
+      },
+      {
+        holdingId: "tax-qqq",
+        ticker: "QQQ",
+        weightPct: 40,
+        metricMode: "manual",
+        totalReturnCagrPct: 8,
+        priceCagrPct: null,
+        dividendYieldPct: null,
+        dividendGrowthPct: null,
+        sources: { totalReturnCagr: "manual", priceCagr: "manual", dividendYield: "manual", dividendGrowth: "manual" },
+        statuses: { totalReturnCagr: "manual", priceCagr: "manual", dividendYield: "manual", dividendGrowth: "manual" },
+        warnings: [],
+      },
+    ],
+  },
+  brokerage: {
+    accountType: "brokerage",
+    holdings: [
+      {
+        holdingId: "brokerage-schd",
+        ticker: "SCHD",
+        weightPct: 90,
+        metricMode: "manual",
+        totalReturnCagrPct: null,
+        priceCagrPct: 4,
+        dividendYieldPct: 3.8,
+        dividendGrowthPct: 5,
+        sources: { totalReturnCagr: "manual", priceCagr: "manual", dividendYield: "manual", dividendGrowth: "manual" },
+        statuses: { totalReturnCagr: "manual", priceCagr: "manual", dividendYield: "manual", dividendGrowth: "manual" },
+        warnings: [],
+      },
+      {
+        holdingId: "brokerage-jepq",
+        ticker: "JEPQ",
+        weightPct: 10,
+        metricMode: "manual",
+        totalReturnCagrPct: null,
+        priceCagrPct: 3,
+        dividendYieldPct: 9,
+        dividendGrowthPct: 1,
+        sources: { totalReturnCagr: "manual", priceCagr: "manual", dividendYield: "manual", dividendGrowth: "manual" },
+        statuses: { totalReturnCagr: "manual", priceCagr: "manual", dividendYield: "manual", dividendGrowth: "manual" },
+        warnings: [],
+      },
+    ],
+  },
+};
+
+const bootstrapInput = buildRetirementBootstrapInput({
+  inputs,
+  portfolioAssumptions: assumptions,
+  targetMonthlyExpenseReal: 120,
+});
+assert.equal(bootstrapInput.expectedInflationPct, 2.7, "사용자 inflation 연결");
+assert.equal(bootstrapInput.annualRequiredWithdrawalReal, 1_440, "목표 월생활비를 연간 필수 세후 현금흐름으로 연결");
+assert.deepEqual(bootstrapInput.taxSavingHoldings.map((row) => row.expectedTotalReturnCagrPct), [7, 8], "절세계좌 CAGR source-field 계약");
+assert.deepEqual(bootstrapInput.brokerageHoldings.map((row) => [row.expectedPriceCagrPct, row.initialDividendYieldPct, row.expectedDividendGrowthPct]), [[4, 3.8, 5], [3, 9, 1]], "위탁 가격·배당·배당성장 source-field 계약");
+assert.throws(
+  () => buildRetirementBootstrapInput({ inputs, portfolioAssumptions: null, targetMonthlyExpenseReal: 120 }),
+  /portfolioAssumptions/,
+  "portfolioAssumptions 누락 시 기본값 대체 차단",
+);
+const unsupportedAssumptions = structuredClone(assumptions);
+unsupportedAssumptions.taxSaving.holdings[0].ticker = "VTI";
+let unsupportedError: unknown;
+try {
+  buildRetirementBootstrapInput({ inputs, portfolioAssumptions: unsupportedAssumptions, targetMonthlyExpenseReal: 120 });
+} catch (error) {
+  unsupportedError = error;
+}
+assert.equal(classifyRetirementBootstrapInputError(unsupportedError).code, "unsupported_etf", "unsupported ETF 전용 오류 상태");
+
+const identity = buildRetirementBootstrapCalculationIdentity(bootstrapInput, PRODUCTION_MARKET_PATTERN_DATASET_VERSION, 10_000, 5);
+const sameIdentity = buildRetirementBootstrapCalculationIdentity(structuredClone(bootstrapInput), PRODUCTION_MARKET_PATTERN_DATASET_VERSION, 10_000, 5);
+assert.deepEqual(sameIdentity, identity, "동일 정규화 입력의 seed/cache key 재현");
+
+const reordered = {
+  ...bootstrapInput,
+  taxSavingHoldings: [...bootstrapInput.taxSavingHoldings].reverse(),
+  brokerageHoldings: [...bootstrapInput.brokerageHoldings].reverse(),
+};
+assert.deepEqual(
+  buildRetirementBootstrapCalculationIdentity(reordered, PRODUCTION_MARKET_PATTERN_DATASET_VERSION, 10_000, 5),
+  identity,
+  "holding 순서와 무관한 cache key 정규화",
+);
+assert.notEqual(
+  buildRetirementBootstrapCalculationIdentity({ ...bootstrapInput, expectedInflationPct: 3 }, PRODUCTION_MARKET_PATTERN_DATASET_VERSION, 10_000, 5).cacheKey,
+  identity.cacheKey,
+  "결과 영향 입력 변경 시 cache invalidation",
+);
+assert.notEqual(
+  buildRetirementBootstrapCalculationIdentity(bootstrapInput, `${PRODUCTION_MARKET_PATTERN_DATASET_VERSION}-next`, 10_000, 5).cacheKey,
+  identity.cacheKey,
+  "datasetVersion 변경 시 cache invalidation",
+);
+assert.notEqual(
+  buildRetirementBootstrapCalculationIdentity(bootstrapInput, PRODUCTION_MARKET_PATTERN_DATASET_VERSION, 9_999, 5).cacheKey,
+  identity.cacheKey,
+  "simulation count 변경 시 cache invalidation",
+);
+assert.notEqual(
+  buildRetirementBootstrapCalculationIdentity(bootstrapInput, PRODUCTION_MARKET_PATTERN_DATASET_VERSION, 10_000, 4).cacheKey,
+  identity.cacheKey,
+  "block length 변경 시 cache invalidation",
+);
+
+const request: RetirementBootstrapWorkerRunRequest = structuredClone({
+  type: "run",
+  requestId: "serialization-reproduction",
+  input: bootstrapInput,
+  datasetVersion: PRODUCTION_MARKET_PATTERN_DATASET_VERSION,
+  simulationCount: 120,
+  blockLength: 5,
+  seed: identity.seed,
+});
+const first = await executeRetirementBootstrapWorkerRequest(request);
+const second = await executeRetirementBootstrapWorkerRequest(structuredClone(request));
+assert.equal(first.type, "success", "production Worker runner 성공");
+assert.equal(second.type, "success", "직렬화된 Worker request 성공");
+if (first.type !== "success" || second.type !== "success") throw new Error("Worker runner 결과 생성 실패");
+assert.deepEqual(first.result, second.result, "Worker fixed-seed production 결과 재현");
+assert.deepEqual(structuredClone(first.result), first.result, "Worker 결과 structured clone 직렬화");
+assert.deepEqual(first.result.periods.map((row) => row.periodYears), [30, 40, 50, 60, 70], "Worker 5개 checkpoint 출력");
+assert.equal(first.result.datasetUsage, "production", "Worker production dataset 전용");
+const wrongDatasetVersion = await executeRetirementBootstrapWorkerRequest({ ...request, requestId: "wrong-dataset", datasetVersion: "stale-version" });
+assert.equal(wrongDatasetVersion.type, "error", "오래된 datasetVersion 결과 생성 차단");
+if (wrongDatasetVersion.type === "error") {
+  assert.equal(wrongDatasetVersion.error.code, "dataset_integrity_failed", "datasetVersion 불일치 전용 오류 상태");
+}
+
+clearRetirementBootstrapMemoryCache();
+assert.equal(getRetirementBootstrapMemoryCache(identity.cacheKey), null, "초기 cache miss");
+setRetirementBootstrapMemoryCache(identity.cacheKey, {
+  result: first.result,
+  timing: first.timing,
+  cachedAtEpochMs: Date.now(),
+});
+assert.deepEqual(getRetirementBootstrapMemoryCache(identity.cacheKey)?.result, first.result, "동일 입력 cache hit");
+assert.equal(getRetirementBootstrapMemoryCache(`${identity.cacheKey}-other`), null, "다른 입력 cache miss");
+
+const page = readFileSync("components/asset-simulator/AssetSimulatorPage.tsx", "utf8");
+const dashboard = readFileSync("components/asset-simulator/SafetyCheckDashboard.tsx", "utf8");
+const section = readFileSync("components/asset-simulator/LongTermSustainabilitySection.tsx", "utf8");
+const hook = readFileSync("components/asset-simulator/useRetirementBootstrapAnalysis.ts", "utf8");
+const worker = readFileSync("components/asset-simulator/retirement-bootstrap.worker.ts", "utf8");
+const productionRuntimeSources = [page, dashboard, section, hook, worker].join("\n");
+
+assert.match(page, /<LongTermSustainabilitySection/, "신규 장기 분석 production 연결");
+assert.doesNotMatch(page, /<RetirementSafetySection/, "기존 계좌별 안정성 production 렌더 제거");
+assert.doesNotMatch(dashboard, /계좌별 안전성 참고/, "기존 하단 토글 제거");
+assert.match(section, /<table[\s\S]*<LineChart/, "표와 점 그래프 제공");
+assert.match(section, /const periods = useMemo[\s\S]*chartData = useMemo<ChartDatum\[]>\(\(\) => periods\.map/, "표·그래프가 같은 result periods 객체 사용");
+assert.match(section, /summaryPeriod[\s\S]*periodYears === 60/, "60년 대표 요약");
+assert.match(page, /active=\{activeTab === "safety"\}/, "안정성 탭이 활성일 때만 Worker 실행");
+assert.match(hook, /new Worker\(new URL\("\.\/retirement-bootstrap\.worker\.ts", import\.meta\.url\)/, "Next.js module Worker 생성");
+assert.match(hook, /worker\?\.terminate\(\)/, "입력 변경·unmount cleanup");
+assert.match(hook, /response\.requestId !== requestId/, "stale requestId 차단");
+assert.match(hook, /CALCULATION_DEBOUNCE_MS/, "빠른 입력 변경 debounce");
+assert.doesNotMatch(productionRuntimeSources, /retirement-bootstrap-synthetic|scripts\/fixtures|scripts\\fixtures/, "production UI synthetic fixture import 없음");
+
+console.log("retirement bootstrap UI/Worker/cache checks passed");

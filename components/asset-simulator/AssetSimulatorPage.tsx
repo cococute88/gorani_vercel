@@ -35,8 +35,8 @@ import YearPlanTable from "./YearPlanTable";
 import SimulatorResultTabs from "./SimulatorResultTabs";
 import ExitSummaryModal from "./ExitSummaryModal";
 import PortfolioConfigSection from "./PortfolioConfigSection";
-import RetirementSafetySection from "./RetirementSafetySection";
 import SafetyCheckDashboard from "./SafetyCheckDashboard";
+import LongTermSustainabilitySection from "./LongTermSustainabilitySection";
 import { buildDefaultPortfolioConfig } from "@/lib/asset-simulator-portfolio";
 import { useResolvedTheme } from "@/components/theme/ThemeProvider";
 import Image from "next/image";
@@ -555,12 +555,12 @@ export default function AssetSimulatorPage() {
                 saveError={saveError}
               />
             }
-            safetyPanel={
-              <RetirementSafetySection
-                projection={goodProjection}
-                normalProjection={normalProjection}
-                stressProjection={stressProjection}
-                portfolioApplied={portfolioAssumptions !== null}
+            longTermPanel={
+              <LongTermSustainabilitySection
+                active={activeTab === "safety"}
+                hydrated={hydrated}
+                inputs={inputs}
+                portfolioAssumptions={portfolioAssumptions}
                 targetMonthlyExpenseReal={targetMonthlyExpenseReal}
               />
             }
