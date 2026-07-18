@@ -18,6 +18,7 @@ import {
 } from "../lib/retirement-bootstrap-engine.ts";
 import {
   ETF_PATTERN_MAPPINGS,
+  resolveEtfPatternMapping,
   resolveDistributionPaymentMultiplier,
 } from "../lib/retirement-bootstrap-mapping.ts";
 import type {
@@ -60,6 +61,7 @@ assert.equal(ETF_PATTERN_MAPPINGS.QQQ.assetClass, "us_large_growth");
 assert.equal(ETF_PATTERN_MAPPINGS.SCHD.assetClass, "us_dividend_value");
 assert.equal(ETF_PATTERN_MAPPINGS.JEPQ.assetClass, "us_large_growth");
 assert.equal(ETF_PATTERN_MAPPINGS.JEPQ.distributionPolicy, "income_strategy");
+assert.throws(() => resolveEtfPatternMapping("UNKNOWN"), /승인된 자산군 패턴 매핑이 없습니다/);
 assert.equal(
   resolveDistributionPaymentMultiplier(undefined, TEST_DISTRIBUTION_CONTEXT),
   1,
@@ -306,13 +308,12 @@ zeroInflationPath.records.forEach((row) => {
 
 function flatDataset(inflationPct: number): MarketPatternDatasetV1 {
   return {
-    schemaVersion: 1,
+    ...RETIREMENT_BOOTSTRAP_SYNTHETIC_FIXTURE,
     datasetId: `test-only-flat-${inflationPct}`,
     datasetVersion: "test-only-v1",
     usage: "test_fixture",
     periodStartYear: 2000,
     periodEndYear: 2004,
-    sources: [{ name: "테스트 전용 평탄 fixture", license: "production 사용 금지" }],
     observations: Array.from({ length: 5 }, (_, index) => ({
       year: 2000 + index,
       inflationPct,
@@ -474,6 +475,7 @@ const tenThousand = runRetirementBootstrap(input, RETIREMENT_BOOTSTRAP_SYNTHETIC
   allowTestFixture: true,
 });
 assert.equal(tenThousand.iterations, 10_000);
+assert.equal(tenThousand.datasetUpdatedAt, RETIREMENT_BOOTSTRAP_SYNTHETIC_FIXTURE.updatedAt);
 assert.equal(tenThousand.distributionStressPolicyId, null, "기본 production 분배 정책은 중립");
 assert.ok(tenThousand.recenteringDiagnostics.every((row) => row.clippedLowCount === 0 && row.clippedHighCount === 0));
 assert.deepEqual(tenThousand.periods.map((row) => row.periodYears), [30, 40, 50, 60, 70]);

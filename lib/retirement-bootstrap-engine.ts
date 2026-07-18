@@ -498,6 +498,7 @@ export function runRetirementBootstrap(
     datasetVersion: model.dataset.datasetVersion,
     datasetUsage: model.dataset.usage,
     dataPeriod: { startYear: model.dataset.periodStartYear, endYear: model.dataset.periodEndYear },
+    datasetUpdatedAt: model.dataset.updatedAt,
     realValueBasis: "simulation_start_purchasing_power",
     recenteringDiagnostics: model.recenteringDiagnostics,
     periods: periodResults,

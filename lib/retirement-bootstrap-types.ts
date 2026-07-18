@@ -52,10 +52,37 @@ export type AnnualMarketPatternObservation = {
 };
 
 export type MarketPatternDatasetSource = {
+  sourceId: string;
   name: string;
-  url?: string;
+  url: string;
+  role: "market_pattern" | "inflation" | "license";
   license: string;
-  retrievedAt?: string;
+  licenseUrl: string;
+  retrievedAt: string;
+  revision?: string;
+  contentSha256: string;
+};
+
+export type MarketPatternAssetClassMethodology = {
+  proxyName: string;
+  sourceReturnType: "price_and_total_return" | "price_return_proxy";
+  totalReturnPolicy: "source_total_return" | "price_pattern_recentered_to_user_total_return_cagr";
+  dividendGrowthPolicy: "source_pattern" | "user_assumption_only";
+  notes: string;
+};
+
+export type MarketPatternDatasetLicense = {
+  name: string;
+  spdxId: string;
+  url: string;
+  attribution: string;
+  repositoryRedistribution: "allowed_with_attribution_and_share_alike" | "test_fixture_only";
+};
+
+export type MarketPatternDatasetIntegrity = {
+  algorithm: "SHA-256";
+  canonicalization: "JSON.stringify(observations)";
+  observationsSha256: string;
 };
 
 export type MarketPatternDatasetV1 = {
@@ -63,9 +90,13 @@ export type MarketPatternDatasetV1 = {
   datasetId: string;
   datasetVersion: string;
   usage: "production" | "test_fixture";
+  updatedAt: string;
   periodStartYear: number;
   periodEndYear: number;
+  license: MarketPatternDatasetLicense;
   sources: MarketPatternDatasetSource[];
+  assetClassMethodology: Record<AssetClassPatternId, MarketPatternAssetClassMethodology>;
+  integrity: MarketPatternDatasetIntegrity;
   observations: AnnualMarketPatternObservation[];
 };
 
@@ -191,6 +222,7 @@ export type RetirementBootstrapResult = {
   datasetVersion: string;
   datasetUsage: MarketPatternDatasetV1["usage"];
   dataPeriod: { startYear: number; endYear: number };
+  datasetUpdatedAt: string;
   realValueBasis: "simulation_start_purchasing_power";
   recenteringDiagnostics: RecenteringDiagnostics[];
   periods: RetirementBootstrapPeriodResult[];

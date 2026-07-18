@@ -102,6 +102,8 @@ JEPQ형 인컴전략도 production 기본 지급 배수는 중립값 `1.0`이다
 4. 배당성장 자료의 완결성 검증
 5. 신규 티커의 승인 매핑 및 정책 검토
 
+production 데이터 연결 결과와 검증은 `RETIREMENT_BOOTSTRAP_PRODUCTION_DATA.md`에 기록한다. 이 문서의 1단계 설계 원칙과 UI 비노출 범위는 그대로 유지한다.
+
 ## 실행
 
 ```powershell

@@ -1,0 +1,1082 @@
+{
+  "schemaVersion": 1,
+  "datasetId": "gorani-us-asset-class-market-patterns",
+  "datasetVersion": "2026.07.18-wikimedia-bls-v1",
+  "usage": "production",
+  "updatedAt": "2026-07-18T00:00:00.000Z",
+  "periodStartYear": 1971,
+  "periodEndYear": 2025,
+  "license": {
+    "name": "Creative Commons Attribution-ShareAlike 4.0 International",
+    "spdxId": "CC-BY-SA-4.0",
+    "url": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "attribution": "Market return tables adapted from Wikipedia contributors; CPI-U from the U.S. Bureau of Labor Statistics.",
+    "repositoryRedistribution": "allowed_with_attribution_and_share_alike"
+  },
+  "sources": [
+    {
+      "sourceId": "wikimedia-sp500-annual-returns",
+      "name": "S&P 500 연간 수익률 표 (Wikimedia contributors)",
+      "url": "https://en.wikipedia.org/w/index.php?title=S%26P_500&oldid=1364524301",
+      "role": "market_pattern",
+      "license": "Creative Commons Attribution-ShareAlike 4.0 International",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "retrievedAt": "2026-07-18T00:00:00.000Z",
+      "revision": "1364524301 @ 2026-07-17T02:01:10Z",
+      "contentSha256": "299ecc0d25008efaf799a35b5875631a3a81c278db5770f0001f2823b334d366"
+    },
+    {
+      "sourceId": "wikimedia-nasdaq-composite-annual-returns",
+      "name": "Nasdaq Composite 연간 수익률 표 (Wikimedia contributors)",
+      "url": "https://en.wikipedia.org/w/index.php?title=Nasdaq_Composite&oldid=1354212898",
+      "role": "market_pattern",
+      "license": "Creative Commons Attribution-ShareAlike 4.0 International",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "retrievedAt": "2026-07-18T00:00:00.000Z",
+      "revision": "1354212898 @ 2026-05-15T00:46:02Z",
+      "contentSha256": "7e248b5f43af8497c7a2e8e72d8241dece8c7df4f2b12c37410e77fad69e22a8"
+    },
+    {
+      "sourceId": "wikimedia-djia-annual-returns",
+      "name": "Dow Jones Industrial Average 연간 수익률 표 (Wikimedia contributors)",
+      "url": "https://en.wikipedia.org/w/index.php?title=Dow_Jones_Industrial_Average&oldid=1364611421",
+      "role": "market_pattern",
+      "license": "Creative Commons Attribution-ShareAlike 4.0 International",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "retrievedAt": "2026-07-18T00:00:00.000Z",
+      "revision": "1364611421 @ 2026-07-17T14:46:04Z",
+      "contentSha256": "ecabbdd1a2c70198148115b6127a779490123922f6ec99bf71e9b49457c2fed6"
+    },
+    {
+      "sourceId": "bls-cpi-u-all-items-annual-average",
+      "name": "BLS CPI-U, U.S. city average, All items, not seasonally adjusted, annual average (CUUR0000SA0)",
+      "url": "https://data.bls.gov/timeseries/CUUR0000SA0",
+      "role": "inflation",
+      "license": "U.S. federal government public domain",
+      "licenseUrl": "https://www.bls.gov/opub/copyright-information.htm",
+      "retrievedAt": "2026-07-18T00:00:00.000Z",
+      "revision": "1970-2025 annual averages retrieved via BLS Public Data API v2",
+      "contentSha256": "832c319395168d39ea1e548d8dbe600d451f4c56efcc23cdc44b7d4c804e12a0"
+    }
+  ],
+  "assetClassMethodology": {
+    "us_large_cap": {
+      "proxyName": "S&P 500",
+      "sourceReturnType": "price_and_total_return",
+      "totalReturnPolicy": "source_total_return",
+      "dividendGrowthPolicy": "user_assumption_only",
+      "notes": "가격수익률은 위탁 가격 편차, 총수익률은 절세계좌 총수익 편차에 사용합니다."
+    },
+    "us_large_growth": {
+      "proxyName": "Nasdaq Composite",
+      "sourceReturnType": "price_return_proxy",
+      "totalReturnPolicy": "price_pattern_recentered_to_user_total_return_cagr",
+      "dividendGrowthPolicy": "user_assumption_only",
+      "notes": "장기 성장 성향 변동 proxy입니다. 가격 패턴을 사용자 총수익 CAGR에 재중심화하며 역사 배당을 추가하지 않습니다."
+    },
+    "us_dividend_value": {
+      "proxyName": "Dow Jones Industrial Average",
+      "sourceReturnType": "price_return_proxy",
+      "totalReturnPolicy": "price_pattern_recentered_to_user_total_return_cagr",
+      "dividendGrowthPolicy": "user_assumption_only",
+      "notes": "장기 우량·가치 성향 변동 proxy입니다. 배당성장 패턴을 만들지 않고 사용자 입력만 유지합니다."
+    }
+  },
+  "integrity": {
+    "algorithm": "SHA-256",
+    "canonicalization": "JSON.stringify(observations)",
+    "observationsSha256": "92eceb9916804da120ef17e0dae5627cd82c2d79e272975e25fdb6887bb78ae1"
+  },
+  "observations": [
+    {
+      "year": 1971,
+      "inflationPct": 4.381443,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": 10.79,
+          "totalReturnPct": 14.31
+        },
+        "us_large_growth": {
+          "priceReturnPct": 14.12,
+          "totalReturnPct": 14.12
+        },
+        "us_dividend_value": {
+          "priceReturnPct": 6.11,
+          "totalReturnPct": 6.11
+        }
+      }
+    },
+    {
+      "year": 1972,
+      "inflationPct": 3.209877,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": 15.63,
+          "totalReturnPct": 18.98
+        },
+        "us_large_growth": {
+          "priceReturnPct": 17.18,
+          "totalReturnPct": 17.18
+        },
+        "us_dividend_value": {
+          "priceReturnPct": 14.58,
+          "totalReturnPct": 14.58
+        }
+      }
+    },
+    {
+      "year": 1973,
+      "inflationPct": 6.220096,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": -17.37,
+          "totalReturnPct": -14.66
+        },
+        "us_large_growth": {
+          "priceReturnPct": -31.06,
+          "totalReturnPct": -31.06
+        },
+        "us_dividend_value": {
+          "priceReturnPct": -16.58,
+          "totalReturnPct": -16.58
+        }
+      }
+    },
+    {
+      "year": 1974,
+      "inflationPct": 11.036036,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": -29.72,
+          "totalReturnPct": -26.47
+        },
+        "us_large_growth": {
+          "priceReturnPct": -35.11,
+          "totalReturnPct": -35.11
+        },
+        "us_dividend_value": {
+          "priceReturnPct": -27.57,
+          "totalReturnPct": -27.57
+        }
+      }
+    },
+    {
+      "year": 1975,
+      "inflationPct": 9.127789,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": 31.55,
+          "totalReturnPct": 37.2
+        },
+        "us_large_growth": {
+          "priceReturnPct": 29.76,
+          "totalReturnPct": 29.76
+        },
+        "us_dividend_value": {
+          "priceReturnPct": 38.32,
+          "totalReturnPct": 38.32
+        }
+      }
+    },
+    {
+      "year": 1976,
+      "inflationPct": 5.762082,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": 19.15,
+          "totalReturnPct": 23.84
+        },
+        "us_large_growth": {
+          "priceReturnPct": 26.1,
+          "totalReturnPct": 26.1
+        },
+        "us_dividend_value": {
+          "priceReturnPct": 17.86,
+          "totalReturnPct": 17.86
+        }
+      }
+    },
+    {
+      "year": 1977,
+      "inflationPct": 6.502636,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": -11.5,
+          "totalReturnPct": -7.18
+        },
+        "us_large_growth": {
+          "priceReturnPct": 7.33,
+          "totalReturnPct": 7.33
+        },
+        "us_dividend_value": {
+          "priceReturnPct": -17.27,
+          "totalReturnPct": -17.27
+        }
+      }
+    },
+    {
+      "year": 1978,
+      "inflationPct": 7.590759,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": 1.06,
+          "totalReturnPct": 6.56
+        },
+        "us_large_growth": {
+          "priceReturnPct": 12.31,
+          "totalReturnPct": 12.31
+        },
+        "us_dividend_value": {
+          "priceReturnPct": -3.15,
+          "totalReturnPct": -3.15
+        }
+      }
+    },
+    {
+      "year": 1979,
+      "inflationPct": 11.349693,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": 12.31,
+          "totalReturnPct": 18.44
+        },
+        "us_large_growth": {
+          "priceReturnPct": 28.7,
+          "totalReturnPct": 28.7
+        },
+        "us_dividend_value": {
+          "priceReturnPct": 4.19,
+          "totalReturnPct": 4.19
+        }
+      }
+    },
+    {
+      "year": 1980,
+      "inflationPct": 13.498623,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": 25.77,
+          "totalReturnPct": 32.5
+        },
+        "us_large_growth": {
+          "priceReturnPct": 33.26,
+          "totalReturnPct": 33.26
+        },
+        "us_dividend_value": {
+          "priceReturnPct": 14.93,
+          "totalReturnPct": 14.93
+        }
+      }
+    },
+    {
+      "year": 1981,
+      "inflationPct": 10.315534,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": -9.73,
+          "totalReturnPct": -4.92
+        },
+        "us_large_growth": {
+          "priceReturnPct": -3.21,
+          "totalReturnPct": -3.21
+        },
+        "us_dividend_value": {
+          "priceReturnPct": -9.23,
+          "totalReturnPct": -9.23
+        }
+      }
+    },
+    {
+      "year": 1982,
+      "inflationPct": 6.160616,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": 14.76,
+          "totalReturnPct": 21.55
+        },
+        "us_large_growth": {
+          "priceReturnPct": 18.67,
+          "totalReturnPct": 18.67
+        },
+        "us_dividend_value": {
+          "priceReturnPct": 19.6,
+          "totalReturnPct": 19.6
+        }
+      }
+    },
+    {
+      "year": 1983,
+      "inflationPct": 3.212435,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": 17.27,
+          "totalReturnPct": 22.56
+        },
+        "us_large_growth": {
+          "priceReturnPct": 19.87,
+          "totalReturnPct": 19.87
+        },
+        "us_dividend_value": {
+          "priceReturnPct": 20.27,
+          "totalReturnPct": 20.27
+        }
+      }
+    },
+    {
+      "year": 1984,
+      "inflationPct": 4.317269,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": 1.4,
+          "totalReturnPct": 6.27
+        },
+        "us_large_growth": {
+          "priceReturnPct": -11.31,
+          "totalReturnPct": -11.31
+        },
+        "us_dividend_value": {
+          "priceReturnPct": -3.74,
+          "totalReturnPct": -3.74
+        }
+      }
+    },
+    {
+      "year": 1985,
+      "inflationPct": 3.561116,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": 26.33,
+          "totalReturnPct": 31.73
+        },
+        "us_large_growth": {
+          "priceReturnPct": 31.49,
+          "totalReturnPct": 31.49
+        },
+        "us_dividend_value": {
+          "priceReturnPct": 27.66,
+          "totalReturnPct": 27.66
+        }
+      }
+    },
+    {
+      "year": 1986,
+      "inflationPct": 1.858736,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": 14.62,
+          "totalReturnPct": 18.67
+        },
+        "us_large_growth": {
+          "priceReturnPct": 7.36,
+          "totalReturnPct": 7.36
+        },
+        "us_dividend_value": {
+          "priceReturnPct": 22.58,
+          "totalReturnPct": 22.58
+        }
+      }
+    },
+    {
+      "year": 1987,
+      "inflationPct": 3.649635,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": 2.03,
+          "totalReturnPct": 5.25
+        },
+        "us_large_growth": {
+          "priceReturnPct": -5.25,
+          "totalReturnPct": -5.25
+        },
+        "us_dividend_value": {
+          "priceReturnPct": 2.26,
+          "totalReturnPct": 2.26
+        }
+      }
+    },
+    {
+      "year": 1988,
+      "inflationPct": 4.137324,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": 12.4,
+          "totalReturnPct": 16.61
+        },
+        "us_large_growth": {
+          "priceReturnPct": 15.4,
+          "totalReturnPct": 15.4
+        },
+        "us_dividend_value": {
+          "priceReturnPct": 11.85,
+          "totalReturnPct": 11.85
+        }
+      }
+    },
+    {
+      "year": 1989,
+      "inflationPct": 4.818259,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": 27.25,
+          "totalReturnPct": 31.69
+        },
+        "us_large_growth": {
+          "priceReturnPct": 19.24,
+          "totalReturnPct": 19.24
+        },
+        "us_dividend_value": {
+          "priceReturnPct": 26.96,
+          "totalReturnPct": 26.96
+        }
+      }
+    },
+    {
+      "year": 1990,
+      "inflationPct": 5.403226,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": -6.56,
+          "totalReturnPct": -3.1
+        },
+        "us_large_growth": {
+          "priceReturnPct": -17.81,
+          "totalReturnPct": -17.81
+        },
+        "us_dividend_value": {
+          "priceReturnPct": -4.34,
+          "totalReturnPct": -4.34
+        }
+      }
+    },
+    {
+      "year": 1991,
+      "inflationPct": 4.20811,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": 26.31,
+          "totalReturnPct": 30.47
+        },
+        "us_large_growth": {
+          "priceReturnPct": 56.86,
+          "totalReturnPct": 56.86
+        },
+        "us_dividend_value": {
+          "priceReturnPct": 20.32,
+          "totalReturnPct": 20.32
+        }
+      }
+    },
+    {
+      "year": 1992,
+      "inflationPct": 3.010279,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": 4.46,
+          "totalReturnPct": 7.62
+        },
+        "us_large_growth": {
+          "priceReturnPct": 15.45,
+          "totalReturnPct": 15.45
+        },
+        "us_dividend_value": {
+          "priceReturnPct": 4.17,
+          "totalReturnPct": 4.17
+        }
+      }
+    },
+    {
+      "year": 1993,
+      "inflationPct": 2.993585,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": 7.06,
+          "totalReturnPct": 10.08
+        },
+        "us_large_growth": {
+          "priceReturnPct": 14.75,
+          "totalReturnPct": 14.75
+        },
+        "us_dividend_value": {
+          "priceReturnPct": 13.72,
+          "totalReturnPct": 13.72
+        }
+      }
+    },
+    {
+      "year": 1994,
+      "inflationPct": 2.560554,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": -1.54,
+          "totalReturnPct": 1.32
+        },
+        "us_large_growth": {
+          "priceReturnPct": -3.2,
+          "totalReturnPct": -3.2
+        },
+        "us_dividend_value": {
+          "priceReturnPct": 2.14,
+          "totalReturnPct": 2.14
+        }
+      }
+    },
+    {
+      "year": 1995,
+      "inflationPct": 2.834008,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": 34.11,
+          "totalReturnPct": 37.58
+        },
+        "us_large_growth": {
+          "priceReturnPct": 39.92,
+          "totalReturnPct": 39.92
+        },
+        "us_dividend_value": {
+          "priceReturnPct": 33.45,
+          "totalReturnPct": 33.45
+        }
+      }
+    },
+    {
+      "year": 1996,
+      "inflationPct": 2.952756,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": 20.26,
+          "totalReturnPct": 22.96
+        },
+        "us_large_growth": {
+          "priceReturnPct": 22.71,
+          "totalReturnPct": 22.71
+        },
+        "us_dividend_value": {
+          "priceReturnPct": 26.01,
+          "totalReturnPct": 26.01
+        }
+      }
+    },
+    {
+      "year": 1997,
+      "inflationPct": 2.294455,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": 31.01,
+          "totalReturnPct": 33.36
+        },
+        "us_large_growth": {
+          "priceReturnPct": 21.64,
+          "totalReturnPct": 21.64
+        },
+        "us_dividend_value": {
+          "priceReturnPct": 22.64,
+          "totalReturnPct": 22.64
+        }
+      }
+    },
+    {
+      "year": 1998,
+      "inflationPct": 1.557632,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": 26.67,
+          "totalReturnPct": 28.58
+        },
+        "us_large_growth": {
+          "priceReturnPct": 39.63,
+          "totalReturnPct": 39.63
+        },
+        "us_dividend_value": {
+          "priceReturnPct": 16.1,
+          "totalReturnPct": 16.1
+        }
+      }
+    },
+    {
+      "year": 1999,
+      "inflationPct": 2.208589,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": 19.53,
+          "totalReturnPct": 21.04
+        },
+        "us_large_growth": {
+          "priceReturnPct": 85.59,
+          "totalReturnPct": 85.59
+        },
+        "us_dividend_value": {
+          "priceReturnPct": 25.22,
+          "totalReturnPct": 25.22
+        }
+      }
+    },
+    {
+      "year": 2000,
+      "inflationPct": 3.361345,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": -10.14,
+          "totalReturnPct": -9.1
+        },
+        "us_large_growth": {
+          "priceReturnPct": -39.29,
+          "totalReturnPct": -39.29
+        },
+        "us_dividend_value": {
+          "priceReturnPct": -6.18,
+          "totalReturnPct": -6.18
+        }
+      }
+    },
+    {
+      "year": 2001,
+      "inflationPct": 2.845528,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": -13.04,
+          "totalReturnPct": -11.89
+        },
+        "us_large_growth": {
+          "priceReturnPct": -21.05,
+          "totalReturnPct": -21.05
+        },
+        "us_dividend_value": {
+          "priceReturnPct": -7.1,
+          "totalReturnPct": -7.1
+        }
+      }
+    },
+    {
+      "year": 2002,
+      "inflationPct": 1.581028,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": -23.37,
+          "totalReturnPct": -22.1
+        },
+        "us_large_growth": {
+          "priceReturnPct": -31.53,
+          "totalReturnPct": -31.53
+        },
+        "us_dividend_value": {
+          "priceReturnPct": -16.76,
+          "totalReturnPct": -16.76
+        }
+      }
+    },
+    {
+      "year": 2003,
+      "inflationPct": 2.279044,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": 26.38,
+          "totalReturnPct": 28.68
+        },
+        "us_large_growth": {
+          "priceReturnPct": 50.01,
+          "totalReturnPct": 50.01
+        },
+        "us_dividend_value": {
+          "priceReturnPct": 25.32,
+          "totalReturnPct": 25.32
+        }
+      }
+    },
+    {
+      "year": 2004,
+      "inflationPct": 2.663043,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": 8.99,
+          "totalReturnPct": 10.88
+        },
+        "us_large_growth": {
+          "priceReturnPct": 8.59,
+          "totalReturnPct": 8.59
+        },
+        "us_dividend_value": {
+          "priceReturnPct": 3.15,
+          "totalReturnPct": 3.15
+        }
+      }
+    },
+    {
+      "year": 2005,
+      "inflationPct": 3.388036,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": 3,
+          "totalReturnPct": 4.91
+        },
+        "us_large_growth": {
+          "priceReturnPct": 1.37,
+          "totalReturnPct": 1.37
+        },
+        "us_dividend_value": {
+          "priceReturnPct": -0.61,
+          "totalReturnPct": -0.61
+        }
+      }
+    },
+    {
+      "year": 2006,
+      "inflationPct": 3.225806,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": 13.62,
+          "totalReturnPct": 15.79
+        },
+        "us_large_growth": {
+          "priceReturnPct": 9.52,
+          "totalReturnPct": 9.52
+        },
+        "us_dividend_value": {
+          "priceReturnPct": 16.29,
+          "totalReturnPct": 16.29
+        }
+      }
+    },
+    {
+      "year": 2007,
+      "inflationPct": 2.848214,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": 3.53,
+          "totalReturnPct": 5.49
+        },
+        "us_large_growth": {
+          "priceReturnPct": 9.81,
+          "totalReturnPct": 9.81
+        },
+        "us_dividend_value": {
+          "priceReturnPct": 6.43,
+          "totalReturnPct": 6.43
+        }
+      }
+    },
+    {
+      "year": 2008,
+      "inflationPct": 3.83955,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": -38.49,
+          "totalReturnPct": -37
+        },
+        "us_large_growth": {
+          "priceReturnPct": -40.54,
+          "totalReturnPct": -40.54
+        },
+        "us_dividend_value": {
+          "priceReturnPct": -33.84,
+          "totalReturnPct": -33.84
+        }
+      }
+    },
+    {
+      "year": 2009,
+      "inflationPct": -0.355778,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": 23.45,
+          "totalReturnPct": 26.46
+        },
+        "us_large_growth": {
+          "priceReturnPct": 43.89,
+          "totalReturnPct": 43.89
+        },
+        "us_dividend_value": {
+          "priceReturnPct": 18.82,
+          "totalReturnPct": 18.82
+        }
+      }
+    },
+    {
+      "year": 2010,
+      "inflationPct": 1.640277,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": 12.78,
+          "totalReturnPct": 15.06
+        },
+        "us_large_growth": {
+          "priceReturnPct": 16.91,
+          "totalReturnPct": 16.91
+        },
+        "us_dividend_value": {
+          "priceReturnPct": 11.02,
+          "totalReturnPct": 11.02
+        }
+      }
+    },
+    {
+      "year": 2011,
+      "inflationPct": 3.156529,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": 0,
+          "totalReturnPct": 2.11
+        },
+        "us_large_growth": {
+          "priceReturnPct": -1.8,
+          "totalReturnPct": -1.8
+        },
+        "us_dividend_value": {
+          "priceReturnPct": 5.53,
+          "totalReturnPct": 5.53
+        }
+      }
+    },
+    {
+      "year": 2012,
+      "inflationPct": 2.06945,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": 13.41,
+          "totalReturnPct": 16
+        },
+        "us_large_growth": {
+          "priceReturnPct": 15.91,
+          "totalReturnPct": 15.91
+        },
+        "us_dividend_value": {
+          "priceReturnPct": 7.26,
+          "totalReturnPct": 7.26
+        }
+      }
+    },
+    {
+      "year": 2013,
+      "inflationPct": 1.46476,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": 29.6,
+          "totalReturnPct": 32.39
+        },
+        "us_large_growth": {
+          "priceReturnPct": 38.32,
+          "totalReturnPct": 38.32
+        },
+        "us_dividend_value": {
+          "priceReturnPct": 26.5,
+          "totalReturnPct": 26.5
+        }
+      }
+    },
+    {
+      "year": 2014,
+      "inflationPct": 1.622188,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": 11.39,
+          "totalReturnPct": 13.69
+        },
+        "us_large_growth": {
+          "priceReturnPct": 13.4,
+          "totalReturnPct": 13.4
+        },
+        "us_dividend_value": {
+          "priceReturnPct": 7.52,
+          "totalReturnPct": 7.52
+        }
+      }
+    },
+    {
+      "year": 2015,
+      "inflationPct": 0.118698,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": -0.73,
+          "totalReturnPct": 1.38
+        },
+        "us_large_growth": {
+          "priceReturnPct": 5.73,
+          "totalReturnPct": 5.73
+        },
+        "us_dividend_value": {
+          "priceReturnPct": -2.23,
+          "totalReturnPct": -2.23
+        }
+      }
+    },
+    {
+      "year": 2016,
+      "inflationPct": 1.261513,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": 9.54,
+          "totalReturnPct": 11.96
+        },
+        "us_large_growth": {
+          "priceReturnPct": 7.5,
+          "totalReturnPct": 7.5
+        },
+        "us_dividend_value": {
+          "priceReturnPct": 13.42,
+          "totalReturnPct": 13.42
+        }
+      }
+    },
+    {
+      "year": 2017,
+      "inflationPct": 2.130355,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": 19.42,
+          "totalReturnPct": 21.83
+        },
+        "us_large_growth": {
+          "priceReturnPct": 28.24,
+          "totalReturnPct": 28.24
+        },
+        "us_dividend_value": {
+          "priceReturnPct": 25.08,
+          "totalReturnPct": 25.08
+        }
+      }
+    },
+    {
+      "year": 2018,
+      "inflationPct": 2.442477,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": -6.24,
+          "totalReturnPct": -4.38
+        },
+        "us_large_growth": {
+          "priceReturnPct": -3.88,
+          "totalReturnPct": -3.88
+        },
+        "us_dividend_value": {
+          "priceReturnPct": -5.63,
+          "totalReturnPct": -5.63
+        }
+      }
+    },
+    {
+      "year": 2019,
+      "inflationPct": 1.811977,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": 28.88,
+          "totalReturnPct": 31.49
+        },
+        "us_large_growth": {
+          "priceReturnPct": 35.23,
+          "totalReturnPct": 35.23
+        },
+        "us_dividend_value": {
+          "priceReturnPct": 22.34,
+          "totalReturnPct": 22.34
+        }
+      }
+    },
+    {
+      "year": 2020,
+      "inflationPct": 1.233684,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": 16.26,
+          "totalReturnPct": 18.4
+        },
+        "us_large_growth": {
+          "priceReturnPct": 43.64,
+          "totalReturnPct": 43.64
+        },
+        "us_dividend_value": {
+          "priceReturnPct": 7.25,
+          "totalReturnPct": 7.25
+        }
+      }
+    },
+    {
+      "year": 2021,
+      "inflationPct": 4.698023,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": 26.89,
+          "totalReturnPct": 28.71
+        },
+        "us_large_growth": {
+          "priceReturnPct": 21.39,
+          "totalReturnPct": 21.39
+        },
+        "us_dividend_value": {
+          "priceReturnPct": 18.73,
+          "totalReturnPct": 18.73
+        }
+      }
+    },
+    {
+      "year": 2022,
+      "inflationPct": 8.002731,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": -19.44,
+          "totalReturnPct": -18.11
+        },
+        "us_large_growth": {
+          "priceReturnPct": -33.1,
+          "totalReturnPct": -33.1
+        },
+        "us_dividend_value": {
+          "priceReturnPct": -8.78,
+          "totalReturnPct": -8.78
+        }
+      }
+    },
+    {
+      "year": 2023,
+      "inflationPct": 4.116451,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": 24.23,
+          "totalReturnPct": 26.29
+        },
+        "us_large_growth": {
+          "priceReturnPct": 43.42,
+          "totalReturnPct": 43.42
+        },
+        "us_dividend_value": {
+          "priceReturnPct": 13.7,
+          "totalReturnPct": 13.7
+        }
+      }
+    },
+    {
+      "year": 2024,
+      "inflationPct": 2.949439,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": 23.31,
+          "totalReturnPct": 25.02
+        },
+        "us_large_growth": {
+          "priceReturnPct": 28.64,
+          "totalReturnPct": 28.64
+        },
+        "us_dividend_value": {
+          "priceReturnPct": 12.88,
+          "totalReturnPct": 12.88
+        }
+      }
+    },
+    {
+      "year": 2025,
+      "inflationPct": 2.631269,
+      "assetClasses": {
+        "us_large_cap": {
+          "priceReturnPct": 16.39,
+          "totalReturnPct": 17.88
+        },
+        "us_large_growth": {
+          "priceReturnPct": 20.36,
+          "totalReturnPct": 20.36
+        },
+        "us_dividend_value": {
+          "priceReturnPct": 12.97,
+          "totalReturnPct": 12.97
+        }
+      }
+    }
+  ]
+}
