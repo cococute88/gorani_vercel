@@ -1,6 +1,16 @@
 "use client";
 
-import { useLayoutEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import { createPortal } from "react-dom";
 import { Info, RefreshCw } from "lucide-react";
 import {
   CartesianGrid,
@@ -86,22 +96,88 @@ function formatChartProbability(value: number): string {
   return `${value.toFixed(1)}%`;
 }
 
+function formatDiagnosticAmount(value: number): string {
+  return `${new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 1 }).format(value)}만원`;
+}
+
 function InfoTip({ label, children }: { label: string; children: ReactNode }) {
+  const tooltipId = useId();
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const tooltipRef = useRef<HTMLSpanElement>(null);
+  const [open, setOpen] = useState(false);
+  const [position, setPosition] = useState({ left: 8, top: 8, placement: "bottom" as "top" | "bottom" });
+  const updatePosition = useCallback(() => {
+    const trigger = triggerRef.current;
+    const tooltip = tooltipRef.current;
+    if (!trigger || !tooltip) return;
+    const triggerRect = trigger.getBoundingClientRect();
+    const tooltipRect = tooltip.getBoundingClientRect();
+    const viewportMargin = 8;
+    const gap = 8;
+    const fitsAbove = triggerRect.top >= tooltipRect.height + gap + viewportMargin;
+    const placement = fitsAbove ? "top" : "bottom";
+    const unclampedLeft = triggerRect.left + triggerRect.width / 2 - tooltipRect.width / 2;
+    const left = Math.min(
+      window.innerWidth - tooltipRect.width - viewportMargin,
+      Math.max(viewportMargin, unclampedLeft),
+    );
+    const top = placement === "top"
+      ? triggerRect.top - tooltipRect.height - gap
+      : triggerRect.bottom + gap;
+    setPosition({ left, top, placement });
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    updatePosition();
+  }, [open, updatePosition]);
+
+  useEffect(() => {
+    if (!open) return;
+    const reposition = () => updatePosition();
+    window.addEventListener("resize", reposition);
+    window.addEventListener("scroll", reposition, true);
+    return () => {
+      window.removeEventListener("resize", reposition);
+      window.removeEventListener("scroll", reposition, true);
+    };
+  }, [open, updatePosition]);
+
   return (
-    <span className="group relative inline-flex align-middle">
+    <span className="inline-flex align-middle">
       <button
+        ref={triggerRef}
         type="button"
         aria-label={label}
+        aria-describedby={open ? tooltipId : undefined}
+        aria-expanded={open}
+        onMouseEnter={() => setOpen(true)}
+        onMouseLeave={() => setOpen(false)}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setOpen(false)}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            setOpen(false);
+            event.currentTarget.blur();
+          }
+        }}
         className="ml-1 inline-flex rounded-full text-slate-400 hover:text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 dark:hover:text-slate-200"
       >
         <Info aria-hidden="true" className="h-3.5 w-3.5" />
       </button>
-      <span
-        role="tooltip"
-        className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-2 hidden w-64 -translate-x-1/2 rounded-xl bg-slate-950 px-3 py-2 text-left text-[11px] font-normal leading-5 text-white shadow-xl group-hover:block group-focus-within:block"
-      >
-        {children}
-      </span>
+      {open && typeof document !== "undefined" ? createPortal(
+        <span
+          ref={tooltipRef}
+          id={tooltipId}
+          role="tooltip"
+          data-tooltip-placement={position.placement}
+          className="pointer-events-none fixed z-[1000] w-64 max-w-[calc(100vw-1rem)] rounded-xl bg-slate-950 px-3 py-2 text-left text-[11px] font-normal leading-5 text-white shadow-xl"
+          style={{ left: position.left, top: position.top }}
+        >
+          {children}
+        </span>,
+        document.body,
+      ) : null}
     </span>
   );
 }
@@ -194,6 +270,11 @@ export default function LongTermSustainabilitySection({
 
   const periods = useMemo(() => analysis.result?.periods ?? [], [analysis.result]);
   const summaryPeriod = periods.find((period) => period.periodYears === 60) ?? periods.at(-1) ?? null;
+  const summaryFailureDiagnostics = analysis.result?.failureDiagnostics.periods.find(
+    (period) => period.periodYears === summaryPeriod?.periodYears,
+  ) ?? null;
+  const firstWithdrawalCashflow = analysis.result?.failureDiagnostics.firstWithdrawalCashflow ?? null;
+  const summaryFirstFailure = summaryFailureDiagnostics?.firstFailureYears[0] ?? null;
   const chartData = useMemo<ChartDatum[]>(() => periods.map((period) => ({
     periodYears: period.periodYears,
     periodLabel: `${period.periodYears}년`,
@@ -251,6 +332,24 @@ export default function LongTermSustainabilitySection({
         </p>
       </div>
 
+      {summaryPeriod.successCount === 0 && summaryFailureDiagnostics ? (
+        <div role="note" className="mt-3 rounded-xl border border-blue-200 bg-blue-50/70 px-3 py-2.5 text-[11.5px] leading-5 text-blue-950 dark:border-blue-900 dark:bg-blue-950/20 dark:text-blue-100">
+          <p className="font-semibold">0.0%는 자산이 모두 고갈됐다는 뜻이 아닙니다.</p>
+          <p className="mt-0.5">
+            {summaryFailureDiagnostics.withdrawalShortfallOnlyCount + summaryFailureDiagnostics.withdrawalShortfallAndDepletionCount
+              === summaryPeriod.simulationCount
+              ? `${summaryPeriod.simulationCount.toLocaleString("ko-KR")}개 경로 모두 최소 한 해의 세후 생활비 공급이 필요액보다 부족했습니다.`
+              : `${summaryPeriod.simulationCount.toLocaleString("ko-KR")}개 경로의 실패에는 생활비 공급 부족과 자산 고갈 판정이 각각 반영됩니다.`}
+            {summaryFirstFailure ? ` 가장 이른 실패는 ${summaryFirstFailure.calendarYear}년(${summaryFirstFailure.count.toLocaleString("ko-KR")}개 경로)입니다.` : ""}
+          </p>
+          {firstWithdrawalCashflow ? (
+            <p className="mt-0.5 text-blue-800 dark:text-blue-200">
+              첫 인출연도 {firstWithdrawalCashflow.calendarYear}년 경로 평균: 필요 세후 생활비 {formatDiagnosticAmount(firstWithdrawalCashflow.averageRequiredWithdrawalNominal)} · 세후 공급 {formatDiagnosticAmount(firstWithdrawalCashflow.averageSuppliedWithdrawalNet)} · 부족 경로 {firstWithdrawalCashflow.shortfallCount.toLocaleString("ko-KR")}/{firstWithdrawalCashflow.observedPathCount.toLocaleString("ko-KR")}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
       <div className="mt-5 grid min-w-0 gap-5 xl:grid-cols-[minmax(700px,1.15fr)_minmax(480px,0.85fr)]">
         <div className="min-w-0">
           <h3 className="text-[13px] font-bold text-slate-800 dark:text-slate-200">기간별 결과</h3>
@@ -262,7 +361,7 @@ export default function LongTermSustainabilitySection({
                   <th scope="col" className="px-3 py-3 font-semibold">기간</th>
                   <th scope="col" className="px-3 py-3 font-semibold">
                     지속 성공률
-                    <InfoTip label="지속 성공률 설명">해당 기간 동안 매년 계획된 필수 세후 현금흐름을 모두 충족하고 자산이 고갈되지 않은 경로 비율입니다.</InfoTip>
+                    <InfoTip label="지속 성공률 설명">해당 기간 동안 인출 시작 이후 매년 필요한 세후 생활비를 모두 충족하고 자산이 고갈되지 않은 경로의 비율입니다. 자산이 많이 남아 있어도 특정 연도의 생활비를 충족하지 못하면 실패로 계산될 수 있습니다.</InfoTip>
                   </th>
                   <th scope="col" className="px-3 py-3 font-semibold">
                     실질 원금 50% 이하 확률
@@ -287,7 +386,7 @@ export default function LongTermSustainabilitySection({
             </table>
           </div>
           <p className="mt-2 text-[11px] leading-5 text-slate-500">
-            세 지표는 서로 배타적이지 않으며 합계가 100%가 되도록 조정하지 않습니다. 임계값 확률은 이후 회복 여부와 관계없이 한 번이라도 도달한 경로를 셉니다.
+            지속 성공률과 실질 원금 임계확률은 서로 반대 개념이 아닙니다. 자산이 원금의 50%보다 많이 남아 있어도 특정 연도의 세후 생활비를 충족하지 못하면 지속 성공에서는 실패할 수 있습니다. 세 지표는 합계가 100%가 되도록 조정하지 않습니다.
           </p>
         </div>
 
@@ -346,6 +445,34 @@ export default function LongTermSustainabilitySection({
         <p className="mt-1 text-[11px] leading-5 text-slate-500">
           Seed는 datasetVersion과 결과에 영향을 주는 정규화 사용자 입력에서 결정적으로 생성됩니다(현재 seed {analysis.seed}). 동일 입력·datasetVersion에서는 새로고침이나 재렌더링으로 결과가 흔들리지 않습니다.
         </p>
+        {prepared.input ? (
+          <details className="mt-2 border-t border-slate-200 pt-2 dark:border-slate-800">
+            <summary className="cursor-pointer text-[11px] font-semibold text-slate-600 dark:text-slate-400">현재 계산 입력·첫 인출연도 진단</summary>
+            <div className="mt-2 grid gap-x-5 gap-y-1 text-[10.5px] leading-5 text-slate-500 sm:grid-cols-2 lg:grid-cols-3">
+              <p>초기 ISA: {formatDiagnosticAmount(prepared.input.initialIsa)}</p>
+              <p>초기 연금: {formatDiagnosticAmount(prepared.input.initialPension)}</p>
+              <p>초기 위탁: {formatDiagnosticAmount(prepared.input.initialBrokerage)}</p>
+              <p>총 초기자산: {formatDiagnosticAmount(prepared.input.initialIsa + prepared.input.initialPension + prepared.input.initialBrokerage)}</p>
+              <p>목표 월생활비: {formatDiagnosticAmount(prepared.input.annualRequiredWithdrawalReal / 12)}</p>
+              <p>연간 필수 세후 생활비: {formatDiagnosticAmount(prepared.input.annualRequiredWithdrawalReal)}</p>
+              <p>인출률/증가율: {prepared.input.withdrawalRatePct}% / {prepared.input.withdrawalGrowthRatePct}%</p>
+              <p>인출 시작: {prepared.input.startYear + Math.max(1, prepared.input.withdrawalDelayYears)}년</p>
+              <p>기대 인플레이션: {prepared.input.expectedInflationPct}%</p>
+            </div>
+            <p className="mt-1 text-[10.5px] leading-5 text-slate-500">
+              절세계좌: {prepared.input.taxSavingHoldings.map((holding) => `${holding.ticker} ${holding.weightPct}% · CAGR ${holding.expectedTotalReturnCagrPct}%`).join(" / ") || "없음"}
+            </p>
+            <p className="mt-1 text-[10.5px] leading-5 text-slate-500">
+              위탁계좌: {prepared.input.brokerageHoldings.map((holding) => `${holding.ticker} ${holding.weightPct}% · 가격 ${holding.expectedPriceCagrPct}% · 배당 ${holding.initialDividendYieldPct}% · 배당성장 ${holding.expectedDividendGrowthPct}%`).join(" / ") || "없음"}
+            </p>
+            {firstWithdrawalCashflow ? (
+              <p className="mt-1 text-[10.5px] leading-5 text-slate-500">
+                첫 인출연도 경로 평균: ISA 세전/세후 {formatDiagnosticAmount(firstWithdrawalCashflow.averageGrossIsaWithdrawal)} / {formatDiagnosticAmount(firstWithdrawalCashflow.averageNetIsaWithdrawal)} · 연금 세전/세후 {formatDiagnosticAmount(firstWithdrawalCashflow.averageGrossPensionWithdrawal)} / {formatDiagnosticAmount(firstWithdrawalCashflow.averageNetPensionWithdrawal)} · 위탁 배당 세전/세후 {formatDiagnosticAmount(firstWithdrawalCashflow.averageGrossBrokerageDividend)} / {formatDiagnosticAmount(firstWithdrawalCashflow.averageNetBrokerageDividend)} · 총 세후 공급 {formatDiagnosticAmount(firstWithdrawalCashflow.averageSuppliedWithdrawalNet)}
+              </p>
+            ) : null}
+            <p className="mt-1 text-[10px] leading-5 text-slate-400">화면의 억원 입력은 내부 만원 단위로 정규화됩니다. 예: 1.19억원 = 11,900만원 = 119,000,000원.</p>
+          </details>
+        ) : null}
         {analysis.timing ? (
           <p className="mt-1 text-[10.5px] text-slate-400">
             실행 정보: {analysis.timing.source === "memory-cache"

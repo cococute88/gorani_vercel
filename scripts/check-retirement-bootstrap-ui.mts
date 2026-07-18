@@ -10,6 +10,8 @@ import {
   setRetirementBootstrapMemoryCache,
 } from "../lib/retirement-bootstrap-ui.ts";
 import { executeRetirementBootstrapWorkerRequest } from "../lib/retirement-bootstrap-worker-runner.ts";
+import { runRetirementBootstrap } from "../lib/retirement-bootstrap-engine.ts";
+import { PRODUCTION_MARKET_PATTERN_DATA_ADAPTER } from "../lib/retirement-bootstrap-production-adapter.ts";
 import type { AppliedPortfolioAssumptionsV1, SimulatorInputs } from "../lib/asset-simulator-types.ts";
 import type { RetirementBootstrapWorkerRunRequest } from "../lib/retirement-bootstrap-worker-protocol.ts";
 
@@ -101,6 +103,14 @@ const bootstrapInput = buildRetirementBootstrapInput({
 });
 assert.equal(bootstrapInput.expectedInflationPct, 2.7, "사용자 inflation 연결");
 assert.equal(bootstrapInput.annualRequiredWithdrawalReal, 1_440, "목표 월생활비를 연간 필수 세후 현금흐름으로 연결");
+const threeMillionWonTarget = buildRetirementBootstrapInput({
+  inputs: { ...inputs, initialIsa: 0, initialPension: 11_900, initialTaxableDividend: 15_000 },
+  portfolioAssumptions: assumptions,
+  targetMonthlyExpenseReal: 300,
+});
+assert.equal(threeMillionWonTarget.initialPension, 11_900, "1.19억원은 내부 11,900만원으로 유지");
+assert.equal(threeMillionWonTarget.initialPension * 10_000, 119_000_000, "만원→원 환산 계약");
+assert.equal(threeMillionWonTarget.annualRequiredWithdrawalReal, 3_600, "월 300만원은 연 3,600만원");
 assert.deepEqual(bootstrapInput.taxSavingHoldings.map((row) => row.expectedTotalReturnCagrPct), [7, 8], "절세계좌 CAGR source-field 계약");
 assert.deepEqual(bootstrapInput.brokerageHoldings.map((row) => [row.expectedPriceCagrPct, row.initialDividendYieldPct, row.expectedDividendGrowthPct]), [[4, 3.8, 5], [3, 9, 1]], "위탁 가격·배당·배당성장 source-field 계약");
 assert.throws(
@@ -168,6 +178,13 @@ assert.equal(first.type, "success", "production Worker runner 성공");
 assert.equal(second.type, "success", "직렬화된 Worker request 성공");
 if (first.type !== "success" || second.type !== "success") throw new Error("Worker runner 결과 생성 실패");
 assert.deepEqual(first.result, second.result, "Worker fixed-seed production 결과 재현");
+const direct = runRetirementBootstrap(bootstrapInput, await PRODUCTION_MARKET_PATTERN_DATA_ADAPTER.loadDataset(), {
+  iterations: request.simulationCount,
+  blockLength: request.blockLength,
+  periods: [30, 40, 50, 60, 70],
+  seed: request.seed,
+});
+assert.deepEqual(first.result, direct, "Worker 결과와 direct engine 결과 동일");
 assert.deepEqual(structuredClone(first.result), first.result, "Worker 결과 structured clone 직렬화");
 assert.deepEqual(first.result.periods.map((row) => row.periodYears), [30, 40, 50, 60, 70], "Worker 5개 checkpoint 출력");
 assert.equal(first.result.datasetUsage, "production", "Worker production dataset 전용");
@@ -198,6 +215,10 @@ assert.match(page, /<LongTermSustainabilitySection/, "신규 장기 분석 produ
 assert.doesNotMatch(page, /<RetirementSafetySection/, "기존 계좌별 안정성 production 렌더 제거");
 assert.doesNotMatch(dashboard, /계좌별 안전성 참고/, "기존 하단 토글 제거");
 assert.match(section, /<table[\s\S]*<LineChart/, "표와 점 그래프 제공");
+assert.match(section, /createPortal\([\s\S]*document\.body/, "표 스크롤 컨테이너 밖 body portal tooltip");
+assert.match(section, /fitsAbove[\s\S]*placement[\s\S]*data-tooltip-placement/, "viewport 상단 공간 부족 시 아래로 배치");
+assert.match(section, /event\.key === "Escape"/, "tooltip Escape 닫기");
+assert.match(section, /onFocus=\{\(\) => setOpen\(true\)\}[\s\S]*onBlur=\{\(\) => setOpen\(false\)\}/, "tooltip keyboard focus 접근");
 assert.match(section, /const periods = useMemo[\s\S]*chartData = useMemo<ChartDatum\[]>\(\(\) => periods\.map/, "표·그래프가 같은 result periods 객체 사용");
 assert.match(section, /summaryPeriod[\s\S]*periodYears === 60/, "60년 대표 요약");
 assert.match(page, /active=\{activeTab === "safety"\}/, "안정성 탭이 활성일 때만 Worker 실행");

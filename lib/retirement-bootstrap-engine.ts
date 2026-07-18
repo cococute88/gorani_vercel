@@ -387,6 +387,12 @@ function simulateCompiledPath(
       realAssets,
       cumulativeInflation,
       requiredWithdrawalNominal,
+      grossIsaWithdrawal: isaGross,
+      netIsaWithdrawal: isaGross * (1 - isaTaxRate),
+      grossPensionWithdrawal: pensionGross,
+      netPensionWithdrawal: pensionGross * (1 - pensionTaxRate),
+      grossBrokerageDividend: grossDividend,
+      netBrokerageDividend: netDividend,
       suppliedWithdrawalNet,
       withdrawalSatisfied,
       depleted,
@@ -463,22 +469,84 @@ export function runRetirementBootstrap(
     reached50Count: number;
     reached25Count: number;
     endingRealAssetsTotal: number;
+    withdrawalShortfallOnlyCount: number;
+    depletionOnlyCount: number;
+    withdrawalShortfallAndDepletionCount: number;
+    otherFailureCount: number;
+    firstFailureYears: Map<number, number>;
   }>(periods.map((period) => [period, {
     successCount: 0,
     reached50Count: 0,
     reached25Count: 0,
     endingRealAssetsTotal: 0,
+    withdrawalShortfallOnlyCount: 0,
+    depletionOnlyCount: 0,
+    withdrawalShortfallAndDepletionCount: 0,
+    otherFailureCount: 0,
+    firstFailureYears: new Map<number, number>(),
   }]));
+  const firstWithdrawalAggregate = {
+    yearNumber: 0,
+    calendarYear: 0,
+    observedPathCount: 0,
+    shortfallCount: 0,
+    requiredTotal: 0,
+    grossIsaTotal: 0,
+    netIsaTotal: 0,
+    grossPensionTotal: 0,
+    netPensionTotal: 0,
+    grossBrokerageDividendTotal: 0,
+    netBrokerageDividendTotal: 0,
+    suppliedTotal: 0,
+    minimumSupplied: Number.POSITIVE_INFINITY,
+    maximumSupplied: Number.NEGATIVE_INFINITY,
+  };
 
   for (let iteration = 0; iteration < iterations; iteration += 1) {
     const sampled = sampleMarketPatternBlocks(model.dataset, maxYears, blockLength, random);
     const path = simulateCompiledPath(model, sampled, periods, options.distributionStressPolicy);
+    const firstWithdrawal = path.records.find((row) => row.requiredWithdrawalNominal > 0);
+    if (firstWithdrawal) {
+      firstWithdrawalAggregate.yearNumber = firstWithdrawal.yearNumber;
+      firstWithdrawalAggregate.calendarYear = firstWithdrawal.calendarYear;
+      firstWithdrawalAggregate.observedPathCount += 1;
+      if (!firstWithdrawal.withdrawalSatisfied) firstWithdrawalAggregate.shortfallCount += 1;
+      firstWithdrawalAggregate.requiredTotal += firstWithdrawal.requiredWithdrawalNominal;
+      firstWithdrawalAggregate.grossIsaTotal += firstWithdrawal.grossIsaWithdrawal;
+      firstWithdrawalAggregate.netIsaTotal += firstWithdrawal.netIsaWithdrawal;
+      firstWithdrawalAggregate.grossPensionTotal += firstWithdrawal.grossPensionWithdrawal;
+      firstWithdrawalAggregate.netPensionTotal += firstWithdrawal.netPensionWithdrawal;
+      firstWithdrawalAggregate.grossBrokerageDividendTotal += firstWithdrawal.grossBrokerageDividend;
+      firstWithdrawalAggregate.netBrokerageDividendTotal += firstWithdrawal.netBrokerageDividend;
+      firstWithdrawalAggregate.suppliedTotal += firstWithdrawal.suppliedWithdrawalNet;
+      firstWithdrawalAggregate.minimumSupplied = Math.min(firstWithdrawalAggregate.minimumSupplied, firstWithdrawal.suppliedWithdrawalNet);
+      firstWithdrawalAggregate.maximumSupplied = Math.max(firstWithdrawalAggregate.maximumSupplied, firstWithdrawal.suppliedWithdrawalNet);
+    }
     for (const checkpoint of path.checkpoints) {
       const aggregate = aggregates.get(checkpoint.periodYears)!;
       if (checkpoint.success) aggregate.successCount += 1;
       if (checkpoint.reachedRealPrincipal50Pct) aggregate.reached50Count += 1;
       if (checkpoint.reachedRealPrincipal25Pct) aggregate.reached25Count += 1;
       aggregate.endingRealAssetsTotal += checkpoint.endingRealAssets;
+      const hasShortfall = checkpoint.firstWithdrawalShortfallYear !== null;
+      const hasDepletion = checkpoint.firstDepletionYear !== null;
+      if (!checkpoint.success) {
+        if (hasShortfall && hasDepletion) aggregate.withdrawalShortfallAndDepletionCount += 1;
+        else if (hasShortfall) aggregate.withdrawalShortfallOnlyCount += 1;
+        else if (hasDepletion) aggregate.depletionOnlyCount += 1;
+        else aggregate.otherFailureCount += 1;
+
+        const firstFailureYear = Math.min(
+          checkpoint.firstWithdrawalShortfallYear ?? Number.POSITIVE_INFINITY,
+          checkpoint.firstDepletionYear ?? Number.POSITIVE_INFINITY,
+        );
+        if (Number.isFinite(firstFailureYear)) {
+          aggregate.firstFailureYears.set(
+            firstFailureYear,
+            (aggregate.firstFailureYears.get(firstFailureYear) ?? 0) + 1,
+          );
+        }
+      }
       assertFinite(aggregate.endingRealAssetsTotal, `${checkpoint.periodYears}년 종료 실질자산 집계`);
     }
   }
@@ -497,6 +565,41 @@ export function runRetirementBootstrap(
       averageEndingRealAssets: aggregate.endingRealAssetsTotal / iterations,
     };
   });
+  const failurePeriodDiagnostics = periods.map((periodYears) => {
+    const aggregate = aggregates.get(periodYears)!;
+    return {
+      periodYears,
+      successCount: aggregate.successCount,
+      withdrawalShortfallOnlyCount: aggregate.withdrawalShortfallOnlyCount,
+      depletionOnlyCount: aggregate.depletionOnlyCount,
+      withdrawalShortfallAndDepletionCount: aggregate.withdrawalShortfallAndDepletionCount,
+      otherFailureCount: aggregate.otherFailureCount,
+      firstFailureYears: Array.from(aggregate.firstFailureYears.entries())
+        .sort(([left], [right]) => left - right)
+        .map(([calendarYear, count]) => ({
+          calendarYear,
+          yearNumber: calendarYear - input.startYear,
+          count,
+        })),
+    };
+  });
+  const firstWithdrawalCount = firstWithdrawalAggregate.observedPathCount;
+  const firstWithdrawalCashflow = firstWithdrawalCount > 0 ? {
+    yearNumber: firstWithdrawalAggregate.yearNumber,
+    calendarYear: firstWithdrawalAggregate.calendarYear,
+    observedPathCount: firstWithdrawalCount,
+    shortfallCount: firstWithdrawalAggregate.shortfallCount,
+    averageRequiredWithdrawalNominal: firstWithdrawalAggregate.requiredTotal / firstWithdrawalCount,
+    averageGrossIsaWithdrawal: firstWithdrawalAggregate.grossIsaTotal / firstWithdrawalCount,
+    averageNetIsaWithdrawal: firstWithdrawalAggregate.netIsaTotal / firstWithdrawalCount,
+    averageGrossPensionWithdrawal: firstWithdrawalAggregate.grossPensionTotal / firstWithdrawalCount,
+    averageNetPensionWithdrawal: firstWithdrawalAggregate.netPensionTotal / firstWithdrawalCount,
+    averageGrossBrokerageDividend: firstWithdrawalAggregate.grossBrokerageDividendTotal / firstWithdrawalCount,
+    averageNetBrokerageDividend: firstWithdrawalAggregate.netBrokerageDividendTotal / firstWithdrawalCount,
+    averageSuppliedWithdrawalNet: firstWithdrawalAggregate.suppliedTotal / firstWithdrawalCount,
+    minimumSuppliedWithdrawalNet: firstWithdrawalAggregate.minimumSupplied,
+    maximumSuppliedWithdrawalNet: firstWithdrawalAggregate.maximumSupplied,
+  } : null;
 
   return {
     method: "five_year_block_bootstrap_recentered",
@@ -512,5 +615,9 @@ export function runRetirementBootstrap(
     realValueBasis: "simulation_start_purchasing_power",
     recenteringDiagnostics: model.recenteringDiagnostics,
     periods: periodResults,
+    failureDiagnostics: {
+      periods: failurePeriodDiagnostics,
+      firstWithdrawalCashflow,
+    },
   };
 }
