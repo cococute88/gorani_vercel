@@ -15,7 +15,7 @@ export default function CalculatorWarningPanel({ warnings, error }: Props) {
       )}
       {warnings.length > 0 && (
         <div className="rounded-xl border border-amber-500/25 bg-amber-50 px-4 py-3 text-[12.5px] text-amber-800 dark:bg-amber-950/15 dark:text-amber-100/90">
-          <p className="font-semibold text-amber-700 dark:text-amber-200">Warnings</p>
+          <p className="font-semibold text-amber-700 dark:text-amber-200">주의</p>
           <ul className="mt-1.5 list-disc space-y-0.5 pl-5 text-amber-800 dark:text-amber-100/80">
             {warnings.map((warning) => (
               <li key={warning}>{warning}</li>

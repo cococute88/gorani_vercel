@@ -32,18 +32,33 @@ export type SimulatorPortfolioPersistence = {
   retirementSafetyConfig?: RetirementSafetyConfigV1;
 };
 
-// 저장/복원 시 목표 월생활비 설정을 방어적으로 정규화한다.
+// 저장/복원 시 안전성 체크 전용 설정을 방어적으로 정규화한다.
 // - version 이 1 이 아니면 무효(null)
-// - targetMonthlyExpenseReal 은 유한한 양수만 허용(NaN/Infinity/0 이하 → 무효)
-// - 담을 유효 값이 없으면 config 자체를 생략(null)해 저장 payload를 깔끔하게 유지한다.
+// - 목표 월생활비는 유한한 양수, 기간은 1~70년 정수, 물가상승률은 0~50%만 허용한다.
+// - 기존 문서가 목표 월생활비만 가진 경우도 그대로 유효하다.
 export function normalizeRetirementSafetyConfig(raw: unknown): RetirementSafetyConfigV1 | null {
   if (!raw || typeof raw !== "object") return null;
-  const candidate = raw as { version?: unknown; targetMonthlyExpenseReal?: unknown };
+  const candidate = raw as { version?: unknown; targetMonthlyExpenseReal?: unknown; simulationYears?: unknown; inflationRate?: unknown };
   if (candidate.version !== 1) return null;
-  const value = candidate.targetMonthlyExpenseReal;
-  const normalized = typeof value === "number" && Number.isFinite(value) && value > 0 ? value : null;
-  if (normalized === null) return null;
-  return { version: 1, targetMonthlyExpenseReal: normalized };
+  const targetMonthlyExpenseReal =
+    typeof candidate.targetMonthlyExpenseReal === "number" && Number.isFinite(candidate.targetMonthlyExpenseReal) && candidate.targetMonthlyExpenseReal > 0
+      ? candidate.targetMonthlyExpenseReal
+      : null;
+  const simulationYears =
+    typeof candidate.simulationYears === "number" && Number.isFinite(candidate.simulationYears) && Number.isInteger(candidate.simulationYears) && candidate.simulationYears >= 1 && candidate.simulationYears <= 70
+      ? candidate.simulationYears
+      : null;
+  const inflationRate =
+    typeof candidate.inflationRate === "number" && Number.isFinite(candidate.inflationRate) && candidate.inflationRate >= 0 && candidate.inflationRate <= 50
+      ? candidate.inflationRate
+      : null;
+  if (targetMonthlyExpenseReal === null && simulationYears === null && inflationRate === null) return null;
+  return {
+    version: 1,
+    ...(targetMonthlyExpenseReal !== null ? { targetMonthlyExpenseReal } : {}),
+    ...(simulationYears !== null ? { simulationYears } : {}),
+    ...(inflationRate !== null ? { inflationRate } : {}),
+  };
 }
 
 function timestampToMs(value: unknown): number {

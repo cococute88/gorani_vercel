@@ -18,6 +18,7 @@ export type PortfolioAssetClassification =
 const KNOWN_TICKERS = [
   "TQQQ",
   "QLD",
+  "QQQM",
   "QQQ",
   "SPY",
   "SPYM",
@@ -41,8 +42,9 @@ interface KeywordRule {
 }
 
 const KEYWORD_RULES: KeywordRule[] = [
-  { ticker: "TQQQ", confidence: "high", keywords: ["tqqq", "proshares qqq 3", "qqq 3x", "qqq 3", "qqq 레버리지 3", "qqq 3배"] },
-  { ticker: "QLD", confidence: "high", keywords: ["qld", "qqq 2x", "proshares ultra qqq", "qqq 2", "qqq 2배", "qqq 레버리지 2"] },
+  { ticker: "TQQQ", confidence: "high", keywords: ["tqqq"] },
+  { ticker: "QLD", confidence: "high", keywords: ["qld"] },
+  { ticker: "QQQM", confidence: "high", keywords: ["qqqm"] },
   { ticker: "QQQ", confidence: "high", keywords: ["invesco qqq", "nasdaq 100", "nasdaq100", "나스닥 100 인베스코", "나스닥100 인베스코"] },
   { ticker: "SPY", confidence: "high", keywords: ["spdr s&p 500", "spdr sp500", "spdr s&p500"] },
   { ticker: "SPYM", confidence: "high", keywords: ["spym"] },
@@ -126,6 +128,41 @@ function hasAny(text: string, keywords: string[]): boolean {
   return keywords.some((keyword) => text.includes(keyword));
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+// 영문 ticker 한 단어는 ASCII 문자 경계로만 매칭한다. 예를 들어 QQQ가
+// QQQM에, SPY가 SPYM에 부분 일치해 더 구체적인 ticker를 덮지 않게 한다.
+function matchesTickerKeyword(text: string, keyword: string): boolean {
+  // 기존 계좌 라벨의 키움TQQQ1/키움TQQQ3은 같은 TQQQ 종목을 계좌별로
+  // 구분한 이름이다. 끝의 숫자만 허용하고 중간 부분문자열은 허용하지 않는다.
+  if (keyword.toLowerCase() === "tqqq") {
+    return /(^|[^a-z0-9])tqqq\d*$/i.test(text);
+  }
+  if (/^[a-z][a-z0-9.-]{0,9}$/i.test(keyword)) {
+    return new RegExp(`(^|[^a-z0-9])${escapeRegExp(keyword)}([^a-z0-9]|$)`, "i").test(text);
+  }
+  return text.includes(keyword);
+}
+
+// 상품명 전체가 명확한 상용명/별칭일 때만 레버리지 ticker를 복원한다.
+// 단순히 "QQQ 2배"라는 문구가 포함됐다는 이유로 다른 상품을 QLD로 만들지 않는다.
+function exactLeveragedQqqAlias(product: string): TickerGuess | null {
+  const compact = product
+    .trim()
+    .toLowerCase()
+    .replace(/[®™]/g, "")
+    .replace(/\s+/g, " ");
+  if (/^(?:qqq\s*2(?:x|배)\s*(?:프로셰어즈|proshares)(?:\s+ultra)?(?:\s+etf)?|proshares\s+ultra\s+qqq(?:\s+etf)?)$/i.test(compact)) {
+    return { ticker: "QLD", confidence: "high", matchedBy: "keyword" };
+  }
+  if (/^(?:qqq\s*3(?:x|배)\s*(?:프로셰어즈|proshares)(?:\s+ultrapro)?(?:\s+etf)?|proshares\s+ultrapro\s+qqq(?:\s+etf)?)$/i.test(compact)) {
+    return { ticker: "TQQQ", confidence: "high", matchedBy: "keyword" };
+  }
+  return null;
+}
+
 export function guessTicker(productNameRaw: string): TickerGuess {
   const product = (productNameRaw || "").trim();
   if (!product) return { ticker: null, confidence: "none", matchedBy: "none" };
@@ -141,13 +178,16 @@ export function guessTicker(productNameRaw: string): TickerGuess {
     return { ticker: null, confidence: "none", matchedBy: "cash" };
   }
 
+  const leveragedAlias = exactLeveragedQqqAlias(product);
+  if (leveragedAlias) return leveragedAlias;
+
   const token = product.toUpperCase().replace(/[^A-Z0-9]/g, "");
   if (token.length >= 1 && KNOWN_TICKERS.includes(token)) {
     return { ticker: token, confidence: "high", matchedBy: "exact" };
   }
 
   for (const rule of KEYWORD_RULES) {
-    if (rule.keywords.some((keyword) => lower.includes(keyword))) {
+    if (rule.keywords.some((keyword) => matchesTickerKeyword(lower, keyword))) {
       return { ticker: rule.ticker, confidence: rule.confidence, matchedBy: "keyword" };
     }
   }
