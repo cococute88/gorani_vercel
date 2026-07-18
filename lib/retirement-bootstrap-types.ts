@@ -36,9 +36,14 @@ export type DistributionStressPolicy = {
 };
 
 export type AssetClassAnnualPattern = {
-  /** 배당을 포함한 자산군 연간 총수익률. 절세계좌 CAGR 편차에 사용한다. */
+  /**
+   * 절세계좌 총수익 CAGR에 재중심화할 canonical pattern slot.
+   * `source_total_return` 자산군(S&P 500)은 실제 역사 total return이고,
+   * `price_pattern_recentered_to_user_total_return_cagr` 자산군은 원천 price return을
+   * 호환성 때문에 복제한 값이다. 실제 source field 선택은 assetClassMethodology를 따른다.
+   */
   totalReturnPct: number;
-  /** 배당을 제외한 자산군 연간 가격수익률. 위탁계좌 가격 편차에 사용한다. */
+  /** 원천 자산군 연간 가격수익률. 위탁계좌 가격 편차와 price-return proxy에 사용한다. */
   priceReturnPct: number;
   /** 선택 필드. 완결된 자산군 배당성장 데이터가 있을 때만 사용한다. */
   dividendGrowthPct?: number;
@@ -52,10 +57,37 @@ export type AnnualMarketPatternObservation = {
 };
 
 export type MarketPatternDatasetSource = {
+  sourceId: string;
   name: string;
-  url?: string;
+  url: string;
+  role: "market_pattern" | "inflation" | "license";
   license: string;
-  retrievedAt?: string;
+  licenseUrl: string;
+  retrievedAt: string;
+  revision?: string;
+  contentSha256: string;
+};
+
+export type MarketPatternAssetClassMethodology = {
+  proxyName: string;
+  sourceReturnType: "price_and_total_return" | "price_return_proxy";
+  totalReturnPolicy: "source_total_return" | "price_pattern_recentered_to_user_total_return_cagr";
+  dividendGrowthPolicy: "source_pattern" | "user_assumption_only";
+  notes: string;
+};
+
+export type MarketPatternDatasetLicense = {
+  name: string;
+  spdxId: string;
+  url: string;
+  attribution: string;
+  repositoryRedistribution: "allowed_with_attribution_and_share_alike" | "test_fixture_only";
+};
+
+export type MarketPatternDatasetIntegrity = {
+  algorithm: "SHA-256";
+  canonicalization: "JSON.stringify(observations)";
+  observationsSha256: string;
 };
 
 export type MarketPatternDatasetV1 = {
@@ -63,9 +95,13 @@ export type MarketPatternDatasetV1 = {
   datasetId: string;
   datasetVersion: string;
   usage: "production" | "test_fixture";
+  updatedAt: string;
   periodStartYear: number;
   periodEndYear: number;
+  license: MarketPatternDatasetLicense;
   sources: MarketPatternDatasetSource[];
+  assetClassMethodology: Record<AssetClassPatternId, MarketPatternAssetClassMethodology>;
+  integrity: MarketPatternDatasetIntegrity;
   observations: AnnualMarketPatternObservation[];
 };
 
@@ -191,6 +227,7 @@ export type RetirementBootstrapResult = {
   datasetVersion: string;
   datasetUsage: MarketPatternDatasetV1["usage"];
   dataPeriod: { startYear: number; endYear: number };
+  datasetUpdatedAt: string;
   realValueBasis: "simulation_start_purchasing_power";
   recenteringDiagnostics: RecenteringDiagnostics[];
   periods: RetirementBootstrapPeriodResult[];

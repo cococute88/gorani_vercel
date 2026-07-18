@@ -16,19 +16,19 @@ export const ETF_PATTERN_MAPPINGS: Readonly<Record<string, EtfPatternMapping>> =
     ticker: "QQQ",
     assetClass: "us_large_growth",
     distributionPolicy: "standard_dividend",
-    rationale: "미국 대형 성장주 변동 패턴을 사용합니다.",
+    rationale: "Nasdaq Composite 가격 변동 proxy를 사용자 QQQ 총수익 CAGR 중심으로 재중심화합니다.",
   },
   SCHD: {
     ticker: "SCHD",
     assetClass: "us_dividend_value",
     distributionPolicy: "standard_dividend",
-    rationale: "미국 배당·가치주 변동 및 이용 가능한 배당성장 패턴을 사용합니다.",
+    rationale: "SCHD의 장기 가격 충격·회복 순서를 근사하는 DJIA 30개 우량 대형주 가격 변동 proxy를 사용합니다.",
   },
   JEPQ: {
     ticker: "JEPQ",
     assetClass: "us_large_growth",
     distributionPolicy: "income_strategy",
-    rationale: "가격 변동 순서만 미국 대형 성장주에서 참고하고 CAGR·분배율·분배성장은 사용자 입력을 유지합니다.",
+    rationale: "Nasdaq Composite 가격 변동 순서를 참고하되 가격 CAGR·분배율·분배성장은 사용자 입력을 유지하며 옵션 overlay 변동성 완화는 재현하지 않습니다.",
   },
 });
 
