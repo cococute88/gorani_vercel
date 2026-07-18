@@ -315,14 +315,16 @@ function simulateCompiledPath(
     if (isWithdrawalYear && brokerageBalance > 0) {
       grossDividend = model.brokerageHoldings.reduce((sum, holding, holdingIndex) => {
         const rawPricePattern = observation.assetClasses[holding.mapping.assetClass]!.priceReturnPct;
-        const paymentMultiplier = resolveDistributionPaymentMultiplier(distributionStressPolicy, {
-          ticker: holding.ticker,
-          assetClass: holding.mapping.assetClass,
-          distributionPolicy: holding.mapping.distributionPolicy,
-          rawAssetClassPricePatternPct: rawPricePattern,
-          sourceObservationYear: observation.year,
-          pathYearNumber: yearNumber,
-        });
+        const paymentMultiplier = distributionStressPolicy
+          ? resolveDistributionPaymentMultiplier(distributionStressPolicy, {
+            ticker: holding.ticker,
+            assetClass: holding.mapping.assetClass,
+            distributionPolicy: holding.mapping.distributionPolicy,
+            rawAssetClassPricePatternPct: rawPricePattern,
+            sourceObservationYear: observation.year,
+            pathYearNumber: yearNumber,
+          })
+          : 1;
         return sum + annualDividendNominal[holdingIndex] * paymentMultiplier;
       }, 0);
     }
