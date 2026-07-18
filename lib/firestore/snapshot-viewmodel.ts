@@ -42,6 +42,7 @@ import {
   decorateHoldingWithTags,
 } from "../portfolio-tags";
 import { canonicalizeAccountGroupLabel } from "../account-status-group";
+import { normalizePortfolioSnapshotMetadata } from "../portfolio-snapshot-metadata";
 
 type RawRecord = Record<string, unknown>;
 
@@ -215,6 +216,12 @@ function mapHolding(raw: RawRecord, index: number): Holding {
   return {
     ...decorated,
     accountGroup: canonicalizeAccountGroupLabel(decorated.accountGroup),
+    tickerSource: mapped.ticker ? "explicit" : undefined,
+    accountGroupSource: decorated.parsedTags?.accountGroup
+      ? "tag"
+      : mapped.accountGroup
+        ? "explicit"
+        : "fallback",
   };
 }
 
@@ -244,6 +251,11 @@ function mapCashAsset(raw: RawRecord, index: number): FinanceAsset {
   return {
     ...decorated,
     accountGroup: canonicalizeAccountGroupLabel(decorated.accountGroup),
+    accountGroupSource: decorated.parsedTags?.accountGroup
+      ? "tag"
+      : mapped.accountGroup
+        ? "explicit"
+        : "fallback",
   };
 }
 
@@ -478,7 +490,7 @@ export function mapPortfolioSnapshotRecordToViewModel(
 
   const metadataSources: Array<RawRecord | undefined> = [metadata, snapshotContainer, data];
 
-  return {
+  const mappedSnapshot: PortfolioSnapshot = {
     id,
     snapshotDate,
     sourceFileName:
@@ -516,6 +528,16 @@ export function mapPortfolioSnapshotRecordToViewModel(
         ["excluded_holding_value_krw", "excludedHoldingValueKRW"],
       ),
       liveViewVersion: `firestore-snapshot-${documentVersion}`,
+    },
+  };
+  const normalized = normalizePortfolioSnapshotMetadata(mappedSnapshot);
+  return {
+    ...normalized.snapshot,
+    metadata: {
+      ...normalized.snapshot.metadata!,
+      recoveredTickerCount: normalized.diagnostics.recoveredTickerCount,
+      recoveredAccountGroupCount: normalized.diagnostics.recoveredAccountGroupCount,
+      unresolvedTickerCount: normalized.diagnostics.missingTickerAfter,
     },
   };
 }

@@ -19,6 +19,7 @@ export interface Holding {
   productName: string; // 상품명 (원본)
   cleanName?: string; // 태그를 제거한 표시명
   ticker?: string; // 명시/추정 티커 (대문자). 현금성 행은 파서가 새 티커를 추정하지 않는다.
+  tickerSource?: "manual" | "explicit" | "product-alias" | "existing" | "korean-registry";
   tag?: string; // 상품명에서 추출한 #태그
   principalKRW: number; // 투자원금
   valueKRW: number; // 평가금액
@@ -31,6 +32,7 @@ export interface Holding {
   category?: string; // 분류 (옵션)
   symbolGroup?: string; // ①종목 태그 그룹
   accountGroup?: string; // ②계좌 태그 그룹
+  accountGroupSource?: "explicit" | "tag" | "snapshot-consensus" | "existing" | "fallback";
   purposeGroup?: string; // ③목적 태그 그룹
   statusGroup?: string; // ④현황 태그 그룹
   parsedTags?: import("./portfolio-tags").PortfolioTags;
@@ -53,6 +55,7 @@ export interface FinanceAsset {
   isDebt?: boolean; // 부채 영역 여부
   symbolGroup?: string; // ①종목 태그 그룹
   accountGroup?: string; // ②계좌 태그 그룹
+  accountGroupSource?: "explicit" | "tag" | "snapshot-consensus" | "existing" | "fallback";
   purposeGroup?: string; // ③목적 태그 그룹
   statusGroup?: string; // ④현황 태그 그룹
   parsedTags?: import("./portfolio-tags").PortfolioTags;
@@ -98,6 +101,9 @@ export interface PortfolioSnapshot {
     excludedBelowMinimumCount: number;
     excludedHoldingValueKRW: number;
     liveViewVersion?: string;
+    recoveredTickerCount?: number;
+    recoveredAccountGroupCount?: number;
+    unresolvedTickerCount?: number;
   };
 }
 

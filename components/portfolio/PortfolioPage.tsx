@@ -73,6 +73,7 @@ import { useResolvedTheme } from "@/components/theme/ThemeProvider";
 import { usePortfolioCloudSync } from "@/lib/portfolio-cloud-sync";
 import { USE_FIRESTORE_CONTRACT } from "@/lib/feature-flags";
 import { markPortfolioCloudSyncNow } from "@/lib/portfolio-cloud-sync-time";
+import { mergePortfolioSnapshotMetadata } from "@/lib/portfolio-snapshot-metadata";
 
 function snapshotToResult(s: PortfolioSnapshot): ParseResult {
   return {
@@ -365,7 +366,7 @@ export default function PortfolioPage() {
   const handleRegister = async () => {
     if (!result || !result.ok) return;
     const chosen = filterAggregateHoldings(holdings.filter((h) => selected[h.id] ?? true));
-    const snap = resultToSnapshot(result, chosen);
+    const snap = mergePortfolioSnapshotMetadata(resultToSnapshot(result, chosen), snapshots);
     if (hasSnapshotDate(snap.snapshotDate)) {
       const ok = window.confirm(
         `${snap.snapshotDate} 스냅샷이 이미 있습니다. 덮어쓰시겠습니까?`,
@@ -516,7 +517,11 @@ export default function PortfolioPage() {
     const normalized = normalizeKrxTickerForTickerMap(ticker);
 
     if (!normalized) {
-      setHoldings((prev) => prev.map((h) => (h.id === id ? { ...h, ticker } : h)));
+      setHoldings((prev) => prev.map((h) => (h.id === id ? {
+        ...h,
+        ticker,
+        tickerSource: ticker.trim() ? "manual" as const : undefined,
+      } : h)));
       const compact = ticker.trim().replace(/\s+/g, "").toUpperCase();
       if (compact.length >= 6 && compact !== "") {
         setTickerMapNotice({
@@ -548,6 +553,7 @@ export default function PortfolioPage() {
         ? {
             ...holding,
             ticker: upserted.entry.displayTicker,
+            tickerSource: "manual" as const,
             tickerConfidence: "high" as const,
             needsReview: false,
           }
