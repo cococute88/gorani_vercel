@@ -149,22 +149,32 @@ export function compileRetirementBootstrapModel(
     dataset.observations.map((row) => row.inflationPct),
     input.expectedInflationPct,
   );
-  const taxSavingHoldings = input.taxSavingHoldings.map((holding): CompiledTaxHolding => ({
-    ...holding,
-    centeredTotalReturnsPct: centerSeries(
-      `tax_total_return:${holding.ticker}`,
-      dataset.observations.map((row) => row.assetClasses[holding.mapping.assetClass]!.totalReturnPct),
-      holding.expectedTotalReturnCagrPct,
-    ),
-  }));
+  const taxSavingHoldings = input.taxSavingHoldings.map((holding): CompiledTaxHolding => {
+    const methodology = dataset.assetClassMethodology[holding.mapping.assetClass];
+    const usesSourceTotalReturn = methodology.totalReturnPolicy === "source_total_return";
+    const sourceField = usesSourceTotalReturn ? "totalReturnPct" : "priceReturnPct";
+    const sourceLabel = usesSourceTotalReturn ? "source_total_return" : "price_return_proxy";
+    return {
+      ...holding,
+      centeredTotalReturnsPct: centerSeries(
+        `tax_total_return_target_from_${sourceLabel}:${holding.ticker}`,
+        dataset.observations.map((row) => row.assetClasses[holding.mapping.assetClass]![sourceField]),
+        holding.expectedTotalReturnCagrPct,
+      ),
+    };
+  });
   const brokerageHoldings = input.brokerageHoldings.map((holding): CompiledBrokerageHolding => {
+    const methodology = dataset.assetClassMethodology[holding.mapping.assetClass];
+    const priceSourceLabel = methodology.sourceReturnType === "price_return_proxy"
+      ? "price_return_proxy"
+      : "source_price_return";
     const historicalDividendGrowth = dataset.observations.map(
       (row) => row.assetClasses[holding.mapping.assetClass]!.dividendGrowthPct,
     );
     return {
       ...holding,
       centeredPriceReturnsPct: centerSeries(
-        `brokerage_price_return:${holding.ticker}`,
+        `brokerage_price_return_target_from_${priceSourceLabel}:${holding.ticker}`,
         dataset.observations.map((row) => row.assetClasses[holding.mapping.assetClass]!.priceReturnPct),
         holding.expectedPriceCagrPct,
       ),

@@ -16,7 +16,7 @@ export async function assertMarketPatternDatasetIntegrity(dataset: MarketPattern
   const actual = await computeMarketPatternObservationsSha256(dataset.observations);
   if (actual !== dataset.integrity.observationsSha256) {
     throw new Error(
-      `production 시장 패턴 데이터 checksum이 일치하지 않습니다: expected=${dataset.integrity.observationsSha256}, actual=${actual}`,
+      `production 시장 패턴 observations payload checksum이 일치하지 않습니다: expected=${dataset.integrity.observationsSha256}, actual=${actual}`,
     );
   }
 }

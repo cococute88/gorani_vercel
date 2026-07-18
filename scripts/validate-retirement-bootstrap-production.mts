@@ -3,12 +3,14 @@ import assert from "node:assert/strict";
 import {
   ALL_RETIREMENT_BOOTSTRAP_ASSET_CLASSES,
   createSeededPrng,
+  recenterHistoricalRatesPct,
   sampleMarketPatternBlocks,
   validateMarketPatternDataset,
 } from "../lib/retirement-bootstrap-data.ts";
 import {
   compileRetirementBootstrapModel,
   runRetirementBootstrap,
+  simulateRetirementBootstrapPath,
 } from "../lib/retirement-bootstrap-engine.ts";
 import {
   PRODUCTION_MARKET_PATTERN_DATA_ADAPTER,
@@ -68,6 +70,8 @@ assert.equal(dataset.periodStartYear, 1971);
 assert.equal(dataset.periodEndYear, 2025);
 assert.equal(dataset.observations.length, 55);
 assert.equal(dataset.observations.length - BLOCK_LENGTH + 1, 51);
+assert.deepEqual(dataset.observations.slice(0, BLOCK_LENGTH).map((row) => row.year), [1971, 1972, 1973, 1974, 1975]);
+assert.deepEqual(dataset.observations.slice(-BLOCK_LENGTH).map((row) => row.year), [2021, 2022, 2023, 2024, 2025]);
 validateMarketPatternDataset(dataset, ALL_RETIREMENT_BOOTSTRAP_ASSET_CLASSES, BLOCK_LENGTH);
 await assertMarketPatternDatasetIntegrity(dataset);
 
@@ -90,6 +94,17 @@ assert.ok(
 );
 assert.equal(dataset.assetClassMethodology.us_large_growth.sourceReturnType, "price_return_proxy");
 assert.equal(dataset.assetClassMethodology.us_dividend_value.sourceReturnType, "price_return_proxy");
+assert.equal(dataset.assetClassMethodology.us_large_cap.totalReturnPolicy, "source_total_return");
+assert.equal(
+  dataset.assetClassMethodology.us_large_growth.totalReturnPolicy,
+  "price_pattern_recentered_to_user_total_return_cagr",
+);
+assert.ok(dataset.assetClassMethodology.us_large_growth.notes.includes("JEPQ 옵션 overlay의 낮은 변동성은 재현하지 않습니다"));
+assert.ok(dataset.assetClassMethodology.us_dividend_value.notes.includes("SCHD 실제 역사나 배당·가치 지수가 아니며"));
+assert.ok(dataset.observations.every((row) => (
+  row.assetClasses.us_large_growth!.totalReturnPct === row.assetClasses.us_large_growth!.priceReturnPct
+  && row.assetClasses.us_dividend_value!.totalReturnPct === row.assetClasses.us_dividend_value!.priceReturnPct
+)), "price-return proxy의 호환 totalReturnPct slot은 원천 priceReturnPct와 같아야 합니다.");
 assert.notDeepEqual(
   dataset.observations.map((row) => row.assetClasses.us_large_cap!.priceReturnPct),
   dataset.observations.map((row) => row.assetClasses.us_large_growth!.priceReturnPct),
@@ -97,6 +112,7 @@ assert.notDeepEqual(
 );
 
 const sampled = sampleMarketPatternBlocks(dataset, 70, BLOCK_LENGTH, createSeededPrng(20260718));
+assert.equal(sampled.blockStarts.length, 14, "70년 경로는 5년 블록 14개를 복원추출합니다.");
 sampled.observations.forEach((observation, index) => {
   assert.equal(observation, dataset.observations[sampled.observationIndices[index]], "같은 연도 행 전체가 함께 이동");
 });
@@ -106,6 +122,8 @@ for (let offset = 0; offset < sampled.observationIndices.length; offset += BLOCK
     assert.equal(block[index], block[index - 1] + 1, "5년 블록 내부 연도 순서 유지");
   }
 }
+const repeatedBlockSample = sampleMarketPatternBlocks(dataset, 10, BLOCK_LENGTH, () => 0);
+assert.deepEqual(repeatedBlockSample.blockStarts, [0, 0], "같은 역사 블록을 한 경로에서 복원추출할 수 있어야 합니다.");
 
 const input = buildRetirementBootstrapProductionRepresentativeInput();
 const compiled = compileRetirementBootstrapModel(input, dataset, BLOCK_LENGTH);
@@ -123,6 +141,131 @@ assert.ok(
   )),
   "배당성장 pattern 부재 시 사용자 배당성장률 중심 정책을 그대로 유지",
 );
+
+const spy = compiled.taxSavingHoldings.find((holding) => holding.ticker === "SPY")!;
+const qqq = compiled.taxSavingHoldings.find((holding) => holding.ticker === "QQQ")!;
+const schd = compiled.brokerageHoldings.find((holding) => holding.ticker === "SCHD")!;
+const jepq = compiled.brokerageHoldings.find((holding) => holding.ticker === "JEPQ")!;
+assert.deepEqual(
+  spy.centeredTotalReturnsPct,
+  recenterHistoricalRatesPct(
+    dataset.observations.map((row) => row.assetClasses.us_large_cap!.totalReturnPct),
+    spy.expectedTotalReturnCagrPct,
+  ),
+  "SPY 절세계좌는 S&P 500 source total return을 사용자 total-return CAGR에 재중심화합니다.",
+);
+assert.deepEqual(
+  qqq.centeredTotalReturnsPct,
+  recenterHistoricalRatesPct(
+    dataset.observations.map((row) => row.assetClasses.us_large_growth!.priceReturnPct),
+    qqq.expectedTotalReturnCagrPct,
+  ),
+  "QQQ 절세계좌는 Nasdaq Composite price-return proxy를 사용자 total-return CAGR에 재중심화합니다.",
+);
+assert.deepEqual(
+  schd.centeredPriceReturnsPct,
+  recenterHistoricalRatesPct(
+    dataset.observations.map((row) => row.assetClasses.us_dividend_value!.priceReturnPct),
+    schd.expectedPriceCagrPct,
+  ),
+  "SCHD 위탁계좌는 DJIA price-return proxy를 사용자 price CAGR에 재중심화합니다.",
+);
+assert.deepEqual(
+  jepq.centeredPriceReturnsPct,
+  recenterHistoricalRatesPct(
+    dataset.observations.map((row) => row.assetClasses.us_large_growth!.priceReturnPct),
+    jepq.expectedPriceCagrPct,
+  ),
+  "JEPQ 위탁계좌는 Nasdaq Composite price-return proxy를 사용자 price CAGR에 재중심화합니다.",
+);
+assert.ok(compiled.recenteringDiagnostics.some(
+  (row) => row.seriesId === "tax_total_return_target_from_source_total_return:SPY",
+));
+assert.ok(compiled.recenteringDiagnostics.some(
+  (row) => row.seriesId === "tax_total_return_target_from_price_return_proxy:QQQ",
+));
+assert.ok(compiled.recenteringDiagnostics.some(
+  (row) => row.seriesId === "brokerage_price_return_target_from_price_return_proxy:SCHD",
+));
+assert.ok(compiled.recenteringDiagnostics.some(
+  (row) => row.seriesId === "brokerage_price_return_target_from_price_return_proxy:JEPQ",
+));
+
+const unusedSourceFieldsMutated = structuredClone(dataset);
+for (const row of unusedSourceFieldsMutated.observations) {
+  row.assetClasses.us_large_cap!.priceReturnPct += 25;
+  row.assetClasses.us_large_growth!.totalReturnPct += 25;
+  row.assetClasses.us_dividend_value!.totalReturnPct += 25;
+}
+const unusedSourceFieldsCompiled = compileRetirementBootstrapModel(input, unusedSourceFieldsMutated, BLOCK_LENGTH);
+assert.deepEqual(
+  unusedSourceFieldsCompiled.taxSavingHoldings.map((holding) => holding.centeredTotalReturnsPct),
+  compiled.taxSavingHoldings.map((holding) => holding.centeredTotalReturnsPct),
+  "SPY price field와 QQQ proxy total-return 호환 slot은 절세계좌 source field가 아닙니다.",
+);
+assert.deepEqual(
+  unusedSourceFieldsCompiled.brokerageHoldings.map((holding) => holding.centeredPriceReturnsPct),
+  compiled.brokerageHoldings.map((holding) => holding.centeredPriceReturnsPct),
+  "위탁계좌 가격 경로는 totalReturnPct를 읽지 않습니다.",
+);
+
+const activeSourceFieldsMutated = structuredClone(dataset);
+activeSourceFieldsMutated.observations[0].assetClasses.us_large_cap!.totalReturnPct += 1;
+activeSourceFieldsMutated.observations[0].assetClasses.us_large_growth!.priceReturnPct += 1;
+activeSourceFieldsMutated.observations[0].assetClasses.us_dividend_value!.priceReturnPct += 1;
+const activeSourceFieldsCompiled = compileRetirementBootstrapModel(input, activeSourceFieldsMutated, BLOCK_LENGTH);
+assert.notDeepEqual(activeSourceFieldsCompiled.taxSavingHoldings, compiled.taxSavingHoldings, "절세계좌 active source field 변경 탐지");
+assert.notDeepEqual(activeSourceFieldsCompiled.brokerageHoldings, compiled.brokerageHoldings, "위탁계좌 active price field 변경 탐지");
+
+const taxOnlyInput = {
+  ...input,
+  initialBrokerage: 0,
+  brokerageHoldings: [],
+  withdrawalDelayYears: 2,
+  annualRequiredWithdrawalReal: 1,
+};
+const taxOnlyCompiled = compileRetirementBootstrapModel(taxOnlyInput, dataset, BLOCK_LENGTH);
+const taxOnlyPath = simulateRetirementBootstrapPath(taxOnlyInput, dataset, { years: 1, periods: [1], seed: 20260718 });
+const taxObservationIndex = taxOnlyPath.sampledObservationIndices[0];
+const expectedTaxReturnPct = taxOnlyCompiled.taxSavingHoldings.reduce((sum, holding) => (
+  sum + holding.weightPct * holding.centeredTotalReturnsPct[taxObservationIndex]
+), 0) / 100;
+assert.ok(Math.abs(
+  taxOnlyPath.records[0].nominalAssets
+    - (taxOnlyInput.initialIsa + taxOnlyInput.initialPension) * (1 + expectedTaxReturnPct / 100)
+) <= 1e-8, "SPY·QQQ 절세계좌 잔액에는 선택된 수익 pattern을 한 번만 적용합니다.");
+assert.equal(taxOnlyPath.records[0].suppliedWithdrawalNet, 0, "절세계좌에서 별도 배당 현금흐름을 생성하지 않습니다.");
+
+const brokerageOnlyInput = {
+  ...input,
+  initialIsa: 0,
+  initialPension: 0,
+  taxSavingHoldings: [],
+  annualRequiredWithdrawalReal: 1,
+};
+const brokerageOnlyCompiled = compileRetirementBootstrapModel(brokerageOnlyInput, dataset, BLOCK_LENGTH);
+const brokerageOnlyPath = simulateRetirementBootstrapPath(brokerageOnlyInput, dataset, { years: 1, periods: [1], seed: 20260718 });
+const brokerageObservationIndex = brokerageOnlyPath.sampledObservationIndices[0];
+const expectedBrokeragePriceReturnPct = brokerageOnlyCompiled.brokerageHoldings.reduce((sum, holding) => (
+  sum + holding.weightPct * holding.centeredPriceReturnsPct[brokerageObservationIndex]
+), 0) / 100;
+const expectedUserDividendNet = input.initialBrokerage * (0.9 * 0.032 + 0.1 * 0.09) * 0.85;
+assert.ok(Math.abs(
+  brokerageOnlyPath.records[0].nominalAssets
+    - input.initialBrokerage * (1 + expectedBrokeragePriceReturnPct / 100)
+) <= 1e-8, "SCHD·JEPQ 위탁 잔액에는 가격수익만 적용하고 배당을 재투자하거나 차감하지 않습니다.");
+assert.ok(Math.abs(brokerageOnlyPath.records[0].suppliedWithdrawalNet - expectedUserDividendNet) <= 1e-9,
+  "SCHD·JEPQ 배당 현금흐름은 사용자 배당률을 세후로 한 번만 적용합니다.");
+
+const jepqOnlyHolding = input.brokerageHoldings.find((holding) => holding.ticker === "JEPQ")!;
+const jepqOnlyInput = {
+  ...brokerageOnlyInput,
+  initialBrokerage: 10_000,
+  brokerageHoldings: [{ ...jepqOnlyHolding, weightPct: 100 }],
+};
+const jepqOnlyPath = simulateRetirementBootstrapPath(jepqOnlyInput, dataset, { years: 1, periods: [1], seed: 20260718 });
+assert.ok(Math.abs(jepqOnlyPath.records[0].suppliedWithdrawalNet - 10_000 * 0.09 * 0.85) <= 1e-9,
+  "JEPQ production 기본 분배 배수는 haircut 없는 1.0입니다.");
 
 const tenThousandResults = SEEDS.map((seed) => runRetirementBootstrap(input, dataset, {
   iterations: ITERATIONS,

@@ -36,9 +36,14 @@ export type DistributionStressPolicy = {
 };
 
 export type AssetClassAnnualPattern = {
-  /** 배당을 포함한 자산군 연간 총수익률. 절세계좌 CAGR 편차에 사용한다. */
+  /**
+   * 절세계좌 총수익 CAGR에 재중심화할 canonical pattern slot.
+   * `source_total_return` 자산군(S&P 500)은 실제 역사 total return이고,
+   * `price_pattern_recentered_to_user_total_return_cagr` 자산군은 원천 price return을
+   * 호환성 때문에 복제한 값이다. 실제 source field 선택은 assetClassMethodology를 따른다.
+   */
   totalReturnPct: number;
-  /** 배당을 제외한 자산군 연간 가격수익률. 위탁계좌 가격 편차에 사용한다. */
+  /** 원천 자산군 연간 가격수익률. 위탁계좌 가격 편차와 price-return proxy에 사용한다. */
   priceReturnPct: number;
   /** 선택 필드. 완결된 자산군 배당성장 데이터가 있을 때만 사용한다. */
   dividendGrowthPct?: number;

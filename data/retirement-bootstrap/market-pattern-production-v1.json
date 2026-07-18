@@ -72,14 +72,14 @@
       "sourceReturnType": "price_return_proxy",
       "totalReturnPolicy": "price_pattern_recentered_to_user_total_return_cagr",
       "dividendGrowthPolicy": "user_assumption_only",
-      "notes": "장기 성장 성향 변동 proxy입니다. 가격 패턴을 사용자 총수익 CAGR에 재중심화하며 역사 배당을 추가하지 않습니다."
+      "notes": "Nasdaq Composite 가격 변동 proxy입니다. QQQ·JEPQ 실제 역사가 아니며, 가격 패턴을 사용자 CAGR에 재중심화하고 역사 배당을 추가하지 않습니다. JEPQ 옵션 overlay의 낮은 변동성은 재현하지 않습니다."
     },
     "us_dividend_value": {
       "proxyName": "Dow Jones Industrial Average",
       "sourceReturnType": "price_return_proxy",
       "totalReturnPolicy": "price_pattern_recentered_to_user_total_return_cagr",
       "dividendGrowthPolicy": "user_assumption_only",
-      "notes": "장기 우량·가치 성향 변동 proxy입니다. 배당성장 패턴을 만들지 않고 사용자 입력만 유지합니다."
+      "notes": "SCHD의 장기 가격 충격·회복 순서를 근사하는 DJIA 30개 우량 대형주 가격 변동 proxy입니다. SCHD 실제 역사나 배당·가치 지수가 아니며 사용자 배당 가정만 유지합니다."
     }
   },
   "integrity": {
