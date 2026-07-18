@@ -60,7 +60,7 @@ assert(files.lib.includes("resolvePeriodWindow") && files.lib.includes("clampedT
 // 9. Brush / range selector placement
 assert(files.mdd.includes("<Brush"), "Brush(range selector) 구조 존재");
 const yearlySection = files.mdd.slice(files.mdd.indexOf("{/* 연도별 수익률 */"), files.mdd.indexOf("{/* 종목 기본 정보 표"));
-const drawdownCompareSection = files.mdd.slice(files.mdd.indexOf("{/* 그래프 3 — 미국 종목만 달러 vs 원화 Drawdown 비교 */}"), files.mdd.indexOf("{/* 역대 최대 낙폭/회복기간 */"));
+const drawdownCompareSection = files.mdd.slice(files.mdd.indexOf("{/* 그래프 3 — 달러 vs 원화 Drawdown 비교 */"), files.mdd.indexOf("{/* 역대 최대 낙폭/회복기간 */"));
 assert(yearlySection.includes("<BarChart") && !yearlySection.includes("<Brush"), "연도별 수익률 그래프에 Brush 없음");
 assert(drawdownCompareSection.includes("달러 vs 원화 Drawdown 비교") && drawdownCompareSection.includes("<Brush"), "달러 vs 원화 Drawdown 비교 그래프에 Brush 있음");
 assert(drawdownCompareSection.includes("tickFormatter={formatAxisDate}"), "Drawdown 비교 Brush가 YY.MM formatter 사용");

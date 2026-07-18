@@ -11,6 +11,18 @@ export const MAX_CENTERED_ANNUAL_RETURN_PCT = 300;
 const MIN_LOG_GROSS = Math.log1p(MIN_CENTERED_ANNUAL_RETURN_PCT / 100);
 const MAX_LOG_GROSS = Math.log1p(MAX_CENTERED_ANNUAL_RETURN_PCT / 100);
 const BISECTION_STEPS = 80;
+const RECENTERING_LOG_TOLERANCE = 1e-12;
+
+export type RecenteredRateSeries = {
+  ratesPct: number[];
+  targetGeometricRatePct: number;
+  resultingGeometricRatePct: number;
+  observationCount: number;
+  clippedLowCount: number;
+  clippedHighCount: number;
+  logStandardDeviationBefore: number;
+  logStandardDeviationAfter: number;
+};
 
 function assertFinite(value: number, label: string): void {
   if (!Number.isFinite(value)) throw new Error(`${label} 값이 유한한 숫자가 아닙니다.`);
@@ -31,15 +43,20 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
+function standardDeviation(values: readonly number[]): number {
+  const average = mean(values);
+  return Math.sqrt(mean(values.map((value) => (value - average) ** 2)));
+}
+
 /**
  * 역사적 log gross return의 평균 대비 편차를 사용자 CAGR 중심에 옮긴다.
  * 상·하한에서 일부 값이 잘리더라도 전체 관측치의 기하평균이 사용자 중심값과
  * 일치하도록 shift를 이분법으로 다시 보정한다.
  */
-export function recenterHistoricalRatesPct(
+export function recenterHistoricalRatesPctWithDiagnostics(
   historicalRatesPct: readonly number[],
   targetGeometricRatePct: number,
-): number[] {
+): RecenteredRateSeries {
   if (historicalRatesPct.length === 0) throw new Error("재중심화할 역사 관측치가 없습니다.");
   const historicalLogs = historicalRatesPct.map((value, index) => ratePctToLogGross(value, `역사 관측치 ${index + 1}`));
   const historicalMean = mean(historicalLogs);
@@ -51,7 +68,17 @@ export function recenterHistoricalRatesPct(
     );
   }
   if (deviations.every((deviation) => Math.abs(deviation) <= Number.EPSILON)) {
-    return historicalRatesPct.map(() => targetGeometricRatePct);
+    const ratesPct = historicalRatesPct.map(() => targetGeometricRatePct);
+    return {
+      ratesPct,
+      targetGeometricRatePct,
+      resultingGeometricRatePct: targetGeometricRatePct,
+      observationCount: ratesPct.length,
+      clippedLowCount: 0,
+      clippedHighCount: 0,
+      logStandardDeviationBefore: 0,
+      logStandardDeviationAfter: 0,
+    };
   }
 
   const centeredMeanAt = (shift: number): number => mean(
@@ -66,11 +93,31 @@ export function recenterHistoricalRatesPct(
     else high = midpoint;
   }
   const calibratedShift = (low + high) / 2;
+  if (Math.abs(centeredMeanAt(calibratedShift) - targetLog) > RECENTERING_LOG_TOLERANCE) {
+    throw new Error("재중심화 보정이 허용 오차 안에 수렴하지 않았습니다.");
+  }
 
-  return deviations.map((deviation) => {
-    const centeredLog = clamp(calibratedShift + deviation, MIN_LOG_GROSS, MAX_LOG_GROSS);
+  const centeredLogs = deviations.map((deviation) => clamp(calibratedShift + deviation, MIN_LOG_GROSS, MAX_LOG_GROSS));
+  const ratesPct = centeredLogs.map((centeredLog) => {
     return Math.expm1(centeredLog) * 100;
   });
+  return {
+    ratesPct,
+    targetGeometricRatePct,
+    resultingGeometricRatePct: Math.expm1(mean(centeredLogs)) * 100,
+    observationCount: ratesPct.length,
+    clippedLowCount: centeredLogs.filter((value) => value === MIN_LOG_GROSS).length,
+    clippedHighCount: centeredLogs.filter((value) => value === MAX_LOG_GROSS).length,
+    logStandardDeviationBefore: standardDeviation(historicalLogs),
+    logStandardDeviationAfter: standardDeviation(centeredLogs),
+  };
+}
+
+export function recenterHistoricalRatesPct(
+  historicalRatesPct: readonly number[],
+  targetGeometricRatePct: number,
+): number[] {
+  return recenterHistoricalRatesPctWithDiagnostics(historicalRatesPct, targetGeometricRatePct).ratesPct;
 }
 
 export function geometricMeanRatePct(ratesPct: readonly number[]): number {
@@ -89,12 +136,16 @@ export function createSeededPrng(seed: number): () => number {
 }
 
 export function validateMarketPatternDataset(
-  dataset: MarketPatternDatasetV1,
+  dataset: MarketPatternDatasetV1 | null | undefined,
   requiredClasses: readonly AssetClassPatternId[],
   blockLength: number,
   allowTestFixture = false,
-): void {
+): asserts dataset is MarketPatternDatasetV1 {
+  if (!dataset) throw new Error("production 시장 패턴 데이터가 연결되지 않았습니다.");
   if (dataset.schemaVersion !== 1) throw new Error("지원하지 않는 시장 패턴 데이터 스키마입니다.");
+  if (dataset.usage !== "production" && dataset.usage !== "test_fixture") {
+    throw new Error("시장 패턴 데이터 용도가 올바르지 않습니다.");
+  }
   if (dataset.usage === "test_fixture" && !allowTestFixture) {
     throw new Error("테스트 전용 synthetic fixture는 production 시뮬레이션에 사용할 수 없습니다.");
   }

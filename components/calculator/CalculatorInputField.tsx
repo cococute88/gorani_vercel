@@ -2,11 +2,11 @@ import { ReactNode } from "react";
 
 const fieldBase = "rounded-xl border border-[#2a3336] bg-[#151a1b] px-4 py-3";
 
-export function TextInput({ label, value, onChange, placeholder, inputMode }: { label: string; value: string; onChange: (value: string) => void; placeholder?: string; inputMode?: "text" | "numeric" }) {
+export function TextInput({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
   return (
     <label className={fieldBase}>
       <span className="block text-[11.5px] text-slate-500">{label}</span>
-      <input value={value} placeholder={placeholder} inputMode={inputMode} onChange={(e) => onChange(e.target.value)} className="mt-1 w-full bg-transparent text-[13px] font-bold text-slate-100 outline-none placeholder:font-medium placeholder:text-slate-500" />
+      <input value={value} onChange={(e) => onChange(e.target.value)} className="mt-1 w-full bg-transparent text-[13px] font-bold text-slate-100 outline-none" />
     </label>
   );
 }

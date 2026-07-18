@@ -26,6 +26,7 @@ function taxHolding(holding: AppliedPortfolioHoldingAssumption): BootstrapTaxSav
     mapping: resolveEtfPatternMapping(holding.ticker),
   };
 }
+
 function brokerageHolding(holding: AppliedPortfolioHoldingAssumption): BootstrapBrokerageHolding {
   return {
     ticker: holding.ticker,

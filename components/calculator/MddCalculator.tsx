@@ -40,8 +40,7 @@ import {
   type PeriodKey,
 } from "@/lib/mdd-calculator";
 import type { MddEpisode, MddInput, MddSeriesPoint, PricePoint } from "@/lib/calculator-types";
-import type { QuoteMetadata, QuoteSource } from "@/lib/quote-types";
-import { resolveMddTicker, type MddMarket } from "@/lib/mdd-market";
+import type { QuoteSource } from "@/lib/quote-types";
 import { nextSortState, sortArrow, sortRows, type SortColumnType, type SortState } from "@/lib/calculator-table-sort";
 import { useResolvedTheme } from "@/components/theme/ThemeProvider";
 
@@ -69,14 +68,12 @@ function formatTooltipDate(iso: string): string {
   return `${iso.slice(0, 4)}.${iso.slice(5, 7)}.${iso.slice(8, 10)}`;
 }
 
-function fmtPrice(value: number | null | undefined, currency: "USD" | "KRW"): string {
+function fmtUsd(value: number | null | undefined): string {
   if (value === null || value === undefined || !Number.isFinite(value)) return "—";
-  return currency === "KRW"
-    ? `₩${Math.round(value).toLocaleString("ko-KR")}`
-    : `$${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return `$${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
-function fmtPriceAxis(value: number, currency: "USD" | "KRW"): string {
-  return currency === "KRW" ? `₩${Math.round(value).toLocaleString("ko-KR")}` : `$${Math.round(value).toLocaleString("en-US")}`;
+function fmtUsdAxis(value: number): string {
+  return `$${Math.round(value).toLocaleString("en-US")}`;
 }
 function fmtPct(value: number | null | undefined): string {
   if (value === null || value === undefined || !Number.isFinite(value)) return "—";
@@ -143,7 +140,6 @@ type MddQuoteState = {
   usdSource?: QuoteSource;
   krwPrices: PricePoint[];
   krwSource?: QuoteSource;
-  metadata?: QuoteMetadata;
   warnings: string[];
   updatedAt?: string;
   error?: string | null;
@@ -204,7 +200,7 @@ function daysBetween(start: string, end: string): number | null {
 
 export default function MddCalculator({ input, onChange }: { input: MddInput; onChange: (input: MddInput) => void }) {
   const theme = useResolvedTheme();
-  const [submitted, setSubmitted] = useState<MddInput | null>(null);
+  const [submitted, setSubmitted] = useState(input);
   // 기간 선택: 1년/3년/5년 프리셋 또는 "custom"(시작일/종료일 직접 선택).
   const [period, setPeriod] = useState<PeriodKey | "custom">("5y");
   // 커스텀 기간의 시작/종료일(YYYY-MM-DD). 데이터 로드 시 보유 범위로 초기화한다.
@@ -212,7 +208,6 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
   const [customEnd, setCustomEnd] = useState<string>("");
   const [quote, setQuote] = useState<MddQuoteState>({ usdPrices: [], krwPrices: [], warnings: [] });
   const [loading, setLoading] = useState(false);
-  const [validationError, setValidationError] = useState<string | null>(null);
   const [segmentSort, setSegmentSort] = useState<SortState<EpisodeSortKey>>({ key: "mdd", direction: "asc" });
   const [priceSort, setPriceSort] = useState<SortState<MddSeriesSortKey>>({ key: "date", direction: "asc" });
 
@@ -242,21 +237,19 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
     let cancelled = false;
 
     async function loadHistory() {
-      if (!submitted) return;
       setLoading(true);
       try {
         const [usd, krw] = await Promise.all([
-          fetchQuoteHistory({ ticker: submitted.ticker, market: submitted.market, range: "max" }),
-          submitted.market === "US" ? fetchQuoteHistory({ ticker: "KRW=X", range: "max" }) : Promise.resolve(null),
+          fetchQuoteHistory({ ticker: submitted.ticker, range: "max" }),
+          fetchQuoteHistory({ ticker: "KRW=X", range: "max" }),
         ]);
         if (cancelled) return;
         setQuote({
           ticker: submitted.ticker,
           usdPrices: usd.prices.map((p) => ({ date: p.date, close: p.close })),
           usdSource: usd.source,
-          krwPrices: krw?.prices.map((p) => ({ date: p.date, close: p.close })) ?? [],
-          krwSource: krw?.source,
-          metadata: usd.metadata,
+          krwPrices: krw.prices.map((p) => ({ date: p.date, close: p.close })),
+          krwSource: krw.source,
           warnings: usd.warnings,
           updatedAt: usd.updatedAt,
           error: null,
@@ -282,22 +275,15 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
     };
   }, [submitted]);
 
-  const market: MddMarket = input.market ?? "US";
-  const ticker = submitted?.ticker.trim().toUpperCase() || input.ticker.trim().toUpperCase() || "—";
-  const currency: "USD" | "KRW" = quote.metadata?.currency ?? (market === "KR" ? "KRW" : "USD");
-  const resolvedSymbol = quote.metadata?.resolvedSymbol || ticker;
-  const displayName = quote.metadata?.displayName || resolvedSymbol;
-  const priceTitle = currency === "KRW"
-    ? `${displayName}${displayName !== resolvedSymbol ? `(${resolvedSymbol})` : ""} 원화 기준 가격`
-    : `${resolvedSymbol} 달러 기준 가격`;
+  const ticker = submitted.ticker.trim().toUpperCase() || "QQQ";
   // 라이브 데이터가 실제로 들어왔을 때만 차트를 그린다 (가짜/샘플 차트 금지).
-  const dataAvailable = Boolean(submitted) && quote.usdSource !== "sample" && quote.usdPrices.length >= 2;
+  const dataAvailable = quote.usdSource !== "sample" && quote.usdPrices.length >= 2;
   const krwAvailable = quote.krwSource !== "sample" && quote.krwPrices.length >= 2;
 
   // 현재 조회 대상 티커의 시세가 실제로 도착했는지. 티커를 바꾼 직후에는 아직
   // 이전 티커의 시세가 남아 있을 수 있으므로, 시세의 ticker 태그가 현재 티커와
   // 일치할 때만 "이 티커의 데이터"로 신뢰한다(요구사항 5·6: 로딩 중 잘못된 값 방지).
-  const tickerDataReady = submitted !== null && quote.ticker === submitted.ticker && quote.usdPrices.length > 0;
+  const tickerDataReady = quote.ticker === submitted.ticker && quote.usdPrices.length > 0;
 
   // 해당 티커의 실제 데이터 날짜 범위(커스텀 Date Picker 의 min/max, 초기값 산출용).
   // 티커별 상장 이후 최초 거래일 ~ 최신 거래일. 전역 데이터가 아니라 이 티커의 것.
@@ -343,8 +329,8 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
   const windowKrw = useMemo(() => slicePrices(krwCloses, analysisWindow.start, analysisWindow.end), [krwCloses, analysisWindow]);
 
   const result = useMemo(
-    () => calculateMddFromPrices(submitted ?? input, windowUsd, { source: quote.usdSource }),
-    [submitted, input, windowUsd, quote.usdSource],
+    () => calculateMddFromPrices(submitted, windowUsd, { source: quote.usdSource }),
+    [submitted, windowUsd, quote.usdSource],
   );
 
   const episodes = useMemo(() => computeDrawdownEpisodes(quote.usdPrices, { limit: 8 }), [quote.usdPrices]);
@@ -376,11 +362,11 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
 
   const chartDebugInfo = useMemo(
     () => [
-      buildChartDebugInfo(priceTitle, priceChartData),
+      buildChartDebugInfo(`${ticker} 달러 기준 가격`, priceChartData),
       buildChartDebugInfo("고점 대비 하락률 (Drawdown / MDD)", ddChartData),
       buildChartDebugInfo("달러 vs 원화 Drawdown 비교", compareData),
     ],
-    [priceTitle, priceChartData, ddChartData, compareData],
+    [ticker, priceChartData, ddChartData, compareData],
   );
 
   useEffect(() => {
@@ -502,44 +488,14 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
       </div>
     ) : null;
 
-  const clearAnalysis = () => {
-    setSubmitted(null);
-    setLoading(false);
-    setValidationError(null);
-    setQuote({ usdPrices: [], krwPrices: [], warnings: [] });
-  };
-
-  const handleMarketChange = (nextMarket: MddMarket) => {
-    if (nextMarket === market) return;
-    clearAnalysis();
-    onChange({ ...input, market: nextMarket, currency: nextMarket === "KR" ? "KRW" : "USD", ticker: "" });
-  };
-
-  const handleTickerChange = (nextTicker: string) => {
-    clearAnalysis();
-    onChange({ ...input, ticker: nextTicker });
-  };
-
-  const handleSubmit = () => {
-    const resolution = resolveMddTicker(input.ticker, market);
-    if (!resolution.ok) {
-      clearAnalysis();
-      setValidationError(resolution.error);
-      return;
-    }
-    setValidationError(null);
-    setQuote({ usdPrices: [], krwPrices: [], warnings: [] });
-    setSubmitted({ ...input, market, ticker: resolution.requestedTicker });
-  };
-
   return (
     <div className="space-y-4">
       {/* 입력 영역 */}
-      <form className={panel} onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
+      <form className={panel} onSubmit={(e) => { e.preventDefault(); setSubmitted(input); }}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className={cardTitle}>티커MDD 계산기 입력값</h2>
-            <CalculatorDataStatus source={submitted ? result.source : undefined} loading={loading} updatedAt={submitted ? result.updatedAt : undefined} loadingText="시세 불러오는 중" />
+            <CalculatorDataStatus source={result.source} loading={loading} updatedAt={result.updatedAt} loadingText="시세 불러오는 중" />
           </div>
           <button
             type="submit"
@@ -551,34 +507,8 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
           </button>
         </div>
 
-        <div className="mt-4 grid gap-3 text-[13px] sm:grid-cols-2 md:grid-cols-3">
-          <div className="rounded-xl border border-[#2a3336] bg-[#151a1b] px-4 py-3">
-            <span className="block text-[11.5px] text-slate-500">시장 선택</span>
-            <div className="mt-2 inline-flex rounded-lg border border-slate-600/70 p-0.5" role="group" aria-label="티커 시장 선택">
-              {(["US", "KR"] as const).map((option) => {
-                const selected = market === option;
-                return (
-                  <button
-                    key={option}
-                    type="button"
-                    aria-pressed={selected}
-                    onClick={() => handleMarketChange(option)}
-                    className={`rounded-md px-3 py-1.5 text-[12px] font-bold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#151a1b] ${selected ? "bg-blue-600 text-white" : "text-slate-300 hover:bg-slate-700"}`}
-                  >
-                    {option === "US" ? "미국" : "한국"}
-                  </button>
-                );
-              })}
-            </div>
-            <p className="mt-2 text-[11.5px] text-slate-500">{market === "KR" ? "6자리 코드 또는 .KS/.KQ를 입력하세요." : "미국 거래소 티커를 입력하세요."}</p>
-          </div>
-          <TextInput
-            label="티커"
-            value={input.ticker}
-            placeholder={market === "KR" ? "예: 000660, 005930, 247540" : "예: SPY, QQQ, AAPL"}
-            inputMode={market === "KR" ? "numeric" : "text"}
-            onChange={handleTickerChange}
-          />
+        <div className="mt-4 grid gap-3 text-[13px] sm:grid-cols-2">
+          <TextInput label="티커" value={input.ticker} onChange={(v) => onChange({ ...input, ticker: v.toUpperCase() })} />
           <div>
             <label className="mb-1 block text-[12px] font-medium text-slate-500 dark:text-slate-400">분석 기간</label>
             {periodButtons}
@@ -586,19 +516,13 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
           </div>
         </div>
         <p className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] text-slate-500 dark:border-[#2a3336] dark:bg-[#151a1b] dark:text-slate-400">
-          {market === "KR" ? "한국 시장은 6자리 종목코드(예: 000660) 또는 .KS/.KQ 티커를 지원합니다. " : "미국 시장은 SPY, QQQ, AAPL 같은 티커를 지원합니다. "}
-          분석 실행 후 기간 버튼(1년·3년·5년·최대)으로 분석 구간을 조정하세요. 보유 데이터가 선택한 기간보다 짧으면 자동으로 전체 기간을 보여줍니다. &ldquo;커스텀&rdquo;을 선택하면 해당 티커의 실제 데이터 범위에서 시작일·종료일을 직접 지정할 수 있습니다.
+          티커MDD 계산을 위해 티커를 입력하고 분석 실행을 누른 뒤, 기간 버튼(1년·3년·5년·최대)으로 분석 구간을 조정하세요. 보유 데이터가 선택한 기간보다 짧으면 자동으로 전체 기간을 보여줍니다. &ldquo;커스텀&rdquo;을 선택하면 해당 티커의 실제 데이터 범위에서 시작일·종료일을 직접 지정할 수 있습니다.
         </p>
       </form>
 
-      <CalculatorWarningPanel warnings={submitted ? result.warnings : []} error={validationError ?? quote.error} />
+      <CalculatorWarningPanel warnings={result.warnings} error={quote.error} />
 
-      {!submitted ? (
-        <div className={`${panel} text-center`}>
-          <p className="text-[14px] font-bold text-slate-700 dark:text-slate-200">시장과 티커를 선택해 분석을 시작하세요.</p>
-          <p className="mt-2 text-[13px] text-slate-500 dark:text-slate-400">{market === "KR" ? "한국 종목은 6자리 코드만 입력해도 KOSPI·KOSDAQ를 자동으로 조회합니다." : "미국 티커를 입력하면 실제 시세 기준으로 MDD를 분석합니다."}</p>
-        </div>
-      ) : !dataAvailable ? (
+      {!dataAvailable ? (
         <div className={`${panel} text-center`}>
           <p className="text-[14px] font-bold text-slate-700 dark:text-slate-200">시세 데이터를 불러올 수 없습니다.</p>
           <p className="mt-2 text-[13px] text-slate-500 dark:text-slate-400">
@@ -637,12 +561,7 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
           </div>
 
           <details className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-[12px] text-blue-900 dark:border-[#1e3a5f] dark:bg-[#101b2a] dark:text-blue-100">
-            <summary className="cursor-pointer list-none text-[13px] font-bold">
-              <span className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-                <span>최종 Recharts data 배열 검증</span>
-                <span className="max-w-full truncate text-[12px] font-semibold text-blue-700 dark:text-blue-200">{displayName} · {resolvedSymbol}{quote.metadata?.exchange ? ` · ${quote.metadata.exchange}` : ""}</span>
-              </span>
-            </summary>
+            <summary className="cursor-pointer text-[13px] font-bold">최종 Recharts data 배열 검증</summary>
             <div className="mt-3 grid gap-3 lg:grid-cols-3">
               {chartDebugInfo.map((info) => (
                 <div key={info.name} className="rounded-xl border border-blue-100 bg-white/70 p-3 dark:border-[#284763] dark:bg-[#111827]">
@@ -661,11 +580,11 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
 
           {/* 상단 KPI */}
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <MetricCard label="현재가" value={fmtPrice(result.currentPrice, currency)} sub={`${displayName} · ${resolvedSymbol}${quote.metadata?.exchange ? ` · ${quote.metadata.exchange}` : ""} · ${result.source === "yahoo" ? "Yahoo" : result.source === "stooq" ? "Stooq" : result.source}`} tone="blue" />
-            <MetricCard label="기간 내 최고가" value={fmtPrice(result.peakPrice, currency)} sub="기간 최고 종가" tone="green" />
+            <MetricCard label="현재가" value={fmtUsd(result.currentPrice)} sub={`${ticker} · ${result.source === "yahoo" ? "Yahoo" : result.source === "stooq" ? "Stooq" : result.source}`} tone="blue" />
+            <MetricCard label="기간 내 최고가" value={fmtUsd(result.peakPrice)} sub="기간 최고 종가" tone="green" />
             <MetricCard label="현재 고점대비 하락률" value={fmtPct(result.currentDrawdown)} sub="누적 고점 대비" tone="orange" />
             <MetricCard label="최대 MDD" value={fmtPct(result.maxDrawdown)} sub="기간 내 최대 낙폭" tone="gray" />
-            <MetricCard label="MDD 고점일" value={result.highDate} sub={`고점가 ${fmtPrice(result.peakPrice2, currency)}`} tone="green" />
+            <MetricCard label="MDD 고점일" value={result.highDate} sub={`고점가 ${fmtUsd(result.peakPrice2)}`} tone="green" />
             <MetricCard
               label="MDD 저점일 → 회복일"
               value={result.recovered && result.recoveryDate ? `${result.lowDate} → ${result.recoveryDate}` : `${result.lowDate}`}
@@ -685,7 +604,7 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
           {/* 그래프 1 — 가격 */}
           <div className={panel}>
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <h2 className={cardTitle}>{priceTitle}</h2>
+              <h2 className={cardTitle}>{ticker} 달러 기준 가격</h2>
               {periodButtons}
             </div>
             <div className="h-[340px] min-w-0">
@@ -693,18 +612,18 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
                 <ComposedChart data={priceChartData} margin={{ top: 8, right: 16, bottom: 8, left: 4 }}>
                   <CartesianGrid stroke={colors.grid} strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="date" stroke={colors.axis} tick={{ fontSize: 11 }} tickFormatter={formatAxisDate} minTickGap={36} />
-                  <YAxis stroke={colors.axis} tick={{ fontSize: 11 }} tickFormatter={(value) => fmtPriceAxis(value, currency)} width={currency === "KRW" ? 96 : 56} domain={["auto", "auto"]} />
+                  <YAxis stroke={colors.axis} tick={{ fontSize: 11 }} tickFormatter={fmtUsdAxis} width={56} domain={["auto", "auto"]} />
                   <Tooltip
                     content={({ active, payload, label }) =>
                       active && payload && payload.length
                         ? tooltipCard(colors, formatTooltipDate(String(label)), [
-                            { label: displayName, value: fmtPrice(Number(payload[0]?.payload?.close), currency), color: C_PRICE },
+                            { label: "종가", value: fmtUsd(Number(payload[0]?.payload?.close)), color: C_PRICE },
                           ])
                         : null
                     }
                   />
                   <Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Line type="linear" dataKey="close" name={`${displayName} 종가`} stroke={C_PRICE} strokeWidth={1.8} dot={false} />
+                  <Line type="linear" dataKey="close" name={`${ticker} 종가`} stroke={C_PRICE} strokeWidth={1.8} dot={false} />
                   <Scatter dataKey="peakMarker" name="MDD 고점" shape={<TriangleUp />} legendType="triangle" fill={C_PEAK} isAnimationActive={false} />
                   <Scatter dataKey="troughMarker" name="MDD 저점" shape={<TriangleDown />} legendType="triangle" fill={C_TROUGH} isAnimationActive={false} />
                   <Scatter dataKey="recoveryMarker" name="회복일" shape={<CircleMarker />} legendType="circle" fill={C_RECOVERY} isAnimationActive={false} />
@@ -761,8 +680,8 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
             </p>
           </div>
 
-          {/* 그래프 3 — 미국 종목만 달러 vs 원화 Drawdown 비교 */}
-          {market === "US" ? <div className={panel}>
+          {/* 그래프 3 — 달러 vs 원화 Drawdown 비교 */}
+          <div className={panel}>
             <h2 className={`${cardTitle} mb-3`}>달러 vs 원화 Drawdown 비교</h2>
             <div className="h-[300px] min-w-0">
               <ResponsiveContainer width="100%" height="100%">
@@ -800,7 +719,7 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
                 ⚠️ USD/KRW 환율 데이터를 불러오지 못해 원화 기준 비교를 생략합니다. 달러 기준 낙폭만 표시합니다.
               </p>
             )}
-          </div> : null}
+          </div>
 
           {/* 역대 최대 낙폭/회복기간 */}
           <div className={panel}>
@@ -846,7 +765,7 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
 
           {/* 연도별 수익률 */}
           <div className={panel}>
-            <h2 className={`${cardTitle} mb-3`}>{displayName} 주식 연도별 수익률</h2>
+            <h2 className={`${cardTitle} mb-3`}>{ticker} 주식 연도별 수익률</h2>
             {yearly.length === 0 ? (
               <p className="text-[13px] text-slate-500 dark:text-slate-400">연도별 수익률을 계산할 데이터가 부족합니다.</p>
             ) : (
@@ -911,12 +830,12 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
 
             {/* 주요 변동성 지표 */}
             <div className={panel}>
-              <h2 className={`${cardTitle} mb-3`}>주요 변동성 지표 (단위: {currency}, %)</h2>
+              <h2 className={`${cardTitle} mb-3`}>주요 변동성 지표 (단위: USD, %)</h2>
               <table className="w-full text-left text-[12.5px]">
                 <tbody>
                   {[
-                    { label: "52주 최고가", value: fmtPrice(volatility.high52w, currency) },
-                    { label: "52주 최저가", value: fmtPrice(volatility.low52w, currency) },
+                    { label: "52주 최고가", value: fmtUsd(volatility.high52w) },
+                    { label: "52주 최저가", value: fmtUsd(volatility.low52w) },
                     { label: "1년전 대비 상승률", value: fmtPct(volatility.return1yPct) },
                     { label: "고점대비 하락률", value: fmtPct(volatility.currentDrawdownPct) },
                     { label: "최대 낙폭(MDD)", value: fmtPct(volatility.maxDrawdownPct) },
@@ -937,7 +856,7 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
           <div className={panel}>
             <div className="mb-3 flex items-center justify-between gap-2">
               <h2 className={cardTitle}>최근 가격 및 Drawdown 상세</h2>
-              <TableCsvMenu filename={`mdd-recent-drawdown-${resolvedSymbol}-${today}.csv`} rows={sortedRecent} columns={mddSeriesColumns.map((column) => ({ header: column.label, value: (row: MddSeriesPoint) => column.key === "close" || column.key === "peak" ? fmtPrice(row[column.key] as number, currency) : row[column.key] }))} />
+              <TableCsvMenu filename={`mdd-recent-drawdown-${ticker}-${today}.csv`} rows={sortedRecent} columns={mddSeriesColumns.map((column) => ({ header: column.label, value: (row: MddSeriesPoint) => row[column.key] }))} />
             </div>
             <div className="-mx-5 max-h-[520px] min-w-0 overflow-auto px-5">
               <table className="w-full min-w-[600px] text-left text-[12.5px]">
@@ -956,8 +875,8 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
                   {sortedRecent.map((row) => (
                     <tr key={row.date} className="border-b border-slate-100 text-slate-600 last:border-0 dark:border-[#222a2c] dark:text-slate-300">
                       <td className="py-2 font-semibold text-slate-900 dark:text-white">{row.date}</td>
-                      <td>{fmtPrice(row.close, currency)}</td>
-                      <td>{fmtPrice(row.peak, currency)}</td>
+                      <td>{fmtUsd(row.close)}</td>
+                      <td>{fmtUsd(row.peak)}</td>
                       <td className="text-orange-500 dark:text-orange-300">{fmtPct(row.drawdown)}</td>
                       <td>{row.value.toLocaleString("ko-KR")}</td>
                     </tr>

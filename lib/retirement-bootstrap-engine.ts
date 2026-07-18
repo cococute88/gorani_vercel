@@ -1,12 +1,12 @@
 import {
   createSeededPrng,
-  recenterHistoricalRatesPct,
+  recenterHistoricalRatesPctWithDiagnostics,
   sampleMarketPatternBlocks,
   validateMarketPatternDataset,
 } from "./retirement-bootstrap-data";
 import {
-  distributionPaymentMultiplier,
   requiredAssetClasses,
+  resolveDistributionPaymentMultiplier,
 } from "./retirement-bootstrap-mapping";
 import {
   DEFAULT_RETIREMENT_BOOTSTRAP_BLOCK_LENGTH,
@@ -14,7 +14,9 @@ import {
   RETIREMENT_BOOTSTRAP_PERIODS,
   type BootstrapBrokerageHolding,
   type BootstrapTaxSavingHolding,
+  type DistributionStressPolicy,
   type MarketPatternDatasetV1,
+  type RecenteringDiagnostics,
   type RetirementBootstrapAnnualRecord,
   type RetirementBootstrapInput,
   type RetirementBootstrapPathCheckpoint,
@@ -44,6 +46,7 @@ export type CompiledRetirementBootstrapModel = {
   centeredInflationPct: number[];
   taxSavingHoldings: CompiledTaxHolding[];
   brokerageHoldings: CompiledBrokerageHolding[];
+  recenteringDiagnostics: RecenteringDiagnostics[];
 };
 
 function assertFinite(value: number, label: string): void {
@@ -63,6 +66,16 @@ function validateWeights(holdings: ReadonlyArray<{ weightPct: number }>, label: 
     return sum + holding.weightPct;
   }, 0);
   if (Math.abs(total - 100) > WEIGHT_TOLERANCE) throw new Error(`${label} 비중 합계는 100%여야 합니다.`);
+}
+
+function validateDistributionStressPolicy(policy: DistributionStressPolicy | undefined): void {
+  if (!policy) return;
+  if (typeof policy.policyId !== "string" || !policy.policyId.trim()) {
+    throw new Error("분배 스트레스 정책 ID가 비어 있습니다.");
+  }
+  if (typeof policy.paymentMultiplier !== "function") {
+    throw new Error(`${policy.policyId} 분배 스트레스 정책 함수가 없습니다.`);
+  }
 }
 
 function validateInput(input: RetirementBootstrapInput): void {
@@ -114,7 +127,7 @@ function blendHoldingReturns(
 
 export function compileRetirementBootstrapModel(
   input: RetirementBootstrapInput,
-  dataset: MarketPatternDatasetV1,
+  dataset: MarketPatternDatasetV1 | null,
   blockLength = DEFAULT_RETIREMENT_BOOTSTRAP_BLOCK_LENGTH,
   allowTestFixture = false,
 ): CompiledRetirementBootstrapModel {
@@ -123,13 +136,23 @@ export function compileRetirementBootstrapModel(
   const assetClasses = requiredAssetClasses(mappings);
   validateMarketPatternDataset(dataset, assetClasses, blockLength, allowTestFixture);
 
-  const centeredInflationPct = recenterHistoricalRatesPct(
+  const recenteringDiagnostics: RecenteringDiagnostics[] = [];
+  const centerSeries = (seriesId: string, historicalRatesPct: number[], targetGeometricRatePct: number): number[] => {
+    const centered = recenterHistoricalRatesPctWithDiagnostics(historicalRatesPct, targetGeometricRatePct);
+    const { ratesPct, ...diagnostics } = centered;
+    recenteringDiagnostics.push({ seriesId, ...diagnostics });
+    return ratesPct;
+  };
+
+  const centeredInflationPct = centerSeries(
+    "inflation",
     dataset.observations.map((row) => row.inflationPct),
     input.expectedInflationPct,
   );
   const taxSavingHoldings = input.taxSavingHoldings.map((holding): CompiledTaxHolding => ({
     ...holding,
-    centeredTotalReturnsPct: recenterHistoricalRatesPct(
+    centeredTotalReturnsPct: centerSeries(
+      `tax_total_return:${holding.ticker}`,
       dataset.observations.map((row) => row.assetClasses[holding.mapping.assetClass]!.totalReturnPct),
       holding.expectedTotalReturnCagrPct,
     ),
@@ -140,17 +163,22 @@ export function compileRetirementBootstrapModel(
     );
     return {
       ...holding,
-      centeredPriceReturnsPct: recenterHistoricalRatesPct(
+      centeredPriceReturnsPct: centerSeries(
+        `brokerage_price_return:${holding.ticker}`,
         dataset.observations.map((row) => row.assetClasses[holding.mapping.assetClass]!.priceReturnPct),
         holding.expectedPriceCagrPct,
       ),
       centeredDividendGrowthPct: historicalDividendGrowth.every((value) => value !== undefined)
-        ? recenterHistoricalRatesPct(historicalDividendGrowth as number[], holding.expectedDividendGrowthPct)
+        ? centerSeries(
+          `brokerage_dividend_growth:${holding.ticker}`,
+          historicalDividendGrowth as number[],
+          holding.expectedDividendGrowthPct,
+        )
         : dataset.observations.map(() => holding.expectedDividendGrowthPct),
     };
   });
 
-  return { input, dataset, centeredInflationPct, taxSavingHoldings, brokerageHoldings };
+  return { input, dataset, centeredInflationPct, taxSavingHoldings, brokerageHoldings, recenteringDiagnostics };
 }
 
 export function toStartPurchasingPower(nominalAmount: number, cumulativeInflation: number): number {
@@ -175,6 +203,9 @@ function principalWithdrawalSchedule(
     factors.push(factors[index - 1] * growth * (1 + centeredInflationPathPct[pathIndex] / 100));
   }
   const factorSum = factors.reduce((sum, value) => sum + value, 0);
+  if (!Number.isFinite(factorSum) || factorSum <= 0) {
+    throw new Error("원금 인출 일정이 유한한 값으로 계산되지 않았습니다.");
+  }
   eligiblePathIndices.forEach((pathIndex, index) => schedule.set(pathIndex, principal * factors[index] / factorSum));
   return schedule;
 }
@@ -214,6 +245,7 @@ function simulateCompiledPath(
   model: CompiledRetirementBootstrapModel,
   sampledPath: SampledMarketPath,
   periods: readonly number[],
+  distributionStressPolicy?: DistributionStressPolicy,
 ): RetirementBootstrapPathResult {
   const { input, dataset } = model;
   const pathYears = sampledPath.observations.length;
@@ -246,9 +278,11 @@ function simulateCompiledPath(
   let post2050WithdrawalIndex = 0;
   // 가격 평가잔고와 배당 현금흐름을 분리한다. 최초 배당 기준액은 사용자
   // 입력 yield로 만들고, 이후에는 배당성장 패턴으로만 갱신한다.
-  const annualDividendNominal = model.brokerageHoldings.map((holding) => (
-    input.initialBrokerage * (holding.weightPct / 100) * (holding.initialDividendYieldPct / 100)
-  ));
+  const annualDividendNominal = model.brokerageHoldings.map((holding) => {
+    const amount = input.initialBrokerage * (holding.weightPct / 100) * (holding.initialDividendYieldPct / 100);
+    assertFinite(amount, `${holding.ticker} 최초 연간 배당 기준액`);
+    return amount;
+  });
   const records: RetirementBootstrapAnnualRecord[] = [];
 
   for (let pathIndex = 0; pathIndex < pathYears; pathIndex += 1) {
@@ -259,6 +293,7 @@ function simulateCompiledPath(
     const isWithdrawalYear = yearNumber >= withdrawalStartYearNumber;
     const inflationPct = inflationPathPct[pathIndex];
     cumulativeInflation *= 1 + inflationPct / 100;
+    assertFinite(cumulativeInflation, `${yearNumber}년 차 누적 인플레이션`);
 
     const taxReturnPct = model.taxSavingHoldings.length === 0 ? 0 : blendHoldingReturns(
       model.taxSavingHoldings,
@@ -272,15 +307,26 @@ function simulateCompiledPath(
     isaBalance = Math.max(0, isaBalance * (1 + taxReturnPct / 100));
     pensionBalance = Math.max(0, pensionBalance * (1 + taxReturnPct / 100));
     brokerageBalance = Math.max(0, brokerageBalance * (1 + brokeragePriceReturnPct / 100));
+    assertFinite(isaBalance, `${yearNumber}년 차 ISA 잔액`);
+    assertFinite(pensionBalance, `${yearNumber}년 차 연금 잔액`);
+    assertFinite(brokerageBalance, `${yearNumber}년 차 위탁계좌 잔액`);
 
     let grossDividend = 0;
     if (isWithdrawalYear && brokerageBalance > 0) {
       grossDividend = model.brokerageHoldings.reduce((sum, holding, holdingIndex) => {
         const rawPricePattern = observation.assetClasses[holding.mapping.assetClass]!.priceReturnPct;
-        const paymentMultiplier = distributionPaymentMultiplier(holding.mapping.distributionPolicy, rawPricePattern);
+        const paymentMultiplier = resolveDistributionPaymentMultiplier(distributionStressPolicy, {
+          ticker: holding.ticker,
+          assetClass: holding.mapping.assetClass,
+          distributionPolicy: holding.mapping.distributionPolicy,
+          rawAssetClassPricePatternPct: rawPricePattern,
+          sourceObservationYear: observation.year,
+          pathYearNumber: yearNumber,
+        });
         return sum + annualDividendNominal[holdingIndex] * paymentMultiplier;
       }, 0);
     }
+    assertFinite(grossDividend, `${yearNumber}년 차 총배당`);
     const netDividend = grossDividend * DIVIDEND_TAX_KEEP_RATE;
 
     let isaGross = 0;
@@ -312,9 +358,13 @@ function simulateCompiledPath(
     const requiredWithdrawalNominal = isWithdrawalYear
       ? input.annualRequiredWithdrawalReal * cumulativeInflation
       : 0;
+    assertFinite(suppliedWithdrawalNet, `${yearNumber}년 차 세후 공급액`);
+    assertFinite(requiredWithdrawalNominal, `${yearNumber}년 차 필수 인출액`);
     const withdrawalSatisfied = suppliedWithdrawalNet + EPSILON >= requiredWithdrawalNominal;
     const nominalAssets = isaBalance + pensionBalance + brokerageBalance;
     const realAssets = toStartPurchasingPower(nominalAssets, cumulativeInflation);
+    assertFinite(nominalAssets, `${yearNumber}년 차 명목자산`);
+    assertFinite(realAssets, `${yearNumber}년 차 실질자산`);
     const depleted = nominalAssets <= EPSILON;
 
     records.push({
@@ -336,6 +386,7 @@ function simulateCompiledPath(
         0,
         annualDividendNominal[holdingIndex] * (1 + dividendGrowthPct / 100),
       );
+      assertFinite(annualDividendNominal[holdingIndex], `${yearNumber}년 차 ${model.brokerageHoldings[holdingIndex].ticker} 배당 기준액`);
     }
   }
 
@@ -362,29 +413,32 @@ function validatePeriods(periods: readonly number[]): number[] {
 
 export function simulateRetirementBootstrapPath(
   input: RetirementBootstrapInput,
-  dataset: MarketPatternDatasetV1,
+  dataset: MarketPatternDatasetV1 | null,
   options: {
     years: number;
     periods?: readonly number[];
     blockLength?: number;
     seed: number;
     allowTestFixture?: boolean;
+    distributionStressPolicy?: DistributionStressPolicy;
   },
 ): RetirementBootstrapPathResult {
+  validateDistributionStressPolicy(options.distributionStressPolicy);
   const periods = validatePeriods(options.periods ?? [options.years]);
   if (Math.max(...periods) > options.years) throw new Error("경로 길이보다 긴 집계 기간을 요청했습니다.");
   const blockLength = options.blockLength ?? DEFAULT_RETIREMENT_BOOTSTRAP_BLOCK_LENGTH;
   const model = compileRetirementBootstrapModel(input, dataset, blockLength, options.allowTestFixture);
   const random = createSeededPrng(options.seed);
-  const sampled = sampleMarketPatternBlocks(dataset, options.years, blockLength, random);
-  return simulateCompiledPath(model, sampled, periods);
+  const sampled = sampleMarketPatternBlocks(model.dataset, options.years, blockLength, random);
+  return simulateCompiledPath(model, sampled, periods, options.distributionStressPolicy);
 }
 
 export function runRetirementBootstrap(
   input: RetirementBootstrapInput,
-  dataset: MarketPatternDatasetV1,
+  dataset: MarketPatternDatasetV1 | null,
   options: RetirementBootstrapRunOptions,
 ): RetirementBootstrapResult {
+  validateDistributionStressPolicy(options.distributionStressPolicy);
   const iterations = options.iterations ?? DEFAULT_RETIREMENT_BOOTSTRAP_ITERATIONS;
   const blockLength = options.blockLength ?? DEFAULT_RETIREMENT_BOOTSTRAP_BLOCK_LENGTH;
   const periods = validatePeriods(options.periods ?? RETIREMENT_BOOTSTRAP_PERIODS);
@@ -405,14 +459,15 @@ export function runRetirementBootstrap(
   }]));
 
   for (let iteration = 0; iteration < iterations; iteration += 1) {
-    const sampled = sampleMarketPatternBlocks(dataset, maxYears, blockLength, random);
-    const path = simulateCompiledPath(model, sampled, periods);
+    const sampled = sampleMarketPatternBlocks(model.dataset, maxYears, blockLength, random);
+    const path = simulateCompiledPath(model, sampled, periods, options.distributionStressPolicy);
     for (const checkpoint of path.checkpoints) {
       const aggregate = aggregates.get(checkpoint.periodYears)!;
       if (checkpoint.success) aggregate.successCount += 1;
       if (checkpoint.reachedRealPrincipal50Pct) aggregate.reached50Count += 1;
       if (checkpoint.reachedRealPrincipal25Pct) aggregate.reached25Count += 1;
       aggregate.endingRealAssetsTotal += checkpoint.endingRealAssets;
+      assertFinite(aggregate.endingRealAssetsTotal, `${checkpoint.periodYears}년 종료 실질자산 집계`);
     }
   }
 
@@ -436,11 +491,13 @@ export function runRetirementBootstrap(
     iterations,
     blockLength,
     seed: options.seed,
-    datasetId: dataset.datasetId,
-    datasetVersion: dataset.datasetVersion,
-    datasetUsage: dataset.usage,
-    dataPeriod: { startYear: dataset.periodStartYear, endYear: dataset.periodEndYear },
+    distributionStressPolicyId: options.distributionStressPolicy?.policyId ?? null,
+    datasetId: model.dataset.datasetId,
+    datasetVersion: model.dataset.datasetVersion,
+    datasetUsage: model.dataset.usage,
+    dataPeriod: { startYear: model.dataset.periodStartYear, endYear: model.dataset.periodEndYear },
     realValueBasis: "simulation_start_purchasing_power",
+    recenteringDiagnostics: model.recenteringDiagnostics,
     periods: periodResults,
   };
 }

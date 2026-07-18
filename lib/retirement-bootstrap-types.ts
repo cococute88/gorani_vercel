@@ -20,6 +20,21 @@ export type EtfPatternMapping = {
   rationale: string;
 };
 
+export type DistributionStressContext = {
+  ticker: string;
+  assetClass: AssetClassPatternId;
+  distributionPolicy: DistributionPolicyId;
+  rawAssetClassPricePatternPct: number;
+  sourceObservationYear: number;
+  pathYearNumber: number;
+};
+
+/** 기본 계산은 중립이며, 검증된 결정론적 순수 정책이 있을 때만 명시적으로 주입한다. */
+export type DistributionStressPolicy = {
+  policyId: string;
+  paymentMultiplier(context: DistributionStressContext): number;
+};
+
 export type AssetClassAnnualPattern = {
   /** 배당을 포함한 자산군 연간 총수익률. 절세계좌 CAGR 편차에 사용한다. */
   totalReturnPct: number;
@@ -101,6 +116,7 @@ export type RetirementBootstrapRunOptions = {
   blockLength?: number;
   periods?: readonly number[];
   seed: number;
+  distributionStressPolicy?: DistributionStressPolicy;
   /** 테스트 fixture를 production 결과로 오용하지 못하도록 기본값은 false다. */
   allowTestFixture?: boolean;
 };
@@ -154,15 +170,28 @@ export type RetirementBootstrapPeriodResult = {
   averageEndingRealAssets: number;
 };
 
+export type RecenteringDiagnostics = {
+  seriesId: string;
+  targetGeometricRatePct: number;
+  resultingGeometricRatePct: number;
+  observationCount: number;
+  clippedLowCount: number;
+  clippedHighCount: number;
+  logStandardDeviationBefore: number;
+  logStandardDeviationAfter: number;
+};
+
 export type RetirementBootstrapResult = {
   method: "five_year_block_bootstrap_recentered";
   iterations: number;
   blockLength: number;
   seed: number;
+  distributionStressPolicyId: string | null;
   datasetId: string;
   datasetVersion: string;
   datasetUsage: MarketPatternDatasetV1["usage"];
   dataPeriod: { startYear: number; endYear: number };
   realValueBasis: "simulation_start_purchasing_power";
+  recenteringDiagnostics: RecenteringDiagnostics[];
   periods: RetirementBootstrapPeriodResult[];
 };

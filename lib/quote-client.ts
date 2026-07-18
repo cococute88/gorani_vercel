@@ -4,13 +4,11 @@ import type {
   QuoteHistoryResponse,
   QuoteLastResponse,
 } from "@/lib/quote-types";
-import type { QuoteMarket } from "@/lib/quote-types";
 
 export type QuoteRange = "1m" | "6m" | "1y" | "3y" | "5y" | "max" | string;
 
 export type QuoteHistoryRequest = {
   ticker: string;
-  market?: QuoteMarket;
   range?: QuoteRange;
   start?: string;
   end?: string;
@@ -49,7 +47,6 @@ async function fetchQuoteApi<T extends { warnings?: string[] }>(path: string, fa
 export function quoteHistoryPath(input: QuoteHistoryRequest) {
   return `/api/quote/history?${createQuery({
     ticker: input.ticker,
-    market: input.market,
     range: input.range,
     start: input.start,
     end: input.end,

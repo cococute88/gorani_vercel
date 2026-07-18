@@ -1,6 +1,7 @@
 import type {
   AssetClassPatternId,
-  DistributionPolicyId,
+  DistributionStressContext,
+  DistributionStressPolicy,
   EtfPatternMapping,
 } from "./retirement-bootstrap-types";
 
@@ -31,11 +32,6 @@ export const ETF_PATTERN_MAPPINGS: Readonly<Record<string, EtfPatternMapping>> =
   },
 });
 
-export const INCOME_STRATEGY_DISTRIBUTION_POLICY = Object.freeze({
-  severeDownturnThresholdPct: -20,
-  severeDownturnPaymentMultiplier: 0.9,
-});
-
 export function normalizeBootstrapTicker(ticker: string): string {
   return ticker.trim().replace(/\$/g, "").replace(/\s+/g, "").toUpperCase();
 }
@@ -52,17 +48,17 @@ export function resolveEtfPatternMapping(
   return { ...mapping, ticker: normalized };
 }
 
-export function distributionPaymentMultiplier(
-  policy: DistributionPolicyId,
-  assetClassPricePatternPct: number,
+export function resolveDistributionPaymentMultiplier(
+  policy: DistributionStressPolicy | undefined,
+  context: DistributionStressContext,
 ): number {
-  if (
-    policy === "income_strategy"
-    && assetClassPricePatternPct <= INCOME_STRATEGY_DISTRIBUTION_POLICY.severeDownturnThresholdPct
-  ) {
-    return INCOME_STRATEGY_DISTRIBUTION_POLICY.severeDownturnPaymentMultiplier;
+  if (!policy) return 1;
+  if (!policy.policyId.trim()) throw new Error("분배 스트레스 정책 ID가 비어 있습니다.");
+  const multiplier = policy.paymentMultiplier(context);
+  if (!Number.isFinite(multiplier) || multiplier < 0) {
+    throw new Error(`${policy.policyId} 분배 지급 배수는 0 이상의 유한한 숫자여야 합니다.`);
   }
-  return 1;
+  return multiplier;
 }
 
 export function requiredAssetClasses(mappings: EtfPatternMapping[]): AssetClassPatternId[] {

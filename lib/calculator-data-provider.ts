@@ -1,5 +1,4 @@
 import type { DividendPoint, OhlcPoint, PricePoint } from "@/lib/calculator-types";
-import { fallbackCurrency, inferMddMarket } from "@/lib/mdd-market";
 import type {
   QuoteDividendsResponse,
   QuoteFxResponse,
@@ -111,24 +110,15 @@ function resolveProviderDates(input: { range?: QuoteRange; start?: string; end?:
 
 export async function fetchQuoteHistory(input: {
   ticker: string;
-  market?: "US" | "KR";
   range?: string;
   start?: string;
   end?: string;
 }): Promise<QuoteHistoryResponse> {
   const { start, end } = resolveProviderDates(input);
   const normalizedTicker = input.ticker.trim().toUpperCase() || "SPY";
-  const market = input.market ?? inferMddMarket(normalizedTicker);
   const fallback: QuoteHistoryResponse = {
     ticker: input.ticker,
     normalizedTicker,
-    metadata: {
-      requestedTicker: input.ticker,
-      resolvedSymbol: normalizedTicker,
-      displayName: normalizedTicker,
-      market,
-      currency: fallbackCurrency(normalizedTicker, market),
-    },
     source: "sample",
     updatedAt: new Date().toISOString(),
     warnings: ["Client-side sample fallback returned deterministic demo prices."],

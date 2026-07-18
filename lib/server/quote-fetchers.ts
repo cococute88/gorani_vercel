@@ -7,7 +7,6 @@ import type {
   QuoteHistoryResponse,
   QuoteLastResponse,
 } from "@/lib/quote-types";
-import { fallbackCurrency, fallbackExchange, inferMddMarket, resolveMddTicker, type MddMarket } from "@/lib/mdd-market";
 
 const DAY_MS = 86_400_000;
 const FETCH_TIMEOUT_MS = 12_000;
@@ -29,14 +28,6 @@ type DateWindow = {
 type YahooChartPayload = {
   chart?: {
     result?: Array<{
-      meta?: {
-        currency?: string;
-        symbol?: string;
-        shortName?: string;
-        longName?: string;
-        exchangeName?: string;
-        fullExchangeName?: string;
-      };
       timestamp?: number[];
       indicators?: {
         quote?: Array<{
@@ -53,12 +44,6 @@ type YahooChartPayload = {
     }>;
     error?: { code?: string; description?: string } | null;
   };
-};
-
-type NaverKoreanStockMetadata = {
-  stockName?: string;
-  stockExchangeName?: string;
-  stockExchangeType?: { name?: string };
 };
 
 function nowIso() {
@@ -144,47 +129,6 @@ async function fetchWithTimeout(url: string) {
 
 export function normalizeTicker(input: string): string {
   return input.trim().replace(/^\$/, "").replace(/\s+/g, "").toUpperCase();
-}
-
-function chartMeta(payload: YahooChartPayload) {
-  return payload.chart?.result?.[0]?.meta;
-}
-
-async function fetchKoreanStockMetadata(code: string): Promise<NaverKoreanStockMetadata | null> {
-  try {
-    const response = await fetchWithTimeout(`https://m.stock.naver.com/api/stock/${encodeURIComponent(code)}/basic`);
-    return (await response.json()) as NaverKoreanStockMetadata;
-  } catch {
-    // Name enrichment must never turn a valid Yahoo price series into an error.
-    return null;
-  }
-}
-
-function resolveQuoteMetadata(input: {
-  requestedTicker: string;
-  resolvedSymbol: string;
-  market: MddMarket;
-  yahoo?: ReturnType<typeof chartMeta>;
-  korean?: NaverKoreanStockMetadata | null;
-}) {
-  const { requestedTicker, resolvedSymbol, market, yahoo, korean } = input;
-  const currency = yahoo?.currency?.toUpperCase() === "KRW" ? "KRW" : fallbackCurrency(resolvedSymbol, market);
-  const exchange = korean?.stockExchangeName || korean?.stockExchangeType?.name || yahoo?.fullExchangeName || yahoo?.exchangeName || fallbackExchange(resolvedSymbol);
-  const displayName = korean?.stockName?.trim() || yahoo?.shortName?.trim() || yahoo?.longName?.trim() || resolvedSymbol;
-  return { requestedTicker, resolvedSymbol, displayName, market, exchange, currency };
-}
-
-function emptyQuoteHistory(input: { ticker: string; market: MddMarket; warning: string }): QuoteHistoryResponse {
-  const resolvedSymbol = normalizeTicker(input.ticker) || "SPY";
-  return {
-    ticker: input.ticker,
-    normalizedTicker: resolvedSymbol,
-    metadata: resolveQuoteMetadata({ requestedTicker: input.ticker, resolvedSymbol, market: input.market }),
-    source: "sample",
-    updatedAt: nowIso(),
-    warnings: [input.warning],
-    prices: [],
-  };
 }
 
 export function toIsoDate(input: Date | number | string): string {
@@ -420,88 +364,49 @@ export function buildSampleDividends(input: {
 
 export async function getQuoteHistory(input: {
   ticker: string;
-  market?: MddMarket;
   range?: string | null;
   start?: string | null;
   end?: string | null;
 }): Promise<QuoteHistoryResponse> {
   const ticker = input.ticker || "";
-  const market = input.market ?? inferMddMarket(ticker);
-  const tickerResolution = resolveMddTicker(ticker || "SPY", market);
-  if (!tickerResolution.ok) return emptyQuoteHistory({ ticker, market, warning: tickerResolution.error });
-  const korean = market === "KR" ? await fetchKoreanStockMetadata(tickerResolution.candidates[0].slice(0, 6)) : null;
-  const candidates = market === "KR" && tickerResolution.candidates.length === 2 && korean?.stockExchangeName === "KOSDAQ"
-    ? [...tickerResolution.candidates].reverse()
-    : tickerResolution.candidates;
-  const normalizedTicker = candidates[0];
+  const normalizedTicker = normalizeTicker(ticker) || "SPY";
   const warnings: string[] = [];
   const window = resolveDateWindow(input);
 
-  for (const candidate of candidates) {
-    try {
-      const yahoo = await fetchYahooChart({ ...input, ticker: candidate, events: "history" });
-      const prices = parseYahooPrices(yahoo, window);
-      if (prices.length > 0 && looksDaily(prices)) {
-        const resolvedSymbol = chartMeta(yahoo)?.symbol || candidate;
-        return {
-          ticker,
-          normalizedTicker: resolvedSymbol,
-          metadata: resolveQuoteMetadata({ requestedTicker: tickerResolution.requestedTicker, resolvedSymbol, market, yahoo: chartMeta(yahoo), korean }),
-          source: "yahoo",
-          updatedAt: nowIso(),
-          warnings,
-          prices,
-        };
-      }
-      if (prices.length > 0) {
-        warnings.push(createWarning("Yahoo returned non-daily candles for", candidate, "- falling back to daily source"));
-      } else {
-        warnings.push(createWarning("Yahoo returned no usable daily prices for", candidate));
-      }
-    } catch (error) {
-      warnings.push(createWarning("Yahoo history fallback triggered:", error instanceof Error ? error.message : String(error)));
+  try {
+    const yahoo = await fetchYahooChart({ ...input, ticker: normalizedTicker, events: "history" });
+    const prices = parseYahooPrices(yahoo, window);
+    if (prices.length > 0 && looksDaily(prices)) {
+      return { ticker, normalizedTicker, source: "yahoo", updatedAt: nowIso(), warnings, prices };
     }
-  }
-
-  if (market === "US") {
-    try {
-      const prices = await fetchStooqDaily({ ...input, ticker: normalizedTicker });
-      if (prices.length > 0) {
-        return {
-          ticker,
-          normalizedTicker,
-          metadata: resolveQuoteMetadata({ requestedTicker: tickerResolution.requestedTicker, resolvedSymbol: normalizedTicker, market }),
-          source: "stooq",
-          updatedAt: nowIso(),
-          warnings,
-          prices,
-        };
-      }
-      warnings.push(createWarning("Stooq returned no usable daily prices for", normalizedTicker));
-    } catch (error) {
-      warnings.push(createWarning("Stooq fallback failed:", error instanceof Error ? error.message : String(error)));
+    if (prices.length > 0) {
+      // Non-daily (monthly/weekly) candles slipped through; reject and try the
+      // daily Stooq fallback rather than serving downsampled MDD history.
+      warnings.push(createWarning("Yahoo returned non-daily candles for", normalizedTicker, "- falling back to daily source"));
+    } else {
+      warnings.push(createWarning("Yahoo returned no usable daily prices for", normalizedTicker));
     }
+  } catch (error) {
+    warnings.push(createWarning("Yahoo history fallback triggered:", error instanceof Error ? error.message : String(error)));
   }
 
-  if (market === "KR") {
-    return emptyQuoteHistory({
-      ticker,
-      market,
-      warning: [...warnings, "한국 종목의 라이브 시세를 가져오지 못했습니다. 샘플 데이터로 대체하지 않습니다."].join(" "),
-    });
+  try {
+    const prices = await fetchStooqDaily({ ...input, ticker: normalizedTicker });
+    if (prices.length > 0) {
+      return { ticker, normalizedTicker, source: "stooq", updatedAt: nowIso(), warnings, prices };
+    }
+    warnings.push(createWarning("Stooq returned no usable daily prices for", normalizedTicker));
+  } catch (error) {
+    warnings.push(createWarning("Stooq fallback failed:", error instanceof Error ? error.message : String(error)));
   }
 
+  warnings.push("Sample fallback returned deterministic demo prices.");
   return {
     ticker,
     normalizedTicker,
-    metadata: resolveQuoteMetadata({
-      requestedTicker: tickerResolution.requestedTicker,
-      resolvedSymbol: normalizedTicker,
-      market,
-    }),
     source: "sample",
     updatedAt: nowIso(),
-    warnings: [...warnings, "라이브 시세를 가져오지 못했습니다. 샘플 데이터를 표시합니다."],
+    warnings,
     prices: buildSampleHistory({ ...input, ticker: normalizedTicker }),
   };
 }
