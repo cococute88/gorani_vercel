@@ -5,6 +5,7 @@ import { PRODUCTION_MARKET_PATTERN_DATASET_VERSION } from "@/lib/retirement-boot
 import {
   DEFAULT_RETIREMENT_BOOTSTRAP_BLOCK_LENGTH,
   DEFAULT_RETIREMENT_BOOTSTRAP_ITERATIONS,
+  RETIREMENT_BOOTSTRAP_RESULT_SCHEMA_VERSION,
   type RetirementBootstrapInput,
   type RetirementBootstrapResult,
 } from "@/lib/retirement-bootstrap-types";
@@ -152,6 +153,7 @@ export function useRetirementBootstrapAnalysis(
             requestId,
             input: requestInput,
             datasetVersion: PRODUCTION_MARKET_PATTERN_DATASET_VERSION,
+            resultSchemaVersion: RETIREMENT_BOOTSTRAP_RESULT_SCHEMA_VERSION,
             simulationCount: DEFAULT_RETIREMENT_BOOTSTRAP_ITERATIONS,
             blockLength: DEFAULT_RETIREMENT_BOOTSTRAP_BLOCK_LENGTH,
             seed: requestIdentity.seed,

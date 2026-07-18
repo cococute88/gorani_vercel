@@ -22,6 +22,7 @@ export type RetirementBootstrapWorkerRunRequest = {
   requestId: string;
   input: RetirementBootstrapInput;
   datasetVersion: string;
+  resultSchemaVersion: number;
   simulationCount: number;
   blockLength: number;
   seed: number;

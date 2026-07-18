@@ -12,7 +12,10 @@ import {
 } from "../lib/retirement-bootstrap-data.ts";
 import {
   buildRetirementBootstrapCheckpoints,
+  classifyFinalRealAssetRetentionBucket,
   compileRetirementBootstrapModel,
+  meetsRetirementFundingRatioThreshold,
+  nearestRankPercentile,
   runRetirementBootstrap,
   simulateRetirementBootstrapPath,
 } from "../lib/retirement-bootstrap-engine.ts";
@@ -27,6 +30,10 @@ import type {
   MarketPatternDatasetV1,
   RetirementBootstrapAnnualRecord,
   RetirementBootstrapInput,
+} from "../lib/retirement-bootstrap-types.ts";
+import {
+  RETIREMENT_BOOTSTRAP_RESULT_SCHEMA_VERSION,
+  RETIREMENT_BOOTSTRAP_SUSTAINABILITY_MIN_FUNDING_RATIO,
 } from "../lib/retirement-bootstrap-types.ts";
 import {
   RETIREMENT_BOOTSTRAP_SYNTHETIC_FIXTURE,
@@ -466,6 +473,7 @@ function record(
   withdrawalSatisfied = true,
   depleted = false,
 ): RetirementBootstrapAnnualRecord {
+  const supplied = withdrawalSatisfied ? 1 : 0.5;
   return {
     yearNumber,
     calendarYear: 2030 + yearNumber,
@@ -473,6 +481,11 @@ function record(
     nominalAssets: realAssets,
     realAssets,
     cumulativeInflation: 1,
+    requiredAfterTaxCashflow: 1,
+    suppliedAfterTaxCashflow: supplied,
+    fundingRatio: supplied,
+    realAssetsBeforeWithdrawal: realAssets,
+    realNetBrokerageDividendCashflow: 0,
     requiredWithdrawalNominal: 1,
     grossIsaWithdrawal: withdrawalSatisfied ? 1 : 0.5,
     netIsaWithdrawal: withdrawalSatisfied ? 1 : 0.5,
@@ -480,7 +493,7 @@ function record(
     netPensionWithdrawal: 0,
     grossBrokerageDividend: 0,
     netBrokerageDividend: 0,
-    suppliedWithdrawalNet: withdrawalSatisfied ? 1 : 0.5,
+    suppliedWithdrawalNet: supplied,
     withdrawalSatisfied,
     depleted,
   };
@@ -506,6 +519,91 @@ const positiveBalanceShortfall = buildRetirementBootstrapCheckpoints(
 )[0];
 assert.equal(positiveBalanceShortfall.success, false, "잔액 양수여도 필수 인출 일부 지급은 실패");
 assert.equal(positiveBalanceShortfall.firstWithdrawalShortfallYear, 2031);
+
+assert.equal(
+  meetsRetirementFundingRatioThreshold(85, 100),
+  true,
+  "정확히 85%는 지속 성공 threshold를 충족",
+);
+assert.equal(
+  meetsRetirementFundingRatioThreshold(84.999, 100),
+  false,
+  "84.999%는 floating-point tolerance로 상향하지 않음",
+);
+assert.equal(RETIREMENT_BOOTSTRAP_SUSTAINABILITY_MIN_FUNDING_RATIO, 0.85, "85% 기준은 단일 상수 계약");
+
+const exact85Record: RetirementBootstrapAnnualRecord = {
+  ...record(1, 100, false, false),
+  requiredAfterTaxCashflow: 100,
+  suppliedAfterTaxCashflow: 85,
+  fundingRatio: 0.85,
+  requiredWithdrawalNominal: 100,
+  suppliedWithdrawalNet: 85,
+  realAssetsBeforeWithdrawal: 200,
+};
+const exact85Checkpoint = buildRetirementBootstrapCheckpoints([exact85Record], [1], 1_000)[0];
+assert.equal(exact85Checkpoint.sustainabilitySuccess85, true, "정확히 85%이며 미고갈이면 지속 성공");
+assert.equal(exact85Checkpoint.fullFundingSuccess100, false, "85% 공급은 100% 완전 충족이 아님");
+assert.equal(exact85Checkpoint.success, false, "legacy success는 기존 100% 계약 유지");
+
+const below85Checkpoint = buildRetirementBootstrapCheckpoints([{
+  ...exact85Record,
+  suppliedAfterTaxCashflow: 84.999,
+  suppliedWithdrawalNet: 84.999,
+  fundingRatio: 0.84999,
+}], [1], 1_000)[0];
+assert.equal(below85Checkpoint.sustainabilitySuccess85, false, "85% 미만 경로 실패");
+
+const depletedAt85Checkpoint = buildRetirementBootstrapCheckpoints([{
+  ...exact85Record,
+  nominalAssets: 0,
+  realAssets: 0,
+  depleted: true,
+}], [1], 1_000)[0];
+assert.equal(depletedAt85Checkpoint.sustainabilitySuccess85, false, "85% 충족이어도 자산 고갈이면 실패");
+
+const preWithdrawalRecord: RetirementBootstrapAnnualRecord = {
+  ...record(1, 150, true, false),
+  requiredAfterTaxCashflow: 0,
+  suppliedAfterTaxCashflow: 0,
+  fundingRatio: null,
+  requiredWithdrawalNominal: 0,
+  suppliedWithdrawalNet: 0,
+};
+const delayed85Checkpoint = buildRetirementBootstrapCheckpoints([
+  preWithdrawalRecord,
+  { ...exact85Record, yearNumber: 2, calendarYear: 2032 },
+], [2], 1_000)[0];
+assert.equal(delayed85Checkpoint.sustainabilitySuccess85, true, "인출 시작 전 연도는 85% 성공 판정에서 제외");
+
+assert.equal(exact85Checkpoint.withdrawalStartRealAssets, 200, "실제 인출 적용 직전 실질자산 denominator 기록");
+assert.equal(exact85Checkpoint.finalRealAssetRetentionRatio, 0.5, "최초 시뮬레이션 자산이 아닌 인출 시작 실질자산 기준");
+assert.deepEqual(
+  [1, 0.999999, 0.8, 0.799999, 0.5, 0.499999, 0.25, 0.249999].map(classifyFinalRealAssetRetentionBucket),
+  ["at_least_100", "from_80_to_100", "from_80_to_100", "from_50_to_80", "from_50_to_80", "from_25_to_50", "from_25_to_50", "below_25"],
+  "최종자산 bucket 경계는 중복 없이 분류",
+);
+
+const twentyPctFundingCheckpoint = buildRetirementBootstrapCheckpoints([{
+  ...record(1, 100, false, false),
+  requiredAfterTaxCashflow: 1_200,
+  suppliedAfterTaxCashflow: 240,
+  fundingRatio: 0.2,
+  requiredWithdrawalNominal: 1_200,
+  suppliedWithdrawalNet: 240,
+}], [1], 100)[0];
+assert.equal(twentyPctFundingCheckpoint.minimumFundingRatio, 0.2);
+assert.equal(twentyPctFundingCheckpoint.livingExpenseMdd, -0.8, "목표 100 / 공급 20의 생활비 MDD는 -80%");
+assert.equal(twentyPctFundingCheckpoint.minimumMonthlySuppliedReal, 20, "연간 계산 결과를 월 20으로 환산");
+assert.equal(nearestRankPercentile([0.1, 0.2, 0.3, 0.4, 0.5], 0.05), 0.1, "하위 5% nearest-rank 정책");
+assert.equal(nearestRankPercentile([0.1, 0.2, 0.3, 0.4, 0.5], 0.5), 0.3, "중앙값 nearest-rank 정책");
+
+const dividendRows = [100, 120, 60].map((realDividend, index): RetirementBootstrapAnnualRecord => ({
+  ...record(index + 1, 100, true, false),
+  realNetBrokerageDividendCashflow: realDividend,
+}));
+const dividendMddCheckpoint = buildRetirementBootstrapCheckpoints(dividendRows, [3], 100)[0];
+assert.equal(dividendMddCheckpoint.realAfterTaxDividendCashflowMdd, -0.5, "prior peak 120 대비 실질 세후 배당 60의 MDD는 -50%");
 
 assert.throws(
   () => buildRetirementBootstrapInput({
@@ -536,12 +634,46 @@ const tenThousand = runRetirementBootstrap(input, RETIREMENT_BOOTSTRAP_SYNTHETIC
   allowTestFixture: true,
 });
 assert.equal(tenThousand.iterations, 10_000);
+assert.equal(tenThousand.schemaVersion, RETIREMENT_BOOTSTRAP_RESULT_SCHEMA_VERSION, "V2 result schema 노출");
 assert.equal(tenThousand.datasetUpdatedAt, RETIREMENT_BOOTSTRAP_SYNTHETIC_FIXTURE.updatedAt);
 assert.equal(tenThousand.distributionStressPolicyId, null, "기본 production 분배 정책은 중립");
 assert.ok(tenThousand.recenteringDiagnostics.every((row) => row.clippedLowCount === 0 && row.clippedHighCount === 0));
 assert.deepEqual(tenThousand.periods.map((row) => row.periodYears), [30, 40, 50, 60, 70]);
 assert.ok(tenThousand.periods.every((row) => row.simulationCount === 10_000));
 assert.ok(tenThousand.periods.every((row) => row.successCount === Math.round(row.successRate * 10_000)));
+for (const period of tenThousand.periods) {
+  assert.equal(period.successCount, period.fullFundingSuccessCount100, "legacy success count는 100% 완전 충족으로 보존");
+  assert.equal(period.successRate, period.fullFundingSuccessRate100, "legacy success rate는 100% 완전 충족으로 보존");
+  assert.ok(period.sustainabilitySuccessRate85 >= period.fullFundingSuccessRate100, "85% 지속 성공률은 100% 완전 충족률 이상");
+  const distribution = period.finalRealAssetRetention;
+  assert.equal(distribution.denominatorPathCount, 10_000, "모든 경로가 인출 시작 실질자산 denominator를 가짐");
+  assert.equal(
+    distribution.atLeast100PctCount
+      + distribution.from80To100PctCount
+      + distribution.from50To80PctCount
+      + distribution.from25To50PctCount
+      + distribution.below25PctCount,
+    10_000,
+    "최종자산 5개 bucket count 합계 100%",
+  );
+  approx(
+    distribution.atLeast100PctProbability
+      + distribution.from80To100PctProbability
+      + distribution.from50To80PctProbability
+      + distribution.from25To50PctProbability
+      + distribution.below25PctProbability,
+    1,
+    1e-12,
+  );
+  assert.ok(period.livingExpenseRisk.worstLivingExpenseMdd! <= period.livingExpenseRisk.lower1PctLivingExpenseMdd!);
+  assert.ok(period.livingExpenseRisk.lower1PctLivingExpenseMdd! <= period.livingExpenseRisk.lower5PctLivingExpenseMdd!);
+  assert.equal(period.realAfterTaxDividendCashflowRisk.observedPathCount, 10_000);
+  assert.ok(
+    period.realAfterTaxDividendCashflowRisk.drop20PctOrMoreProbability
+      >= period.realAfterTaxDividendCashflowRisk.drop30PctOrMoreProbability,
+    "배당 MDD threshold 확률은 하락폭이 커질수록 증가하지 않음",
+  );
+}
 
 const tenThousandRepeat = runRetirementBootstrap(input, RETIREMENT_BOOTSTRAP_SYNTHETIC_FIXTURE, {
   seed: 730_401,

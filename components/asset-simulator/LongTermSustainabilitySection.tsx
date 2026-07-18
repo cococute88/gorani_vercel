@@ -27,6 +27,7 @@ import { PRODUCTION_MARKET_PATTERN_DATASET_VERSION } from "@/lib/retirement-boot
 import {
   DEFAULT_RETIREMENT_BOOTSTRAP_BLOCK_LENGTH,
   DEFAULT_RETIREMENT_BOOTSTRAP_ITERATIONS,
+  RETIREMENT_BOOTSTRAP_RESULT_SCHEMA_VERSION,
   type RetirementBootstrapInput,
   type RetirementBootstrapPeriodResult,
 } from "@/lib/retirement-bootstrap-types";
@@ -46,12 +47,12 @@ type Props = {
   targetMonthlyExpenseReal: number | null;
 };
 
-type ChartMetricKey = "successRatePct" | "principal50Pct" | "principal25Pct";
+type ChartMetricKey = "sustainability85Pct" | "principal50Pct" | "principal25Pct";
 type ChartDatum = {
   periodYears: number;
   periodLabel: string;
   simulationCount: number;
-  successRatePct: number;
+  sustainability85Pct: number;
   principal50Pct: number;
   principal25Pct: number;
 };
@@ -70,9 +71,9 @@ const METRICS: Array<{
   dash?: string;
   shape: "circle" | "square" | "diamond";
 }> = [
-  { key: "successRatePct", label: "지속 성공률", color: "#2563eb", shape: "circle" },
-  { key: "principal50Pct", label: "실질 원금 50% 이하", color: "#d97706", dash: "7 4", shape: "diamond" },
-  { key: "principal25Pct", label: "실질 원금 25% 이하", color: "#dc2626", dash: "2 4", shape: "square" },
+  { key: "sustainability85Pct", label: "지속 성공률(85%)", color: "#2563eb", shape: "circle" },
+  { key: "principal50Pct", label: "기간 중 실질자산 50% 이하", color: "#d97706", dash: "7 4", shape: "diamond" },
+  { key: "principal25Pct", label: "기간 중 실질자산 25% 이하", color: "#dc2626", dash: "2 4", shape: "square" },
 ];
 
 const ERROR_COPY: Record<RetirementBootstrapWorkerError["code"], string> = {
@@ -98,6 +99,16 @@ function formatChartProbability(value: number): string {
 
 function formatDiagnosticAmount(value: number): string {
   return `${new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 1 }).format(value)}만원`;
+}
+
+function formatSignedProbability(value: number): string {
+  const percentage = value * 100;
+  return `${percentage > 0 ? "+" : ""}${percentage.toFixed(1)}%`;
+}
+
+function formatMonthlyRisk(amount: number | null, mdd: number | null): string {
+  if (amount === null || mdd === null) return "—";
+  return `${formatDiagnosticAmount(amount)} (${formatSignedProbability(mdd)})`;
 }
 
 function InfoTip({ label, children }: { label: string; children: ReactNode }) {
@@ -279,7 +290,7 @@ export default function LongTermSustainabilitySection({
     periodYears: period.periodYears,
     periodLabel: `${period.periodYears}년`,
     simulationCount: period.simulationCount,
-    successRatePct: period.successRate * 100,
+    sustainability85Pct: period.sustainabilitySuccessRate85 * 100,
     principal50Pct: period.reachedRealPrincipal50PctProbability * 100,
     principal25Pct: period.reachedRealPrincipal25PctProbability * 100,
   })), [periods]);
@@ -322,19 +333,22 @@ export default function LongTermSustainabilitySection({
     <div className={analysis.refreshing ? "pointer-events-none opacity-35" : ""} aria-busy={analysis.refreshing}>
       <div className="mt-5 grid gap-3 sm:grid-cols-3">
         <p className="rounded-xl bg-blue-50 p-3 text-[12.5px] leading-5 text-blue-950 dark:bg-blue-950/30 dark:text-blue-100">
-          현재 가정에서 <strong>{summaryPeriod.periodYears}년 지속 성공률은 {formatProbability(summaryPeriod.successRate)}</strong>입니다.
+          <span className="inline-flex items-center">{summaryPeriod.periodYears}년 지속 성공률(85%)<InfoTip label="지속 성공률 85% 기준 설명">인출 시작 이후 모든 연도에서 목표 세후 생활비의 최소 85% 이상을 공급하고, 기간 종료까지 자산이 고갈되지 않은 경로의 비율입니다.</InfoTip></span>
+          <strong className="mt-1 block text-[18px]">{formatProbability(summaryPeriod.sustainabilitySuccessRate85)}</strong>
         </p>
         <p className="rounded-xl bg-amber-50 p-3 text-[12.5px] leading-5 text-amber-950 dark:bg-amber-950/30 dark:text-amber-100">
-          {summaryPeriod.periodYears}년 중 실질 자산이 최초 원금의 <strong>50% 이하로 내려갈 확률은 {formatProbability(summaryPeriod.reachedRealPrincipal50PctProbability)}</strong>입니다.
+          <span className="inline-flex items-center">{summaryPeriod.periodYears}년 완전 충족률(100%)<InfoTip label="완전 충족률 100% 기준 설명">인출 시작 이후 모든 연도에서 목표 세후 생활비를 100% 충족하고, 기간 종료까지 자산이 고갈되지 않은 경로의 비율입니다.</InfoTip></span>
+          <strong className="mt-1 block text-[18px]">{formatProbability(summaryPeriod.fullFundingSuccessRate100)}</strong>
         </p>
         <p className="rounded-xl bg-rose-50 p-3 text-[12.5px] leading-5 text-rose-950 dark:bg-rose-950/30 dark:text-rose-100">
-          <strong>25% 이하로 내려갈 확률은 {formatProbability(summaryPeriod.reachedRealPrincipal25PctProbability)}</strong>입니다.
+          <span className="inline-flex items-center">{summaryPeriod.periodYears}년 최종자산 보존 중앙값<InfoTip label="최종자산 보존 중앙값 설명">각 경로의 종료 실질자산을 실제 인출 시작 직전 총 실질자산으로 나눈 값의 중앙값입니다.</InfoTip></span>
+          <strong className="mt-1 block text-[18px]">{summaryPeriod.finalRealAssetRetention.medianRetentionRatio === null ? "—" : formatProbability(summaryPeriod.finalRealAssetRetention.medianRetentionRatio)}</strong>
         </p>
       </div>
 
-      {summaryPeriod.successCount === 0 && summaryFailureDiagnostics ? (
+      {summaryPeriod.fullFundingSuccessCount100 === 0 && summaryFailureDiagnostics ? (
         <div role="note" className="mt-3 rounded-xl border border-blue-200 bg-blue-50/70 px-3 py-2.5 text-[11.5px] leading-5 text-blue-950 dark:border-blue-900 dark:bg-blue-950/20 dark:text-blue-100">
-          <p className="font-semibold">0.0%는 자산이 모두 고갈됐다는 뜻이 아닙니다.</p>
+          <p className="font-semibold">완전 충족률 0.0%는 자산이 모두 고갈됐다는 뜻이 아닙니다.</p>
           <p className="mt-0.5">
             {summaryFailureDiagnostics.withdrawalShortfallOnlyCount + summaryFailureDiagnostics.withdrawalShortfallAndDepletionCount
               === summaryPeriod.simulationCount
@@ -354,22 +368,26 @@ export default function LongTermSustainabilitySection({
         <div className="min-w-0">
           <h3 className="text-[13px] font-bold text-slate-800 dark:text-slate-200">기간별 결과</h3>
           <div className="mt-2 max-w-full overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
-            <table className="min-w-[700px] w-full border-collapse text-left text-[12px]">
-              <caption className="sr-only">30년부터 70년까지 장기 지속 성공률과 실질 원금 임계값 도달 확률</caption>
+            <table className="min-w-[880px] w-full border-collapse text-left text-[12px]">
+              <caption className="sr-only">30년부터 70년까지 85% 지속 성공률, 100% 완전 충족률, 기간 중 실질자산 임계값 도달 확률</caption>
               <thead className="bg-slate-50 text-slate-700 dark:bg-slate-900/60 dark:text-slate-300">
                 <tr>
                   <th scope="col" className="px-3 py-3 font-semibold">기간</th>
                   <th scope="col" className="px-3 py-3 font-semibold">
-                    지속 성공률
-                    <InfoTip label="지속 성공률 설명">해당 기간 동안 인출 시작 이후 매년 필요한 세후 생활비를 모두 충족하고 자산이 고갈되지 않은 경로의 비율입니다. 자산이 많이 남아 있어도 특정 연도의 생활비를 충족하지 못하면 실패로 계산될 수 있습니다.</InfoTip>
+                    지속 성공률(85%)
+                    <InfoTip label="지속 성공률 설명">인출 시작 이후 모든 연도에서 목표 세후 생활비의 최소 85% 이상을 공급하고, 기간 종료까지 자산이 고갈되지 않은 경로의 비율입니다. 정확히 85%는 성공입니다.</InfoTip>
                   </th>
                   <th scope="col" className="px-3 py-3 font-semibold">
-                    실질 원금 50% 이하 확률
-                    <InfoTip label="실질 원금 50% 이하 확률 설명">기간 중 한 번이라도 시작 구매력 기준 최초 실질 원금의 50% 이하로 내려간 경로 비율입니다. 이후 회복했어도 포함됩니다.</InfoTip>
+                    완전 충족률(100%)
+                    <InfoTip label="완전 충족률 설명">인출 시작 이후 모든 연도에서 목표 세후 생활비를 100% 충족하고, 기간 종료까지 자산이 고갈되지 않은 경로의 비율입니다.</InfoTip>
                   </th>
                   <th scope="col" className="px-3 py-3 font-semibold">
-                    실질 원금 25% 이하 확률
-                    <InfoTip label="실질 원금 25% 이하 확률 설명">기간 중 한 번이라도 시작 구매력 기준 최초 실질 원금의 25% 이하로 내려간 경로 비율입니다. 이후 회복했어도 포함됩니다.</InfoTip>
+                    기간 중 실질자산 50% 이하 도달
+                    <InfoTip label="기간 중 실질자산 50% 이하 도달 설명">기간 중 한 번이라도 시작 구매력 기준 최초 실질 원금의 50% 이하로 내려간 경로 비율입니다. 이후 회복한 경로도 포함됩니다.</InfoTip>
+                  </th>
+                  <th scope="col" className="px-3 py-3 font-semibold">
+                    기간 중 실질자산 25% 이하 도달
+                    <InfoTip label="기간 중 실질자산 25% 이하 도달 설명">기간 중 한 번이라도 시작 구매력 기준 최초 실질 원금의 25% 이하로 내려간 경로 비율입니다. 이후 회복한 경로도 포함됩니다.</InfoTip>
                   </th>
                 </tr>
               </thead>
@@ -377,7 +395,8 @@ export default function LongTermSustainabilitySection({
                 {periods.map((period: RetirementBootstrapPeriodResult) => (
                   <tr key={period.periodYears} className="bg-white dark:bg-[#171d1e]">
                     <th scope="row" className="whitespace-nowrap px-3 py-3 font-bold text-slate-900 dark:text-white">{period.periodYears}년</th>
-                    <td className="px-3 py-3 font-semibold text-blue-700 dark:text-blue-300">● {formatProbability(period.successRate)}</td>
+                    <td className="px-3 py-3 font-semibold text-blue-700 dark:text-blue-300">● {formatProbability(period.sustainabilitySuccessRate85)}</td>
+                    <td className="px-3 py-3 font-semibold text-slate-700 dark:text-slate-300">{formatProbability(period.fullFundingSuccessRate100)}</td>
                     <td className="px-3 py-3 font-semibold text-amber-700 dark:text-amber-300">◆ {formatProbability(period.reachedRealPrincipal50PctProbability)}</td>
                     <td className="px-3 py-3 font-semibold text-rose-700 dark:text-rose-300">■ {formatProbability(period.reachedRealPrincipal25PctProbability)}</td>
                   </tr>
@@ -386,7 +405,7 @@ export default function LongTermSustainabilitySection({
             </table>
           </div>
           <p className="mt-2 text-[11px] leading-5 text-slate-500">
-            지속 성공률과 실질 원금 임계확률은 서로 반대 개념이 아닙니다. 자산이 원금의 50%보다 많이 남아 있어도 특정 연도의 세후 생활비를 충족하지 못하면 지속 성공에서는 실패할 수 있습니다. 세 지표는 합계가 100%가 되도록 조정하지 않습니다.
+            지속 성공률·완전 충족률과 기간 중 실질자산 임계확률은 서로 반대 개념이 아닙니다. 자산이 이후 회복해도 50%·25% 도달 이력에는 포함되며, 네 지표는 합계가 100%가 되도록 조정하지 않습니다.
           </p>
         </div>
 
@@ -429,6 +448,125 @@ export default function LongTermSustainabilitySection({
         </div>
       </div>
 
+      <div className="mt-6 min-w-0">
+        <div className="flex items-center gap-1">
+          <h3 className="text-[13px] font-bold text-slate-800 dark:text-slate-200">최종 실질자산 보존 분포</h3>
+          <InfoTip label="최종 실질자산 보존 분포 설명">checkpoint 종료 실질자산을 각 경로의 실제 인출 시작 직전 총 실질자산으로 나눕니다. 인출 전 축적기간이 있으면 최초 시뮬레이션 자산을 denominator로 쓰지 않습니다. 고갈 경로는 25% 미만에 포함됩니다.</InfoTip>
+        </div>
+        <div className="mt-2 max-w-full overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
+          <table className="min-w-[760px] w-full border-collapse text-left text-[12px]">
+            <caption className="sr-only">기간별 최종 실질자산 보존율 5개 상호배타 bucket 분포</caption>
+            <thead className="bg-slate-50 text-slate-700 dark:bg-slate-900/60 dark:text-slate-300">
+              <tr>
+                <th scope="col" className="px-3 py-3">기간</th>
+                <th scope="col" className="px-3 py-3">100% 이상</th>
+                <th scope="col" className="px-3 py-3">80% 이상~100% 미만</th>
+                <th scope="col" className="px-3 py-3">50% 이상~80% 미만</th>
+                <th scope="col" className="px-3 py-3">25% 이상~50% 미만</th>
+                <th scope="col" className="px-3 py-3">25% 미만</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+              {periods.map((period) => {
+                const distribution = period.finalRealAssetRetention;
+                return (
+                  <tr key={period.periodYears} className="bg-white dark:bg-[#171d1e]">
+                    <th scope="row" className="px-3 py-3 font-bold">{period.periodYears}년</th>
+                    <td className="px-3 py-3">{formatProbability(distribution.atLeast100PctProbability)}</td>
+                    <td className="px-3 py-3">{formatProbability(distribution.from80To100PctProbability)}</td>
+                    <td className="px-3 py-3">{formatProbability(distribution.from50To80PctProbability)}</td>
+                    <td className="px-3 py-3">{formatProbability(distribution.from25To50PctProbability)}</td>
+                    <td className="px-3 py-3">{formatProbability(distribution.below25PctProbability)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <p className="mt-2 text-[11px] leading-5 text-slate-500">다섯 bucket은 경계가 겹치지 않으며 rounding 전 확률 합계가 100%입니다.</p>
+      </div>
+
+      <div className="mt-6 grid min-w-0 gap-5 xl:grid-cols-2">
+        <div className="min-w-0">
+          <div className="flex items-center gap-1">
+            <h3 className="text-[13px] font-bold text-slate-800 dark:text-slate-200">생활비 하방 위험</h3>
+            <InfoTip label="생활비 MDD 설명">각 경로에서 인출 시작 이후 최저 생활비 충족률을 찾고, 생활비 MDD를 최저 충족률 - 100%로 계산합니다. 공급이 목표보다 많으면 MDD는 0%로 제한합니다. 하위 1%·5%는 nearest-rank percentile입니다.</InfoTip>
+          </div>
+          <p className="mt-1 text-[11px] leading-5 text-slate-500">목표 월생활비 {prepared.input ? formatDiagnosticAmount(prepared.input.annualRequiredWithdrawalReal / 12) : "—"} 기준 · 금액은 시작 시점 구매력</p>
+          <div className="mt-2 max-w-full overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
+            <table className="min-w-[720px] w-full border-collapse text-left text-[11.5px]">
+              <caption className="sr-only">기간별 최악, 하위 1%, 하위 5%, 중앙값 경로의 최저 월생활비와 생활비 MDD</caption>
+              <thead className="bg-slate-50 text-slate-700 dark:bg-slate-900/60 dark:text-slate-300">
+                <tr>
+                  <th scope="col" className="px-3 py-3">기간</th>
+                  <th scope="col" className="px-3 py-3">최악 경로</th>
+                  <th scope="col" className="px-3 py-3">하위 1%</th>
+                  <th scope="col" className="px-3 py-3">하위 5%</th>
+                  <th scope="col" className="px-3 py-3">중앙값</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                {periods.map((period) => {
+                  const risk = period.livingExpenseRisk;
+                  return (
+                    <tr key={period.periodYears} className="bg-white dark:bg-[#171d1e]">
+                      <th scope="row" className="px-3 py-3 font-bold">{period.periodYears}년</th>
+                      <td className="px-3 py-3 text-rose-700 dark:text-rose-300">{formatMonthlyRisk(risk.worstMinimumMonthlySuppliedReal, risk.worstLivingExpenseMdd)}</td>
+                      <td className="px-3 py-3">{formatMonthlyRisk(risk.lower1PctMinimumMonthlySuppliedReal, risk.lower1PctLivingExpenseMdd)}</td>
+                      <td className="px-3 py-3 font-semibold text-amber-700 dark:text-amber-300">{formatMonthlyRisk(risk.lower5PctMinimumMonthlySuppliedReal, risk.lower5PctLivingExpenseMdd)}</td>
+                      <td className="px-3 py-3">{formatMonthlyRisk(risk.medianMinimumMonthlySuppliedReal, risk.medianLivingExpenseMdd)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-2 text-[11px] leading-5 text-slate-500">
+            {summaryPeriod.periodYears}년 중 최저 충족률이 85%/70%/50% 미만인 경로: {formatProbability(summaryPeriod.livingExpenseRisk.below85PctProbability)} / {formatProbability(summaryPeriod.livingExpenseRisk.below70PctProbability)} / {formatProbability(summaryPeriod.livingExpenseRisk.below50PctProbability)}
+          </p>
+        </div>
+
+        <div className="min-w-0">
+          <div className="flex items-center gap-1">
+            <h3 className="text-[13px] font-bold text-slate-800 dark:text-slate-200">실질 세후 배당 현금흐름 하락 위험</h3>
+            <InfoTip label="실질 세후 배당 현금흐름 하락 위험 설명">명목 배당 삭감 자체의 확률이 아니라, 위탁계좌의 세후 배당·분배 현금흐름을 시작 시점 구매력으로 환산한 뒤 이전 최고 수준 대비 감소한 경로의 비율입니다.</InfoTip>
+          </div>
+          <p className="mt-1 text-[11px] leading-5 text-slate-500">기간 중 prior peak 대비 실질 세후 현금흐름 MDD가 threshold 이상 하락한 경로 비율</p>
+          <div className="mt-2 max-w-full overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
+            <table className="min-w-[620px] w-full border-collapse text-left text-[11.5px]">
+              <caption className="sr-only">기간별 실질 세후 배당 현금흐름 MDD threshold 발생 확률</caption>
+              <thead className="bg-slate-50 text-slate-700 dark:bg-slate-900/60 dark:text-slate-300">
+                <tr>
+                  <th scope="col" className="px-3 py-3">기간</th>
+                  {[-20, -30, -40, -50, -60].map((threshold) => <th key={threshold} scope="col" className="px-3 py-3">{threshold}% 이상 하락</th>)}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                {periods.map((period) => {
+                  const risk = period.realAfterTaxDividendCashflowRisk;
+                  const probabilities = [
+                    risk.drop20PctOrMoreProbability,
+                    risk.drop30PctOrMoreProbability,
+                    risk.drop40PctOrMoreProbability,
+                    risk.drop50PctOrMoreProbability,
+                    risk.drop60PctOrMoreProbability,
+                  ];
+                  return (
+                    <tr key={period.periodYears} className="bg-white dark:bg-[#171d1e]">
+                      <th scope="row" className="px-3 py-3 font-bold">{period.periodYears}년</th>
+                      {probabilities.map((probability, index) => (
+                        <td key={index} className="px-3 py-3">{risk.observedPathCount > 0 ? formatProbability(probability) : "—"}</td>
+                      ))}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-2 text-[11px] leading-5 text-slate-500">현재 production 모델에는 근거 있는 stochastic 명목 배당 삭감 series가 없습니다. 따라서 실제 명목 배당 -20%·-30%·-60% 삭감 확률은 생성하지 않습니다.</p>
+        </div>
+      </div>
+
       <details className="mt-5 rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2 dark:border-slate-800 dark:bg-slate-900/30">
         <summary className="cursor-pointer text-[11.5px] font-semibold text-slate-700 dark:text-slate-300">분석 방법과 데이터</summary>
         <div className="mt-2 grid gap-x-5 gap-y-1 text-[11px] leading-5 text-slate-600 dark:text-slate-400 sm:grid-cols-2 lg:grid-cols-3">
@@ -438,12 +576,17 @@ export default function LongTermSustainabilitySection({
           <p>시장 패턴: 자산군 proxy</p>
           <p>실질금액 기준: 시작 시점 구매력</p>
           <p className="break-all">datasetVersion: {analysis.result.datasetVersion}</p>
+          <p>resultSchemaVersion: {analysis.result.schemaVersion}</p>
+          <p>cache policy: v{RETIREMENT_BOOTSTRAP_RESULT_SCHEMA_VERSION}</p>
         </div>
         <p className="mt-2 text-[11px] leading-5 text-slate-500">
           사용자 입력 CAGR을 장기 중심값으로 두고, 역사 데이터에서는 변동·위기·회복의 순서를 가져옵니다. 5년 블록을 복원추출하므로 같은 블록이 반복될 수 있습니다. QQQ·SCHD·JEPQ에 개별 ETF의 55년 실제 역사를 적용한 결과가 아닙니다.
         </p>
         <p className="mt-1 text-[11px] leading-5 text-slate-500">
           Seed는 datasetVersion과 결과에 영향을 주는 정규화 사용자 입력에서 결정적으로 생성됩니다(현재 seed {analysis.seed}). 동일 입력·datasetVersion에서는 새로고침이나 재렌더링으로 결과가 흔들리지 않습니다.
+        </p>
+        <p className="mt-1 text-[11px] leading-5 text-slate-500">
+          85% 지속 성공, 100% 완전 충족, 기존 기간 중 50%·25% 도달, 최종자산 분포, 생활비 MDD, 실질 세후 배당 현금흐름 MDD는 동일한 10,000개 경로에서 한 번에 집계되며 개별 경로 배열은 UI로 전송하지 않습니다.
         </p>
         {prepared.input ? (
           <details className="mt-2 border-t border-slate-200 pt-2 dark:border-slate-800">

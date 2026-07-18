@@ -1,6 +1,9 @@
 import { runRetirementBootstrap } from "./retirement-bootstrap-engine";
 import { PRODUCTION_MARKET_PATTERN_DATA_ADAPTER } from "./retirement-bootstrap-production-adapter";
-import { RETIREMENT_BOOTSTRAP_PERIODS } from "./retirement-bootstrap-types";
+import {
+  RETIREMENT_BOOTSTRAP_PERIODS,
+  RETIREMENT_BOOTSTRAP_RESULT_SCHEMA_VERSION,
+} from "./retirement-bootstrap-types";
 import type {
   RetirementBootstrapWorkerError,
   RetirementBootstrapWorkerFailureResponse,
@@ -10,7 +13,7 @@ import type {
 
 function datasetError(error: unknown): RetirementBootstrapWorkerError {
   const message = error instanceof Error ? error.message : "production 시장 패턴 데이터를 불러오지 못했습니다.";
-  const integrityFailure = /checksum|무결성|스키마|metadata|artifact|용도|기간|관측|라이선스|연속 연도/.test(message);
+  const integrityFailure = /checksum|무결성|스키마|schemaVersion|metadata|artifact|용도|기간|관측|라이선스|연속 연도/i.test(message);
   return {
     code: integrityFailure ? "dataset_integrity_failed" : "production_dataset_load_failed",
     message,
@@ -36,6 +39,11 @@ export async function executeRetirementBootstrapWorkerRequest(
   const datasetStartedAt = performance.now();
   let dataset;
   try {
+    if (request.resultSchemaVersion !== RETIREMENT_BOOTSTRAP_RESULT_SCHEMA_VERSION) {
+      throw new Error(
+        `요청 resultSchemaVersion(${request.resultSchemaVersion})과 runtime(${RETIREMENT_BOOTSTRAP_RESULT_SCHEMA_VERSION})이 일치하지 않습니다.`,
+      );
+    }
     dataset = await PRODUCTION_MARKET_PATTERN_DATA_ADAPTER.loadDataset();
     if (dataset.datasetVersion !== request.datasetVersion) {
       throw new Error(

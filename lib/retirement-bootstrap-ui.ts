@@ -1,8 +1,12 @@
-import { RETIREMENT_BOOTSTRAP_UI_POLICY_VERSION } from "./retirement-bootstrap-config";
+import {
+  RETIREMENT_BOOTSTRAP_SEED_POLICY_VERSION,
+  RETIREMENT_BOOTSTRAP_UI_POLICY_VERSION,
+} from "./retirement-bootstrap-config";
 import type {
   RetirementBootstrapInput,
   RetirementBootstrapResult,
 } from "./retirement-bootstrap-types";
+import { RETIREMENT_BOOTSTRAP_RESULT_SCHEMA_VERSION } from "./retirement-bootstrap-types";
 import type {
   RetirementBootstrapWorkerError,
   RetirementBootstrapWorkerTiming,
@@ -87,7 +91,7 @@ export function buildRetirementBootstrapCalculationIdentity(
 ): RetirementBootstrapCalculationIdentity {
   const normalizedInput = normalizeInputForIdentity(input);
   const seedMaterial = stableStringify({
-    policyVersion: RETIREMENT_BOOTSTRAP_UI_POLICY_VERSION,
+    policyVersion: RETIREMENT_BOOTSTRAP_SEED_POLICY_VERSION,
     datasetVersion,
     normalizedInput,
   });
@@ -97,6 +101,7 @@ export function buildRetirementBootstrapCalculationIdentity(
     datasetVersion,
     simulationCount,
     blockLength,
+    resultSchemaVersion: RETIREMENT_BOOTSTRAP_RESULT_SCHEMA_VERSION,
     seed,
     normalizedInput,
   });

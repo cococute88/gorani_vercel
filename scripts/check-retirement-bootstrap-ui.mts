@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { buildRetirementBootstrapInput } from "../lib/retirement-bootstrap-adapter.ts";
-import { PRODUCTION_MARKET_PATTERN_DATASET_VERSION } from "../lib/retirement-bootstrap-config.ts";
+import {
+  PRODUCTION_MARKET_PATTERN_DATASET_VERSION,
+  RETIREMENT_BOOTSTRAP_UI_POLICY_VERSION,
+} from "../lib/retirement-bootstrap-config.ts";
 import {
   buildRetirementBootstrapCalculationIdentity,
   classifyRetirementBootstrapInputError,
@@ -14,6 +17,7 @@ import { runRetirementBootstrap } from "../lib/retirement-bootstrap-engine.ts";
 import { PRODUCTION_MARKET_PATTERN_DATA_ADAPTER } from "../lib/retirement-bootstrap-production-adapter.ts";
 import type { AppliedPortfolioAssumptionsV1, SimulatorInputs } from "../lib/asset-simulator-types.ts";
 import type { RetirementBootstrapWorkerRunRequest } from "../lib/retirement-bootstrap-worker-protocol.ts";
+import { RETIREMENT_BOOTSTRAP_RESULT_SCHEMA_VERSION } from "../lib/retirement-bootstrap-types.ts";
 
 const inputs: SimulatorInputs = {
   startYear: 2026,
@@ -129,6 +133,8 @@ try {
 assert.equal(classifyRetirementBootstrapInputError(unsupportedError).code, "unsupported_etf", "unsupported ETF 전용 오류 상태");
 
 const identity = buildRetirementBootstrapCalculationIdentity(bootstrapInput, PRODUCTION_MARKET_PATTERN_DATASET_VERSION, 10_000, 5);
+assert.match(identity.cacheKey, new RegExp(RETIREMENT_BOOTSTRAP_UI_POLICY_VERSION), "V2 cache policy로 V1 결과 무효화");
+assert.match(identity.cacheKey, /resultSchemaVersion/, "result schema version이 cache key에 포함");
 const sameIdentity = buildRetirementBootstrapCalculationIdentity(structuredClone(bootstrapInput), PRODUCTION_MARKET_PATTERN_DATASET_VERSION, 10_000, 5);
 assert.deepEqual(sameIdentity, identity, "동일 정규화 입력의 seed/cache key 재현");
 
@@ -168,6 +174,7 @@ const request: RetirementBootstrapWorkerRunRequest = structuredClone({
   requestId: "serialization-reproduction",
   input: bootstrapInput,
   datasetVersion: PRODUCTION_MARKET_PATTERN_DATASET_VERSION,
+  resultSchemaVersion: RETIREMENT_BOOTSTRAP_RESULT_SCHEMA_VERSION,
   simulationCount: 120,
   blockLength: 5,
   seed: identity.seed,
@@ -188,10 +195,21 @@ assert.deepEqual(first.result, direct, "Worker 결과와 direct engine 결과 �
 assert.deepEqual(structuredClone(first.result), first.result, "Worker 결과 structured clone 직렬화");
 assert.deepEqual(first.result.periods.map((row) => row.periodYears), [30, 40, 50, 60, 70], "Worker 5개 checkpoint 출력");
 assert.equal(first.result.datasetUsage, "production", "Worker production dataset 전용");
+assert.equal(first.result.schemaVersion, RETIREMENT_BOOTSTRAP_RESULT_SCHEMA_VERSION, "Worker V2 result schema");
+assert.ok(first.result.periods.every((row) => row.sustainabilitySuccessRate85 >= row.fullFundingSuccessRate100));
 const wrongDatasetVersion = await executeRetirementBootstrapWorkerRequest({ ...request, requestId: "wrong-dataset", datasetVersion: "stale-version" });
 assert.equal(wrongDatasetVersion.type, "error", "오래된 datasetVersion 결과 생성 차단");
 if (wrongDatasetVersion.type === "error") {
   assert.equal(wrongDatasetVersion.error.code, "dataset_integrity_failed", "datasetVersion 불일치 전용 오류 상태");
+}
+const wrongResultSchemaVersion = await executeRetirementBootstrapWorkerRequest({
+  ...request,
+  requestId: "wrong-result-schema",
+  resultSchemaVersion: RETIREMENT_BOOTSTRAP_RESULT_SCHEMA_VERSION - 1,
+});
+assert.equal(wrongResultSchemaVersion.type, "error", "오래된 result schema Worker request 차단");
+if (wrongResultSchemaVersion.type === "error") {
+  assert.equal(wrongResultSchemaVersion.error.code, "dataset_integrity_failed");
 }
 
 clearRetirementBootstrapMemoryCache();
@@ -222,6 +240,11 @@ assert.match(section, /event\.key === "Escape"/, "tooltip Escape 닫기");
 assert.match(section, /onFocus=\{\(\) => setOpen\(true\)\}[\s\S]*onBlur=\{\(\) => setOpen\(false\)\}/, "tooltip keyboard focus 접근");
 assert.match(section, /const periods = useMemo[\s\S]*chartData = useMemo<ChartDatum\[]>\(\(\) => periods\.map/, "표·그래프가 같은 result periods 객체 사용");
 assert.match(section, /summaryPeriod[\s\S]*periodYears === 60/, "60년 대표 요약");
+assert.match(section, /지속 성공률\(85%\)[\s\S]*완전 충족률\(100%\)/, "85% 메인·100% 보조 지표를 명확히 표시");
+assert.match(section, /최종 실질자산 보존 분포[\s\S]*100% 이상[\s\S]*25% 미만/, "최종자산 5개 bucket 표");
+assert.match(section, /생활비 하방 위험[\s\S]*최악 경로[\s\S]*하위 5%/, "최악과 하위 5% 생활비 MDD 표시");
+assert.match(section, /실질 세후 배당 현금흐름 하락 위험[\s\S]*명목 배당 -20%/, "실질 현금흐름 MDD와 명목 삭감 구분");
+assert.match(section, /기간 중 실질자산 50% 이하 도달[\s\S]*이후 회복한 경로도 포함/, "기존 50%·25% 지표 의미 명확화");
 assert.match(page, /active=\{activeTab === "safety"\}/, "안정성 탭이 활성일 때만 Worker 실행");
 assert.match(hook, /new Worker\(new URL\("\.\/retirement-bootstrap\.worker\.ts", import\.meta\.url\)/, "Next.js module Worker 생성");
 assert.match(hook, /worker\?\.terminate\(\)/, "입력 변경·unmount cleanup");
