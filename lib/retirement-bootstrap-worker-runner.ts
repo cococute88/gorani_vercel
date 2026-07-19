@@ -41,6 +41,8 @@ export async function executeRetirementBootstrapWorkerRequest(
     return {
       type: "error",
       requestId: request.requestId,
+      analysisScope: request.analysisScope,
+      prefetch: request.prefetch,
       error: {
         code: "invalid_user_input",
         message: `지원하지 않는 장기 분석 scope입니다: ${String(request.analysisScope)}`,
@@ -63,7 +65,7 @@ export async function executeRetirementBootstrapWorkerRequest(
       );
     }
   } catch (error) {
-    return { type: "error", requestId: request.requestId, error: datasetError(error) };
+    return { type: "error", requestId: request.requestId, analysisScope: request.analysisScope, prefetch: request.prefetch, error: datasetError(error) };
   }
   const datasetLoadMs = performance.now() - datasetStartedAt;
 
@@ -80,6 +82,8 @@ export async function executeRetirementBootstrapWorkerRequest(
     return {
       type: "success",
       requestId: request.requestId,
+      analysisScope: request.analysisScope,
+      prefetch: request.prefetch,
       result,
       timing: {
         datasetLoadMs,
@@ -89,6 +93,6 @@ export async function executeRetirementBootstrapWorkerRequest(
       },
     };
   } catch (error) {
-    return { type: "error", requestId: request.requestId, error: calculationError(error) };
+    return { type: "error", requestId: request.requestId, analysisScope: request.analysisScope, prefetch: request.prefetch, error: calculationError(error) };
   }
 }

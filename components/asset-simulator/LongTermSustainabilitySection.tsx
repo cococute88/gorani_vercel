@@ -193,10 +193,49 @@ type RetentionDot = {
   periodYears: number;
   y: number;
   capped: boolean;
-  medianRetentionRatio: number | null;
-  lower5PctRetentionRatio: number | null;
-  upper95PctRetentionRatio: number | null;
+  medianRetentionRatio: number;
+  lower5PctRetentionRatio: number;
+  upper95PctRetentionRatio: number;
 };
+
+type RetentionStatisticMarker = RetentionDot & {
+  label: "하위 5%" | "중앙값" | "상위 95%";
+  kind: "p05" | "median" | "p95";
+};
+
+type RetentionPlotData = {
+  dots: RetentionDot[];
+  statisticMarkers: RetentionStatisticMarker[];
+  visualUpperY: number;
+};
+
+function isFiniteRetentionRatio(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0;
+}
+
+function formatRetentionProbability(value: number | null | undefined): string {
+  return isFiniteRetentionRatio(value) ? formatProbability(value) : "—";
+}
+
+function isRetentionTooltipDatum(value: unknown): value is RetentionDot {
+  if (!value || typeof value !== "object") return false;
+  const point = value as Partial<RetentionDot>;
+  return Number.isFinite(point.periodYears)
+    && isFiniteRetentionRatio(point.medianRetentionRatio)
+    && isFiniteRetentionRatio(point.lower5PctRetentionRatio)
+    && isFiniteRetentionRatio(point.upper95PctRetentionRatio);
+}
+
+function isRetentionPeriodReady(period: RetirementBootstrapPeriodResult): boolean {
+  const distribution = period.finalRealAssetRetention;
+  return Number.isFinite(period.periodYears)
+    && distribution.denominatorPathCount > 0
+    && isFiniteRetentionRatio(distribution.lower5PctRetentionRatio)
+    && isFiniteRetentionRatio(distribution.medianRetentionRatio)
+    && isFiniteRetentionRatio(distribution.upper95PctRetentionRatio)
+    && isFiniteRetentionRatio(distribution.upper99PctRetentionRatio)
+    && distribution.representativeSampleRetentionRatios.every(isFiniteRetentionRatio);
+}
 
 function deterministicJitter(periodYears: number, index: number): number {
   let hash = (periodYears * 0x9e3779b1) ^ (index * 0x85ebca6b);
@@ -212,6 +251,7 @@ function retentionRatioToPlotY(ratio: number): number {
 }
 
 function formatRetentionPlotTick(value: number): string {
+  if (!Number.isFinite(value)) return "";
   const percentage = Math.pow(10, value) - 1;
   if (percentage >= 10_000) return `${Math.round(percentage / 1_000).toLocaleString("ko-KR")}k%`;
   return `${Math.round(percentage).toLocaleString("ko-KR")}%`;
@@ -222,16 +262,18 @@ function RetentionDistributionTooltip({
   payload,
 }: {
   active?: boolean;
-  payload?: Array<{ payload?: RetentionDot }>;
+  payload?: Array<{ payload?: unknown }>;
 }) {
-  const point = payload?.[0]?.payload;
+  // Recharts는 대표 점뿐 아니라 통계 marker도 payload[0]으로 전달할 수 있다.
+  // 필요한 필드를 모두 가진 datum만 tooltip으로 사용해 불완전 marker가 NaN으로 포맷되지 않게 한다.
+  const point = payload?.map((entry) => entry.payload).find(isRetentionTooltipDatum);
   if (!active || !point) return null;
   return (
     <div className="rounded-xl border border-slate-200 bg-white/95 px-3 py-2 text-[12px] shadow-xl backdrop-blur dark:border-slate-700 dark:bg-slate-950/95">
       <p className="font-bold text-slate-900 dark:text-white">{point.periodYears}년</p>
-      <p className="mt-1 text-slate-600 dark:text-slate-300">중앙값 <strong>{point.medianRetentionRatio === null ? "—" : formatProbability(point.medianRetentionRatio)}</strong></p>
-      <p className="text-slate-600 dark:text-slate-300">하위 5% <strong>{point.lower5PctRetentionRatio === null ? "—" : formatProbability(point.lower5PctRetentionRatio)}</strong></p>
-      <p className="text-slate-600 dark:text-slate-300">상위 95% <strong>{point.upper95PctRetentionRatio === null ? "—" : formatProbability(point.upper95PctRetentionRatio)}</strong></p>
+      <p className="mt-1 text-slate-600 dark:text-slate-300">중앙값 <strong>{formatProbability(point.medianRetentionRatio)}</strong></p>
+      <p className="text-slate-600 dark:text-slate-300">하위 5% <strong>{formatProbability(point.lower5PctRetentionRatio)}</strong></p>
+      <p className="text-slate-600 dark:text-slate-300">상위 95% <strong>{formatProbability(point.upper95PctRetentionRatio)}</strong></p>
       {point.capped ? <p className="mt-1 text-[10.5px] text-amber-700 dark:text-amber-300">이 점은 p99 표시 상한에 맞춰 상단에 표시됩니다.</p> : null}
     </div>
   );
@@ -257,30 +299,65 @@ function RetentionDistributionModal({
   const dialogRef = useRef<HTMLDivElement>(null);
   const modalTitleId = useId();
   const modalDescriptionId = useId();
-  const dots = useMemo<RetentionDot[]>(() => {
+  const plotData = useMemo<RetentionPlotData | null>(() => {
+    if (!periods.length || !periods.every(isRetentionPeriodReady)) return null;
     const upper99 = Math.max(
       1,
-      ...periods.map((period) => period.finalRealAssetRetention.upper99PctRetentionRatio ?? 1),
+      ...periods.map((period) => period.finalRealAssetRetention.upper99PctRetentionRatio!),
     );
-    return periods.flatMap((period) => period.finalRealAssetRetention.representativeSampleRetentionRatios.map((ratio, index) => ({
+    const dots = periods.flatMap((period) => period.finalRealAssetRetention.representativeSampleRetentionRatios.map((ratio, index) => ({
       x: period.periodYears + deterministicJitter(period.periodYears, index),
       periodYears: period.periodYears,
       y: retentionRatioToPlotY(Math.min(ratio, upper99)),
       capped: ratio > upper99,
-      medianRetentionRatio: period.finalRealAssetRetention.medianRetentionRatio,
-      lower5PctRetentionRatio: period.finalRealAssetRetention.lower5PctRetentionRatio,
-      upper95PctRetentionRatio: period.finalRealAssetRetention.upper95PctRetentionRatio,
+      medianRetentionRatio: period.finalRealAssetRetention.medianRetentionRatio!,
+      lower5PctRetentionRatio: period.finalRealAssetRetention.lower5PctRetentionRatio!,
+      upper95PctRetentionRatio: period.finalRealAssetRetention.upper95PctRetentionRatio!,
     })));
+    const statisticMarkers = periods.flatMap((period): RetentionStatisticMarker[] => [
+      {
+        x: period.periodYears,
+        periodYears: period.periodYears,
+        y: retentionRatioToPlotY(period.finalRealAssetRetention.lower5PctRetentionRatio!),
+        capped: false,
+        medianRetentionRatio: period.finalRealAssetRetention.medianRetentionRatio!,
+        lower5PctRetentionRatio: period.finalRealAssetRetention.lower5PctRetentionRatio!,
+        upper95PctRetentionRatio: period.finalRealAssetRetention.upper95PctRetentionRatio!,
+        label: "하위 5%",
+        kind: "p05",
+      },
+      {
+        x: period.periodYears,
+        periodYears: period.periodYears,
+        y: retentionRatioToPlotY(period.finalRealAssetRetention.medianRetentionRatio!),
+        capped: false,
+        medianRetentionRatio: period.finalRealAssetRetention.medianRetentionRatio!,
+        lower5PctRetentionRatio: period.finalRealAssetRetention.lower5PctRetentionRatio!,
+        upper95PctRetentionRatio: period.finalRealAssetRetention.upper95PctRetentionRatio!,
+        label: "중앙값",
+        kind: "median",
+      },
+      {
+        x: period.periodYears,
+        periodYears: period.periodYears,
+        y: retentionRatioToPlotY(period.finalRealAssetRetention.upper95PctRetentionRatio!),
+        capped: false,
+        medianRetentionRatio: period.finalRealAssetRetention.medianRetentionRatio!,
+        lower5PctRetentionRatio: period.finalRealAssetRetention.lower5PctRetentionRatio!,
+        upper95PctRetentionRatio: period.finalRealAssetRetention.upper95PctRetentionRatio!,
+        label: "상위 95%",
+        kind: "p95",
+      },
+    ]);
+    return {
+      dots,
+      statisticMarkers,
+      visualUpperY: Math.max(
+        retentionRatioToPlotY(1.25),
+        ...periods.map((period) => retentionRatioToPlotY(period.finalRealAssetRetention.upper99PctRetentionRatio! * 1.05)),
+      ),
+    };
   }, [periods]);
-  const visualUpperY = useMemo(() => Math.max(
-    retentionRatioToPlotY(1.25),
-    ...periods.map((period) => retentionRatioToPlotY((period.finalRealAssetRetention.upper99PctRetentionRatio ?? 1) * 1.05)),
-  ), [periods]);
-  const statisticMarkers = useMemo(() => periods.flatMap((period) => [
-    { x: period.periodYears, y: retentionRatioToPlotY(period.finalRealAssetRetention.lower5PctRetentionRatio ?? 0), label: "하위 5%", kind: "p05" },
-    { x: period.periodYears, y: retentionRatioToPlotY(period.finalRealAssetRetention.medianRetentionRatio ?? 0), label: "중앙값", kind: "median" },
-    { x: period.periodYears, y: retentionRatioToPlotY(period.finalRealAssetRetention.upper95PctRetentionRatio ?? 0), label: "상위 95%", kind: "p95" },
-  ]), [periods]);
 
   useEffect(() => {
     if (!open) return;
@@ -346,6 +423,10 @@ function RetentionDistributionModal({
         </div>
         {loading || periods.length === 0 ? (
           <div role="status" aria-live="polite" className="mt-5 rounded-xl bg-slate-50 p-5 text-[13px] text-slate-600 dark:bg-slate-900/40 dark:text-slate-300">선택한 분석 범위의 10,000개 경로 결과를 준비하고 있습니다.</div>
+        ) : !plotData ? (
+          <div role="status" aria-live="polite" className="mt-5 rounded-xl bg-slate-50 p-5 text-[13px] leading-6 text-slate-600 dark:bg-slate-900/40 dark:text-slate-300">
+            현재 선택 범위에는 최종 실질자산 보존율 분포를 계산할 수 있는 유효한 초기자산이 없습니다. 정상 수치처럼 0%로 표시하지 않습니다.
+          </div>
         ) : (
           <>
             <div className="mt-5 h-[min(52vh,460px)] min-h-[300px] w-full" role="img" aria-label="30년부터 70년까지 최종 실질자산 보존율 점도표. 100% 기준선과 하위 5%, 중앙값, 상위 95% 표식이 있습니다.">
@@ -353,15 +434,15 @@ function RetentionDistributionModal({
                 <ScatterChart margin={{ top: 18, right: 18, bottom: 12, left: 8 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#cbd5e1" opacity={0.55} />
                   <XAxis type="number" dataKey="x" domain={[26, 74]} ticks={[30, 40, 50, 60, 70]} tickFormatter={(value) => `${value}년`} tick={{ fontSize: 11 }} allowDecimals={false} />
-                  <YAxis type="number" dataKey="y" domain={[0, visualUpperY]} width={68} tickFormatter={formatRetentionPlotTick} tick={{ fontSize: 11 }} label={{ value: "최종 실질자산 보존율 (%) · 로그형", angle: -90, position: "insideLeft", offset: 2, style: { fontSize: 11, fill: "#475569" } }} />
+                  <YAxis type="number" dataKey="y" domain={[0, plotData.visualUpperY]} width={68} tickFormatter={formatRetentionPlotTick} tick={{ fontSize: 11 }} label={{ value: "최종 실질자산 보존율 (%) · 로그형", angle: -90, position: "insideLeft", offset: 2, style: { fontSize: 11, fill: "#475569" } }} />
                   <Tooltip cursor={{ strokeDasharray: "3 3" }} content={<RetentionDistributionTooltip />} />
                   <ReferenceLine y={retentionRatioToPlotY(1)} stroke="#2563eb" strokeWidth={2} label={{ value: "100% 기준", position: "insideTopRight", fill: "#1d4ed8", fontSize: 11 }} />
-                  <Scatter data={dots} fill="#64748b" fillOpacity={0.33} isAnimationActive={false} shape={(props: { cx?: number; cy?: number; payload?: RetentionDot }) => (
+                  <Scatter data={plotData.dots} fill="#64748b" fillOpacity={0.33} isAnimationActive={false} shape={(props: { cx?: number; cy?: number; payload?: RetentionDot }) => (
                     <circle cx={props.cx} cy={props.cy} r={props.payload?.capped ? 3.2 : 2.1} fill={props.payload?.capped ? "#d97706" : "#475569"} fillOpacity={props.payload?.capped ? 0.9 : 0.33} />
                   )} />
-                  <Scatter data={statisticMarkers.filter((marker) => marker.kind === "p05")} fill="#dc2626" isAnimationActive={false} shape="triangle" />
-                  <Scatter data={statisticMarkers.filter((marker) => marker.kind === "median")} fill="#111827" isAnimationActive={false} shape="diamond" />
-                  <Scatter data={statisticMarkers.filter((marker) => marker.kind === "p95")} fill="#7c3aed" isAnimationActive={false} shape="square" />
+                  <Scatter data={plotData.statisticMarkers.filter((marker) => marker.kind === "p05")} fill="#dc2626" isAnimationActive={false} shape="triangle" />
+                  <Scatter data={plotData.statisticMarkers.filter((marker) => marker.kind === "median")} fill="#111827" isAnimationActive={false} shape="diamond" />
+                  <Scatter data={plotData.statisticMarkers.filter((marker) => marker.kind === "p95")} fill="#7c3aed" isAnimationActive={false} shape="square" />
                 </ScatterChart>
               </ResponsiveContainer>
             </div>
@@ -373,7 +454,7 @@ function RetentionDistributionModal({
                 <caption className="sr-only">기간별 최종 실질자산 보존율 percentile 요약</caption>
                 <thead className="bg-slate-50 text-slate-700 dark:bg-slate-900/60 dark:text-slate-300"><tr><th scope="col" className="px-3 py-2.5">기간</th><th scope="col" className="px-3 py-2.5">하위 5%</th><th scope="col" className="px-3 py-2.5">중앙값</th><th scope="col" className="px-3 py-2.5">상위 95%</th></tr></thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-                  {periods.map((period) => <tr key={period.periodYears}><th scope="row" className="px-3 py-2.5 font-bold">{period.periodYears}년</th><td className="px-3 py-2.5">{period.finalRealAssetRetention.lower5PctRetentionRatio === null ? "—" : formatProbability(period.finalRealAssetRetention.lower5PctRetentionRatio)}</td><td className="px-3 py-2.5">{period.finalRealAssetRetention.medianRetentionRatio === null ? "—" : formatProbability(period.finalRealAssetRetention.medianRetentionRatio)}</td><td className="px-3 py-2.5">{period.finalRealAssetRetention.upper95PctRetentionRatio === null ? "—" : formatProbability(period.finalRealAssetRetention.upper95PctRetentionRatio)}</td></tr>)}
+                  {periods.map((period) => <tr key={period.periodYears}><th scope="row" className="px-3 py-2.5 font-bold">{period.periodYears}년</th><td className="px-3 py-2.5">{formatRetentionProbability(period.finalRealAssetRetention.lower5PctRetentionRatio)}</td><td className="px-3 py-2.5">{formatRetentionProbability(period.finalRealAssetRetention.medianRetentionRatio)}</td><td className="px-3 py-2.5">{formatRetentionProbability(period.finalRealAssetRetention.upper95PctRetentionRatio)}</td></tr>)}
                 </tbody>
               </table>
             </div>
@@ -637,8 +718,8 @@ export default function LongTermSustainabilitySection({
         </p>
         <p className="rounded-xl bg-rose-50 p-3 text-[12.5px] leading-5 text-rose-950 dark:bg-rose-950/30 dark:text-rose-100">
           <span className="inline-flex items-center">{summaryPeriod.periodYears}년 최종자산 보존 중앙값<InfoTip label="최종자산 보존 중앙값 설명">각 경로의 선택 범위 종료 실질자산을 실제 인출 시작 직전의 같은 범위 실질자산으로 나눈 값의 중앙값입니다.</InfoTip></span>
-          <strong className="mt-1 block text-[18px]">{summaryPeriod.finalRealAssetRetention.medianRetentionRatio === null ? "—" : formatProbability(summaryPeriod.finalRealAssetRetention.medianRetentionRatio)}</strong>
-          <span className="mt-0.5 block text-[10.5px] opacity-70">{scopeCopy.basis} · 하위 5% {summaryPeriod.finalRealAssetRetention.lower5PctRetentionRatio === null ? "—" : formatProbability(summaryPeriod.finalRealAssetRetention.lower5PctRetentionRatio)}</span>
+          <strong className="mt-1 block text-[18px]">{formatRetentionProbability(summaryPeriod.finalRealAssetRetention.medianRetentionRatio)}</strong>
+          <span className="mt-0.5 block text-[10.5px] opacity-70">{scopeCopy.basis} · 하위 5% {formatRetentionProbability(summaryPeriod.finalRealAssetRetention.lower5PctRetentionRatio)}</span>
         </p>
       </div>
 
