@@ -33,6 +33,7 @@ import type {
   RetirementBootstrapInput,
 } from "../lib/retirement-bootstrap-types.ts";
 import {
+  RETIREMENT_BOOTSTRAP_RETENTION_SAMPLE_SIZE,
   RETIREMENT_BOOTSTRAP_RESULT_SCHEMA_VERSION,
   RETIREMENT_BOOTSTRAP_SUSTAINABILITY_MIN_FUNDING_RATIO,
 } from "../lib/retirement-bootstrap-types.ts";
@@ -774,6 +775,10 @@ for (const period of tenThousand.periods) {
     1,
     1e-12,
   );
+  assert.ok(distribution.lower5PctRetentionRatio! <= distribution.medianRetentionRatio!, "최종자산 p05는 중앙값 이하");
+  assert.ok(distribution.medianRetentionRatio! <= distribution.upper95PctRetentionRatio!, "최종자산 중앙값은 p95 이하");
+  assert.ok(distribution.upper95PctRetentionRatio! <= distribution.upper99PctRetentionRatio!, "최종자산 p95는 p99 이하");
+  assert.equal(distribution.representativeSampleRetentionRatios.length, RETIREMENT_BOOTSTRAP_RETENTION_SAMPLE_SIZE, "10,000개 경로에서는 checkpoint별 대표 표본 600개만 직렬화");
   assert.ok(period.livingExpenseRisk.worstLivingExpenseMdd! <= period.livingExpenseRisk.lower1PctLivingExpenseMdd!);
   assert.ok(period.livingExpenseRisk.lower1PctLivingExpenseMdd! <= period.livingExpenseRisk.lower5PctLivingExpenseMdd!);
   assert.equal(period.realAfterTaxDividendCashflowRisk.observedPathCount, 10_000);
@@ -811,6 +816,11 @@ for (const [index, result] of scopeAggregates.entries()) {
     );
   }
 }
+assert.notDeepEqual(
+  scopeAggregates[0].periods.map((period) => period.finalRealAssetRetention.medianRetentionRatio),
+  scopeAggregates[1].periods.map((period) => period.finalRealAssetRetention.medianRetentionRatio),
+  "절세와 위탁은 각 계좌의 denominator를 사용하므로 동일 입력에서도 최종자산 중앙값을 공유하지 않음",
+);
 assert.ok(scopeAggregates[0].periods.every((period) => period.realAfterTaxDividendCashflowRisk.observedPathCount === 0), "절세 배당 위험 해당 없음");
 assert.ok(scopeAggregates[0].periods.every((period) => !period.realAfterTaxDividendCashflowRisk.applicable), "절세 배당 위험 applicable=false");
 assert.ok(scopeAggregates[1].periods.every((period) => period.realAfterTaxDividendCashflowRisk.observedPathCount === 500), "위탁 배당 위험 집계");
@@ -839,6 +849,10 @@ const tenThousandRepeat = runRetirementBootstrap(input, RETIREMENT_BOOTSTRAP_SYN
   allowTestFixture: true,
 });
 assert.deepEqual(tenThousandRepeat, tenThousand, "10,000회 결과도 동일 입력·dataset·version·seed에서 완전 재현");
+assert.ok(
+  Buffer.byteLength(JSON.stringify(tenThousand), "utf8") < 100_000,
+  "대표 표본 결과 payload는 전체 10,000개 raw path를 전달하지 않는 크기",
+);
 
 const differentSeedTenThousand = runRetirementBootstrap(input, RETIREMENT_BOOTSTRAP_SYNTHETIC_FIXTURE, {
   seed: 730_402,

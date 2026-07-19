@@ -4,4 +4,4 @@ export const PRODUCTION_MARKET_PATTERN_DATASET_VERSION = "2026.07.18-wikimedia-b
 export const RETIREMENT_BOOTSTRAP_SEED_POLICY_VERSION = "gorani-retirement-bootstrap-ui-v1";
 
 /** 결과 의미나 cache schema가 바뀔 때 올린다. */
-export const RETIREMENT_BOOTSTRAP_UI_POLICY_VERSION = "gorani-retirement-bootstrap-ui-v4";
+export const RETIREMENT_BOOTSTRAP_UI_POLICY_VERSION = "gorani-retirement-bootstrap-ui-v5";

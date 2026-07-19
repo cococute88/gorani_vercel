@@ -11,6 +11,7 @@ import {
 import {
   DEFAULT_RETIREMENT_BOOTSTRAP_BLOCK_LENGTH,
   DEFAULT_RETIREMENT_BOOTSTRAP_ITERATIONS,
+  RETIREMENT_BOOTSTRAP_RETENTION_SAMPLE_SIZE,
   RETIREMENT_BOOTSTRAP_RESULT_SCHEMA_VERSION,
   RETIREMENT_BOOTSTRAP_PERIODS,
   RETIREMENT_BOOTSTRAP_SUSTAINABILITY_MIN_FUNDING_RATIO,
@@ -780,6 +781,7 @@ export function runRetirementBootstrap(
     reached25Count: number;
     endingRealAssetsTotal: number;
     finalRealAssetRetentionRatios: number[];
+    representativeFinalRealAssetRetentionRatios: number[];
     depletedPathCount: number;
     minimumFundingRatios: number[];
     below85Count: number;
@@ -799,6 +801,7 @@ export function runRetirementBootstrap(
     reached25Count: 0,
     endingRealAssetsTotal: 0,
     finalRealAssetRetentionRatios: [],
+    representativeFinalRealAssetRetentionRatios: [],
     depletedPathCount: 0,
     minimumFundingRatios: [],
     below85Count: 0,
@@ -865,6 +868,13 @@ export function runRetirementBootstrap(
       aggregate.endingRealAssetsTotal += checkpoint.endingRealAssets;
       if (checkpoint.finalRealAssetRetentionRatio !== null) {
         aggregate.finalRealAssetRetentionRatios.push(checkpoint.finalRealAssetRetentionRatio);
+        // 10,000개 전체 경로는 Worker에 남기고, 전체 iteration에 균등하게 퍼진 고정 표본만 UI로 보낸다.
+        // Math.random()이나 별도 PRNG를 쓰지 않아 bootstrap seed 계약을 바꾸지 않는다.
+        const includedBefore = Math.floor(iteration * RETIREMENT_BOOTSTRAP_RETENTION_SAMPLE_SIZE / iterations);
+        const includedAfter = Math.floor((iteration + 1) * RETIREMENT_BOOTSTRAP_RETENTION_SAMPLE_SIZE / iterations);
+        if (includedAfter > includedBefore) {
+          aggregate.representativeFinalRealAssetRetentionRatios.push(checkpoint.finalRealAssetRetentionRatio);
+        }
       }
       if (checkpoint.firstDepletionYear !== null) aggregate.depletedPathCount += 1;
       if (checkpoint.minimumFundingRatio !== null) {
@@ -984,7 +994,11 @@ export function runRetirementBootstrap(
         below25PctProbability: retentionProbability(below25PctCount),
         depletedPathCount: aggregate.depletedPathCount,
         depletedProbability: retentionProbability(aggregate.depletedPathCount),
+        lower5PctRetentionRatio: nearestRankPercentile(retentionRatios, 0.05),
         medianRetentionRatio: nearestRankPercentile(retentionRatios, 0.5),
+        upper95PctRetentionRatio: nearestRankPercentile(retentionRatios, 0.95),
+        upper99PctRetentionRatio: nearestRankPercentile(retentionRatios, 0.99),
+        representativeSampleRetentionRatios: aggregate.representativeFinalRealAssetRetentionRatios,
       },
       livingExpenseRisk: {
         observedPathCount: livingObservedCount,

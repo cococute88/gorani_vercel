@@ -133,7 +133,7 @@ try {
 assert.equal(classifyRetirementBootstrapInputError(unsupportedError).code, "unsupported_etf", "unsupported ETF 전용 오류 상태");
 
 const identity = buildRetirementBootstrapCalculationIdentity(bootstrapInput, PRODUCTION_MARKET_PATTERN_DATASET_VERSION, 10_000, 5, "combined");
-assert.match(identity.cacheKey, new RegExp(RETIREMENT_BOOTSTRAP_UI_POLICY_VERSION), "V4 cache policy로 이전 결과 무효화");
+assert.match(identity.cacheKey, new RegExp(RETIREMENT_BOOTSTRAP_UI_POLICY_VERSION), "V5 cache policy로 이전 결과 무효화");
 assert.match(identity.cacheKey, /resultSchemaVersion/, "result schema version이 cache key에 포함");
 assert.match(identity.cacheKey, /analysisScope/, "analysis scope가 cache key에 포함");
 const sameIdentity = buildRetirementBootstrapCalculationIdentity(structuredClone(bootstrapInput), PRODUCTION_MARKET_PATTERN_DATASET_VERSION, 10_000, 5, "combined");
@@ -222,11 +222,14 @@ assert.ok(taxWorker.result.periods.every((period) => period.realAfterTaxDividend
 assert.deepEqual(structuredClone(first.result), first.result, "Worker 결과 structured clone 직렬화");
 assert.deepEqual(first.result.periods.map((row) => row.periodYears), [30, 40, 50, 60, 70], "Worker 5개 checkpoint 출력");
 assert.equal(first.result.datasetUsage, "production", "Worker production dataset 전용");
-assert.equal(first.result.schemaVersion, RETIREMENT_BOOTSTRAP_RESULT_SCHEMA_VERSION, "Worker V4 result schema");
+assert.equal(first.result.schemaVersion, RETIREMENT_BOOTSTRAP_RESULT_SCHEMA_VERSION, "Worker V5 result schema");
 assert.equal(first.result.analysisScope, "combined", "Worker scope 직렬화");
 assert.equal(first.result.fundingBaseline.type, "combined_target_expense", "Worker 종합 기준선 metadata 직렬화");
 assert.equal(first.result.fundingBaseline.monthlyReal, bootstrapInput.annualRequiredWithdrawalReal / 12);
 assert.ok(first.result.periods.every((row) => row.sustainabilitySuccessRate85 >= row.fullFundingSuccessRate100));
+assert.ok(first.result.periods.every((row) => row.finalRealAssetRetention.lower5PctRetentionRatio !== null), "Worker가 최종자산 p05를 직렬화");
+assert.ok(first.result.periods.every((row) => row.finalRealAssetRetention.upper95PctRetentionRatio !== null), "Worker가 최종자산 p95를 직렬화");
+assert.ok(first.result.periods.every((row) => row.finalRealAssetRetention.representativeSampleRetentionRatios.length <= row.simulationCount), "Worker representative sample은 전체 경로를 넘지 않음");
 const wrongDatasetVersion = await executeRetirementBootstrapWorkerRequest({ ...request, requestId: "wrong-dataset", datasetVersion: "stale-version" });
 assert.equal(wrongDatasetVersion.type, "error", "오래된 datasetVersion 결과 생성 차단");
 if (wrongDatasetVersion.type === "error") {
@@ -288,11 +291,17 @@ assert.match(section, /월85%이상수령률[\s\S]*월목표완전수령률/, "s
 assert.match(section, />\s*월85%이상수령률\s*<[\s\S]*>\s*월목표완전수령률\s*<[\s\S]*>\s*반토막진입비율\s*<[\s\S]*>\s*-75%진입비율\s*</, "기간별 표 직관화 헤더");
 assert.match(section, /절세계좌 최초 실질 세후 월인출액[\s\S]*위탁계좌 최초 실질 세후 월배당[\s\S]*목표 월생활비/, "scope별 deterministic 기준 설명");
 assert.match(section, /fundingBaseline\.monthlyReal/, "실제 scope 기준 월금액 표시");
-assert.match(section, /type="radio"[\s\S]*checked=\{analysisScope === option\.value\}/, "배타적 native radio selector semantics");
+assert.match(section, /type="radio"[\s\S]*checked=\{scope === option\.value\}/, "배타적 native radio selector semantics");
 assert.match(section, /useState<RetirementBootstrapAnalysisScope>\("combined"\)/, "기본 분석 범위 종합");
 assert.match(section, /절세계좌 분석에서는 별도 배당 현금흐름을 사용하지 않습니다[\s\S]*해당 없음/, "절세 배당 위험 0% 오해 방지");
 assert.match(section, /data-testid="sustainability-period-table-scroll"[\s\S]*xl:overflow-x-visible[\s\S]*min-w-\[620px\]/, "desktop 표 scrollbar 제거와 mobile 최소폭 유지");
 assert.match(section, /최종 실질자산 보존 분포[\s\S]*100% 이상[\s\S]*25% 미만/, "최종자산 5개 bucket 표");
+assert.match(section, /절세: 초기 인출액 대비 · 위탁: 초기 배당액 대비 · 종합: 목표 생활비 대비/, "세 scope 기준 차이를 항상 표시");
+assert.match(section, /최종자산 보존 중앙값[\s\S]*하위 5%/, "상단 최종자산 카드에 p05 표시");
+assert.match(section, /aria-haspopup="dialog"[\s\S]*최종 실질자산 보존 분포[\s\S]*자세히 보기/, "최종자산 분포 제목은 modal button semantics");
+assert.match(section, /최종 실질자산 보존율 분포[\s\S]*ScatterChart[\s\S]*ReferenceLine y=\{retentionRatioToPlotY\(1\)\}/, "modal 점도표와 100% 기준선");
+assert.match(section, /representativeSampleRetentionRatios[\s\S]*lower5PctRetentionRatio[\s\S]*upper95PctRetentionRatio/, "대표 점과 전체 percentile 통계 분리");
+assert.match(section, /document\.body\.style\.overflow = "hidden"[\s\S]*event\.key === "Escape"[\s\S]*triggerElement\?\.focus\(\)/, "modal 스크롤 잠금, Escape, focus restore");
 assert.match(section, /생활비 하방 위험[\s\S]*최악 경로[\s\S]*하위 5%/, "최악과 하위 5% 생활비 MDD 표시");
 assert.match(section, /실질 세후 배당 현금흐름 하락 위험[\s\S]*명목 배당 -20%/, "실질 현금흐름 MDD와 명목 삭감 구분");
 assert.match(section, /반토막진입비율[\s\S]*이후 다시 회복한 경우도 포함[\s\S]*-75%진입비율/, "기존 50%·25% 계산 의미를 새 명칭 tooltip에 유지");

@@ -11,13 +11,16 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
-import { Check, Info, RefreshCw } from "lucide-react";
+import { Check, Info, RefreshCw, X } from "lucide-react";
 import {
   CartesianGrid,
   Legend,
   Line,
   LineChart,
+  ReferenceLine,
   ResponsiveContainer,
+  Scatter,
+  ScatterChart,
   Tooltip,
   XAxis,
   YAxis,
@@ -119,6 +122,8 @@ const ERROR_COPY: Record<RetirementBootstrapWorkerError["code"], string> = {
   invalid_user_input: "장기 분석에 필요한 사용자 입력을 확인해 주세요.",
 };
 
+const SCOPE_BASELINE_SUMMARY = "절세: 초기 인출액 대비 · 위탁: 초기 배당액 대비 · 종합: 목표 생활비 대비";
+
 function formatProbability(value: number): string {
   return new Intl.NumberFormat("ko-KR", {
     style: "percent",
@@ -143,6 +148,242 @@ function formatSignedProbability(value: number): string {
 function formatMonthlyRisk(amount: number | null, mdd: number | null): string {
   if (amount === null || mdd === null) return "—";
   return `${formatDiagnosticAmount(amount)} (${formatSignedProbability(mdd)})`;
+}
+
+function ScopeSelector({
+  scope,
+  onChange,
+  name,
+  legend = "분석 범위",
+}: {
+  scope: RetirementBootstrapAnalysisScope;
+  onChange: (scope: RetirementBootstrapAnalysisScope) => void;
+  name: string;
+  legend?: string;
+}) {
+  return (
+    <fieldset aria-label={legend}>
+      <legend className="mb-1 text-[10.5px] font-semibold text-slate-500 dark:text-slate-400">{legend}</legend>
+      <div className="flex flex-wrap gap-1.5">
+        {ANALYSIS_SCOPE_OPTIONS.map((option) => (
+          <label key={option.value} className="relative cursor-pointer">
+            <input
+              type="radio"
+              name={name}
+              value={option.value}
+              checked={scope === option.value}
+              onChange={() => onChange(option.value)}
+              className="peer sr-only"
+            />
+            <span className="inline-flex min-h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-[11.5px] font-semibold text-slate-600 shadow-sm transition peer-checked:border-blue-500 peer-checked:bg-blue-50 peer-checked:text-blue-800 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-blue-500 dark:border-slate-700 dark:bg-[#171d1e] dark:text-slate-300 dark:peer-checked:border-blue-400 dark:peer-checked:bg-blue-950/40 dark:peer-checked:text-blue-200">
+              <span aria-hidden="true" className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-[3px] border border-current">
+                {scope === option.value ? <Check className="h-3 w-3" strokeWidth={3} /> : null}
+              </span>
+              {option.label}
+            </span>
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  );
+}
+
+type RetentionDot = {
+  x: number;
+  periodYears: number;
+  y: number;
+  capped: boolean;
+  medianRetentionRatio: number | null;
+  lower5PctRetentionRatio: number | null;
+  upper95PctRetentionRatio: number | null;
+};
+
+function deterministicJitter(periodYears: number, index: number): number {
+  let hash = (periodYears * 0x9e3779b1) ^ (index * 0x85ebca6b);
+  hash = Math.imul(hash ^ (hash >>> 16), 0x7feb352d);
+  hash = Math.imul(hash ^ (hash >>> 15), 0x846ca68b);
+  hash ^= hash >>> 16;
+  return ((hash >>> 0) / 0xffffffff - 0.5) * 4.6;
+}
+
+/** 0%도 표시해야 하므로 log10(percent + 1) 형태의 log-like 축을 사용한다. */
+function retentionRatioToPlotY(ratio: number): number {
+  return Math.log10(Math.max(0, ratio) * 100 + 1);
+}
+
+function formatRetentionPlotTick(value: number): string {
+  const percentage = Math.pow(10, value) - 1;
+  if (percentage >= 10_000) return `${Math.round(percentage / 1_000).toLocaleString("ko-KR")}k%`;
+  return `${Math.round(percentage).toLocaleString("ko-KR")}%`;
+}
+
+function RetentionDistributionTooltip({
+  active,
+  payload,
+}: {
+  active?: boolean;
+  payload?: Array<{ payload?: RetentionDot }>;
+}) {
+  const point = payload?.[0]?.payload;
+  if (!active || !point) return null;
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white/95 px-3 py-2 text-[12px] shadow-xl backdrop-blur dark:border-slate-700 dark:bg-slate-950/95">
+      <p className="font-bold text-slate-900 dark:text-white">{point.periodYears}년</p>
+      <p className="mt-1 text-slate-600 dark:text-slate-300">중앙값 <strong>{point.medianRetentionRatio === null ? "—" : formatProbability(point.medianRetentionRatio)}</strong></p>
+      <p className="text-slate-600 dark:text-slate-300">하위 5% <strong>{point.lower5PctRetentionRatio === null ? "—" : formatProbability(point.lower5PctRetentionRatio)}</strong></p>
+      <p className="text-slate-600 dark:text-slate-300">상위 95% <strong>{point.upper95PctRetentionRatio === null ? "—" : formatProbability(point.upper95PctRetentionRatio)}</strong></p>
+      {point.capped ? <p className="mt-1 text-[10.5px] text-amber-700 dark:text-amber-300">이 점은 p99 표시 상한에 맞춰 상단에 표시됩니다.</p> : null}
+    </div>
+  );
+}
+
+function RetentionDistributionModal({
+  open,
+  onClose,
+  triggerRef,
+  analysisScope,
+  onScopeChange,
+  periods,
+  loading,
+}: {
+  open: boolean;
+  onClose: () => void;
+  triggerRef: React.RefObject<HTMLButtonElement>;
+  analysisScope: RetirementBootstrapAnalysisScope;
+  onScopeChange: (scope: RetirementBootstrapAnalysisScope) => void;
+  periods: RetirementBootstrapPeriodResult[];
+  loading: boolean;
+}) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const modalTitleId = useId();
+  const modalDescriptionId = useId();
+  const dots = useMemo<RetentionDot[]>(() => {
+    const upper99 = Math.max(
+      1,
+      ...periods.map((period) => period.finalRealAssetRetention.upper99PctRetentionRatio ?? 1),
+    );
+    return periods.flatMap((period) => period.finalRealAssetRetention.representativeSampleRetentionRatios.map((ratio, index) => ({
+      x: period.periodYears + deterministicJitter(period.periodYears, index),
+      periodYears: period.periodYears,
+      y: retentionRatioToPlotY(Math.min(ratio, upper99)),
+      capped: ratio > upper99,
+      medianRetentionRatio: period.finalRealAssetRetention.medianRetentionRatio,
+      lower5PctRetentionRatio: period.finalRealAssetRetention.lower5PctRetentionRatio,
+      upper95PctRetentionRatio: period.finalRealAssetRetention.upper95PctRetentionRatio,
+    })));
+  }, [periods]);
+  const visualUpperY = useMemo(() => Math.max(
+    retentionRatioToPlotY(1.25),
+    ...periods.map((period) => retentionRatioToPlotY((period.finalRealAssetRetention.upper99PctRetentionRatio ?? 1) * 1.05)),
+  ), [periods]);
+  const statisticMarkers = useMemo(() => periods.flatMap((period) => [
+    { x: period.periodYears, y: retentionRatioToPlotY(period.finalRealAssetRetention.lower5PctRetentionRatio ?? 0), label: "하위 5%", kind: "p05" },
+    { x: period.periodYears, y: retentionRatioToPlotY(period.finalRealAssetRetention.medianRetentionRatio ?? 0), label: "중앙값", kind: "median" },
+    { x: period.periodYears, y: retentionRatioToPlotY(period.finalRealAssetRetention.upper95PctRetentionRatio ?? 0), label: "상위 95%", kind: "p95" },
+  ]), [periods]);
+
+  useEffect(() => {
+    if (!open) return;
+    const triggerElement = triggerRef.current;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const focusInitial = () => dialogRef.current?.querySelector<HTMLElement>("[data-modal-close]")?.focus();
+    const frame = window.requestAnimationFrame(focusInitial);
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const focusable = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
+      ) ?? []).filter((element) => !element.hasAttribute("disabled"));
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", handleKeyDown);
+      triggerElement?.focus();
+    };
+  }, [onClose, open, triggerRef]);
+
+  if (!open || typeof document === "undefined") return null;
+  const scopeCopy = ANALYSIS_SCOPE_OPTIONS.find((option) => option.value === analysisScope) ?? ANALYSIS_SCOPE_OPTIONS[2];
+  return createPortal(
+    <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-slate-950/50 p-3 sm:p-6" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={modalTitleId}
+        aria-describedby={modalDescriptionId}
+        className="max-h-[calc(100vh-1.5rem)] w-full max-w-6xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl dark:border-slate-700 dark:bg-[#171d1e] sm:max-h-[calc(100vh-3rem)] sm:w-[82vw] sm:p-5"
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 id={modalTitleId} className="text-[18px] font-bold text-slate-900 dark:text-white">최종 실질자산 보존율 분포</h2>
+            <p id={modalDescriptionId} className="mt-1 text-[12px] leading-5 text-slate-600 dark:text-slate-300">30·40·50·60·70년 checkpoint별 최종 실질자산 보존율의 대표 점 분포와 전체 경로 percentile입니다.</p>
+          </div>
+          <button data-modal-close type="button" onClick={onClose} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 dark:hover:bg-slate-800 dark:hover:text-white" aria-label="최종 실질자산 보존율 분포 닫기">
+            <X aria-hidden="true" className="h-5 w-5" />
+          </button>
+        </div>
+        <div className="mt-4 flex flex-wrap items-end justify-between gap-3">
+          <ScopeSelector scope={analysisScope} onChange={onScopeChange} name="retirement-bootstrap-modal-analysis-scope" legend="분석 범위" />
+          <p className="max-w-xl text-[11px] leading-5 text-slate-500">{SCOPE_BASELINE_SUMMARY} · 현재 {scopeCopy.label} 기준</p>
+        </div>
+        {loading || periods.length === 0 ? (
+          <div role="status" aria-live="polite" className="mt-5 rounded-xl bg-slate-50 p-5 text-[13px] text-slate-600 dark:bg-slate-900/40 dark:text-slate-300">선택한 분석 범위의 10,000개 경로 결과를 준비하고 있습니다.</div>
+        ) : (
+          <>
+            <div className="mt-5 h-[min(52vh,460px)] min-h-[300px] w-full" role="img" aria-label="30년부터 70년까지 최종 실질자산 보존율 점도표. 100% 기준선과 하위 5%, 중앙값, 상위 95% 표식이 있습니다.">
+              <ResponsiveContainer width="100%" height="100%">
+                <ScatterChart margin={{ top: 18, right: 18, bottom: 12, left: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#cbd5e1" opacity={0.55} />
+                  <XAxis type="number" dataKey="x" domain={[26, 74]} ticks={[30, 40, 50, 60, 70]} tickFormatter={(value) => `${value}년`} tick={{ fontSize: 11 }} allowDecimals={false} />
+                  <YAxis type="number" dataKey="y" domain={[0, visualUpperY]} width={68} tickFormatter={formatRetentionPlotTick} tick={{ fontSize: 11 }} label={{ value: "최종 실질자산 보존율 (%) · 로그형", angle: -90, position: "insideLeft", offset: 2, style: { fontSize: 11, fill: "#475569" } }} />
+                  <Tooltip cursor={{ strokeDasharray: "3 3" }} content={<RetentionDistributionTooltip />} />
+                  <ReferenceLine y={retentionRatioToPlotY(1)} stroke="#2563eb" strokeWidth={2} label={{ value: "100% 기준", position: "insideTopRight", fill: "#1d4ed8", fontSize: 11 }} />
+                  <Scatter data={dots} fill="#64748b" fillOpacity={0.33} isAnimationActive={false} shape={(props: { cx?: number; cy?: number; payload?: RetentionDot }) => (
+                    <circle cx={props.cx} cy={props.cy} r={props.payload?.capped ? 3.2 : 2.1} fill={props.payload?.capped ? "#d97706" : "#475569"} fillOpacity={props.payload?.capped ? 0.9 : 0.33} />
+                  )} />
+                  <Scatter data={statisticMarkers.filter((marker) => marker.kind === "p05")} fill="#dc2626" isAnimationActive={false} shape="triangle" />
+                  <Scatter data={statisticMarkers.filter((marker) => marker.kind === "median")} fill="#111827" isAnimationActive={false} shape="diamond" />
+                  <Scatter data={statisticMarkers.filter((marker) => marker.kind === "p95")} fill="#7c3aed" isAnimationActive={false} shape="square" />
+                </ScatterChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-600 dark:text-slate-300">
+              <span>▲ 하위 5%</span><span>◆ 중앙값</span><span>■ 상위 95%</span><span className="text-blue-700 dark:text-blue-300">━ 100% 보존 기준</span>
+            </div>
+            <div className="mt-4 overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
+              <table className="w-full min-w-[520px] text-left text-[12px]">
+                <caption className="sr-only">기간별 최종 실질자산 보존율 percentile 요약</caption>
+                <thead className="bg-slate-50 text-slate-700 dark:bg-slate-900/60 dark:text-slate-300"><tr><th scope="col" className="px-3 py-2.5">기간</th><th scope="col" className="px-3 py-2.5">하위 5%</th><th scope="col" className="px-3 py-2.5">중앙값</th><th scope="col" className="px-3 py-2.5">상위 95%</th></tr></thead>
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                  {periods.map((period) => <tr key={period.periodYears}><th scope="row" className="px-3 py-2.5 font-bold">{period.periodYears}년</th><td className="px-3 py-2.5">{period.finalRealAssetRetention.lower5PctRetentionRatio === null ? "—" : formatProbability(period.finalRealAssetRetention.lower5PctRetentionRatio)}</td><td className="px-3 py-2.5">{period.finalRealAssetRetention.medianRetentionRatio === null ? "—" : formatProbability(period.finalRealAssetRetention.medianRetentionRatio)}</td><td className="px-3 py-2.5">{period.finalRealAssetRetention.upper95PctRetentionRatio === null ? "—" : formatProbability(period.finalRealAssetRetention.upper95PctRetentionRatio)}</td></tr>)}
+                </tbody>
+              </table>
+            </div>
+            <p className="mt-3 text-[11px] leading-5 text-slate-500">그래프의 점은 전체 10,000개 경로 중 시각화를 위한 checkpoint별 대표 표본 최대 600개이며, percentile·bucket·성공률 통계는 전체 경로 기준입니다. 장기 복리의 극단값으로 저점 분포가 눌리지 않도록 세로축은 0%를 포함하는 로그형 % scale이며, 전체 경로의 99th percentile을 표시 상한으로 사용합니다. 상한 초과 표본은 주황 점으로 상단에 표시되며 실제 통계값은 자르지 않습니다.</p>
+          </>
+        )}
+      </div>
+    </div>,
+    document.body,
+  );
 }
 
 function InfoTip({ label, children }: { label: string; children: ReactNode }) {
@@ -286,8 +527,11 @@ export default function LongTermSustainabilitySection({
 }: Props) {
   const [retryToken, setRetryToken] = useState(0);
   const [analysisScope, setAnalysisScope] = useState<RetirementBootstrapAnalysisScope>("combined");
+  const [distributionModalOpen, setDistributionModalOpen] = useState(false);
   const [focusedPoint, setFocusedPoint] = useState<FocusedPoint | null>(null);
   const [uiRenderMs, setUiRenderMs] = useState<number | null>(null);
+  const distributionTriggerRef = useRef<HTMLButtonElement>(null);
+  const closeDistributionModal = useCallback(() => setDistributionModalOpen(false), []);
   const prepared = useMemo<{
     input: RetirementBootstrapInput | null;
     inputError: RetirementBootstrapWorkerError | null;
@@ -394,7 +638,7 @@ export default function LongTermSustainabilitySection({
         <p className="rounded-xl bg-rose-50 p-3 text-[12.5px] leading-5 text-rose-950 dark:bg-rose-950/30 dark:text-rose-100">
           <span className="inline-flex items-center">{summaryPeriod.periodYears}년 최종자산 보존 중앙값<InfoTip label="최종자산 보존 중앙값 설명">각 경로의 선택 범위 종료 실질자산을 실제 인출 시작 직전의 같은 범위 실질자산으로 나눈 값의 중앙값입니다.</InfoTip></span>
           <strong className="mt-1 block text-[18px]">{summaryPeriod.finalRealAssetRetention.medianRetentionRatio === null ? "—" : formatProbability(summaryPeriod.finalRealAssetRetention.medianRetentionRatio)}</strong>
-          <span className="mt-0.5 block text-[10.5px] opacity-70">{scopeCopy.basis}</span>
+          <span className="mt-0.5 block text-[10.5px] opacity-70">{scopeCopy.basis} · 하위 5% {summaryPeriod.finalRealAssetRetention.lower5PctRetentionRatio === null ? "—" : formatProbability(summaryPeriod.finalRealAssetRetention.lower5PctRetentionRatio)}</span>
         </p>
       </div>
 
@@ -509,7 +753,9 @@ export default function LongTermSustainabilitySection({
 
       <div className="mt-6 min-w-0">
         <div className="flex items-center gap-1">
-          <h3 className="text-[13px] font-bold text-slate-800 dark:text-slate-200">최종 실질자산 보존 분포</h3>
+          <button ref={distributionTriggerRef} type="button" onClick={() => setDistributionModalOpen(true)} className="inline-flex items-center gap-1 rounded-md text-[13px] font-bold text-slate-800 underline-offset-4 hover:text-blue-700 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 dark:text-slate-200 dark:hover:text-blue-300" aria-haspopup="dialog">
+            최종 실질자산 보존 분포 <span className="text-[10.5px] font-semibold text-blue-700 dark:text-blue-300">자세히 보기</span>
+          </button>
           <InfoTip label="최종 실질자산 보존 분포 설명">checkpoint 종료 시점과 실제 인출 시작 직전의 {scopeCopy.basis} 실질자산만 numerator와 denominator에 사용합니다. 인출 전 축적기간이 있으면 최초 시뮬레이션 자산을 denominator로 쓰지 않습니다. 고갈 경로는 25% 미만에 포함됩니다.</InfoTip>
         </div>
         <div className="mt-2 max-w-full overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
@@ -726,30 +972,9 @@ export default function LongTermSustainabilitySection({
           <p className="mt-1 text-[11.5px] leading-5 text-slate-500">
             Good·Normal·Bad는 대표 경로이며, 이 분석은 여러 시장 순서를 반복 계산한 별도의 확률 분석입니다.
           </p>
+          <p className="mt-1 text-[11px] leading-5 text-slate-500">{SCOPE_BASELINE_SUMMARY}</p>
         </div>
-        <fieldset className="shrink-0" aria-label="장기 지속 가능성 분석 범위">
-          <legend className="mb-1 text-[10.5px] font-semibold text-slate-500 dark:text-slate-400">분석 범위</legend>
-          <div className="flex flex-wrap gap-1.5">
-            {ANALYSIS_SCOPE_OPTIONS.map((option) => (
-              <label key={option.value} className="relative cursor-pointer">
-                <input
-                  type="radio"
-                  name="retirement-bootstrap-analysis-scope"
-                  value={option.value}
-                  checked={analysisScope === option.value}
-                  onChange={() => setAnalysisScope(option.value)}
-                  className="peer sr-only"
-                />
-                <span className="inline-flex min-h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-[11.5px] font-semibold text-slate-600 shadow-sm transition peer-checked:border-blue-500 peer-checked:bg-blue-50 peer-checked:text-blue-800 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-blue-500 dark:border-slate-700 dark:bg-[#171d1e] dark:text-slate-300 dark:peer-checked:border-blue-400 dark:peer-checked:bg-blue-950/40 dark:peer-checked:text-blue-200">
-                  <span aria-hidden="true" className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-[3px] border border-current">
-                    {analysisScope === option.value ? <Check className="h-3 w-3" strokeWidth={3} /> : null}
-                  </span>
-                  {option.label}
-                </span>
-              </label>
-            ))}
-          </div>
-        </fieldset>
+        <div className="shrink-0"><ScopeSelector scope={analysisScope} onChange={setAnalysisScope} name="retirement-bootstrap-analysis-scope" /></div>
       </div>
 
       {!hydrated ? (
@@ -783,6 +1008,15 @@ export default function LongTermSustainabilitySection({
           입력 변경을 반영해 10,000개 경로를 다시 계산하고 있습니다.
         </div>
       ) : null}
+      <RetentionDistributionModal
+        open={distributionModalOpen}
+        onClose={closeDistributionModal}
+        triggerRef={distributionTriggerRef}
+        analysisScope={analysisScope}
+        onScopeChange={setAnalysisScope}
+        periods={analysis.result?.periods ?? []}
+        loading={analysis.status === "loading" || analysis.refreshing}
+      />
     </section>
   );
 }
