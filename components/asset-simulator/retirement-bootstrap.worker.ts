@@ -15,7 +15,18 @@ function post(response: RetirementBootstrapWorkerResponse): void {
 workerScope.onmessage = async (event: MessageEvent<RetirementBootstrapWorkerRequest>) => {
   const request = event.data;
   if (!request || request.type !== "run") return;
-  post(await executeRetirementBootstrapWorkerRequest(request));
+  const scopes = Array.from(new Set([
+    request.analysisScope,
+    ...(request.prefetchScopes ?? []),
+  ]));
+  for (let index = 0; index < scopes.length; index += 1) {
+    const analysisScope = scopes[index];
+    post(await executeRetirementBootstrapWorkerRequest({
+      ...request,
+      analysisScope,
+      prefetch: index > 0,
+    }));
+  }
 };
 
 post({ type: "ready" });

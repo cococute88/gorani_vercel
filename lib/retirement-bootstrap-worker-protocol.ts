@@ -23,6 +23,10 @@ export type RetirementBootstrapWorkerRunRequest = {
   requestId: string;
   input: RetirementBootstrapInput;
   analysisScope: RetirementBootstrapAnalysisScope;
+  /** 현재 화면 결과 뒤에 같은 입력으로 미리 준비할 다른 분석 범위다. */
+  prefetchScopes?: RetirementBootstrapAnalysisScope[];
+  /** Worker가 후속 scope 결과임을 UI에 알린다. */
+  prefetch?: boolean;
   datasetVersion: string;
   resultSchemaVersion: number;
   simulationCount: number;
@@ -46,14 +50,18 @@ export type RetirementBootstrapWorkerReadyResponse = {
 export type RetirementBootstrapWorkerSuccessResponse = {
   type: "success";
   requestId: string;
+  analysisScope: RetirementBootstrapAnalysisScope;
   result: RetirementBootstrapResult;
   timing: RetirementBootstrapWorkerTiming;
+  prefetch?: boolean;
 };
 
 export type RetirementBootstrapWorkerFailureResponse = {
   type: "error";
   requestId: string;
+  analysisScope: RetirementBootstrapAnalysisScope;
   error: RetirementBootstrapWorkerError;
+  prefetch?: boolean;
 };
 
 export type RetirementBootstrapWorkerResponse =

@@ -3,7 +3,12 @@ import type { AppliedPortfolioAssumptionsV1, SimulatorInputs } from "./asset-sim
 export const RETIREMENT_BOOTSTRAP_PERIODS = [30, 40, 50, 60, 70] as const;
 export const DEFAULT_RETIREMENT_BOOTSTRAP_ITERATIONS = 10_000;
 export const DEFAULT_RETIREMENT_BOOTSTRAP_BLOCK_LENGTH = 5;
-export const RETIREMENT_BOOTSTRAP_RESULT_SCHEMA_VERSION = 4 as const;
+/**
+ * UI에는 전체 10,000 경로 대신, Worker에서 고정적으로 뽑은 대표 표본만 전달한다.
+ * 전체 경로는 Worker에서 percentile·bucket 통계로만 집계한다.
+ */
+export const RETIREMENT_BOOTSTRAP_RETENTION_SAMPLE_SIZE = 600;
+export const RETIREMENT_BOOTSTRAP_RESULT_SCHEMA_VERSION = 5 as const;
 export const RETIREMENT_BOOTSTRAP_SUSTAINABILITY_MIN_FUNDING_RATIO = 0.85;
 
 export const RETIREMENT_BOOTSTRAP_ANALYSIS_SCOPES = ["tax", "brokerage", "combined"] as const;
@@ -289,7 +294,18 @@ export type RetirementBootstrapFinalRealAssetRetentionDistribution = {
   below25PctProbability: number;
   depletedPathCount: number;
   depletedProbability: number;
+  /** 전체 denominator 경로의 nearest-rank 5th percentile. 고갈 경로는 0%로 포함한다. */
+  lower5PctRetentionRatio: number | null;
   medianRetentionRatio: number | null;
+  /** 전체 denominator 경로의 nearest-rank 95th percentile. */
+  upper95PctRetentionRatio: number | null;
+  /** 점도표 세로축 상한에만 쓰는 전체 경로의 nearest-rank 99th percentile. */
+  upper99PctRetentionRatio: number | null;
+  /**
+   * Worker에서 iteration 순서 기준으로 고정 추출한 시각화 표본이다.
+   * 이 표본은 bucket, percentile, 성공률 계산에 사용하지 않는다.
+   */
+  representativeSampleRetentionRatios: number[];
 };
 
 export type RetirementBootstrapLivingExpenseRisk = {
