@@ -11,13 +11,18 @@ import {
 import {
   DEFAULT_RETIREMENT_BOOTSTRAP_BLOCK_LENGTH,
   DEFAULT_RETIREMENT_BOOTSTRAP_ITERATIONS,
+  RETIREMENT_BOOTSTRAP_RESULT_SCHEMA_VERSION,
   RETIREMENT_BOOTSTRAP_PERIODS,
+  RETIREMENT_BOOTSTRAP_SUSTAINABILITY_MIN_FUNDING_RATIO,
   type BootstrapBrokerageHolding,
   type BootstrapTaxSavingHolding,
   type DistributionStressPolicy,
   type MarketPatternDatasetV1,
   type RecenteringDiagnostics,
   type RetirementBootstrapAnnualRecord,
+  type RetirementBootstrapAnalysisScope,
+  type RetirementBootstrapFundingBaseline,
+  type RetirementBootstrapFundingBaselineType,
   type RetirementBootstrapInput,
   type RetirementBootstrapPathCheckpoint,
   type RetirementBootstrapPathResult,
@@ -31,8 +36,10 @@ const ISA_TAX_RATE_AFTER_2051 = 0.099;
 const PENSION_TAX_RATE_AFTER_2051 = 0.055;
 const DIVIDEND_TAX_KEEP_RATE = 0.85;
 const EPSILON = 1e-9;
+const FUNDING_RATIO_FLOAT_TOLERANCE_MULTIPLIER = 8;
 const WEIGHT_TOLERANCE = 1e-6;
 const MAX_PATH_YEARS = 70;
+const DEFAULT_ANALYSIS_SCOPE: RetirementBootstrapAnalysisScope = "combined";
 
 type CompiledTaxHolding = BootstrapTaxSavingHolding & { centeredTotalReturnsPct: number[] };
 type CompiledBrokerageHolding = BootstrapBrokerageHolding & {
@@ -56,6 +63,52 @@ function assertFinite(value: number, label: string): void {
 function assertRate(value: number, label: string, minExclusive = -100): void {
   assertFinite(value, label);
   if (value <= minExclusive) throw new Error(`${label} 값은 ${minExclusive}%보다 커야 합니다.`);
+}
+
+/**
+ * Threshold를 낮추지 않고, 정확한 경계 금액에서 생긴 machine-scale 오차만 보정한다.
+ * 84.999...%처럼 실제 공급액이 threshold 금액보다 작은 값은 성공으로 올리지 않는다.
+ */
+export function meetsRetirementFundingRatioThreshold(
+  suppliedAfterTaxCashflow: number,
+  requiredAfterTaxCashflow: number,
+  threshold = RETIREMENT_BOOTSTRAP_SUSTAINABILITY_MIN_FUNDING_RATIO,
+): boolean {
+  assertFinite(suppliedAfterTaxCashflow, "세후 공급액");
+  assertFinite(requiredAfterTaxCashflow, "세후 필요액");
+  assertFinite(threshold, "생활비 충족률 threshold");
+  if (requiredAfterTaxCashflow <= 0) return true;
+  const thresholdAmount = requiredAfterTaxCashflow * threshold;
+  if (suppliedAfterTaxCashflow >= thresholdAmount) return true;
+  const tolerance = Number.EPSILON
+    * Math.max(1, Math.abs(suppliedAfterTaxCashflow), Math.abs(thresholdAmount))
+    * FUNDING_RATIO_FLOAT_TOLERANCE_MULTIPLIER;
+  return thresholdAmount - suppliedAfterTaxCashflow <= tolerance
+    && suppliedAfterTaxCashflow / requiredAfterTaxCashflow >= threshold;
+}
+
+export function nearestRankPercentile(sortedAscending: readonly number[], probability: number): number | null {
+  if (sortedAscending.length === 0) return null;
+  if (!Number.isFinite(probability) || probability <= 0 || probability > 1) {
+    throw new Error("percentile 확률은 0 초과 1 이하여야 합니다.");
+  }
+  return sortedAscending[Math.max(0, Math.ceil(probability * sortedAscending.length) - 1)];
+}
+
+export type FinalRealAssetRetentionBucket =
+  | "at_least_100"
+  | "from_80_to_100"
+  | "from_50_to_80"
+  | "from_25_to_50"
+  | "below_25";
+
+export function classifyFinalRealAssetRetentionBucket(ratio: number): FinalRealAssetRetentionBucket {
+  assertFinite(ratio, "최종 실질자산 보존율");
+  if (ratio >= 1) return "at_least_100";
+  if (ratio >= 0.8) return "from_80_to_100";
+  if (ratio >= 0.5) return "from_50_to_80";
+  if (ratio >= 0.25) return "from_25_to_50";
+  return "below_25";
 }
 
 function validateWeights(holdings: ReadonlyArray<{ weightPct: number }>, label: string): void {
@@ -220,41 +273,257 @@ function principalWithdrawalSchedule(
   return schedule;
 }
 
+function fundingBaselineType(scope: RetirementBootstrapAnalysisScope): RetirementBootstrapFundingBaselineType {
+  if (scope === "tax") return "tax_initial_withdrawal";
+  if (scope === "brokerage") return "brokerage_initial_dividend";
+  return "combined_target_expense";
+}
+
+function unavailableFundingBaseline(
+  scope: RetirementBootstrapAnalysisScope,
+  reason: RetirementBootstrapFundingBaseline["unavailableReason"],
+): RetirementBootstrapFundingBaseline {
+  return {
+    type: fundingBaselineType(scope),
+    status: "unavailable",
+    annualReal: null,
+    monthlyReal: null,
+    firstEvaluationYearNumber: null,
+    firstEvaluationCalendarYear: null,
+    unavailableReason: reason,
+  };
+}
+
+function availableFundingBaseline(
+  scope: RetirementBootstrapAnalysisScope,
+  annualReal: number,
+  firstEvaluationYearNumber: number,
+  firstEvaluationCalendarYear: number,
+): RetirementBootstrapFundingBaseline {
+  assertFinite(annualReal, `${scope} 기준 연간 실질 세후 현금흐름`);
+  if (annualReal <= EPSILON) return unavailableFundingBaseline(scope, "zero_baseline_cashflow");
+  return {
+    type: fundingBaselineType(scope),
+    status: "available",
+    annualReal,
+    monthlyReal: annualReal / 12,
+    firstEvaluationYearNumber,
+    firstEvaluationCalendarYear,
+    unavailableReason: null,
+  };
+}
+
+/**
+ * sampled market path를 사용하지 않는 scope 공통 funding 기준선이다.
+ * 절세는 사용자 CAGR·인출 가정, 위탁은 시작 자산·배당률·세율, 종합은 목표 생활비만 사용한다.
+ */
+export function calculateRetirementBootstrapFundingBaseline(
+  input: RetirementBootstrapInput,
+  scope: RetirementBootstrapAnalysisScope,
+  maxYears: number,
+): RetirementBootstrapFundingBaseline {
+  const firstEvaluationYearNumber = Math.max(1, input.withdrawalDelayYears);
+  const firstEvaluationCalendarYear = input.startYear + firstEvaluationYearNumber;
+  if (firstEvaluationYearNumber > maxYears) {
+    return unavailableFundingBaseline(scope, "no_evaluation_period");
+  }
+
+  const scopeAssets = scopedAssetTotal(scope, input.initialIsa, input.initialPension, input.initialBrokerage);
+  if (scopeAssets <= EPSILON) return unavailableFundingBaseline(scope, "no_scope_assets");
+
+  if (scope === "combined") {
+    return availableFundingBaseline(
+      scope,
+      input.annualRequiredWithdrawalReal,
+      firstEvaluationYearNumber,
+      firstEvaluationCalendarYear,
+    );
+  }
+
+  if (scope === "brokerage") {
+    if (input.brokerageHoldings.length === 0) return unavailableFundingBaseline(scope, "no_scope_portfolio");
+    const weightedDividendYieldPct = blendHoldingReturns(
+      input.brokerageHoldings,
+      (holdingIndex) => input.brokerageHoldings[holdingIndex].initialDividendYieldPct,
+    );
+    const annualReal = input.initialBrokerage * (weightedDividendYieldPct / 100) * DIVIDEND_TAX_KEEP_RATE;
+    return availableFundingBaseline(
+      scope,
+      annualReal,
+      firstEvaluationYearNumber,
+      firstEvaluationCalendarYear,
+    );
+  }
+
+  if (input.taxSavingHoldings.length === 0) return unavailableFundingBaseline(scope, "no_scope_portfolio");
+  const inflationFactor = Math.pow(1 + input.expectedInflationPct / 100, firstEvaluationYearNumber);
+  assertFinite(inflationFactor, "절세 기준 누적 기대 인플레이션");
+  let annualNetNominal = 0;
+  if (firstEvaluationCalendarYear <= 2050) {
+    const lastEligibleYearNumber = Math.min(maxYears, 2050 - input.startYear);
+    const eligibleYearCount = lastEligibleYearNumber - firstEvaluationYearNumber + 1;
+    if (eligibleYearCount <= 0) return unavailableFundingBaseline(scope, "no_evaluation_period");
+    const annualGrowthFactor = (1 + input.withdrawalGrowthRatePct / 100)
+      * (1 + input.expectedInflationPct / 100);
+    let scheduleFactorSum = 0;
+    let scheduleFactor = 1;
+    for (let index = 0; index < eligibleYearCount; index += 1) {
+      scheduleFactorSum += scheduleFactor;
+      scheduleFactor *= annualGrowthFactor;
+    }
+    if (!Number.isFinite(scheduleFactorSum) || scheduleFactorSum <= 0) {
+      return unavailableFundingBaseline(scope, "zero_baseline_cashflow");
+    }
+    annualNetNominal = (input.initialIsa + input.initialPension) / scheduleFactorSum;
+  } else {
+    const weightedTotalReturnPct = blendHoldingReturns(
+      input.taxSavingHoldings,
+      (holdingIndex) => input.taxSavingHoldings[holdingIndex].expectedTotalReturnCagrPct,
+    );
+    const assetGrowthFactor = Math.pow(1 + weightedTotalReturnPct / 100, firstEvaluationYearNumber);
+    assertFinite(assetGrowthFactor, "절세 기준 자산 성장계수");
+    const withdrawalRate = input.withdrawalRatePct / 100;
+    const isaGross = input.initialIsa * assetGrowthFactor * withdrawalRate;
+    const pensionGross = input.initialPension * assetGrowthFactor * withdrawalRate;
+    annualNetNominal = isaGross * (1 - ISA_TAX_RATE_AFTER_2051)
+      + pensionGross * (1 - PENSION_TAX_RATE_AFTER_2051);
+  }
+  return availableFundingBaseline(
+    scope,
+    annualNetNominal / inflationFactor,
+    firstEvaluationYearNumber,
+    firstEvaluationCalendarYear,
+  );
+}
+
 function createCheckpoints(
   records: RetirementBootstrapAnnualRecord[],
   periods: readonly number[],
   initialRealPrincipal: number,
+  fundingBaseline: RetirementBootstrapFundingBaseline,
 ): RetirementBootstrapPathCheckpoint[] {
   return periods.map((periodYears) => {
     const rows = records.slice(0, periodYears);
     const ending = rows.at(-1);
     if (!ending || rows.length !== periodYears) throw new Error(`${periodYears}년 경로 결과가 완성되지 않았습니다.`);
     const firstDepleted = rows.find((row) => row.depleted);
-    const firstShortfall = rows.find((row) => !row.withdrawalSatisfied);
+    const evaluationRows = rows.filter((row) => row.fundingRatio !== null);
+    const firstShortfall = evaluationRows.find((row) => !row.withdrawalSatisfied);
+    const firstEvaluationYearNumber = fundingBaseline.firstEvaluationYearNumber;
+    const withdrawalStart = firstEvaluationYearNumber === null
+      ? null
+      : rows.find((row) => row.yearNumber >= firstEvaluationYearNumber) ?? null;
+    const fundingAnalysisAvailable = fundingBaseline.status === "available" && evaluationRows.length > 0;
+    const minimumFundingRatio = evaluationRows.length > 0
+      ? Math.min(...evaluationRows.map((row) => row.fundingRatio ?? Number.POSITIVE_INFINITY))
+      : null;
+    const sustainabilityFundingSatisfied = evaluationRows.every((row) => (
+      meetsRetirementFundingRatioThreshold(
+        row.suppliedAfterTaxCashflow,
+        row.requiredAfterTaxCashflow,
+      )
+    ));
+    const fullFundingSuccess100 = fundingAnalysisAvailable
+      && !firstDepleted
+      && !firstShortfall
+      && ending.nominalAssets > EPSILON;
+    const sustainabilitySuccess85 = fundingAnalysisAvailable
+      && !firstDepleted
+      && sustainabilityFundingSatisfied
+      && ending.nominalAssets > EPSILON;
+
+    let dividendPeak = 0;
+    let dividendMdd = 0;
+    let dividendObserved = false;
+    for (const row of rows) {
+      if (
+        fundingBaseline.firstEvaluationYearNumber === null
+        || row.yearNumber < fundingBaseline.firstEvaluationYearNumber
+      ) continue;
+      const current = row.realNetBrokerageDividendCashflow;
+      if (current === null) continue;
+      if (!dividendObserved && current > 0) {
+        dividendPeak = current;
+        dividendObserved = true;
+        continue;
+      }
+      if (!dividendObserved) continue;
+      dividendMdd = Math.min(dividendMdd, current / dividendPeak - 1);
+      dividendPeak = Math.max(dividendPeak, current);
+    }
+
+    const withdrawalStartRealAssets = withdrawalStart?.realAssetsBeforeWithdrawal ?? null;
+    const finalRealAssetRetentionRatio = withdrawalStartRealAssets !== null && withdrawalStartRealAssets > 0
+      ? ending.realAssets / withdrawalStartRealAssets
+      : null;
     return {
       periodYears,
-      success: !firstDepleted && !firstShortfall && ending.nominalAssets > EPSILON,
-      reachedRealPrincipal50Pct: rows.some((row) => row.realAssets <= initialRealPrincipal * 0.5),
-      reachedRealPrincipal25Pct: rows.some((row) => row.realAssets <= initialRealPrincipal * 0.25),
+      fundingAnalysisAvailable,
+      success: fullFundingSuccess100,
+      sustainabilitySuccess85,
+      fullFundingSuccess100,
+      reachedRealPrincipal50Pct: initialRealPrincipal > EPSILON
+        && rows.some((row) => row.realAssets <= initialRealPrincipal * 0.5),
+      reachedRealPrincipal25Pct: initialRealPrincipal > EPSILON
+        && rows.some((row) => row.realAssets <= initialRealPrincipal * 0.25),
       firstDepletionYear: firstDepleted?.calendarYear ?? null,
       firstWithdrawalShortfallYear: firstShortfall?.calendarYear ?? null,
       endingRealAssets: ending.realAssets,
+      withdrawalStartRealAssets,
+      finalRealAssetRetentionRatio,
+      minimumFundingRatio,
+      livingExpenseMdd: minimumFundingRatio === null ? null : Math.min(0, minimumFundingRatio - 1),
+      minimumMonthlySuppliedReal: minimumFundingRatio === null
+        ? null
+        : (fundingBaseline.monthlyReal ?? 0) * minimumFundingRatio,
+      realAfterTaxDividendCashflowMdd: dividendObserved ? dividendMdd : null,
     };
   });
+}
+
+function includesTaxScope(scope: RetirementBootstrapAnalysisScope): boolean {
+  return scope === "tax" || scope === "combined";
+}
+
+function includesBrokerageScope(scope: RetirementBootstrapAnalysisScope): boolean {
+  return scope === "brokerage" || scope === "combined";
+}
+
+function scopedAssetTotal(
+  scope: RetirementBootstrapAnalysisScope,
+  isa: number,
+  pension: number,
+  brokerage: number,
+): number {
+  if (scope === "tax") return isa + pension;
+  if (scope === "brokerage") return brokerage;
+  return isa + pension + brokerage;
 }
 
 export function buildRetirementBootstrapCheckpoints(
   records: RetirementBootstrapAnnualRecord[],
   periods: readonly number[],
   initialRealPrincipal: number,
+  fundingBaseline?: RetirementBootstrapFundingBaseline,
 ): RetirementBootstrapPathCheckpoint[] {
-  return createCheckpoints(records, periods, initialRealPrincipal);
+  const firstEvaluation = records.find((row) => row.requiredAfterTaxCashflow > 0);
+  const inferredBaseline = fundingBaseline ?? (firstEvaluation
+    ? availableFundingBaseline(
+      "combined",
+      firstEvaluation.requiredAfterTaxCashflow / firstEvaluation.cumulativeInflation,
+      firstEvaluation.yearNumber,
+      firstEvaluation.calendarYear,
+    )
+    : unavailableFundingBaseline("combined", "no_evaluation_period"));
+  return createCheckpoints(records, periods, initialRealPrincipal, inferredBaseline);
 }
 
 function simulateCompiledPath(
   model: CompiledRetirementBootstrapModel,
   sampledPath: SampledMarketPath,
   periods: readonly number[],
+  analysisScope: RetirementBootstrapAnalysisScope,
+  fundingBaseline: RetirementBootstrapFundingBaseline,
   distributionStressPolicy?: DistributionStressPolicy,
 ): RetirementBootstrapPathResult {
   const { input, dataset } = model;
@@ -340,6 +609,10 @@ function simulateCompiledPath(
     }
     assertFinite(grossDividend, `${yearNumber}년 차 총배당`);
     const netDividend = grossDividend * DIVIDEND_TAX_KEEP_RATE;
+    const realAssetsBeforeWithdrawal = toStartPurchasingPower(
+      scopedAssetTotal(analysisScope, isaBalance, pensionBalance, brokerageBalance),
+      cumulativeInflation,
+    );
 
     let isaGross = 0;
     let pensionGross = 0;
@@ -366,14 +639,24 @@ function simulateCompiledPath(
 
     isaBalance = Math.max(0, isaBalance - isaGross);
     pensionBalance = Math.max(0, pensionBalance - pensionGross);
-    const suppliedWithdrawalNet = isaGross * (1 - isaTaxRate) + pensionGross * (1 - pensionTaxRate) + netDividend;
-    const requiredWithdrawalNominal = isWithdrawalYear
-      ? input.annualRequiredWithdrawalReal * cumulativeInflation
+    const netIsaWithdrawal = isaGross * (1 - isaTaxRate);
+    const netPensionWithdrawal = pensionGross * (1 - pensionTaxRate);
+    const scopedTaxSupply = includesTaxScope(analysisScope) ? netIsaWithdrawal + netPensionWithdrawal : 0;
+    const scopedBrokerageSupply = includesBrokerageScope(analysisScope) ? netDividend : 0;
+    const suppliedWithdrawalNet = scopedTaxSupply + scopedBrokerageSupply;
+    const fundingEvaluationActive = isWithdrawalYear && fundingBaseline.status === "available";
+    const requiredWithdrawalNominal = fundingEvaluationActive
+      ? (fundingBaseline.annualReal ?? 0) * cumulativeInflation
       : 0;
     assertFinite(suppliedWithdrawalNet, `${yearNumber}년 차 세후 공급액`);
     assertFinite(requiredWithdrawalNominal, `${yearNumber}년 차 필수 인출액`);
-    const withdrawalSatisfied = suppliedWithdrawalNet + EPSILON >= requiredWithdrawalNominal;
-    const nominalAssets = isaBalance + pensionBalance + brokerageBalance;
+    const withdrawalSatisfied = !isWithdrawalYear
+      ? true
+      : fundingEvaluationActive && suppliedWithdrawalNet + EPSILON >= requiredWithdrawalNominal;
+    const fundingRatio = fundingEvaluationActive
+      ? suppliedWithdrawalNet / requiredWithdrawalNominal
+      : null;
+    const nominalAssets = scopedAssetTotal(analysisScope, isaBalance, pensionBalance, brokerageBalance);
     const realAssets = toStartPurchasingPower(nominalAssets, cumulativeInflation);
     assertFinite(nominalAssets, `${yearNumber}년 차 명목자산`);
     assertFinite(realAssets, `${yearNumber}년 차 실질자산`);
@@ -386,13 +669,20 @@ function simulateCompiledPath(
       nominalAssets,
       realAssets,
       cumulativeInflation,
+      requiredAfterTaxCashflow: requiredWithdrawalNominal,
+      suppliedAfterTaxCashflow: suppliedWithdrawalNet,
+      fundingRatio,
+      realAssetsBeforeWithdrawal,
+      realNetBrokerageDividendCashflow: includesBrokerageScope(analysisScope)
+        ? toStartPurchasingPower(netDividend, cumulativeInflation)
+        : null,
       requiredWithdrawalNominal,
-      grossIsaWithdrawal: isaGross,
-      netIsaWithdrawal: isaGross * (1 - isaTaxRate),
-      grossPensionWithdrawal: pensionGross,
-      netPensionWithdrawal: pensionGross * (1 - pensionTaxRate),
-      grossBrokerageDividend: grossDividend,
-      netBrokerageDividend: netDividend,
+      grossIsaWithdrawal: includesTaxScope(analysisScope) ? isaGross : 0,
+      netIsaWithdrawal: includesTaxScope(analysisScope) ? netIsaWithdrawal : 0,
+      grossPensionWithdrawal: includesTaxScope(analysisScope) ? pensionGross : 0,
+      netPensionWithdrawal: includesTaxScope(analysisScope) ? netPensionWithdrawal : 0,
+      grossBrokerageDividend: includesBrokerageScope(analysisScope) ? grossDividend : 0,
+      netBrokerageDividend: includesBrokerageScope(analysisScope) ? netDividend : 0,
       suppliedWithdrawalNet,
       withdrawalSatisfied,
       depleted,
@@ -408,11 +698,17 @@ function simulateCompiledPath(
     }
   }
 
-  const initialRealPrincipal = input.initialIsa + input.initialPension + input.initialBrokerage;
+  const initialRealPrincipal = scopedAssetTotal(
+    analysisScope,
+    input.initialIsa,
+    input.initialPension,
+    input.initialBrokerage,
+  );
   return {
     initialRealPrincipal,
+    fundingBaseline,
     records,
-    checkpoints: createCheckpoints(records, periods, initialRealPrincipal),
+    checkpoints: createCheckpoints(records, periods, initialRealPrincipal, fundingBaseline),
     sampledObservationIndices: sampledPath.observationIndices,
     sampledBlockStarts: sampledPath.blockStarts,
   };
@@ -439,16 +735,26 @@ export function simulateRetirementBootstrapPath(
     seed: number;
     allowTestFixture?: boolean;
     distributionStressPolicy?: DistributionStressPolicy;
+    analysisScope?: RetirementBootstrapAnalysisScope;
   },
 ): RetirementBootstrapPathResult {
   validateDistributionStressPolicy(options.distributionStressPolicy);
+  const analysisScope = options.analysisScope ?? DEFAULT_ANALYSIS_SCOPE;
   const periods = validatePeriods(options.periods ?? [options.years]);
   if (Math.max(...periods) > options.years) throw new Error("경로 길이보다 긴 집계 기간을 요청했습니다.");
   const blockLength = options.blockLength ?? DEFAULT_RETIREMENT_BOOTSTRAP_BLOCK_LENGTH;
   const model = compileRetirementBootstrapModel(input, dataset, blockLength, options.allowTestFixture);
+  const fundingBaseline = calculateRetirementBootstrapFundingBaseline(input, analysisScope, options.years);
   const random = createSeededPrng(options.seed);
   const sampled = sampleMarketPatternBlocks(model.dataset, options.years, blockLength, random);
-  return simulateCompiledPath(model, sampled, periods, options.distributionStressPolicy);
+  return simulateCompiledPath(
+    model,
+    sampled,
+    periods,
+    analysisScope,
+    fundingBaseline,
+    options.distributionStressPolicy,
+  );
 }
 
 export function runRetirementBootstrap(
@@ -457,18 +763,29 @@ export function runRetirementBootstrap(
   options: RetirementBootstrapRunOptions,
 ): RetirementBootstrapResult {
   validateDistributionStressPolicy(options.distributionStressPolicy);
+  const analysisScope = options.analysisScope ?? DEFAULT_ANALYSIS_SCOPE;
   const iterations = options.iterations ?? DEFAULT_RETIREMENT_BOOTSTRAP_ITERATIONS;
   const blockLength = options.blockLength ?? DEFAULT_RETIREMENT_BOOTSTRAP_BLOCK_LENGTH;
   const periods = validatePeriods(options.periods ?? RETIREMENT_BOOTSTRAP_PERIODS);
   if (!Number.isInteger(iterations) || iterations <= 0) throw new Error("시뮬레이션 횟수는 양의 정수여야 합니다.");
   const maxYears = Math.max(...periods);
   const model = compileRetirementBootstrapModel(input, dataset, blockLength, options.allowTestFixture);
+  const fundingBaseline = calculateRetirementBootstrapFundingBaseline(input, analysisScope, maxYears);
   const random = createSeededPrng(options.seed);
   const aggregates = new Map<number, {
     successCount: number;
+    sustainabilitySuccessCount85: number;
+    fullFundingSuccessCount100: number;
     reached50Count: number;
     reached25Count: number;
     endingRealAssetsTotal: number;
+    finalRealAssetRetentionRatios: number[];
+    depletedPathCount: number;
+    minimumFundingRatios: number[];
+    below85Count: number;
+    below70Count: number;
+    below50Count: number;
+    dividendCashflowMdds: number[];
     withdrawalShortfallOnlyCount: number;
     depletionOnlyCount: number;
     withdrawalShortfallAndDepletionCount: number;
@@ -476,9 +793,18 @@ export function runRetirementBootstrap(
     firstFailureYears: Map<number, number>;
   }>(periods.map((period) => [period, {
     successCount: 0,
+    sustainabilitySuccessCount85: 0,
+    fullFundingSuccessCount100: 0,
     reached50Count: 0,
     reached25Count: 0,
     endingRealAssetsTotal: 0,
+    finalRealAssetRetentionRatios: [],
+    depletedPathCount: 0,
+    minimumFundingRatios: [],
+    below85Count: 0,
+    below70Count: 0,
+    below50Count: 0,
+    dividendCashflowMdds: [],
     withdrawalShortfallOnlyCount: 0,
     depletionOnlyCount: 0,
     withdrawalShortfallAndDepletionCount: 0,
@@ -504,8 +830,15 @@ export function runRetirementBootstrap(
 
   for (let iteration = 0; iteration < iterations; iteration += 1) {
     const sampled = sampleMarketPatternBlocks(model.dataset, maxYears, blockLength, random);
-    const path = simulateCompiledPath(model, sampled, periods, options.distributionStressPolicy);
-    const firstWithdrawal = path.records.find((row) => row.requiredWithdrawalNominal > 0);
+    const path = simulateCompiledPath(
+      model,
+      sampled,
+      periods,
+      analysisScope,
+      fundingBaseline,
+      options.distributionStressPolicy,
+    );
+    const firstWithdrawal = path.records.find((row) => row.fundingRatio !== null);
     if (firstWithdrawal) {
       firstWithdrawalAggregate.yearNumber = firstWithdrawal.yearNumber;
       firstWithdrawalAggregate.calendarYear = firstWithdrawal.calendarYear;
@@ -525,9 +858,26 @@ export function runRetirementBootstrap(
     for (const checkpoint of path.checkpoints) {
       const aggregate = aggregates.get(checkpoint.periodYears)!;
       if (checkpoint.success) aggregate.successCount += 1;
+      if (checkpoint.sustainabilitySuccess85) aggregate.sustainabilitySuccessCount85 += 1;
+      if (checkpoint.fullFundingSuccess100) aggregate.fullFundingSuccessCount100 += 1;
       if (checkpoint.reachedRealPrincipal50Pct) aggregate.reached50Count += 1;
       if (checkpoint.reachedRealPrincipal25Pct) aggregate.reached25Count += 1;
       aggregate.endingRealAssetsTotal += checkpoint.endingRealAssets;
+      if (checkpoint.finalRealAssetRetentionRatio !== null) {
+        aggregate.finalRealAssetRetentionRatios.push(checkpoint.finalRealAssetRetentionRatio);
+      }
+      if (checkpoint.firstDepletionYear !== null) aggregate.depletedPathCount += 1;
+      if (checkpoint.minimumFundingRatio !== null) {
+        aggregate.minimumFundingRatios.push(checkpoint.minimumFundingRatio);
+        if (checkpoint.minimumFundingRatio < RETIREMENT_BOOTSTRAP_SUSTAINABILITY_MIN_FUNDING_RATIO) {
+          aggregate.below85Count += 1;
+        }
+        if (checkpoint.minimumFundingRatio < 0.70) aggregate.below70Count += 1;
+        if (checkpoint.minimumFundingRatio < 0.50) aggregate.below50Count += 1;
+      }
+      if (checkpoint.realAfterTaxDividendCashflowMdd !== null) {
+        aggregate.dividendCashflowMdds.push(checkpoint.realAfterTaxDividendCashflowMdd);
+      }
       const hasShortfall = checkpoint.firstWithdrawalShortfallYear !== null;
       const hasDepletion = checkpoint.firstDepletionYear !== null;
       if (!checkpoint.success) {
@@ -553,16 +903,121 @@ export function runRetirementBootstrap(
 
   const periodResults: RetirementBootstrapPeriodResult[] = periods.map((periodYears) => {
     const aggregate = aggregates.get(periodYears)!;
+    const retentionRatios = [...aggregate.finalRealAssetRetentionRatios].sort((left, right) => left - right);
+    const retentionDenominator = retentionRatios.length;
+    const retentionBucketCounts = {
+      at_least_100: 0,
+      from_80_to_100: 0,
+      from_50_to_80: 0,
+      from_25_to_50: 0,
+      below_25: 0,
+    };
+    for (const ratio of retentionRatios) {
+      retentionBucketCounts[classifyFinalRealAssetRetentionBucket(ratio)] += 1;
+    }
+    const atLeast100PctCount = retentionBucketCounts.at_least_100;
+    const from80To100PctCount = retentionBucketCounts.from_80_to_100;
+    const from50To80PctCount = retentionBucketCounts.from_50_to_80;
+    const from25To50PctCount = retentionBucketCounts.from_25_to_50;
+    const below25PctCount = retentionBucketCounts.below_25;
+    if (
+      atLeast100PctCount
+      + from80To100PctCount
+      + from50To80PctCount
+      + from25To50PctCount
+      + below25PctCount
+      !== retentionDenominator
+    ) {
+      throw new Error(`${periodYears}년 최종 실질자산 bucket 합계가 denominator와 일치하지 않습니다.`);
+    }
+    const retentionProbability = (count: number) => retentionDenominator > 0 ? count / retentionDenominator : 0;
+
+    const minimumFundingRatios = [...aggregate.minimumFundingRatios].sort((left, right) => left - right);
+    const livingObservedCount = minimumFundingRatios.length;
+    const worstMinimumFundingRatio = minimumFundingRatios[0] ?? null;
+    const lower1PctMinimumFundingRatio = nearestRankPercentile(minimumFundingRatios, 0.01);
+    const lower5PctMinimumFundingRatio = nearestRankPercentile(minimumFundingRatios, 0.05);
+    const medianMinimumFundingRatio = nearestRankPercentile(minimumFundingRatios, 0.5);
+    const livingMdd = (ratio: number | null) => ratio === null ? null : Math.min(0, ratio - 1);
+    const minimumMonthly = (ratio: number | null) => ratio === null
+      ? null
+      : (fundingBaseline.monthlyReal ?? 0) * ratio;
+    const livingProbability = (count: number) => livingObservedCount > 0 ? count / livingObservedCount : 0;
+
+    const dividendMdds = aggregate.dividendCashflowMdds;
+    const dividendObservedCount = dividendMdds.length;
+    const dividendDropCount = (threshold: number) => dividendMdds.filter((mdd) => mdd <= -threshold).length;
+    const dividendProbability = (count: number) => dividendObservedCount > 0 ? count / dividendObservedCount : 0;
+    const drop20PctOrMoreCount = dividendDropCount(0.2);
+    const drop30PctOrMoreCount = dividendDropCount(0.3);
+    const drop40PctOrMoreCount = dividendDropCount(0.4);
+    const drop50PctOrMoreCount = dividendDropCount(0.5);
+    const drop60PctOrMoreCount = dividendDropCount(0.6);
     return {
       periodYears,
       simulationCount: iterations,
+      fundingAnalysisAvailable: fundingBaseline.status === "available"
+        && fundingBaseline.firstEvaluationYearNumber !== null
+        && fundingBaseline.firstEvaluationYearNumber <= periodYears,
       successCount: aggregate.successCount,
       successRate: aggregate.successCount / iterations,
+      sustainabilitySuccessCount85: aggregate.sustainabilitySuccessCount85,
+      sustainabilitySuccessRate85: aggregate.sustainabilitySuccessCount85 / iterations,
+      fullFundingSuccessCount100: aggregate.fullFundingSuccessCount100,
+      fullFundingSuccessRate100: aggregate.fullFundingSuccessCount100 / iterations,
       reachedRealPrincipal50PctCount: aggregate.reached50Count,
       reachedRealPrincipal50PctProbability: aggregate.reached50Count / iterations,
       reachedRealPrincipal25PctCount: aggregate.reached25Count,
       reachedRealPrincipal25PctProbability: aggregate.reached25Count / iterations,
       averageEndingRealAssets: aggregate.endingRealAssetsTotal / iterations,
+      finalRealAssetRetention: {
+        denominatorPathCount: retentionDenominator,
+        atLeast100PctCount,
+        atLeast100PctProbability: retentionProbability(atLeast100PctCount),
+        from80To100PctCount,
+        from80To100PctProbability: retentionProbability(from80To100PctCount),
+        from50To80PctCount,
+        from50To80PctProbability: retentionProbability(from50To80PctCount),
+        from25To50PctCount,
+        from25To50PctProbability: retentionProbability(from25To50PctCount),
+        below25PctCount,
+        below25PctProbability: retentionProbability(below25PctCount),
+        depletedPathCount: aggregate.depletedPathCount,
+        depletedProbability: retentionProbability(aggregate.depletedPathCount),
+        medianRetentionRatio: nearestRankPercentile(retentionRatios, 0.5),
+      },
+      livingExpenseRisk: {
+        observedPathCount: livingObservedCount,
+        worstMinimumFundingRatio,
+        worstLivingExpenseMdd: livingMdd(worstMinimumFundingRatio),
+        worstMinimumMonthlySuppliedReal: minimumMonthly(worstMinimumFundingRatio),
+        lower1PctMinimumFundingRatio,
+        lower1PctLivingExpenseMdd: livingMdd(lower1PctMinimumFundingRatio),
+        lower1PctMinimumMonthlySuppliedReal: minimumMonthly(lower1PctMinimumFundingRatio),
+        lower5PctMinimumFundingRatio,
+        lower5PctLivingExpenseMdd: livingMdd(lower5PctMinimumFundingRatio),
+        lower5PctMinimumMonthlySuppliedReal: minimumMonthly(lower5PctMinimumFundingRatio),
+        medianMinimumFundingRatio,
+        medianLivingExpenseMdd: livingMdd(medianMinimumFundingRatio),
+        medianMinimumMonthlySuppliedReal: minimumMonthly(medianMinimumFundingRatio),
+        below85PctProbability: livingProbability(aggregate.below85Count),
+        below70PctProbability: livingProbability(aggregate.below70Count),
+        below50PctProbability: livingProbability(aggregate.below50Count),
+      },
+      realAfterTaxDividendCashflowRisk: {
+        applicable: analysisScope !== "tax",
+        observedPathCount: dividendObservedCount,
+        drop20PctOrMoreCount,
+        drop20PctOrMoreProbability: dividendProbability(drop20PctOrMoreCount),
+        drop30PctOrMoreCount,
+        drop30PctOrMoreProbability: dividendProbability(drop30PctOrMoreCount),
+        drop40PctOrMoreCount,
+        drop40PctOrMoreProbability: dividendProbability(drop40PctOrMoreCount),
+        drop50PctOrMoreCount,
+        drop50PctOrMoreProbability: dividendProbability(drop50PctOrMoreCount),
+        drop60PctOrMoreCount,
+        drop60PctOrMoreProbability: dividendProbability(drop60PctOrMoreCount),
+      },
     };
   });
   const failurePeriodDiagnostics = periods.map((periodYears) => {
@@ -602,6 +1057,9 @@ export function runRetirementBootstrap(
   } : null;
 
   return {
+    schemaVersion: RETIREMENT_BOOTSTRAP_RESULT_SCHEMA_VERSION,
+    analysisScope,
+    fundingBaseline,
     method: "five_year_block_bootstrap_recentered",
     iterations,
     blockLength,

@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { buildRetirementBootstrapInput } from "../lib/retirement-bootstrap-adapter.ts";
-import { PRODUCTION_MARKET_PATTERN_DATASET_VERSION } from "../lib/retirement-bootstrap-config.ts";
+import {
+  PRODUCTION_MARKET_PATTERN_DATASET_VERSION,
+  RETIREMENT_BOOTSTRAP_UI_POLICY_VERSION,
+} from "../lib/retirement-bootstrap-config.ts";
 import {
   buildRetirementBootstrapCalculationIdentity,
   classifyRetirementBootstrapInputError,
@@ -14,6 +17,7 @@ import { runRetirementBootstrap } from "../lib/retirement-bootstrap-engine.ts";
 import { PRODUCTION_MARKET_PATTERN_DATA_ADAPTER } from "../lib/retirement-bootstrap-production-adapter.ts";
 import type { AppliedPortfolioAssumptionsV1, SimulatorInputs } from "../lib/asset-simulator-types.ts";
 import type { RetirementBootstrapWorkerRunRequest } from "../lib/retirement-bootstrap-worker-protocol.ts";
+import { RETIREMENT_BOOTSTRAP_RESULT_SCHEMA_VERSION } from "../lib/retirement-bootstrap-types.ts";
 
 const inputs: SimulatorInputs = {
   startYear: 2026,
@@ -128,9 +132,18 @@ try {
 }
 assert.equal(classifyRetirementBootstrapInputError(unsupportedError).code, "unsupported_etf", "unsupported ETF 전용 오류 상태");
 
-const identity = buildRetirementBootstrapCalculationIdentity(bootstrapInput, PRODUCTION_MARKET_PATTERN_DATASET_VERSION, 10_000, 5);
-const sameIdentity = buildRetirementBootstrapCalculationIdentity(structuredClone(bootstrapInput), PRODUCTION_MARKET_PATTERN_DATASET_VERSION, 10_000, 5);
+const identity = buildRetirementBootstrapCalculationIdentity(bootstrapInput, PRODUCTION_MARKET_PATTERN_DATASET_VERSION, 10_000, 5, "combined");
+assert.match(identity.cacheKey, new RegExp(RETIREMENT_BOOTSTRAP_UI_POLICY_VERSION), "V4 cache policy로 이전 결과 무효화");
+assert.match(identity.cacheKey, /resultSchemaVersion/, "result schema version이 cache key에 포함");
+assert.match(identity.cacheKey, /analysisScope/, "analysis scope가 cache key에 포함");
+const sameIdentity = buildRetirementBootstrapCalculationIdentity(structuredClone(bootstrapInput), PRODUCTION_MARKET_PATTERN_DATASET_VERSION, 10_000, 5, "combined");
 assert.deepEqual(sameIdentity, identity, "동일 정규화 입력의 seed/cache key 재현");
+const taxIdentity = buildRetirementBootstrapCalculationIdentity(bootstrapInput, PRODUCTION_MARKET_PATTERN_DATASET_VERSION, 10_000, 5, "tax");
+const brokerageIdentity = buildRetirementBootstrapCalculationIdentity(bootstrapInput, PRODUCTION_MARKET_PATTERN_DATASET_VERSION, 10_000, 5, "brokerage");
+assert.equal(taxIdentity.seed, identity.seed, "scope 비교는 동일 sampled path seed 공유");
+assert.equal(brokerageIdentity.seed, identity.seed, "위탁도 동일 sampled path seed 공유");
+assert.notEqual(taxIdentity.cacheKey, identity.cacheKey, "절세·종합 cache 분리");
+assert.notEqual(brokerageIdentity.cacheKey, identity.cacheKey, "위탁·종합 cache 분리");
 
 const reordered = {
   ...bootstrapInput,
@@ -167,7 +180,9 @@ const request: RetirementBootstrapWorkerRunRequest = structuredClone({
   type: "run",
   requestId: "serialization-reproduction",
   input: bootstrapInput,
+  analysisScope: "combined",
   datasetVersion: PRODUCTION_MARKET_PATTERN_DATASET_VERSION,
+  resultSchemaVersion: RETIREMENT_BOOTSTRAP_RESULT_SCHEMA_VERSION,
   simulationCount: 120,
   blockLength: 5,
   seed: identity.seed,
@@ -183,15 +198,55 @@ const direct = runRetirementBootstrap(bootstrapInput, await PRODUCTION_MARKET_PA
   blockLength: request.blockLength,
   periods: [30, 40, 50, 60, 70],
   seed: request.seed,
+  analysisScope: request.analysisScope,
 });
 assert.deepEqual(first.result, direct, "Worker 결과와 direct engine 결과 동일");
+const taxWorker = await executeRetirementBootstrapWorkerRequest({
+  ...request,
+  requestId: "tax-scope-serialization",
+  analysisScope: "tax",
+});
+assert.equal(taxWorker.type, "success", "절세 scope Worker 성공");
+if (taxWorker.type !== "success") throw new Error("절세 scope Worker 결과 생성 실패");
+const directTax = runRetirementBootstrap(bootstrapInput, await PRODUCTION_MARKET_PATTERN_DATA_ADAPTER.loadDataset(), {
+  iterations: request.simulationCount,
+  blockLength: request.blockLength,
+  periods: [30, 40, 50, 60, 70],
+  seed: request.seed,
+  analysisScope: "tax",
+});
+assert.deepEqual(taxWorker.result, directTax, "절세 Worker/direct parity");
+assert.equal(taxWorker.result.fundingBaseline.type, "tax_initial_withdrawal", "절세 deterministic 기준선 Worker 전달");
+assert.equal(taxWorker.result.fundingBaseline.status, "available");
+assert.ok(taxWorker.result.periods.every((period) => period.realAfterTaxDividendCashflowRisk.observedPathCount === 0), "절세 배당 위험 해당 없음");
 assert.deepEqual(structuredClone(first.result), first.result, "Worker 결과 structured clone 직렬화");
 assert.deepEqual(first.result.periods.map((row) => row.periodYears), [30, 40, 50, 60, 70], "Worker 5개 checkpoint 출력");
 assert.equal(first.result.datasetUsage, "production", "Worker production dataset 전용");
+assert.equal(first.result.schemaVersion, RETIREMENT_BOOTSTRAP_RESULT_SCHEMA_VERSION, "Worker V4 result schema");
+assert.equal(first.result.analysisScope, "combined", "Worker scope 직렬화");
+assert.equal(first.result.fundingBaseline.type, "combined_target_expense", "Worker 종합 기준선 metadata 직렬화");
+assert.equal(first.result.fundingBaseline.monthlyReal, bootstrapInput.annualRequiredWithdrawalReal / 12);
+assert.ok(first.result.periods.every((row) => row.sustainabilitySuccessRate85 >= row.fullFundingSuccessRate100));
 const wrongDatasetVersion = await executeRetirementBootstrapWorkerRequest({ ...request, requestId: "wrong-dataset", datasetVersion: "stale-version" });
 assert.equal(wrongDatasetVersion.type, "error", "오래된 datasetVersion 결과 생성 차단");
 if (wrongDatasetVersion.type === "error") {
   assert.equal(wrongDatasetVersion.error.code, "dataset_integrity_failed", "datasetVersion 불일치 전용 오류 상태");
+}
+const wrongScope = await executeRetirementBootstrapWorkerRequest({
+  ...request,
+  requestId: "wrong-scope",
+  analysisScope: "invalid" as "combined",
+});
+assert.equal(wrongScope.type, "error", "지원하지 않는 Worker scope 차단");
+if (wrongScope.type === "error") assert.equal(wrongScope.error.code, "invalid_user_input");
+const wrongResultSchemaVersion = await executeRetirementBootstrapWorkerRequest({
+  ...request,
+  requestId: "wrong-result-schema",
+  resultSchemaVersion: RETIREMENT_BOOTSTRAP_RESULT_SCHEMA_VERSION - 1,
+});
+assert.equal(wrongResultSchemaVersion.type, "error", "오래된 result schema Worker request 차단");
+if (wrongResultSchemaVersion.type === "error") {
+  assert.equal(wrongResultSchemaVersion.error.code, "dataset_integrity_failed");
 }
 
 clearRetirementBootstrapMemoryCache();
@@ -202,6 +257,13 @@ setRetirementBootstrapMemoryCache(identity.cacheKey, {
   cachedAtEpochMs: Date.now(),
 });
 assert.deepEqual(getRetirementBootstrapMemoryCache(identity.cacheKey)?.result, first.result, "동일 입력 cache hit");
+setRetirementBootstrapMemoryCache(taxIdentity.cacheKey, {
+  result: taxWorker.result,
+  timing: taxWorker.timing,
+  cachedAtEpochMs: Date.now(),
+});
+assert.equal(getRetirementBootstrapMemoryCache(taxIdentity.cacheKey)?.result.analysisScope, "tax", "이전 절세 scope cache 재사용");
+assert.equal(getRetirementBootstrapMemoryCache(identity.cacheKey)?.result.analysisScope, "combined", "종합 cache와 stale 혼입 없음");
 assert.equal(getRetirementBootstrapMemoryCache(`${identity.cacheKey}-other`), null, "다른 입력 cache miss");
 
 const page = readFileSync("components/asset-simulator/AssetSimulatorPage.tsx", "utf8");
@@ -222,6 +284,18 @@ assert.match(section, /event\.key === "Escape"/, "tooltip Escape 닫기");
 assert.match(section, /onFocus=\{\(\) => setOpen\(true\)\}[\s\S]*onBlur=\{\(\) => setOpen\(false\)\}/, "tooltip keyboard focus 접근");
 assert.match(section, /const periods = useMemo[\s\S]*chartData = useMemo<ChartDatum\[]>\(\(\) => periods\.map/, "표·그래프가 같은 result periods 객체 사용");
 assert.match(section, /summaryPeriod[\s\S]*periodYears === 60/, "60년 대표 요약");
+assert.match(section, /월85%이상수령률[\s\S]*월목표완전수령률/, "scope 기준 85%·100% 수령 지표를 명확히 표시");
+assert.match(section, />\s*월85%이상수령률\s*<[\s\S]*>\s*월목표완전수령률\s*<[\s\S]*>\s*반토막진입비율\s*<[\s\S]*>\s*-75%진입비율\s*</, "기간별 표 직관화 헤더");
+assert.match(section, /절세계좌 최초 실질 세후 월인출액[\s\S]*위탁계좌 최초 실질 세후 월배당[\s\S]*목표 월생활비/, "scope별 deterministic 기준 설명");
+assert.match(section, /fundingBaseline\.monthlyReal/, "실제 scope 기준 월금액 표시");
+assert.match(section, /type="radio"[\s\S]*checked=\{analysisScope === option\.value\}/, "배타적 native radio selector semantics");
+assert.match(section, /useState<RetirementBootstrapAnalysisScope>\("combined"\)/, "기본 분석 범위 종합");
+assert.match(section, /절세계좌 분석에서는 별도 배당 현금흐름을 사용하지 않습니다[\s\S]*해당 없음/, "절세 배당 위험 0% 오해 방지");
+assert.match(section, /data-testid="sustainability-period-table-scroll"[\s\S]*xl:overflow-x-visible[\s\S]*min-w-\[620px\]/, "desktop 표 scrollbar 제거와 mobile 최소폭 유지");
+assert.match(section, /최종 실질자산 보존 분포[\s\S]*100% 이상[\s\S]*25% 미만/, "최종자산 5개 bucket 표");
+assert.match(section, /생활비 하방 위험[\s\S]*최악 경로[\s\S]*하위 5%/, "최악과 하위 5% 생활비 MDD 표시");
+assert.match(section, /실질 세후 배당 현금흐름 하락 위험[\s\S]*명목 배당 -20%/, "실질 현금흐름 MDD와 명목 삭감 구분");
+assert.match(section, /반토막진입비율[\s\S]*이후 다시 회복한 경우도 포함[\s\S]*-75%진입비율/, "기존 50%·25% 계산 의미를 새 명칭 tooltip에 유지");
 assert.match(page, /active=\{activeTab === "safety"\}/, "안정성 탭이 활성일 때만 Worker 실행");
 assert.match(hook, /new Worker\(new URL\("\.\/retirement-bootstrap\.worker\.ts", import\.meta\.url\)/, "Next.js module Worker 생성");
 assert.match(hook, /worker\?\.terminate\(\)/, "입력 변경·unmount cleanup");

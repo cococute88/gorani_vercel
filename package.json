@@ -86,6 +86,7 @@
     "build:retirement-bootstrap-production-data": "npx --yes tsx scripts/build-retirement-bootstrap-production-data.mts",
     "check:retirement-bootstrap-production-data": "npx --yes tsx scripts/build-retirement-bootstrap-production-data.mts --check",
     "validate:retirement-bootstrap-production": "npx --yes tsx scripts/validate-retirement-bootstrap-production.mts",
+    "validate:retirement-bootstrap-v2": "npx --yes tsx scripts/validate-retirement-bootstrap-v2.mts",
     "benchmark:retirement-bootstrap-production": "npx --yes tsx scripts/benchmark-retirement-bootstrap-production.mts",
     "check:nav-favorites-calculator-menu": "node scripts/check-nav-favorites-calculator-menu.mjs",
     "check:dividend-schd-goal-withdrawal-mode": "node scripts/check-dividend-schd-goal-withdrawal-mode.mjs",

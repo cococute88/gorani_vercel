@@ -5,6 +5,8 @@ import { PRODUCTION_MARKET_PATTERN_DATASET_VERSION } from "@/lib/retirement-boot
 import {
   DEFAULT_RETIREMENT_BOOTSTRAP_BLOCK_LENGTH,
   DEFAULT_RETIREMENT_BOOTSTRAP_ITERATIONS,
+  RETIREMENT_BOOTSTRAP_RESULT_SCHEMA_VERSION,
+  type RetirementBootstrapAnalysisScope,
   type RetirementBootstrapInput,
   type RetirementBootstrapResult,
 } from "@/lib/retirement-bootstrap-types";
@@ -48,6 +50,7 @@ export function useRetirementBootstrapAnalysis(
   input: RetirementBootstrapInput | null,
   active: boolean,
   retryToken: number,
+  analysisScope: RetirementBootstrapAnalysisScope,
 ): AnalysisState & { seed: number | null; cacheKey: string | null } {
   const requestSequenceRef = useRef(0);
   const [state, setState] = useState<AnalysisState>(INITIAL_STATE);
@@ -58,9 +61,10 @@ export function useRetirementBootstrapAnalysis(
         PRODUCTION_MARKET_PATTERN_DATASET_VERSION,
         DEFAULT_RETIREMENT_BOOTSTRAP_ITERATIONS,
         DEFAULT_RETIREMENT_BOOTSTRAP_BLOCK_LENGTH,
+        analysisScope,
       )
       : null,
-    [input],
+    [analysisScope, input],
   );
   const requestRef = useRef({ input, identity });
   requestRef.current = { input, identity };
@@ -151,7 +155,9 @@ export function useRetirementBootstrapAnalysis(
             type: "run",
             requestId,
             input: requestInput,
+            analysisScope,
             datasetVersion: PRODUCTION_MARKET_PATTERN_DATASET_VERSION,
+            resultSchemaVersion: RETIREMENT_BOOTSTRAP_RESULT_SCHEMA_VERSION,
             simulationCount: DEFAULT_RETIREMENT_BOOTSTRAP_ITERATIONS,
             blockLength: DEFAULT_RETIREMENT_BOOTSTRAP_BLOCK_LENGTH,
             seed: requestIdentity.seed,
@@ -194,7 +200,14 @@ export function useRetirementBootstrapAnalysis(
       window.clearTimeout(timer);
       worker?.terminate();
     };
-  }, [active, identity?.cacheKey, retryToken]);
+  }, [active, analysisScope, identity?.cacheKey, retryToken]);
 
-  return { ...state, seed: identity?.seed ?? null, cacheKey: identity?.cacheKey ?? null };
+  const result = state.result?.analysisScope === analysisScope ? state.result : null;
+  return {
+    ...state,
+    result,
+    refreshing: result !== null && state.refreshing,
+    seed: identity?.seed ?? null,
+    cacheKey: identity?.cacheKey ?? null,
+  };
 }

@@ -12,7 +12,11 @@ import {
 } from "../lib/retirement-bootstrap-data.ts";
 import {
   buildRetirementBootstrapCheckpoints,
+  calculateRetirementBootstrapFundingBaseline,
+  classifyFinalRealAssetRetentionBucket,
   compileRetirementBootstrapModel,
+  meetsRetirementFundingRatioThreshold,
+  nearestRankPercentile,
   runRetirementBootstrap,
   simulateRetirementBootstrapPath,
 } from "../lib/retirement-bootstrap-engine.ts";
@@ -27,6 +31,10 @@ import type {
   MarketPatternDatasetV1,
   RetirementBootstrapAnnualRecord,
   RetirementBootstrapInput,
+} from "../lib/retirement-bootstrap-types.ts";
+import {
+  RETIREMENT_BOOTSTRAP_RESULT_SCHEMA_VERSION,
+  RETIREMENT_BOOTSTRAP_SUSTAINABILITY_MIN_FUNDING_RATIO,
 } from "../lib/retirement-bootstrap-types.ts";
 import {
   RETIREMENT_BOOTSTRAP_SYNTHETIC_FIXTURE,
@@ -186,6 +194,39 @@ assert.deepEqual(path70Repeat, path70, "동일 데이터·입력·시드 완전 
 assert.equal(path70.records.length, 70);
 assert.equal(path70.sampledBlockStarts.length, 14, "70년은 5년 블록 14개");
 assert.equal(path70.checkpoints.length, 5);
+
+const taxPath70 = simulateRetirementBootstrapPath(input, RETIREMENT_BOOTSTRAP_SYNTHETIC_FIXTURE, {
+  years: 70,
+  periods: [30, 40, 50, 60, 70],
+  blockLength: 5,
+  seed: 20260717,
+  allowTestFixture: true,
+  analysisScope: "tax",
+});
+const brokeragePath70 = simulateRetirementBootstrapPath(input, RETIREMENT_BOOTSTRAP_SYNTHETIC_FIXTURE, {
+  years: 70,
+  periods: [30, 40, 50, 60, 70],
+  blockLength: 5,
+  seed: 20260717,
+  allowTestFixture: true,
+  analysisScope: "brokerage",
+});
+assert.deepEqual(taxPath70.sampledObservationIndices, path70.sampledObservationIndices, "절세 scope도 동일 sampled path 공유");
+assert.deepEqual(brokeragePath70.sampledObservationIndices, path70.sampledObservationIndices, "위탁 scope도 동일 sampled path 공유");
+assert.equal(taxPath70.initialRealPrincipal, input.initialIsa + input.initialPension, "절세 시작 원금 denominator");
+assert.equal(brokeragePath70.initialRealPrincipal, input.initialBrokerage, "위탁 시작 원금 denominator");
+assert.equal(path70.initialRealPrincipal, input.initialIsa + input.initialPension + input.initialBrokerage, "종합 시작 원금 denominator");
+taxPath70.records.forEach((taxRow, index) => {
+  const brokerageRow = brokeragePath70.records[index];
+  const combinedRow = path70.records[index];
+  approx(combinedRow.nominalAssets, taxRow.nominalAssets + brokerageRow.nominalAssets, 1e-8);
+  approx(combinedRow.realAssets, taxRow.realAssets + brokerageRow.realAssets, 1e-8);
+  approx(combinedRow.suppliedAfterTaxCashflow, taxRow.suppliedAfterTaxCashflow + brokerageRow.suppliedAfterTaxCashflow, 1e-8);
+  assert.equal(taxRow.realNetBrokerageDividendCashflow, null, "절세 scope 배당 MDD 입력은 해당 없음");
+  assert.equal(taxRow.grossBrokerageDividend, 0, "절세 scope에서 위탁 배당 공급 제외");
+  assert.equal(brokerageRow.grossIsaWithdrawal + brokerageRow.grossPensionWithdrawal, 0, "위탁 scope에서 절세계좌 인출 제외");
+  assert.equal(brokerageRow.realNetBrokerageDividendCashflow, combinedRow.realNetBrokerageDividendCashflow);
+});
 for (let offset = 0; offset < path70.sampledObservationIndices.length; offset += 5) {
   const block = path70.sampledObservationIndices.slice(offset, offset + 5);
   assert.equal(block.length, 5, "70년 경로는 불완전한 마지막 블록이 없음");
@@ -393,6 +434,21 @@ const afterTaxCashflowInput: RetirementBootstrapInput = {
     mapping: ETF_PATTERN_MAPPINGS.JEPQ,
   }],
 };
+const combinedFundingBaseline = calculateRetirementBootstrapFundingBaseline(afterTaxCashflowInput, "combined", 70);
+assert.equal(combinedFundingBaseline.type, "combined_target_expense");
+assert.equal(combinedFundingBaseline.status, "available");
+assert.equal(combinedFundingBaseline.annualReal, 180, "종합은 사용자 목표 연생활비 기준 유지");
+assert.equal(combinedFundingBaseline.monthlyReal, 15, "종합 연/월 기준 변환");
+const taxFundingBaseline = calculateRetirementBootstrapFundingBaseline(afterTaxCashflowInput, "tax", 70);
+assert.equal(taxFundingBaseline.type, "tax_initial_withdrawal");
+assert.equal(taxFundingBaseline.status, "available");
+approx(taxFundingBaseline.annualReal!, 100 * (1 - 0.099), 1e-12);
+approx(taxFundingBaseline.monthlyReal!, 100 * (1 - 0.099) / 12, 1e-12);
+const brokerageFundingBaseline = calculateRetirementBootstrapFundingBaseline(afterTaxCashflowInput, "brokerage", 70);
+assert.equal(brokerageFundingBaseline.type, "brokerage_initial_dividend");
+assert.equal(brokerageFundingBaseline.status, "available");
+assert.equal(brokerageFundingBaseline.annualReal, 85, "시작 자산·배당률·배당세 기반 deterministic 위탁 기준");
+approx(brokerageFundingBaseline.monthlyReal!, 85 / 12, 1e-12);
 const afterTaxCashflowPath = simulateRetirementBootstrapPath(
   afterTaxCashflowInput,
   flatDataset(0),
@@ -445,6 +501,64 @@ assert.equal(delayedBoundaryPath.records[0].withdrawalSatisfied, true, "인출 �
 assert.equal(delayedBoundaryPath.records[1].requiredWithdrawalNominal, 85, "인출 시작연도부터 필수 생활비 판정");
 assert.equal(delayedBoundaryPath.records[2].requiredWithdrawalNominal, 85, "인출 시작 다음 연도에도 판정 유지");
 
+const taxBaselinePathA = simulateRetirementBootstrapPath(
+  afterTaxCashflowInput,
+  flatDataset(0),
+  { years: 5, seed: 11, allowTestFixture: true, analysisScope: "tax" },
+);
+const taxBaselinePathB = simulateRetirementBootstrapPath(
+  afterTaxCashflowInput,
+  RETIREMENT_BOOTSTRAP_SYNTHETIC_FIXTURE,
+  { years: 5, seed: 99, allowTestFixture: true, analysisScope: "tax" },
+);
+assert.deepEqual(taxBaselinePathA.fundingBaseline, taxBaselinePathB.fundingBaseline, "절세 기준선은 sampled path와 무관");
+assert.notDeepEqual(
+  taxBaselinePathA.records.map((row) => row.suppliedAfterTaxCashflow),
+  taxBaselinePathB.records.map((row) => row.suppliedAfterTaxCashflow),
+  "서로 다른 sampled market 결과에서도 공통 절세 기준선 사용",
+);
+const brokerageBaselinePathA = simulateRetirementBootstrapPath(
+  input,
+  flatDataset(input.expectedInflationPct),
+  { years: 5, seed: 11, allowTestFixture: true, analysisScope: "brokerage" },
+);
+const brokerageBaselinePathB = simulateRetirementBootstrapPath(
+  input,
+  RETIREMENT_BOOTSTRAP_SYNTHETIC_FIXTURE,
+  { years: 5, seed: 99, allowTestFixture: true, analysisScope: "brokerage" },
+);
+assert.deepEqual(brokerageBaselinePathA.fundingBaseline, brokerageBaselinePathB.fundingBaseline, "위탁 기준선은 sampled path와 무관");
+assert.notDeepEqual(
+  brokerageBaselinePathA.records.map((row) => row.suppliedAfterTaxCashflow),
+  brokerageBaselinePathB.records.map((row) => row.suppliedAfterTaxCashflow),
+  "서로 다른 sampled market 결과에서도 공통 위탁 기준선 사용",
+);
+
+const zeroBrokerageBaselineResult = runRetirementBootstrap(
+  { ...brokerageOnlyInput, withdrawalDelayYears: 1 },
+  flatDataset(0),
+  { iterations: 5, periods: [3], seed: 7, allowTestFixture: true, analysisScope: "brokerage" },
+);
+assert.equal(zeroBrokerageBaselineResult.fundingBaseline.status, "unavailable");
+assert.equal(zeroBrokerageBaselineResult.fundingBaseline.unavailableReason, "zero_baseline_cashflow");
+assert.equal(zeroBrokerageBaselineResult.periods[0].fundingAnalysisAvailable, false);
+assert.equal(zeroBrokerageBaselineResult.periods[0].sustainabilitySuccessCount85, 0, "0 기준선을 100% 성공으로 처리하지 않음");
+assert.equal(zeroBrokerageBaselineResult.periods[0].livingExpenseRisk.observedPathCount, 0, "0 기준선 MDD를 정상 표본으로 집계하지 않음");
+const noTaxPrincipalResult = runRetirementBootstrap(
+  { ...brokerageOnlyInput, withdrawalDelayYears: 1 },
+  flatDataset(0),
+  { iterations: 5, periods: [3], seed: 8, allowTestFixture: true, analysisScope: "tax" },
+);
+assert.equal(noTaxPrincipalResult.fundingBaseline.status, "unavailable", "선택 scope 초기자산 0은 명시적 분석 불가");
+assert.equal(noTaxPrincipalResult.fundingBaseline.unavailableReason, "no_scope_assets");
+const afterAnalysisWindowResult = runRetirementBootstrap(
+  { ...afterTaxCashflowInput, withdrawalDelayYears: 71 },
+  flatDataset(0),
+  { iterations: 5, periods: [70], seed: 9, allowTestFixture: true, analysisScope: "tax" },
+);
+assert.equal(afterAnalysisWindowResult.fundingBaseline.status, "unavailable", "인출 시작이 분석 기간 뒤면 분석 불가");
+assert.equal(afterAnalysisWindowResult.fundingBaseline.unavailableReason, "no_evaluation_period");
+
 const allShortDiagnostics = runRetirementBootstrap(
   { ...dividendOnlyExactInput, annualRequiredWithdrawalReal: 86 },
   flatDataset(0),
@@ -466,6 +580,7 @@ function record(
   withdrawalSatisfied = true,
   depleted = false,
 ): RetirementBootstrapAnnualRecord {
+  const supplied = withdrawalSatisfied ? 1 : 0.5;
   return {
     yearNumber,
     calendarYear: 2030 + yearNumber,
@@ -473,6 +588,11 @@ function record(
     nominalAssets: realAssets,
     realAssets,
     cumulativeInflation: 1,
+    requiredAfterTaxCashflow: 1,
+    suppliedAfterTaxCashflow: supplied,
+    fundingRatio: supplied,
+    realAssetsBeforeWithdrawal: realAssets,
+    realNetBrokerageDividendCashflow: 0,
     requiredWithdrawalNominal: 1,
     grossIsaWithdrawal: withdrawalSatisfied ? 1 : 0.5,
     netIsaWithdrawal: withdrawalSatisfied ? 1 : 0.5,
@@ -480,7 +600,7 @@ function record(
     netPensionWithdrawal: 0,
     grossBrokerageDividend: 0,
     netBrokerageDividend: 0,
-    suppliedWithdrawalNet: withdrawalSatisfied ? 1 : 0.5,
+    suppliedWithdrawalNet: supplied,
     withdrawalSatisfied,
     depleted,
   };
@@ -506,6 +626,92 @@ const positiveBalanceShortfall = buildRetirementBootstrapCheckpoints(
 )[0];
 assert.equal(positiveBalanceShortfall.success, false, "잔액 양수여도 필수 인출 일부 지급은 실패");
 assert.equal(positiveBalanceShortfall.firstWithdrawalShortfallYear, 2031);
+
+assert.equal(
+  meetsRetirementFundingRatioThreshold(85, 100),
+  true,
+  "정확히 85%는 지속 성공 threshold를 충족",
+);
+assert.deepEqual(afterTaxCashflowPath.fundingBaseline, combinedFundingBaseline, "경로 결과에 종합 기준 metadata 노출");
+assert.equal(
+  meetsRetirementFundingRatioThreshold(84.999, 100),
+  false,
+  "84.999%는 floating-point tolerance로 상향하지 않음",
+);
+assert.equal(RETIREMENT_BOOTSTRAP_SUSTAINABILITY_MIN_FUNDING_RATIO, 0.85, "85% 기준은 단일 상수 계약");
+
+const exact85Record: RetirementBootstrapAnnualRecord = {
+  ...record(1, 100, false, false),
+  requiredAfterTaxCashflow: 100,
+  suppliedAfterTaxCashflow: 85,
+  fundingRatio: 0.85,
+  requiredWithdrawalNominal: 100,
+  suppliedWithdrawalNet: 85,
+  realAssetsBeforeWithdrawal: 200,
+};
+const exact85Checkpoint = buildRetirementBootstrapCheckpoints([exact85Record], [1], 1_000)[0];
+assert.equal(exact85Checkpoint.sustainabilitySuccess85, true, "정확히 85%이며 미고갈이면 지속 성공");
+assert.equal(exact85Checkpoint.fullFundingSuccess100, false, "85% 공급은 100% 완전 충족이 아님");
+assert.equal(exact85Checkpoint.success, false, "legacy success는 기존 100% 계약 유지");
+
+const below85Checkpoint = buildRetirementBootstrapCheckpoints([{
+  ...exact85Record,
+  suppliedAfterTaxCashflow: 84.999,
+  suppliedWithdrawalNet: 84.999,
+  fundingRatio: 0.84999,
+}], [1], 1_000)[0];
+assert.equal(below85Checkpoint.sustainabilitySuccess85, false, "85% 미만 경로 실패");
+
+const depletedAt85Checkpoint = buildRetirementBootstrapCheckpoints([{
+  ...exact85Record,
+  nominalAssets: 0,
+  realAssets: 0,
+  depleted: true,
+}], [1], 1_000)[0];
+assert.equal(depletedAt85Checkpoint.sustainabilitySuccess85, false, "85% 충족이어도 자산 고갈이면 실패");
+
+const preWithdrawalRecord: RetirementBootstrapAnnualRecord = {
+  ...record(1, 150, true, false),
+  requiredAfterTaxCashflow: 0,
+  suppliedAfterTaxCashflow: 0,
+  fundingRatio: null,
+  requiredWithdrawalNominal: 0,
+  suppliedWithdrawalNet: 0,
+};
+const delayed85Checkpoint = buildRetirementBootstrapCheckpoints([
+  preWithdrawalRecord,
+  { ...exact85Record, yearNumber: 2, calendarYear: 2032 },
+], [2], 1_000)[0];
+assert.equal(delayed85Checkpoint.sustainabilitySuccess85, true, "인출 시작 전 연도는 85% 성공 판정에서 제외");
+
+assert.equal(exact85Checkpoint.withdrawalStartRealAssets, 200, "실제 인출 적용 직전 실질자산 denominator 기록");
+assert.equal(exact85Checkpoint.finalRealAssetRetentionRatio, 0.5, "최초 시뮬레이션 자산이 아닌 인출 시작 실질자산 기준");
+assert.deepEqual(
+  [1, 0.999999, 0.8, 0.799999, 0.5, 0.499999, 0.25, 0.249999].map(classifyFinalRealAssetRetentionBucket),
+  ["at_least_100", "from_80_to_100", "from_80_to_100", "from_50_to_80", "from_50_to_80", "from_25_to_50", "from_25_to_50", "below_25"],
+  "최종자산 bucket 경계는 중복 없이 분류",
+);
+
+const twentyPctFundingCheckpoint = buildRetirementBootstrapCheckpoints([{
+  ...record(1, 100, false, false),
+  requiredAfterTaxCashflow: 1_200,
+  suppliedAfterTaxCashflow: 240,
+  fundingRatio: 0.2,
+  requiredWithdrawalNominal: 1_200,
+  suppliedWithdrawalNet: 240,
+}], [1], 100)[0];
+assert.equal(twentyPctFundingCheckpoint.minimumFundingRatio, 0.2);
+assert.equal(twentyPctFundingCheckpoint.livingExpenseMdd, -0.8, "목표 100 / 공급 20의 생활비 MDD는 -80%");
+assert.equal(twentyPctFundingCheckpoint.minimumMonthlySuppliedReal, 20, "연간 계산 결과를 월 20으로 환산");
+assert.equal(nearestRankPercentile([0.1, 0.2, 0.3, 0.4, 0.5], 0.05), 0.1, "하위 5% nearest-rank 정책");
+assert.equal(nearestRankPercentile([0.1, 0.2, 0.3, 0.4, 0.5], 0.5), 0.3, "중앙값 nearest-rank 정책");
+
+const dividendRows = [100, 120, 60].map((realDividend, index): RetirementBootstrapAnnualRecord => ({
+  ...record(index + 1, 100, true, false),
+  realNetBrokerageDividendCashflow: realDividend,
+}));
+const dividendMddCheckpoint = buildRetirementBootstrapCheckpoints(dividendRows, [3], 100)[0];
+assert.equal(dividendMddCheckpoint.realAfterTaxDividendCashflowMdd, -0.5, "prior peak 120 대비 실질 세후 배당 60의 MDD는 -50%");
 
 assert.throws(
   () => buildRetirementBootstrapInput({
@@ -536,12 +742,95 @@ const tenThousand = runRetirementBootstrap(input, RETIREMENT_BOOTSTRAP_SYNTHETIC
   allowTestFixture: true,
 });
 assert.equal(tenThousand.iterations, 10_000);
+assert.equal(tenThousand.schemaVersion, RETIREMENT_BOOTSTRAP_RESULT_SCHEMA_VERSION, "V4 result schema 노출");
+assert.equal(tenThousand.analysisScope, "combined", "생략 시 기존 종합 계약 유지");
 assert.equal(tenThousand.datasetUpdatedAt, RETIREMENT_BOOTSTRAP_SYNTHETIC_FIXTURE.updatedAt);
 assert.equal(tenThousand.distributionStressPolicyId, null, "기본 production 분배 정책은 중립");
 assert.ok(tenThousand.recenteringDiagnostics.every((row) => row.clippedLowCount === 0 && row.clippedHighCount === 0));
 assert.deepEqual(tenThousand.periods.map((row) => row.periodYears), [30, 40, 50, 60, 70]);
 assert.ok(tenThousand.periods.every((row) => row.simulationCount === 10_000));
 assert.ok(tenThousand.periods.every((row) => row.successCount === Math.round(row.successRate * 10_000)));
+for (const period of tenThousand.periods) {
+  assert.equal(period.successCount, period.fullFundingSuccessCount100, "legacy success count는 100% 완전 충족으로 보존");
+  assert.equal(period.successRate, period.fullFundingSuccessRate100, "legacy success rate는 100% 완전 충족으로 보존");
+  assert.ok(period.sustainabilitySuccessRate85 >= period.fullFundingSuccessRate100, "85% 지속 성공률은 100% 완전 충족률 이상");
+  const distribution = period.finalRealAssetRetention;
+  assert.equal(distribution.denominatorPathCount, 10_000, "모든 경로가 인출 시작 실질자산 denominator를 가짐");
+  assert.equal(
+    distribution.atLeast100PctCount
+      + distribution.from80To100PctCount
+      + distribution.from50To80PctCount
+      + distribution.from25To50PctCount
+      + distribution.below25PctCount,
+    10_000,
+    "최종자산 5개 bucket count 합계 100%",
+  );
+  approx(
+    distribution.atLeast100PctProbability
+      + distribution.from80To100PctProbability
+      + distribution.from50To80PctProbability
+      + distribution.from25To50PctProbability
+      + distribution.below25PctProbability,
+    1,
+    1e-12,
+  );
+  assert.ok(period.livingExpenseRisk.worstLivingExpenseMdd! <= period.livingExpenseRisk.lower1PctLivingExpenseMdd!);
+  assert.ok(period.livingExpenseRisk.lower1PctLivingExpenseMdd! <= period.livingExpenseRisk.lower5PctLivingExpenseMdd!);
+  assert.equal(period.realAfterTaxDividendCashflowRisk.observedPathCount, 10_000);
+  assert.ok(
+    period.realAfterTaxDividendCashflowRisk.drop20PctOrMoreProbability
+      >= period.realAfterTaxDividendCashflowRisk.drop30PctOrMoreProbability,
+    "배당 MDD threshold 확률은 하락폭이 커질수록 증가하지 않음",
+  );
+}
+
+const scopeAggregates = (["tax", "brokerage", "combined"] as const).map((analysisScope) => runRetirementBootstrap(
+  input,
+  RETIREMENT_BOOTSTRAP_SYNTHETIC_FIXTURE,
+  {
+    seed: 330_217,
+    iterations: 500,
+    periods: [30, 60],
+    allowTestFixture: true,
+    analysisScope,
+  },
+));
+for (const [index, result] of scopeAggregates.entries()) {
+  assert.equal(result.analysisScope, (["tax", "brokerage", "combined"] as const)[index], "scope result 직렬화");
+  for (const period of result.periods) {
+    const distribution = period.finalRealAssetRetention;
+    assert.equal(distribution.denominatorPathCount, 500, `${result.analysisScope} 최종자산 denominator`);
+    assert.equal(
+      distribution.atLeast100PctCount
+        + distribution.from80To100PctCount
+        + distribution.from50To80PctCount
+        + distribution.from25To50PctCount
+        + distribution.below25PctCount,
+      500,
+      `${result.analysisScope} 최종자산 bucket 합`,
+    );
+  }
+}
+assert.ok(scopeAggregates[0].periods.every((period) => period.realAfterTaxDividendCashflowRisk.observedPathCount === 0), "절세 배당 위험 해당 없음");
+assert.ok(scopeAggregates[0].periods.every((period) => !period.realAfterTaxDividendCashflowRisk.applicable), "절세 배당 위험 applicable=false");
+assert.ok(scopeAggregates[1].periods.every((period) => period.realAfterTaxDividendCashflowRisk.observedPathCount === 500), "위탁 배당 위험 집계");
+assert.ok(scopeAggregates[1].periods.every((period) => period.realAfterTaxDividendCashflowRisk.applicable), "위탁 배당 위험 applicable=true");
+assert.ok(scopeAggregates[2].periods.every((period) => period.realAfterTaxDividendCashflowRisk.observedPathCount === 500), "종합 배당 위험 집계");
+const explicitCombined = runRetirementBootstrap(input, RETIREMENT_BOOTSTRAP_SYNTHETIC_FIXTURE, {
+  seed: 330_217,
+  iterations: 500,
+  periods: [30, 60],
+  allowTestFixture: true,
+  analysisScope: "combined",
+});
+assert.deepEqual(explicitCombined, scopeAggregates[2], "명시적 combined scope 기준선 일치");
+const defaultCombined = runRetirementBootstrap(input, RETIREMENT_BOOTSTRAP_SYNTHETIC_FIXTURE, {
+  seed: 330_217,
+  iterations: 500,
+  periods: [30, 60],
+  allowTestFixture: true,
+});
+assert.deepEqual(defaultCombined, explicitCombined, "scope 생략 시 PR #217 combined 계약 유지");
 
 const tenThousandRepeat = runRetirementBootstrap(input, RETIREMENT_BOOTSTRAP_SYNTHETIC_FIXTURE, {
   seed: 730_401,

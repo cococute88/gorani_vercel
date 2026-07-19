@@ -3,6 +3,34 @@ import type { AppliedPortfolioAssumptionsV1, SimulatorInputs } from "./asset-sim
 export const RETIREMENT_BOOTSTRAP_PERIODS = [30, 40, 50, 60, 70] as const;
 export const DEFAULT_RETIREMENT_BOOTSTRAP_ITERATIONS = 10_000;
 export const DEFAULT_RETIREMENT_BOOTSTRAP_BLOCK_LENGTH = 5;
+export const RETIREMENT_BOOTSTRAP_RESULT_SCHEMA_VERSION = 4 as const;
+export const RETIREMENT_BOOTSTRAP_SUSTAINABILITY_MIN_FUNDING_RATIO = 0.85;
+
+export const RETIREMENT_BOOTSTRAP_ANALYSIS_SCOPES = ["tax", "brokerage", "combined"] as const;
+export type RetirementBootstrapAnalysisScope = (typeof RETIREMENT_BOOTSTRAP_ANALYSIS_SCOPES)[number];
+
+export type RetirementBootstrapFundingBaselineType =
+  | "tax_initial_withdrawal"
+  | "brokerage_initial_dividend"
+  | "combined_target_expense";
+
+export type RetirementBootstrapFundingBaselineUnavailableReason =
+  | "no_scope_assets"
+  | "no_scope_portfolio"
+  | "zero_baseline_cashflow"
+  | "no_evaluation_period";
+
+export type RetirementBootstrapFundingBaseline = {
+  type: RetirementBootstrapFundingBaselineType;
+  status: "available" | "unavailable";
+  /** 시뮬레이션 시작 시점 구매력 기준 연간 세후 현금흐름. */
+  annualReal: number | null;
+  /** 시뮬레이션 시작 시점 구매력 기준 월 세후 현금흐름. */
+  monthlyReal: number | null;
+  firstEvaluationYearNumber: number | null;
+  firstEvaluationCalendarYear: number | null;
+  unavailableReason: RetirementBootstrapFundingBaselineUnavailableReason | null;
+};
 
 export type RetirementBootstrapPeriod = (typeof RETIREMENT_BOOTSTRAP_PERIODS)[number];
 
@@ -152,6 +180,8 @@ export type RetirementBootstrapRunOptions = {
   blockLength?: number;
   periods?: readonly number[];
   seed: number;
+  /** 동일 sampled path에서 어떤 계좌 범위를 성공·자산·현금흐름 지표에 반영할지 결정한다. */
+  analysisScope?: RetirementBootstrapAnalysisScope;
   distributionStressPolicy?: DistributionStressPolicy;
   /** 테스트 fixture를 production 결과로 오용하지 못하도록 기본값은 false다. */
   allowTestFixture?: boolean;
@@ -170,6 +200,17 @@ export type RetirementBootstrapAnnualRecord = {
   nominalAssets: number;
   realAssets: number;
   cumulativeInflation: number;
+  /** 해당 연도의 scope별 기준 세후 현금흐름. 평가 시작 전 또는 기준 분석 불가 시 0이다. */
+  requiredAfterTaxCashflow: number;
+  /** 해당 연도 실제 세후 공급 가능 현금흐름. */
+  suppliedAfterTaxCashflow: number;
+  /** scope별 deterministic 기준 대비 공급 비율. 평가 시작 전 또는 기준 분석 불가 시 null이다. */
+  fundingRatio: number | null;
+  /** 인출 적용 직전의 시작 시점 구매력 기준 총 실질자산. */
+  realAssetsBeforeWithdrawal: number;
+  /** 시작 시점 구매력 기준 위탁계좌 세후 배당/분배 현금흐름. */
+  realNetBrokerageDividendCashflow: number | null;
+  /** @deprecated requiredAfterTaxCashflow를 사용한다. */
   requiredWithdrawalNominal: number;
   grossIsaWithdrawal: number;
   netIsaWithdrawal: number;
@@ -177,6 +218,7 @@ export type RetirementBootstrapAnnualRecord = {
   netPensionWithdrawal: number;
   grossBrokerageDividend: number;
   netBrokerageDividend: number;
+  /** @deprecated suppliedAfterTaxCashflow를 사용한다. */
   suppliedWithdrawalNet: number;
   withdrawalSatisfied: boolean;
   depleted: boolean;
@@ -184,16 +226,27 @@ export type RetirementBootstrapAnnualRecord = {
 
 export type RetirementBootstrapPathCheckpoint = {
   periodYears: number;
+  fundingAnalysisAvailable: boolean;
+  /** @deprecated V1의 100% 완전 충족 성공 계약. fullFundingSuccess100을 사용한다. */
   success: boolean;
+  sustainabilitySuccess85: boolean;
+  fullFundingSuccess100: boolean;
   reachedRealPrincipal50Pct: boolean;
   reachedRealPrincipal25Pct: boolean;
   firstDepletionYear: number | null;
   firstWithdrawalShortfallYear: number | null;
   endingRealAssets: number;
+  withdrawalStartRealAssets: number | null;
+  finalRealAssetRetentionRatio: number | null;
+  minimumFundingRatio: number | null;
+  livingExpenseMdd: number | null;
+  minimumMonthlySuppliedReal: number | null;
+  realAfterTaxDividendCashflowMdd: number | null;
 };
 
 export type RetirementBootstrapPathResult = {
   initialRealPrincipal: number;
+  fundingBaseline: RetirementBootstrapFundingBaseline;
   records: RetirementBootstrapAnnualRecord[];
   checkpoints: RetirementBootstrapPathCheckpoint[];
   sampledObservationIndices: number[];
@@ -203,13 +256,74 @@ export type RetirementBootstrapPathResult = {
 export type RetirementBootstrapPeriodResult = {
   periodYears: number;
   simulationCount: number;
+  fundingAnalysisAvailable: boolean;
+  /** @deprecated V1의 100% 완전 충족 집계. fullFundingSuccessCount100을 사용한다. */
   successCount: number;
+  /** @deprecated V1의 100% 완전 충족 집계. fullFundingSuccessRate100을 사용한다. */
   successRate: number;
+  sustainabilitySuccessCount85: number;
+  sustainabilitySuccessRate85: number;
+  fullFundingSuccessCount100: number;
+  fullFundingSuccessRate100: number;
   reachedRealPrincipal50PctCount: number;
   reachedRealPrincipal50PctProbability: number;
   reachedRealPrincipal25PctCount: number;
   reachedRealPrincipal25PctProbability: number;
   averageEndingRealAssets: number;
+  finalRealAssetRetention: RetirementBootstrapFinalRealAssetRetentionDistribution;
+  livingExpenseRisk: RetirementBootstrapLivingExpenseRisk;
+  realAfterTaxDividendCashflowRisk: RetirementBootstrapDividendCashflowRisk;
+};
+
+export type RetirementBootstrapFinalRealAssetRetentionDistribution = {
+  denominatorPathCount: number;
+  atLeast100PctCount: number;
+  atLeast100PctProbability: number;
+  from80To100PctCount: number;
+  from80To100PctProbability: number;
+  from50To80PctCount: number;
+  from50To80PctProbability: number;
+  from25To50PctCount: number;
+  from25To50PctProbability: number;
+  below25PctCount: number;
+  below25PctProbability: number;
+  depletedPathCount: number;
+  depletedProbability: number;
+  medianRetentionRatio: number | null;
+};
+
+export type RetirementBootstrapLivingExpenseRisk = {
+  observedPathCount: number;
+  worstMinimumFundingRatio: number | null;
+  worstLivingExpenseMdd: number | null;
+  worstMinimumMonthlySuppliedReal: number | null;
+  lower1PctMinimumFundingRatio: number | null;
+  lower1PctLivingExpenseMdd: number | null;
+  lower1PctMinimumMonthlySuppliedReal: number | null;
+  lower5PctMinimumFundingRatio: number | null;
+  lower5PctLivingExpenseMdd: number | null;
+  lower5PctMinimumMonthlySuppliedReal: number | null;
+  medianMinimumFundingRatio: number | null;
+  medianLivingExpenseMdd: number | null;
+  medianMinimumMonthlySuppliedReal: number | null;
+  below85PctProbability: number;
+  below70PctProbability: number;
+  below50PctProbability: number;
+};
+
+export type RetirementBootstrapDividendCashflowRisk = {
+  applicable: boolean;
+  observedPathCount: number;
+  drop20PctOrMoreCount: number;
+  drop20PctOrMoreProbability: number;
+  drop30PctOrMoreCount: number;
+  drop30PctOrMoreProbability: number;
+  drop40PctOrMoreCount: number;
+  drop40PctOrMoreProbability: number;
+  drop50PctOrMoreCount: number;
+  drop50PctOrMoreProbability: number;
+  drop60PctOrMoreCount: number;
+  drop60PctOrMoreProbability: number;
 };
 
 export type RetirementBootstrapFailureYearCount = {
@@ -262,6 +376,9 @@ export type RecenteringDiagnostics = {
 };
 
 export type RetirementBootstrapResult = {
+  schemaVersion: typeof RETIREMENT_BOOTSTRAP_RESULT_SCHEMA_VERSION;
+  analysisScope: RetirementBootstrapAnalysisScope;
+  fundingBaseline: RetirementBootstrapFundingBaseline;
   method: "five_year_block_bootstrap_recentered";
   iterations: number;
   blockLength: number;
