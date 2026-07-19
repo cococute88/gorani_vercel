@@ -3,11 +3,34 @@ import type { AppliedPortfolioAssumptionsV1, SimulatorInputs } from "./asset-sim
 export const RETIREMENT_BOOTSTRAP_PERIODS = [30, 40, 50, 60, 70] as const;
 export const DEFAULT_RETIREMENT_BOOTSTRAP_ITERATIONS = 10_000;
 export const DEFAULT_RETIREMENT_BOOTSTRAP_BLOCK_LENGTH = 5;
-export const RETIREMENT_BOOTSTRAP_RESULT_SCHEMA_VERSION = 3 as const;
+export const RETIREMENT_BOOTSTRAP_RESULT_SCHEMA_VERSION = 4 as const;
 export const RETIREMENT_BOOTSTRAP_SUSTAINABILITY_MIN_FUNDING_RATIO = 0.85;
 
 export const RETIREMENT_BOOTSTRAP_ANALYSIS_SCOPES = ["tax", "brokerage", "combined"] as const;
 export type RetirementBootstrapAnalysisScope = (typeof RETIREMENT_BOOTSTRAP_ANALYSIS_SCOPES)[number];
+
+export type RetirementBootstrapFundingBaselineType =
+  | "tax_initial_withdrawal"
+  | "brokerage_initial_dividend"
+  | "combined_target_expense";
+
+export type RetirementBootstrapFundingBaselineUnavailableReason =
+  | "no_scope_assets"
+  | "no_scope_portfolio"
+  | "zero_baseline_cashflow"
+  | "no_evaluation_period";
+
+export type RetirementBootstrapFundingBaseline = {
+  type: RetirementBootstrapFundingBaselineType;
+  status: "available" | "unavailable";
+  /** 시뮬레이션 시작 시점 구매력 기준 연간 세후 현금흐름. */
+  annualReal: number | null;
+  /** 시뮬레이션 시작 시점 구매력 기준 월 세후 현금흐름. */
+  monthlyReal: number | null;
+  firstEvaluationYearNumber: number | null;
+  firstEvaluationCalendarYear: number | null;
+  unavailableReason: RetirementBootstrapFundingBaselineUnavailableReason | null;
+};
 
 export type RetirementBootstrapPeriod = (typeof RETIREMENT_BOOTSTRAP_PERIODS)[number];
 
@@ -177,11 +200,11 @@ export type RetirementBootstrapAnnualRecord = {
   nominalAssets: number;
   realAssets: number;
   cumulativeInflation: number;
-  /** 해당 연도 목표 세후 생활비. 인출 시작 전에는 0이다. */
+  /** 해당 연도의 scope별 기준 세후 현금흐름. 평가 시작 전 또는 기준 분석 불가 시 0이다. */
   requiredAfterTaxCashflow: number;
   /** 해당 연도 실제 세후 공급 가능 현금흐름. */
   suppliedAfterTaxCashflow: number;
-  /** 목표 대비 공급 비율. 인출 시작 전에는 null이다. */
+  /** scope별 deterministic 기준 대비 공급 비율. 평가 시작 전 또는 기준 분석 불가 시 null이다. */
   fundingRatio: number | null;
   /** 인출 적용 직전의 시작 시점 구매력 기준 총 실질자산. */
   realAssetsBeforeWithdrawal: number;
@@ -203,6 +226,7 @@ export type RetirementBootstrapAnnualRecord = {
 
 export type RetirementBootstrapPathCheckpoint = {
   periodYears: number;
+  fundingAnalysisAvailable: boolean;
   /** @deprecated V1의 100% 완전 충족 성공 계약. fullFundingSuccess100을 사용한다. */
   success: boolean;
   sustainabilitySuccess85: boolean;
@@ -222,6 +246,7 @@ export type RetirementBootstrapPathCheckpoint = {
 
 export type RetirementBootstrapPathResult = {
   initialRealPrincipal: number;
+  fundingBaseline: RetirementBootstrapFundingBaseline;
   records: RetirementBootstrapAnnualRecord[];
   checkpoints: RetirementBootstrapPathCheckpoint[];
   sampledObservationIndices: number[];
@@ -231,6 +256,7 @@ export type RetirementBootstrapPathResult = {
 export type RetirementBootstrapPeriodResult = {
   periodYears: number;
   simulationCount: number;
+  fundingAnalysisAvailable: boolean;
   /** @deprecated V1의 100% 완전 충족 집계. fullFundingSuccessCount100을 사용한다. */
   successCount: number;
   /** @deprecated V1의 100% 완전 충족 집계. fullFundingSuccessRate100을 사용한다. */
@@ -352,6 +378,7 @@ export type RecenteringDiagnostics = {
 export type RetirementBootstrapResult = {
   schemaVersion: typeof RETIREMENT_BOOTSTRAP_RESULT_SCHEMA_VERSION;
   analysisScope: RetirementBootstrapAnalysisScope;
+  fundingBaseline: RetirementBootstrapFundingBaseline;
   method: "five_year_block_bootstrap_recentered";
   iterations: number;
   blockLength: number;

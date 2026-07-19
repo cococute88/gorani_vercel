@@ -81,10 +81,24 @@ const repeated = runRetirementBootstrap(input, dataset, {
   analysisScope: "combined",
 });
 
-assert.deepEqual(repeated, result, "V3 production fixed-seed combined 결과 재현");
+assert.deepEqual(repeated, result, "V4 production fixed-seed combined 결과 재현");
 assert.equal(result.schemaVersion, RETIREMENT_BOOTSTRAP_RESULT_SCHEMA_VERSION);
 assert.deepEqual(result.periods.map((period) => period.sustainabilitySuccessRate85), [0.805, 0.7977, 0.7906, 0.7858, 0.7829], "PR #217 combined 85% 기준선");
 assert.deepEqual(result.periods.map((period) => period.fullFundingSuccessRate100), [0.2676, 0.2666, 0.2647, 0.2634, 0.263], "PR #217 combined 100% 기준선");
+const taxResult = scopeRuns.find((run) => run.analysisScope === "tax")!.result;
+const brokerageResult = scopeRuns.find((run) => run.analysisScope === "brokerage")!.result;
+assert.equal(taxResult.fundingBaseline.type, "tax_initial_withdrawal");
+assert.equal(taxResult.fundingBaseline.status, "available");
+assert.ok(Math.abs(taxResult.fundingBaseline.monthlyReal! - 18.164543635873688) <= 1e-12, "절세 deterministic 기준 월수령액");
+assert.deepEqual(taxResult.periods.map((period) => period.sustainabilitySuccessRate85), [0.7159, 0.7044, 0.6611, 0.6098, 0.5699], "절세 scope 85% 유지율 V4 기준선");
+assert.deepEqual(taxResult.periods.map((period) => period.fullFundingSuccessRate100), [0.4703, 0.4628, 0.4343, 0.3997, 0.3734], "절세 scope 100% 유지율 V4 기준선");
+assert.equal(brokerageResult.fundingBaseline.type, "brokerage_initial_dividend");
+assert.equal(brokerageResult.fundingBaseline.status, "available");
+assert.ok(Math.abs(brokerageResult.fundingBaseline.monthlyReal! - 40.1625) <= 1e-12, "위탁 deterministic 기준 월배당액");
+assert.deepEqual(brokerageResult.periods.map((period) => period.sustainabilitySuccessRate85), [0.7405, 0.7324, 0.7301, 0.7291, 0.7287], "위탁 scope 85% 유지율 V4 기준선");
+assert.deepEqual(brokerageResult.periods.map((period) => period.fullFundingSuccessRate100), [0.0286, 0.0283, 0.0282, 0.0282, 0.0282], "위탁 scope 100% 유지율 V4 기준선");
+assert.equal(result.fundingBaseline.type, "combined_target_expense");
+assert.equal(result.fundingBaseline.monthlyReal, 60, "종합 목표 월생활비 기준 유지");
 for (const run of scopeRuns) {
   assert.equal(run.result.analysisScope, run.analysisScope);
   assert.equal(run.result.seed, FIXED_SEED, "scope별 동일 sampled path seed");
@@ -118,7 +132,7 @@ for (const run of scopeRuns) {
 }
 
 console.log(JSON.stringify({
-  purpose: "PR #217 저장 가정·월생활비 60만원 V3 scope별 production fixed-seed 검증",
+  purpose: "PR #217 저장 가정·월생활비 60만원 V4 scope별 deterministic baseline 검증",
   seed: FIXED_SEED,
   iterations: ITERATIONS,
   schemaVersion: result.schemaVersion,
@@ -126,6 +140,7 @@ console.log(JSON.stringify({
     analysisScope: run.analysisScope,
     elapsedMs: Number(run.elapsedMs.toFixed(2)),
     resultPayloadKiB: Number((Buffer.byteLength(JSON.stringify(run.result), "utf8") / 1024).toFixed(2)),
+    fundingBaseline: run.result.fundingBaseline,
     periods: run.result.periods.map((period) => ({
       periodYears: period.periodYears,
       sustainabilitySuccessRate85: period.sustainabilitySuccessRate85,
