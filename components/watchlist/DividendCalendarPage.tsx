@@ -6,6 +6,7 @@ import { formatIsoDate } from "@/lib/calendar-grid";
 import { sortCalendarEventsByPriority } from "@/lib/calendar-event-sort";
 import { getCalendarEventsForTickers, getCalendarEventsForTickersWithProvider, isCustomCalendarEventLike, mergeGeneratedAndCustomCalendarEvents, selectCalendarDividendEvents } from "@/lib/calendar-event-provider";
 import type { CalendarTickersProviderResult } from "@/lib/calendar-event-provider";
+import type { CalendarTickerCache } from "@/lib/calendar-event-identity";
 import {
   createCalendarCustomEvent,
   dedupeCalendarCustomEvents,
@@ -135,6 +136,14 @@ function resolveCalendarEventMeta(event: CalendarEvent, metas: Record<string, Ca
   return undefined;
 }
 
+function authoritativeAlertCacheEntry(
+  entry: CalendarTickerCache<CalendarEvent> | undefined,
+): CalendarTickerCache<CalendarEvent> | null {
+  if (!entry || entry.source === "sample" || entry.source === "mock") return null;
+  const events = entry.events.filter((event) => event.sourceKind !== "sample");
+  return events.length > 0 ? { ...entry, events } : null;
+}
+
 export default function DividendCalendarPage({ tickers, tickerManager, onManagePortfolio, onManageCalendarPortfolio, activePortfolioId, activePortfolioName, tickerMemos, onSaveTickerMemo }: Props) {
   const { user, loading: authLoading, configured: authConfigured } = useFirebaseAuth();
   const today = new Date();
@@ -164,6 +173,8 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
   const [liveRefreshedTickerSet, setLiveRefreshedTickerSet] = useState<Set<string>>(() => new Set());
   const providerEventsTraceRef = useRef<CalendarEvent[]>(providerResult.events);
   const legacyImportedEventsTraceRef = useRef<CalendarEvent[]>(legacyImportedEvents);
+  const firestoreCacheTickersRef = useRef<Set<string>>(new Set());
+  const providerPortfolioIdRef = useRef(activePortfolioId);
 
   useEffect(() => {
     providerEventsTraceRef.current = providerResult.events;
@@ -274,6 +285,7 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
           firestoreCacheTickers.add(entry.ticker);
         }
       }
+      firestoreCacheTickersRef.current = firestoreCacheTickers;
       console.info(`[dividend-calendar:trace] ${traceTimestamp()} initial-load priority`, {
         timestamp: traceTimestamp(),
         stage: "Portfolio Load / Firestore Read / Local Cache Read",
@@ -299,6 +311,7 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
         if (!cancelled) {
           traceCalendarFlow("Provider Load -> Projection -> Merge", result.events, "getCalendarEventsForTickersWithProvider()", providerEventsTraceRef.current);
           traceCalendarStateUpdate("setProviderResult(provider load)", result.events, providerEventsTraceRef.current);
+          providerPortfolioIdRef.current = activePortfolioId;
           setProviderResult(result);
         }
       })
@@ -319,6 +332,29 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
       cancelled = true;
     };
   }, [activePortfolioId, authConfigured, authLoading, month, tickers, user]);
+
+  useEffect(() => {
+    if (!user || providerPortfolioIdRef.current !== activePortfolioId) return;
+    const entries = Object.values(providerResult.cacheMap)
+      .filter((entry) => !firestoreCacheTickersRef.current.has(entry.ticker))
+      .map(authoritativeAlertCacheEntry)
+      .filter((entry): entry is CalendarTickerCache<CalendarEvent> => Boolean(entry));
+    if (entries.length === 0) return;
+
+    // Make real displayed events available to read-only server consumers
+    // without requiring a migration, mark re-toggle, or manual cloud save.
+    void Promise.all(
+      entries.map((entry) =>
+        activePortfolioId === DEFAULT_CALENDAR_PORTFOLIO_ID
+          ? saveCalendarTickerCacheEntry(user.uid, entry as never)
+          : savePortfolioCalendarTickerCacheEntry(user.uid, activePortfolioId, entry as never),
+      ),
+    )
+      .then(() => {
+        entries.forEach((entry) => firestoreCacheTickersRef.current.add(entry.ticker));
+      })
+      .catch((err) => warnFirestoreFallback("calendarCache.alertContract.save", err));
+  }, [activePortfolioId, providerResult.cacheMap, user]);
 
   const persistEventMeta = (event: CalendarEvent, meta: CalendarEventMeta) => {
     setCloudSaveNeeded(true);
@@ -362,8 +398,10 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
       // the user performs an explicit cloud save. Persist the already displayed
       // ticker cache with its metadata so read-only server consumers (Goralert)
       // can resolve canonicalEventId to the exact date/type event body.
-      const displayedCacheEntry = providerResult.cacheMap[event.ticker];
-      if (displayedCacheEntry && displayedCacheEntry.source !== "sample" && displayedCacheEntry.source !== "mock") {
+      const displayedCacheEntry = providerPortfolioIdRef.current === activePortfolioId
+        ? authoritativeAlertCacheEntry(providerResult.cacheMap[event.ticker])
+        : null;
+      if (displayedCacheEntry) {
         writes.push(
           activePortfolioId === DEFAULT_CALENDAR_PORTFOLIO_ID
             ? saveCalendarTickerCacheEntry(user.uid, displayedCacheEntry as never)
