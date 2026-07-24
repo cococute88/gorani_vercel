@@ -357,7 +357,20 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
     }
     if (user) {
       const saveMeta = activePortfolioId === DEFAULT_CALENDAR_PORTFOLIO_ID ? saveCalendarEventMeta(user.uid, canonicalEventId, canonicalMeta) : savePortfolioCalendarEventMeta(user.uid, activePortfolioId, canonicalEventId, canonicalMeta);
-      void saveMeta.catch((err) => warnFirestoreFallback("calendarEvents.save", err));
+      const writes: Promise<void>[] = [saveMeta];
+      // A generated event can be visible from the browser/provider cache before
+      // the user performs an explicit cloud save. Persist the already displayed
+      // ticker cache with its metadata so read-only server consumers (Goralert)
+      // can resolve canonicalEventId to the exact date/type event body.
+      const displayedCacheEntry = providerResult.cacheMap[event.ticker];
+      if (displayedCacheEntry && displayedCacheEntry.source !== "sample" && displayedCacheEntry.source !== "mock") {
+        writes.push(
+          activePortfolioId === DEFAULT_CALENDAR_PORTFOLIO_ID
+            ? saveCalendarTickerCacheEntry(user.uid, displayedCacheEntry as never)
+            : savePortfolioCalendarTickerCacheEntry(user.uid, activePortfolioId, displayedCacheEntry as never),
+        );
+      }
+      void Promise.all(writes).catch((err) => warnFirestoreFallback("calendarEvents.contract.save", err));
     }
   };
 
