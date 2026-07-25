@@ -98,6 +98,44 @@ assert.equal(
   "stale sample cache fallback remains rejected by event provenance",
 );
 
+const sampleProjection = await getRealDividendEventsForTicker({
+  ticker: "TEST",
+  year: 2026,
+  month: 8,
+  today: new Date("2026-07-25T00:00:00.000Z"),
+  fetchDividends: async () => ({
+    ticker: "TEST",
+    normalizedTicker: "TEST",
+    source: "sample",
+    warnings: ["sample fallback"],
+    updatedAt: "2026-07-25T00:00:00.000Z",
+    dividends: [
+      { date: "2026-04-01", amount: 1 },
+      { date: "2026-05-01", amount: 1 },
+      { date: "2026-06-01", amount: 1 },
+    ],
+  }),
+});
+const sampleProjectedEvents = sampleProjection.events.filter((row) => row.status === "estimated");
+assert.ok(sampleProjectedEvents.length > 0, "sample history creates projected rows for the regression fixture");
+assert.ok(
+  sampleProjectedEvents.every((row) => row.sourceKind === "sample"),
+  "sample-derived projections preserve sample provenance",
+);
+const reusedSampleProjection = await getRealDividendEventsForTicker({
+  ticker: "TEST",
+  year: 2026,
+  month: 8,
+  cache: sampleProjection.cacheEntry,
+  preferFreshCache: true,
+});
+assert.equal(reusedSampleProjection.cacheEntry.source, "cache", "sample projection cache is reused as cache");
+assert.equal(
+  authoritativeAlertCacheEntry(reusedSampleProjection.cacheEntry),
+  null,
+  "sample-derived projections remain blocked after cache reuse",
+);
+
 const declared = cache("yahoo", [event("declared")]);
 assert.deepEqual(
   authoritativeAlertCacheEntry(declared),
