@@ -10,6 +10,8 @@ export function authoritativeAlertCacheEntry(
   entry: CalendarTickerCache<CalendarEvent> | null | undefined,
 ): CalendarTickerCache<CalendarEvent> | null {
   if (!entry || entry.source === "sample" || entry.source === "mock") return null;
-  const events = entry.events.filter((event) => event.sourceKind !== "sample");
+  const events = entry.events.filter(
+    (event) => event.sourceKind === "declared" || event.sourceKind === "estimated",
+  );
   return events.length > 0 ? { ...entry, events } : null;
 }

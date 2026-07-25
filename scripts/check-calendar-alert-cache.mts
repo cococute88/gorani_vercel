@@ -61,6 +61,11 @@ assert.equal(
   null,
   "source=cache cannot promote an event whose sourceKind=sample",
 );
+assert.equal(
+  authoritativeAlertCacheEntry(cache("cache", [{ ...event("declared"), sourceKind: undefined }])),
+  null,
+  "missing event provenance is rejected instead of treated as provider-backed",
+);
 
 const freshSampleReuse = await getRealDividendEventsForTicker({
   ticker: "TEST",

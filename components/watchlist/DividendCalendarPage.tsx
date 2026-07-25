@@ -29,7 +29,9 @@ import {
   saveCalendarCustomEvent as saveFirestoreCalendarCustomEvent,
   savePortfolioCalendarCustomEvent,
   saveCalendarEventMeta,
+  saveCalendarEventContract,
   savePortfolioCalendarEventMeta,
+  savePortfolioCalendarEventContract,
   saveCalendarTickerCacheEntry,
   loadCalendarTickerCacheEntry,
   loadPortfolioCalendarTickerCacheEntry,
@@ -385,8 +387,6 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
       }
     }
     if (user) {
-      const saveMeta = activePortfolioId === DEFAULT_CALENDAR_PORTFOLIO_ID ? saveCalendarEventMeta(user.uid, canonicalEventId, canonicalMeta) : savePortfolioCalendarEventMeta(user.uid, activePortfolioId, canonicalEventId, canonicalMeta);
-      const writes: Promise<void>[] = [saveMeta];
       // A generated event can be visible from the browser/provider cache before
       // the user performs an explicit cloud save. Persist the already displayed
       // ticker cache with its metadata so read-only server consumers (Goralert)
@@ -395,13 +395,16 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
         ? authoritativeAlertCacheEntry(providerResult.cacheMap[event.ticker])
         : null;
       if (displayedCacheEntry) {
-        writes.push(
-          activePortfolioId === DEFAULT_CALENDAR_PORTFOLIO_ID
-            ? saveCalendarTickerCacheEntry(user.uid, displayedCacheEntry as never)
-            : savePortfolioCalendarTickerCacheEntry(user.uid, activePortfolioId, displayedCacheEntry as never),
-        );
+        const saveContract = activePortfolioId === DEFAULT_CALENDAR_PORTFOLIO_ID
+          ? saveCalendarEventContract(user.uid, canonicalEventId, canonicalMeta, displayedCacheEntry as never)
+          : savePortfolioCalendarEventContract(user.uid, activePortfolioId, canonicalEventId, canonicalMeta, displayedCacheEntry as never);
+        void saveContract.catch((err) => warnFirestoreFallback("calendarEvents.contract.save", err));
+      } else {
+        const saveMeta = activePortfolioId === DEFAULT_CALENDAR_PORTFOLIO_ID
+          ? saveCalendarEventMeta(user.uid, canonicalEventId, canonicalMeta)
+          : savePortfolioCalendarEventMeta(user.uid, activePortfolioId, canonicalEventId, canonicalMeta);
+        void saveMeta.catch((err) => warnFirestoreFallback("calendarEvents.save", err));
       }
-      void Promise.all(writes).catch((err) => warnFirestoreFallback("calendarEvents.contract.save", err));
     }
   };
 
