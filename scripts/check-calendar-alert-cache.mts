@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 
-import { authoritativeAlertCacheEntry } from "../lib/calendar-alert-cache";
+import {
+  authoritativeAlertCacheEntry,
+  sanitizedPersistedAlertCacheEntry,
+} from "../lib/calendar-alert-cache";
 import {
   getRealDividendEventsForTicker,
   isCustomCalendarEventLike,
@@ -65,6 +68,11 @@ assert.equal(
   authoritativeAlertCacheEntry(cache("cache", [{ ...event("declared"), sourceKind: undefined }])),
   null,
   "missing event provenance is rejected instead of treated as provider-backed",
+);
+assert.deepEqual(
+  sanitizedPersistedAlertCacheEntry(cache("sample", [event("sample")])).events,
+  [],
+  "previously persisted sample caches are scrubbed to authoritative empty documents",
 );
 
 const freshSampleReuse = await getRealDividendEventsForTicker({
@@ -155,6 +163,11 @@ assert.deepEqual(
   authoritativeAlertCacheEntry(mixed)?.events.map((row) => row.sourceKind),
   ["declared"],
   "sample rows are removed without discarding valid rows from the same cache",
+);
+assert.deepEqual(
+  sanitizedPersistedAlertCacheEntry(mixed).events.map((row) => row.sourceKind),
+  ["declared"],
+  "previously persisted mixed caches retain only explicit provider-backed rows",
 );
 
 assert.equal(

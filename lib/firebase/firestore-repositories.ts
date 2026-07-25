@@ -430,18 +430,23 @@ export async function saveCalendarEventContract(
   const normalizedTicker = normalizeCalendarTicker(entry.ticker);
   if (!normalizedTicker) throw new Error("A valid ticker is required to save a calendar event contract");
   const batch = writeBatch(db);
+  const metadataPayload = {
+    ...sanitizeFirestorePayload({ ...meta, eventId }),
+    updatedAt: serverTimestamp(),
+  };
+  const cachePayload = {
+    ...sanitizeFirestorePayload(toCalendarTickerCacheEntry(entry)),
+    updatedAt: serverTimestamp(),
+    createdAt: serverTimestamp(),
+  };
   batch.set(
     doc(db, "users", uid, "calendarEvents", eventId),
-    sanitizeFirestorePayload({ ...meta, eventId, updatedAt: serverTimestamp() }),
+    metadataPayload,
     { merge: true },
   );
   batch.set(
     doc(db, "users", uid, "calendarCache", normalizedTicker),
-    sanitizeFirestorePayload({
-      ...toCalendarTickerCacheEntry(entry),
-      updatedAt: serverTimestamp(),
-      createdAt: serverTimestamp(),
-    }),
+    cachePayload,
   );
   await batch.commit();
 }
@@ -964,9 +969,13 @@ export async function savePortfolioCalendarEventContract(
   const normalizedTicker = normalizeCalendarTicker(entry.ticker);
   if (!normalizedTicker) throw new Error("A valid ticker is required to save a calendar event contract");
   const batch = writeBatch(db);
+  const metadataPayload = {
+    ...sanitizeFirestorePayload({ ...meta, eventId }),
+    updatedAt: serverTimestamp(),
+  };
   batch.set(
     doc(db, "users", uid, "calendarPortfolios", portfolioId, "calendarEventMetas", eventId),
-    sanitizeFirestorePayload({ ...meta, eventId, updatedAt: serverTimestamp() }),
+    metadataPayload,
     { merge: true },
   );
   batch.set(

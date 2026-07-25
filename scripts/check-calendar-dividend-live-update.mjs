@@ -42,6 +42,8 @@ assert.match(page, /authoritativeAlertCacheEntry/, "alert contract cache sanitiz
 assert.match(alertCache, /event\.sourceKind === "declared"[\s\S]*event\.sourceKind === "estimated"/, "only explicit provider provenance enters the alert contract");
 assert.match(page, /firestoreCacheTickersRef/, "existing cloud-backed ticker caches are not written again");
 assert.match(page, /calendarCache\.alertContract\.save/, "real displayed caches are auto-persisted for existing alert rules");
+assert.match(page, /sanitizedPersistedAlertCacheEntry/, "loaded Firestore caches are provenance-sanitized");
+assert.match(page, /calendarCache\.alertContract\.cleanup/, "unsafe persisted cache bodies are scrubbed");
 assert.match(page, /Object\.values\(cacheMap\)[\s\S]*\.map\(authoritativeAlertCacheEntry\)/, "manual cloud save uses the same alert cache sanitizer");
 assert.match(page, /saveCalendarEventContract/, "default portfolio mark save uses the atomic event contract writer");
 assert.match(page, /savePortfolioCalendarEventContract/, "named portfolio mark save uses the atomic event contract writer");
@@ -49,6 +51,7 @@ assert.doesNotMatch(page, /Promise\.all\(writes\)/, "mark metadata and cache are
 assert.match(firestore, /writeBatch/, "calendar event contract uses a Firestore write batch");
 assert.match(firestore, /saveCalendarEventContract[\s\S]*batch\.set[\s\S]*calendarEvents[\s\S]*batch\.set[\s\S]*calendarCache[\s\S]*await batch\.commit/, "default event metadata and cache share one batch commit");
 assert.match(firestore, /savePortfolioCalendarEventContract[\s\S]*batch\.set[\s\S]*calendarEventMetas[\s\S]*batch\.set[\s\S]*calendarCache[\s\S]*await batch\.commit/, "named event metadata and cache share one batch commit");
+assert.match(firestore, /sanitizeFirestorePayload\(\{ \.\.\.meta, eventId \}\)[\s\S]*updatedAt: serverTimestamp\(\)/, "server timestamp is added after metadata sanitization");
 assert.match(page, /meta\.star|meta\.heart|meta\.memo/, "heart/star/memo applied from event meta");
 assert.match(live, /projectEstimatedDividendEvents/, "projection helper is used");
 assert.match(read("lib/calendar-event-provider.ts"), /sourceKind: "estimated"[\s\S]*status: "estimated"|status: "estimated"[\s\S]*sourceKind: "estimated"/, "estimated projection events remain estimated");

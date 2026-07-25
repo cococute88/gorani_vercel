@@ -7,7 +7,10 @@ import { sortCalendarEventsByPriority } from "@/lib/calendar-event-sort";
 import { getCalendarEventsForTickers, getCalendarEventsForTickersWithProvider, isCustomCalendarEventLike, mergeGeneratedAndCustomCalendarEvents, selectCalendarDividendEvents } from "@/lib/calendar-event-provider";
 import type { CalendarTickersProviderResult } from "@/lib/calendar-event-provider";
 import type { CalendarTickerCache } from "@/lib/calendar-event-identity";
-import { authoritativeAlertCacheEntry } from "@/lib/calendar-alert-cache";
+import {
+  authoritativeAlertCacheEntry,
+  sanitizedPersistedAlertCacheEntry,
+} from "@/lib/calendar-alert-cache";
 import {
   createCalendarCustomEvent,
   dedupeCalendarCustomEvents,
@@ -274,12 +277,27 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
       );
       const typedFirestoreCacheMap = {} as ReturnType<typeof loadCalendarCacheMap<CalendarEvent>>;
       const firestoreCacheTickers = new Set<string>();
+      const persistedCacheCleanupWrites: Promise<void>[] = [];
       for (const entry of firestoreCacheEntries) {
         if (entry?.ticker) {
-          typedFirestoreCacheMap[entry.ticker] = entry as never;
-          firestoreCacheTickers.add(entry.ticker);
+          const rawEntry = entry as unknown as CalendarTickerCache<CalendarEvent>;
+          const sanitizedEntry = sanitizedPersistedAlertCacheEntry(rawEntry);
+          const wasSanitized = sanitizedEntry.events.length !== rawEntry.events.length;
+          if (sanitizedEntry.events.length > 0) {
+            typedFirestoreCacheMap[entry.ticker] = sanitizedEntry as never;
+            firestoreCacheTickers.add(entry.ticker);
+          }
+          if (wasSanitized) {
+            const cleanup = activePortfolioId === DEFAULT_CALENDAR_PORTFOLIO_ID
+              ? saveCalendarTickerCacheEntry(user!.uid, sanitizedEntry as never)
+              : savePortfolioCalendarTickerCacheEntry(user!.uid, activePortfolioId, sanitizedEntry as never);
+            persistedCacheCleanupWrites.push(
+              cleanup.catch((err) => warnFirestoreFallback("calendarCache.alertContract.cleanup", err)),
+            );
+          }
         }
       }
+      await Promise.all(persistedCacheCleanupWrites);
       firestoreCacheTickersRef.current = firestoreCacheTickers;
       console.info(`[dividend-calendar:trace] ${traceTimestamp()} initial-load priority`, {
         timestamp: traceTimestamp(),

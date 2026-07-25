@@ -15,3 +15,14 @@ export function authoritativeAlertCacheEntry(
   );
   return events.length > 0 ? { ...entry, events } : null;
 }
+
+/**
+ * Scrub an already-persisted cache without removing its authoritative ticker
+ * document. An empty document suppresses stale legacy fallback until a real
+ * provider-backed cache replaces it.
+ */
+export function sanitizedPersistedAlertCacheEntry(
+  entry: CalendarTickerCache<CalendarEvent>,
+): CalendarTickerCache<CalendarEvent> {
+  return authoritativeAlertCacheEntry(entry) ?? { ...entry, events: [] };
+}
