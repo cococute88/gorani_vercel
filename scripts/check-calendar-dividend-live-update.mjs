@@ -44,6 +44,7 @@ assert.match(page, /firestoreCacheTickersRef/, "existing cloud-backed ticker cac
 assert.match(page, /calendarCache\.alertContract\.save/, "real displayed caches are auto-persisted for existing alert rules");
 assert.match(page, /sanitizedPersistedAlertCacheEntry/, "loaded Firestore caches are provenance-sanitized");
 assert.match(page, /calendarCache\.alertContract\.cleanup/, "unsafe persisted cache bodies are scrubbed");
+assert.match(page, /await Promise\.all\(persistedCacheCleanupWrites\);\s*if \(cancelled\) return;\s*firestoreCacheTickersRef\.current = firestoreCacheTickers/, "cancelled portfolio loads cannot overwrite the active cache ticker ref");
 assert.match(page, /Object\.values\(cacheMap\)[\s\S]*\.map\(authoritativeAlertCacheEntry\)/, "manual cloud save uses the same alert cache sanitizer");
 assert.match(page, /saveCalendarEventContract/, "default portfolio mark save uses the atomic event contract writer");
 assert.match(page, /savePortfolioCalendarEventContract/, "named portfolio mark save uses the atomic event contract writer");

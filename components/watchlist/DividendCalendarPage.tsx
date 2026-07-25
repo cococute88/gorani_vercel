@@ -298,6 +298,7 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
         }
       }
       await Promise.all(persistedCacheCleanupWrites);
+      if (cancelled) return;
       firestoreCacheTickersRef.current = firestoreCacheTickers;
       console.info(`[dividend-calendar:trace] ${traceTimestamp()} initial-load priority`, {
         timestamp: traceTimestamp(),
@@ -321,12 +322,11 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
 
     loadProviderEvents()
       .then((result) => {
-        if (!cancelled) {
-          traceCalendarFlow("Provider Load -> Projection -> Merge", result.events, "getCalendarEventsForTickersWithProvider()", providerEventsTraceRef.current);
-          traceCalendarStateUpdate("setProviderResult(provider load)", result.events, providerEventsTraceRef.current);
-          providerPortfolioIdRef.current = activePortfolioId;
-          setProviderResult(result);
-        }
+        if (cancelled || !result) return;
+        traceCalendarFlow("Provider Load -> Projection -> Merge", result.events, "getCalendarEventsForTickersWithProvider()", providerEventsTraceRef.current);
+        traceCalendarStateUpdate("setProviderResult(provider load)", result.events, providerEventsTraceRef.current);
+        providerPortfolioIdRef.current = activePortfolioId;
+        setProviderResult(result);
       })
       .catch((error) => {
         if (cancelled) return;
