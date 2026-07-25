@@ -701,12 +701,15 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
           ];
           const mergedEvents = mergeFetchedEventsWithExistingCache(existingEvents, payload.events);
           const cacheEntry = buildLiveCalendarCacheEntry(ticker, mergedEvents, source, payload.warnings);
+          const alertCacheEntry = sanitizedPersistedAlertCacheEntry(cacheEntry);
           cacheMap[ticker] = cacheEntry;
           successfulEvents.push(...cacheEntry.events);
           success.push(ticker);
           if (user) {
-            const saveCache = activePortfolioId === DEFAULT_CALENDAR_PORTFOLIO_ID ? saveCalendarTickerCacheEntry(user.uid, cacheEntry as never) : savePortfolioCalendarTickerCacheEntry(user.uid, activePortfolioId, cacheEntry as never);
-            void saveCache.catch((err) => warnFirestoreFallback("calendarCache.liveRefresh.save", err));
+            const saveCache = activePortfolioId === DEFAULT_CALENDAR_PORTFOLIO_ID ? saveCalendarTickerCacheEntry(user.uid, alertCacheEntry as never) : savePortfolioCalendarTickerCacheEntry(user.uid, activePortfolioId, alertCacheEntry as never);
+            void saveCache
+              .then(() => firestoreCacheTickersRef.current.add(ticker))
+              .catch((err) => warnFirestoreFallback("calendarCache.liveRefresh.save", err));
           }
         }
       } catch (error) {

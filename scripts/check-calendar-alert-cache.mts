@@ -8,6 +8,10 @@ import {
   getRealDividendEventsForTicker,
   isCustomCalendarEventLike,
 } from "../lib/calendar-event-provider";
+import {
+  buildLiveCalendarCacheEntry,
+  mergeFetchedEventsWithExistingCache,
+} from "../lib/calendar-dividend-live";
 import type { CalendarTickerCache, CalendarTickerCacheSource } from "../lib/calendar-event-identity";
 import type { CalendarEvent } from "../lib/mock-calendar-data";
 
@@ -37,6 +41,7 @@ function cache(
   source: CalendarTickerCacheSource,
   events: CalendarEvent[],
   freshness: "fresh" | "stale" = "fresh",
+  schemaVersion = 2,
 ): CalendarTickerCache<CalendarEvent> {
   return {
     ticker: "TEST",
@@ -45,7 +50,7 @@ function cache(
     expiresAt: freshness === "fresh" ? "2099-01-01T00:00:00.000Z" : "2026-01-02T00:00:00.000Z",
     source,
     warnings: [],
-    schemaVersion: 1,
+    schemaVersion,
   };
 }
 
@@ -73,6 +78,11 @@ assert.deepEqual(
   sanitizedPersistedAlertCacheEntry(cache("sample", [event("sample")])).events,
   [],
   "previously persisted sample caches are scrubbed to authoritative empty documents",
+);
+assert.equal(
+  authoritativeAlertCacheEntry(cache("cache", [event("estimated")], "fresh", 1)),
+  null,
+  "legacy cache schema rejects sample-derived rows formerly mislabeled as estimated",
 );
 
 const freshSampleReuse = await getRealDividendEventsForTicker({
@@ -156,6 +166,18 @@ assert.deepEqual(
   authoritativeAlertCacheEntry(estimated),
   estimated,
   "estimated events remain allowed by the product contract",
+);
+
+const retainedSample = { ...event("sample"), date: "2026-08-10", exDivDate: "2026-08-11" };
+const liveDeclared = { ...event("declared"), date: "2026-09-10", exDivDate: "2026-09-11" };
+const liveMerged = mergeFetchedEventsWithExistingCache([retainedSample], [liveDeclared]);
+const liveAlertEntry = sanitizedPersistedAlertCacheEntry(
+  buildLiveCalendarCacheEntry("TEST", liveMerged, "polygon"),
+);
+assert.deepEqual(
+  liveAlertEntry.events.map((row) => row.sourceKind),
+  ["declared"],
+  "live refresh persistence removes retained sample rows before Firestore write",
 );
 
 const mixed = cache("cache", [event("sample"), event("declared")]);

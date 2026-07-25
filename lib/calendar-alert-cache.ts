@@ -1,6 +1,8 @@
 import type { CalendarTickerCache } from "@/lib/calendar-event-identity";
 import type { CalendarEvent } from "@/lib/mock-calendar-data";
 
+const ALERT_PROVENANCE_SCHEMA_VERSION = 2;
+
 /**
  * Return only provider-backed generated events that are safe to expose to
  * read-only alert consumers. Cache reuse may rewrite the entry source to
@@ -11,7 +13,12 @@ export function authoritativeAlertCacheEntry(
 ): CalendarTickerCache<CalendarEvent> | null {
   if (!entry || entry.source === "sample" || entry.source === "mock") return null;
   const events = entry.events.filter(
-    (event) => event.sourceKind === "declared" || event.sourceKind === "estimated",
+    (event) =>
+      event.sourceKind === "declared"
+      || (
+        event.sourceKind === "estimated"
+        && entry.schemaVersion >= ALERT_PROVENANCE_SCHEMA_VERSION
+      ),
   );
   return events.length > 0 ? { ...entry, events } : null;
 }
