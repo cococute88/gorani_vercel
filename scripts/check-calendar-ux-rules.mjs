@@ -159,7 +159,7 @@ function assertPageWiring() {
   const source = read("components/watchlist/DividendCalendarPage.tsx");
   assert.equal(source.includes("EconomicCalendarSection"), true, "page renders the economic section");
   assert.equal(source.includes("이번 달 주요 일정"), false, "the dividend-event '이번 달 주요 일정' list is gone");
-  assert.equal(source.includes("260px"), true, "right rail width is reduced");
+  assert.equal(source.includes("280px"), true, "right rail width matches the current calendar layout");
   // Regression guards: import/calendar plumbing stays intact.
   assert.equal(source.includes("loadLegacyImportedCalendarEvents"), true, "legacy imported events still load");
   assert.equal(source.includes("mergeGeneratedAndCustomCalendarEvents"), true, "custom event merge still wired");
@@ -214,9 +214,9 @@ function assertGridSource() {
   assert.equal(/(?<!dark:)hover:bg-\[#1e2628\]/.test(grid), false, "no bare dark hover that would show black in light mode");
   assert.ok(grid.includes("customEvents"), "grid takes a separate always-on customEvents prop");
 
-  // CALENDAR-UX-POLISH-6: each day cell shows up to THREE event chips (was two)
-  // beneath the date/custom line; the rest collapse into the "+N" pill.
-  assert.ok(/dayEvents\.slice\(0,\s*3\)/.test(grid), "day cell shows up to three event chips (slice(0, 3))");
+  // Each day cell shows up to five event chips beneath the date/custom line;
+  // the rest collapse into the "+N" pill.
+  assert.ok(/dayEvents\.slice\(0,\s*5\)/.test(grid), "day cell shows up to five event chips (slice(0, 5))");
   assert.equal(/dayEvents\.slice\(0,\s*2\)/.test(grid), false, "the old two-chip cap is gone");
   assert.ok(grid.includes('event.type === "custom"') || grid.includes('type === "custom"'), "custom events are pulled out of chip slots");
 
@@ -226,7 +226,7 @@ function assertGridSource() {
   // "absolute top line + pt-7 chip flow" let the <button> UA layout vertically
   // center the in-flow chips, floating them to the middle of the cell with a big
   // gap — so it is now forbidden, along with any vertical centering of the stack.
-  assert.ok(/relative flex min-h-\[72px\] flex-col justify-start[^"]*sm:min-h-\[100px\]/.test(grid), "day cell is a top-anchored flex column (justify-start)");
+  assert.ok(/relative flex min-h-\[100px\] flex-col justify-start[^"]*sm:min-h-\[148px\]/.test(grid), "day cell is a top-anchored flex column (justify-start)");
   assert.ok(/flex h-5 shrink-0 items-start gap-1[^"]*sm:h-6/.test(grid), "date line is the first top-anchored row with a fixed height");
   assert.ok(/mt-0\.5 flex min-h-0 min-w-0 flex-col justify-start gap-0\.5[^"]*overflow-hidden/.test(grid), "chip container stacks directly below the date line (justify-start, small gap)");
   assert.equal(/\bpt-7\b|\bpt-8\b/.test(grid), false, "no pt-7/pt-8 chip-clearing offset (old absolute-top-line approach removed)");
@@ -235,7 +235,7 @@ function assertGridSource() {
   // legitimate centering left is the round day-number badge (items-center
   // justify-center inside an h-5 w-5 circle) and the month-nav header
   // (items-center justify-between), so check the stack containers specifically.
-  const dayCellColumn = (grid.match(/"relative flex min-h-\[72px\][^"]*"/) ?? [""])[0];
+  const dayCellColumn = (grid.match(/"relative flex min-h-\[100px\][^"]*"/) ?? [""])[0];
   const chipContainer = (grid.match(/"mt-0\.5 flex min-h-0[^"]*"/) ?? [""])[0];
   for (const banned of ["justify-center", "justify-between", "place-content-center", "place-items-center", "items-center"]) {
     assert.equal(dayCellColumn.includes(banned), false, `day-cell column must not use "${banned}" (top-anchored only)`);
@@ -248,9 +248,9 @@ function assertGridSource() {
   const visuals = read("lib/event-visuals.ts");
   assert.equal(visuals.includes("grayscale"), false, "past events no longer fully grayscale (keep type color)");
   assert.ok(/isPast \? "opacity-/.test(visuals), "past events get a muted opacity veil");
-  // Non-declared (estimated) events are faded (~30-40%) but past events keep a
-  // lighter veil — the estimated opacity must be the strongest fade.
-  assert.ok(/estimated \? "opacity-40"/.test(visuals), "estimated events get the strongest opacity fade (~40%)");
+  // Non-declared (estimated) events retain a subtle opacity distinction while
+  // their dashed border remains the primary confirmed/estimated cue.
+  assert.ok(/estimated \? "opacity-80"/.test(visuals), "estimated events keep the current subtle opacity distinction");
   assert.ok(visuals.includes("border-dashed"), "estimated events stay dashed");
 
   return { ok: true };

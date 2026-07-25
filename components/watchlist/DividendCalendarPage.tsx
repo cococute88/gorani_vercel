@@ -7,6 +7,7 @@ import { sortCalendarEventsByPriority } from "@/lib/calendar-event-sort";
 import { getCalendarEventsForTickers, getCalendarEventsForTickersWithProvider, isCustomCalendarEventLike, mergeGeneratedAndCustomCalendarEvents, selectCalendarDividendEvents } from "@/lib/calendar-event-provider";
 import type { CalendarTickersProviderResult } from "@/lib/calendar-event-provider";
 import type { CalendarTickerCache } from "@/lib/calendar-event-identity";
+import { authoritativeAlertCacheEntry } from "@/lib/calendar-alert-cache";
 import {
   createCalendarCustomEvent,
   dedupeCalendarCustomEvents,
@@ -134,14 +135,6 @@ function resolveCalendarEventMeta(event: CalendarEvent, metas: Record<string, Ca
     if (meta) return meta;
   }
   return undefined;
-}
-
-function authoritativeAlertCacheEntry(
-  entry: CalendarTickerCache<CalendarEvent> | undefined,
-): CalendarTickerCache<CalendarEvent> | null {
-  if (!entry || entry.source === "sample" || entry.source === "mock") return null;
-  const events = entry.events.filter((event) => event.sourceKind !== "sample");
-  return events.length > 0 ? { ...entry, events } : null;
 }
 
 export default function DividendCalendarPage({ tickers, tickerManager, onManagePortfolio, onManageCalendarPortfolio, activePortfolioId, activePortfolioName, tickerMemos, onSaveTickerMemo }: Props) {
@@ -730,7 +723,9 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
     setCloudSaveState({ running: true, message: "클라우드 저장 중..." });
     try {
       const cacheMap = loadCalendarCacheMap<CalendarEvent>(activePortfolioId);
-      const cacheEntries = Object.values(cacheMap);
+      const cacheEntries = Object.values(cacheMap)
+        .map(authoritativeAlertCacheEntry)
+        .filter((entry): entry is CalendarTickerCache<CalendarEvent> => Boolean(entry));
       console.info("[dividend-calendar:trace] cloud-save payload", cacheEntries.map(summarizeCacheEntryForTrace));
       await Promise.all([
         ...cacheEntries.map((entry) => activePortfolioId === DEFAULT_CALENDAR_PORTFOLIO_ID ? saveCalendarTickerCacheEntry(user.uid, entry as never) : savePortfolioCalendarTickerCacheEntry(user.uid, activePortfolioId, entry as never)),

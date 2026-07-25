@@ -5,6 +5,7 @@ const read = (path) => fs.readFileSync(path, "utf8");
 const page = read("components/watchlist/DividendCalendarPage.tsx");
 const route = read("app/api/calendar/dividend-events/route.ts");
 const live = read("lib/calendar-dividend-live.ts");
+const alertCache = read("lib/calendar-alert-cache.ts");
 const pkg = JSON.parse(read("package.json"));
 const audit = read("docs/AUDIT.md");
 
@@ -37,9 +38,10 @@ assert.match(page, /Object\.entries\(eventMetas\)/, "eventMetas preserved in clo
 assert.match(page, /providerResult\.cacheMap\[event\.ticker\]/, "mark save resolves the displayed ticker cache");
 assert.match(page, /calendarEvents\.contract\.save/, "mark metadata and displayed event body share one persistence boundary");
 assert.match(page, /authoritativeAlertCacheEntry/, "alert contract cache sanitizer is shared");
-assert.match(page, /event\.sourceKind !== "sample"/, "sample events are never promoted into the alert contract");
+assert.match(alertCache, /event\.sourceKind !== "sample"/, "sample events are never promoted into the alert contract");
 assert.match(page, /firestoreCacheTickersRef/, "existing cloud-backed ticker caches are not written again");
 assert.match(page, /calendarCache\.alertContract\.save/, "real displayed caches are auto-persisted for existing alert rules");
+assert.match(page, /Object\.values\(cacheMap\)[\s\S]*\.map\(authoritativeAlertCacheEntry\)/, "manual cloud save uses the same alert cache sanitizer");
 assert.match(page, /meta\.star|meta\.heart|meta\.memo/, "heart/star/memo applied from event meta");
 assert.match(live, /projectEstimatedDividendEvents/, "projection helper is used");
 assert.match(read("lib/calendar-event-provider.ts"), /sourceKind: "estimated"[\s\S]*status: "estimated"|status: "estimated"[\s\S]*sourceKind: "estimated"/, "estimated projection events remain estimated");
