@@ -58,9 +58,9 @@ assert.match(page, /Object\.values\(cacheMap\)[\s\S]*\.map\(authoritativeAlertCa
 assert.match(page, /saveCalendarEventContract/, "default portfolio mark save uses the atomic event contract writer");
 assert.match(page, /savePortfolioCalendarEventContract/, "named portfolio mark save uses the atomic event contract writer");
 assert.doesNotMatch(page, /Promise\.all\(writes\)/, "mark metadata and cache are not saved as independent promises");
-assert.match(firestore, /writeBatch/, "calendar event contract uses a Firestore write batch");
-assert.match(firestore, /saveCalendarEventContract[\s\S]*batch\.set[\s\S]*calendarEvents[\s\S]*batch\.set[\s\S]*calendarCache[\s\S]*await batch\.commit/, "default event metadata and cache share one batch commit");
-assert.match(firestore, /savePortfolioCalendarEventContract[\s\S]*batch\.set[\s\S]*calendarEventMetas[\s\S]*batch\.set[\s\S]*calendarCache[\s\S]*await batch\.commit/, "named event metadata and cache share one batch commit");
+assert.match(firestore, /runTransaction/, "calendar event contract uses a Firestore transaction");
+assert.match(firestore, /saveCalendarEventContract[\s\S]*transaction\.get\(cacheRef\)[\s\S]*transaction\.set\(metadataRef[\s\S]*shouldReplacePersistedCalendarCache[\s\S]*transaction\.set\(cacheRef[\s\S]*\}\);/, "default event metadata and non-stale cache update share one transaction");
+assert.match(firestore, /savePortfolioCalendarEventContract[\s\S]*transaction\.get\(cacheRef\)[\s\S]*transaction\.set\(metadataRef[\s\S]*shouldReplacePersistedCalendarCache[\s\S]*transaction\.set\(cacheRef[\s\S]*\}\);/, "named event metadata and non-stale cache update share one transaction");
 assert.match(firestore, /sanitizeFirestorePayload\(\{ \.\.\.meta, eventId \}\)[\s\S]*updatedAt: serverTimestamp\(\)/, "server timestamp is added after metadata sanitization");
 assert.match(page, /meta\.star|meta\.heart|meta\.memo/, "heart/star/memo applied from event meta");
 assert.match(live, /projectEstimatedDividendEvents/, "projection helper is used");

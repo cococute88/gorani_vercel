@@ -6,6 +6,7 @@ import {
   calendarProviderContextMatches,
   isCurrentPersistedAlertCacheEntry,
   sanitizedPersistedAlertCacheEntry,
+  shouldReplacePersistedCalendarCache,
 } from "../lib/calendar-alert-cache";
 import {
   getRealDividendEventsForTicker,
@@ -151,6 +152,27 @@ assert.deepEqual(
   ),
   [],
   "an expired fallback result is not re-persisted as though it were refreshed",
+);
+
+assert.equal(
+  shouldReplacePersistedCalendarCache(v2Provider, expiredV2),
+  false,
+  "a mark save cannot overwrite a newer live/provider cache with its stale displayed snapshot",
+);
+assert.equal(
+  shouldReplacePersistedCalendarCache(expiredV2, v2Provider),
+  true,
+  "a newer live/provider cache replaces an older persisted snapshot",
+);
+assert.equal(
+  shouldReplacePersistedCalendarCache(v1Declared, v2Provider),
+  true,
+  "a safe schema upgrade replaces v1 even when cache timestamps overlap",
+);
+assert.equal(
+  shouldReplacePersistedCalendarCache(null, v2Provider),
+  true,
+  "the first metadata save persists its displayed cache body",
 );
 
 const v1Unsafe = cache("cache", [event("sample"), event("estimated")], "fresh", 1);

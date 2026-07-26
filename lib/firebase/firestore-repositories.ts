@@ -7,6 +7,7 @@ import {
   getDocs,
   orderBy,
   query,
+  runTransaction,
   serverTimestamp,
   setDoc,
   writeBatch,
@@ -41,6 +42,7 @@ import {
   type CalendarTickerCacheSource,
 } from "@/lib/calendar-event-identity";
 import type { CalendarEvent } from "@/lib/mock-calendar-data";
+import { shouldReplacePersistedCalendarCache } from "@/lib/calendar-alert-cache";
 import { firestoreDb } from "./client";
 
 export type CalendarTickerData = {
@@ -429,7 +431,8 @@ export async function saveCalendarEventContract(
   const db = requireDb();
   const normalizedTicker = normalizeCalendarTicker(entry.ticker);
   if (!normalizedTicker) throw new Error("A valid ticker is required to save a calendar event contract");
-  const batch = writeBatch(db);
+  const metadataRef = doc(db, "users", uid, "calendarEvents", eventId);
+  const cacheRef = doc(db, "users", uid, "calendarCache", normalizedTicker);
   const metadataPayload = {
     ...sanitizeFirestorePayload({ ...meta, eventId }),
     updatedAt: serverTimestamp(),
@@ -439,16 +442,20 @@ export async function saveCalendarEventContract(
     updatedAt: serverTimestamp(),
     createdAt: serverTimestamp(),
   };
-  batch.set(
-    doc(db, "users", uid, "calendarEvents", eventId),
-    metadataPayload,
-    { merge: true },
-  );
-  batch.set(
-    doc(db, "users", uid, "calendarCache", normalizedTicker),
-    cachePayload,
-  );
-  await batch.commit();
+  await runTransaction(db, async (transaction) => {
+    const persistedCache = await transaction.get(cacheRef);
+    transaction.set(metadataRef, metadataPayload, { merge: true });
+    if (
+      shouldReplacePersistedCalendarCache(
+        persistedCache.exists()
+          ? persistedCache.data() as Pick<CalendarTickerCache<unknown>, "schemaVersion" | "fetchedAt">
+          : null,
+        entry,
+      )
+    ) {
+      transaction.set(cacheRef, cachePayload);
+    }
+  });
 }
 
 export async function loadCalendarEventMetas(uid: string): Promise<CalendarEventMeta[]> {
@@ -968,21 +975,27 @@ export async function savePortfolioCalendarEventContract(
   const db = requireDb();
   const normalizedTicker = normalizeCalendarTicker(entry.ticker);
   if (!normalizedTicker) throw new Error("A valid ticker is required to save a calendar event contract");
-  const batch = writeBatch(db);
+  const metadataRef = doc(db, "users", uid, "calendarPortfolios", portfolioId, "calendarEventMetas", eventId);
+  const cacheRef = doc(db, "users", uid, "calendarPortfolios", portfolioId, "calendarCache", normalizedTicker);
   const metadataPayload = {
     ...sanitizeFirestorePayload({ ...meta, eventId }),
     updatedAt: serverTimestamp(),
   };
-  batch.set(
-    doc(db, "users", uid, "calendarPortfolios", portfolioId, "calendarEventMetas", eventId),
-    metadataPayload,
-    { merge: true },
-  );
-  batch.set(
-    doc(db, "users", uid, "calendarPortfolios", portfolioId, "calendarCache", normalizedTicker),
-    sanitizeFirestorePayload(toCalendarTickerCacheEntry(entry)),
-  );
-  await batch.commit();
+  const cachePayload = sanitizeFirestorePayload(toCalendarTickerCacheEntry(entry));
+  await runTransaction(db, async (transaction) => {
+    const persistedCache = await transaction.get(cacheRef);
+    transaction.set(metadataRef, metadataPayload, { merge: true });
+    if (
+      shouldReplacePersistedCalendarCache(
+        persistedCache.exists()
+          ? persistedCache.data() as Pick<CalendarTickerCache<unknown>, "schemaVersion" | "fetchedAt">
+          : null,
+        entry,
+      )
+    ) {
+      transaction.set(cacheRef, cachePayload);
+    }
+  });
 }
 
 export async function loadPortfolioCalendarEventMetas(uid: string, portfolioId: string): Promise<CalendarEventMeta[]> {

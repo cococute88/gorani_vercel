@@ -79,3 +79,25 @@ export function alertCacheEntriesNeedingPersistence(
     .map(authoritativeAlertCacheEntry)
     .filter((entry): entry is CalendarTickerCache<CalendarEvent> => Boolean(entry));
 }
+
+/**
+ * A metadata save may race a provider/live refresh for the same ticker. Keep
+ * the newer cache document while allowing an upgraded schema to replace an
+ * older one regardless of timestamp.
+ */
+export function shouldReplacePersistedCalendarCache(
+  persisted: Pick<CalendarTickerCache<unknown>, "schemaVersion" | "fetchedAt"> | null | undefined,
+  candidate: Pick<CalendarTickerCache<unknown>, "schemaVersion" | "fetchedAt">,
+): boolean {
+  if (!persisted) return true;
+  const persistedSchemaVersion = Number.isFinite(persisted.schemaVersion) ? persisted.schemaVersion : 0;
+  const candidateSchemaVersion = Number.isFinite(candidate.schemaVersion) ? candidate.schemaVersion : 0;
+  if (candidateSchemaVersion !== persistedSchemaVersion) {
+    return candidateSchemaVersion > persistedSchemaVersion;
+  }
+  const persistedFetchedAt = Date.parse(persisted.fetchedAt);
+  const candidateFetchedAt = Date.parse(candidate.fetchedAt);
+  if (!Number.isFinite(candidateFetchedAt)) return false;
+  if (!Number.isFinite(persistedFetchedAt)) return true;
+  return candidateFetchedAt >= persistedFetchedAt;
+}
