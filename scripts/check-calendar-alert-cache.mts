@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   alertCacheEntriesNeedingPersistence,
   authoritativeAlertCacheEntry,
+  calendarProviderContextMatches,
   isCurrentPersistedAlertCacheEntry,
   sanitizedPersistedAlertCacheEntry,
 } from "../lib/calendar-alert-cache";
@@ -135,6 +136,28 @@ assert.deepEqual(
   ),
   [v2Provider],
   "an unsafe v1 tombstone still allows a real v2 provider replacement",
+);
+
+const userADefault = { uid: "user-a", portfolioId: "default" };
+assert.equal(
+  calendarProviderContextMatches(userADefault, "user-a", "default"),
+  true,
+  "provider results may persist only for their owning user and portfolio",
+);
+assert.equal(
+  calendarProviderContextMatches(userADefault, "user-b", "default"),
+  false,
+  "a cached provider result from the prior account cannot persist for the new uid",
+);
+assert.equal(
+  calendarProviderContextMatches(userADefault, "user-a", "named"),
+  false,
+  "a stale portfolio result cannot contaminate another portfolio during upgrade",
+);
+assert.equal(
+  calendarProviderContextMatches(null, "user-a", "default"),
+  false,
+  "unowned initial provider state cannot write to an authenticated account",
 );
 
 const freshSampleReuse = await getRealDividendEventsForTicker({

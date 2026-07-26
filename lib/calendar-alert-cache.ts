@@ -3,6 +3,19 @@ import type { CalendarEvent } from "@/lib/mock-calendar-data";
 
 const ALERT_PROVENANCE_SCHEMA_VERSION = 2;
 
+export type CalendarProviderPersistenceContext = {
+  uid: string | null;
+  portfolioId: string;
+};
+
+export function calendarProviderContextMatches(
+  context: CalendarProviderPersistenceContext | null,
+  uid: string | null,
+  portfolioId: string,
+): boolean {
+  return context !== null && context.uid === uid && context.portfolioId === portfolioId;
+}
+
 /**
  * Return only provider-backed generated events that are safe to expose to
  * read-only alert consumers. Cache reuse may rewrite the entry source to
