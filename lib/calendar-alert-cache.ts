@@ -33,3 +33,33 @@ export function sanitizedPersistedAlertCacheEntry(
 ): CalendarTickerCache<CalendarEvent> {
   return authoritativeAlertCacheEntry(entry) ?? { ...entry, events: [] };
 }
+
+/**
+ * Only a fully safe v2 document may suppress provider-result persistence.
+ * Older schemas remain readable after sanitization, but must be replaced by
+ * the next provider-backed v2 result.
+ */
+export function isCurrentPersistedAlertCacheEntry(
+  entry: CalendarTickerCache<CalendarEvent>,
+): boolean {
+  const authoritative = authoritativeAlertCacheEntry(entry);
+  return (
+    entry.schemaVersion >= ALERT_PROVENANCE_SCHEMA_VERSION
+    && authoritative !== null
+    && authoritative.events.length === entry.events.length
+  );
+}
+
+export function alertCacheEntriesNeedingPersistence(
+  cacheMap: Record<string, CalendarTickerCache<CalendarEvent>>,
+  currentPersistedTickers: ReadonlySet<string>,
+): CalendarTickerCache<CalendarEvent>[] {
+  return Object.values(cacheMap)
+    .filter(
+      (entry) =>
+        entry.schemaVersion >= ALERT_PROVENANCE_SCHEMA_VERSION
+        && !currentPersistedTickers.has(entry.ticker),
+    )
+    .map(authoritativeAlertCacheEntry)
+    .filter((entry): entry is CalendarTickerCache<CalendarEvent> => Boolean(entry));
+}

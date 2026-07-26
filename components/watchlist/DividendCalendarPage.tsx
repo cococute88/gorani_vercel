@@ -8,7 +8,9 @@ import { getCalendarEventsForTickers, getCalendarEventsForTickersWithProvider, i
 import type { CalendarTickersProviderResult } from "@/lib/calendar-event-provider";
 import type { CalendarTickerCache } from "@/lib/calendar-event-identity";
 import {
+  alertCacheEntriesNeedingPersistence,
   authoritativeAlertCacheEntry,
+  isCurrentPersistedAlertCacheEntry,
   sanitizedPersistedAlertCacheEntry,
 } from "@/lib/calendar-alert-cache";
 import {
@@ -285,6 +287,8 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
           const wasSanitized = sanitizedEntry.events.length !== rawEntry.events.length;
           if (sanitizedEntry.events.length > 0) {
             typedFirestoreCacheMap[entry.ticker] = sanitizedEntry as never;
+          }
+          if (isCurrentPersistedAlertCacheEntry(rawEntry)) {
             firestoreCacheTickers.add(entry.ticker);
           }
           if (wasSanitized) {
@@ -348,10 +352,10 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
 
   useEffect(() => {
     if (!user || providerPortfolioIdRef.current !== activePortfolioId) return;
-    const entries = Object.values(providerResult.cacheMap)
-      .filter((entry) => !firestoreCacheTickersRef.current.has(entry.ticker))
-      .map(authoritativeAlertCacheEntry)
-      .filter((entry): entry is CalendarTickerCache<CalendarEvent> => Boolean(entry));
+    const entries = alertCacheEntriesNeedingPersistence(
+      providerResult.cacheMap,
+      firestoreCacheTickersRef.current,
+    );
     if (entries.length === 0) return;
 
     // Make real displayed events available to read-only server consumers

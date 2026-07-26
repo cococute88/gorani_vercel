@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 
 import {
+  alertCacheEntriesNeedingPersistence,
   authoritativeAlertCacheEntry,
+  isCurrentPersistedAlertCacheEntry,
   sanitizedPersistedAlertCacheEntry,
 } from "../lib/calendar-alert-cache";
 import {
@@ -83,6 +85,56 @@ assert.equal(
   authoritativeAlertCacheEntry(cache("cache", [event("estimated")], "fresh", 1)),
   null,
   "legacy cache schema rejects sample-derived rows formerly mislabeled as estimated",
+);
+
+const v1Declared = cache("cache", [event("declared")], "fresh", 1);
+const v2Provider = cache("yahoo", [event("declared"), event("estimated")], "fresh", 2);
+assert.deepEqual(
+  sanitizedPersistedAlertCacheEntry(v1Declared).events.map((row) => row.sourceKind),
+  ["declared"],
+  "v1 declared rows remain available as a read-only fallback during upgrade",
+);
+const v1PersistedTickers = new Set(
+  isCurrentPersistedAlertCacheEntry(v1Declared) ? [v1Declared.ticker] : [],
+);
+assert.deepEqual(
+  alertCacheEntriesNeedingPersistence({ TEST: v2Provider }, v1PersistedTickers),
+  [v2Provider],
+  "a readable v1 declared cache does not block its provider-backed v2 replacement",
+);
+assert.deepEqual(
+  alertCacheEntriesNeedingPersistence({ TEST: v2Provider }, new Set()),
+  [v2Provider],
+  "a missing Firestore cache persists the provider-backed v2 result",
+);
+assert.deepEqual(
+  alertCacheEntriesNeedingPersistence({ TEST: v1Declared }, v1PersistedTickers),
+  [],
+  "a v1 fallback result is never re-persisted or marked current while awaiting v2",
+);
+
+const v2PersistedTickers = new Set(
+  isCurrentPersistedAlertCacheEntry(v2Provider) ? [v2Provider.ticker] : [],
+);
+assert.deepEqual(
+  alertCacheEntriesNeedingPersistence({ TEST: v2Provider }, v2PersistedTickers),
+  [],
+  "a fully safe persisted v2 cache does not create a repeated write",
+);
+
+const v1Unsafe = cache("cache", [event("sample"), event("estimated")], "fresh", 1);
+assert.deepEqual(
+  sanitizedPersistedAlertCacheEntry(v1Unsafe).events,
+  [],
+  "unsafe v1 sample-derived events are removed from the alert cache",
+);
+assert.deepEqual(
+  alertCacheEntriesNeedingPersistence(
+    { TEST: v2Provider },
+    new Set(isCurrentPersistedAlertCacheEntry(v1Unsafe) ? [v1Unsafe.ticker] : []),
+  ),
+  [v2Provider],
+  "an unsafe v1 tombstone still allows a real v2 provider replacement",
 );
 
 const freshSampleReuse = await getRealDividendEventsForTicker({
