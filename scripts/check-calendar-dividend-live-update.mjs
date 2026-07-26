@@ -51,6 +51,7 @@ assert.match(page, /entries\.map\(\(entry\) =>[\s\S]*DEFAULT_CALENDAR_PORTFOLIO_
 assert.match(page, /calendarProviderContextMatches\([\s\S]*providerResultContextRef\.current[\s\S]*user\.uid[\s\S]*activePortfolioId/, "provider backfill is bound to the authenticated user and portfolio");
 assert.match(page, /\.then\(\(\) => \{[\s\S]*activeProviderContextRef\.current[\s\S]*persistenceContext\.uid[\s\S]*firestoreCacheTickersRef\.current\.add/, "stale async persistence completion cannot contaminate the next user or portfolio ref");
 assert.match(page, /buildLiveCalendarCacheEntry[\s\S]*sanitizedPersistedAlertCacheEntry\(cacheEntry\)[\s\S]*calendarCache\.liveRefresh\.save/, "live refresh writes use the alert cache provenance sanitizer");
+assert.match(page, /refreshPersistenceContext[\s\S]*activeProviderContextRef\.current[\s\S]*refreshPersistenceContext\.uid[\s\S]*refreshPersistenceContext\.portfolioId[\s\S]*firestoreCacheTickersRef\.current\.add[\s\S]*calendarCache\.liveRefresh\.save/, "stale live-refresh completion cannot contaminate the next user or portfolio ref");
 assert.match(page, /Object\.values\(cacheMap\)[\s\S]*\.map\(authoritativeAlertCacheEntry\)/, "manual cloud save uses the same alert cache sanitizer");
 assert.match(page, /saveCalendarEventContract/, "default portfolio mark save uses the atomic event contract writer");
 assert.match(page, /savePortfolioCalendarEventContract/, "named portfolio mark save uses the atomic event contract writer");

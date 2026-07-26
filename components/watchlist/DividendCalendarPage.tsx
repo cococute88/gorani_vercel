@@ -703,6 +703,10 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
 
   const handleRefreshDividendEvents = async () => {
     const uniqueTickers = Array.from(new Set(tickers.map((ticker) => ticker.trim().toUpperCase()).filter(Boolean)));
+    const refreshPersistenceContext: CalendarProviderPersistenceContext = {
+      uid: user?.uid ?? null,
+      portfolioId: activePortfolioId,
+    };
     setLiveRefreshState({ running: true, done: 0, total: uniqueTickers.length, success: [], failed: [], message: "Polygon 사용 가능 여부를 확인하는 중...", tone: "info" });
     let configuredDelayMs = 12500;
     try {
@@ -749,7 +753,16 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
           if (user) {
             const saveCache = activePortfolioId === DEFAULT_CALENDAR_PORTFOLIO_ID ? saveCalendarTickerCacheEntry(user.uid, alertCacheEntry as never) : savePortfolioCalendarTickerCacheEntry(user.uid, activePortfolioId, alertCacheEntry as never);
             void saveCache
-              .then(() => firestoreCacheTickersRef.current.add(ticker))
+              .then(() => {
+                if (
+                  !calendarProviderContextMatches(
+                    activeProviderContextRef.current,
+                    refreshPersistenceContext.uid,
+                    refreshPersistenceContext.portfolioId,
+                  )
+                ) return;
+                firestoreCacheTickersRef.current.add(ticker);
+              })
               .catch((err) => warnFirestoreFallback("calendarCache.liveRefresh.save", err));
           }
         }
