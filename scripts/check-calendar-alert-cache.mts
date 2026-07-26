@@ -123,6 +123,36 @@ assert.deepEqual(
   "a fully safe persisted v2 cache does not create a repeated write",
 );
 
+const expiredV2 = cache("yahoo", [event("declared"), event("estimated")], "stale", 2);
+const expiredV2PersistedTickers = new Set(
+  isCurrentPersistedAlertCacheEntry(expiredV2, new Date("2026-07-25T00:00:00.000Z"))
+    ? [expiredV2.ticker]
+    : [],
+);
+assert.deepEqual(
+  [...expiredV2PersistedTickers],
+  [],
+  "an expired safe v2 Firestore cache does not suppress the provider refresh",
+);
+assert.deepEqual(
+  alertCacheEntriesNeedingPersistence(
+    { TEST: v2Provider },
+    expiredV2PersistedTickers,
+    new Date("2026-07-25T00:00:00.000Z"),
+  ),
+  [v2Provider],
+  "a fresh provider v2 result replaces an expired safe Firestore cache",
+);
+assert.deepEqual(
+  alertCacheEntriesNeedingPersistence(
+    { TEST: expiredV2 },
+    expiredV2PersistedTickers,
+    new Date("2026-07-25T00:00:00.000Z"),
+  ),
+  [],
+  "an expired fallback result is not re-persisted as though it were refreshed",
+);
+
 const v1Unsafe = cache("cache", [event("sample"), event("estimated")], "fresh", 1);
 assert.deepEqual(
   sanitizedPersistedAlertCacheEntry(v1Unsafe).events,

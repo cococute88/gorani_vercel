@@ -1,5 +1,6 @@
 import type { CalendarTickerCache } from "@/lib/calendar-event-identity";
 import type { CalendarEvent } from "@/lib/mock-calendar-data";
+import { isCalendarTickerCacheFresh } from "@/lib/calendar-cache";
 
 const ALERT_PROVENANCE_SCHEMA_VERSION = 2;
 
@@ -48,16 +49,17 @@ export function sanitizedPersistedAlertCacheEntry(
 }
 
 /**
- * Only a fully safe v2 document may suppress provider-result persistence.
- * Older schemas remain readable after sanitization, but must be replaced by
- * the next provider-backed v2 result.
+ * Only a fully safe, unexpired v2 document may suppress a provider refresh or
+ * provider-result persistence. Older or expired schemas remain readable after
+ * sanitization, but must be replaced by the next provider-backed v2 result.
  */
 export function isCurrentPersistedAlertCacheEntry(
   entry: CalendarTickerCache<CalendarEvent>,
+  now = new Date(),
 ): boolean {
   const authoritative = authoritativeAlertCacheEntry(entry);
   return (
-    entry.schemaVersion >= ALERT_PROVENANCE_SCHEMA_VERSION
+    isCalendarTickerCacheFresh(entry, now)
     && authoritative !== null
     && authoritative.events.length === entry.events.length
   );
@@ -66,11 +68,12 @@ export function isCurrentPersistedAlertCacheEntry(
 export function alertCacheEntriesNeedingPersistence(
   cacheMap: Record<string, CalendarTickerCache<CalendarEvent>>,
   currentPersistedTickers: ReadonlySet<string>,
+  now = new Date(),
 ): CalendarTickerCache<CalendarEvent>[] {
   return Object.values(cacheMap)
     .filter(
       (entry) =>
-        entry.schemaVersion >= ALERT_PROVENANCE_SCHEMA_VERSION
+        isCalendarTickerCacheFresh(entry, now)
         && !currentPersistedTickers.has(entry.ticker),
     )
     .map(authoritativeAlertCacheEntry)

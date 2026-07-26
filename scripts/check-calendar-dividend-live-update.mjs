@@ -45,7 +45,7 @@ assert.match(page, /calendarCache\.alertContract\.save/, "real displayed caches 
 assert.match(page, /sanitizedPersistedAlertCacheEntry/, "loaded Firestore caches are provenance-sanitized");
 assert.match(page, /calendarCache\.alertContract\.cleanup/, "unsafe persisted cache bodies are scrubbed");
 assert.match(page, /await Promise\.all\(persistedCacheCleanupWrites\);\s*if \(cancelled\) return;\s*firestoreCacheTickersRef\.current = firestoreCacheTickers/, "cancelled portfolio loads cannot overwrite the active cache ticker ref");
-assert.match(page, /isCurrentPersistedAlertCacheEntry\(rawEntry\)[\s\S]*firestoreCacheTickers\.add/, "only current safe persisted caches suppress provider backfill");
+assert.match(page, /isCurrentPersistedAlertCacheEntry\(rawEntry\)[\s\S]*firestoreCacheTickers\.add/, "only current safe and unexpired persisted caches suppress provider refresh and backfill");
 assert.match(page, /alertCacheEntriesNeedingPersistence\([\s\S]*providerResult\.cacheMap[\s\S]*firestoreCacheTickersRef\.current/, "provider backfill uses the tested persistence selector");
 assert.match(page, /entries\.map\(\(entry\) =>[\s\S]*DEFAULT_CALENDAR_PORTFOLIO_ID[\s\S]*saveCalendarTickerCacheEntry[\s\S]*savePortfolioCalendarTickerCacheEntry/, "the same tested v2 backfill selection writes default and named portfolios");
 assert.match(page, /calendarProviderContextMatches\([\s\S]*providerResultContextRef\.current[\s\S]*user\.uid[\s\S]*activePortfolioId/, "provider backfill is bound to the authenticated user and portfolio");
