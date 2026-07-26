@@ -6,7 +6,9 @@ import {
 import { STORAGE_KEYS } from "@/lib/storage-keys";
 import { DEFAULT_CALENDAR_PORTFOLIO_ID, getCalendarLocalStorageKey, getLegacyCalendarLocalStorageKey } from "@/lib/calendar-portfolio";
 
-export const CALENDAR_TICKER_CACHE_SCHEMA_VERSION = 1;
+// v2 records that projected events preserve their upstream provider
+// provenance. v1 may contain sample-derived rows mislabeled as "estimated".
+export const CALENDAR_TICKER_CACHE_SCHEMA_VERSION = 2;
 export const DEFAULT_CALENDAR_TICKER_CACHE_TTL_HOURS = 24;
 
 export type CalendarTickerCacheMap<TEvent = Record<string, unknown>> = Record<string, CalendarTickerCache<TEvent>>;

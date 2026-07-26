@@ -23,6 +23,7 @@
     "check:calendar-provider": "node scripts/check-calendar-provider.mjs",
     "check:us-market-calendar": "node scripts/check-us-market-calendar.mjs",
     "check:calendar-dividend-live-update": "node scripts/check-calendar-dividend-live-update.mjs",
+    "check:calendar-alert-cache": "npx --yes tsx scripts/check-calendar-alert-cache.mts",
     "trace:ritm-dividend-pipeline": "node scripts/trace-ritm-dividend-pipeline.mjs",
     "verify:dividend-polygon-ssot": "node scripts/verify-dividend-polygon-ssot.mjs",
     "check:calendar-ux-rules": "node scripts/check-calendar-ux-rules.mjs",

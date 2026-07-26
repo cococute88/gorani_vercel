@@ -574,7 +574,13 @@ export async function getRealDividendEventsForTicker({
 
     const historicalEvents = buildDividendEventsFromHistory({ ticker, dividends, sourceKind });
     const frequency = inferDividendFrequency(dividends.map((dividend) => dividend.date));
-    const estimatedEvents = projectEstimatedDividendEvents({ ticker, dividends, frequency, today });
+    const projectedEvents = projectEstimatedDividendEvents({ ticker, dividends, frequency, today });
+    // "estimated" describes schedule certainty, not provider trust. Preserve
+    // sample provenance so cache reuse cannot later promote demo projections
+    // after the entry-level source is rewritten to "cache".
+    const estimatedEvents = response.source === "sample"
+      ? projectedEvents.map((event) => ({ ...event, sourceKind: "sample" as const }))
+      : projectedEvents;
     const events = [...historicalEvents, ...estimatedEvents]
       .map(normalizeCalendarEventForCache)
       .sort((a, b) => a.date.localeCompare(b.date) || a.ticker.localeCompare(b.ticker) || a.type.localeCompare(b.type));
