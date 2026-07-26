@@ -61,6 +61,8 @@ assert.doesNotMatch(page, /Promise\.all\(writes\)/, "mark metadata and cache are
 assert.match(firestore, /runTransaction/, "calendar event contract uses a Firestore transaction");
 assert.match(firestore, /saveCalendarEventContract[\s\S]*transaction\.get\(cacheRef\)[\s\S]*transaction\.set\(metadataRef[\s\S]*shouldReplacePersistedCalendarCache[\s\S]*transaction\.set\(cacheRef[\s\S]*\}\);/, "default event metadata and non-stale cache update share one transaction");
 assert.match(firestore, /savePortfolioCalendarEventContract[\s\S]*transaction\.get\(cacheRef\)[\s\S]*transaction\.set\(metadataRef[\s\S]*shouldReplacePersistedCalendarCache[\s\S]*transaction\.set\(cacheRef[\s\S]*\}\);/, "named event metadata and non-stale cache update share one transaction");
+assert.match(firestore, /saveCalendarTickerCacheEntry[\s\S]*runTransaction[\s\S]*transaction\.get\(cacheRef\)[\s\S]*shouldReplacePersistedCalendarCache[\s\S]*transaction\.set\(cacheRef/, "default cache cleanup, backfill, and live refresh cannot overwrite a newer cache");
+assert.match(firestore, /savePortfolioCalendarTickerCacheEntry[\s\S]*runTransaction[\s\S]*transaction\.get\(cacheRef\)[\s\S]*shouldReplacePersistedCalendarCache[\s\S]*transaction\.set\(cacheRef/, "named cache cleanup, backfill, and live refresh cannot overwrite a newer cache");
 assert.match(firestore, /sanitizeFirestorePayload\(\{ \.\.\.meta, eventId \}\)[\s\S]*updatedAt: serverTimestamp\(\)/, "server timestamp is added after metadata sanitization");
 assert.match(page, /meta\.star|meta\.heart|meta\.memo/, "heart/star/memo applied from event meta");
 assert.match(live, /projectEstimatedDividendEvents/, "projection helper is used");

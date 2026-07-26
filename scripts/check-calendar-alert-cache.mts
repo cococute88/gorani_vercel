@@ -174,6 +174,29 @@ assert.equal(
   true,
   "the first metadata save persists its displayed cache body",
 );
+assert.equal(
+  shouldReplacePersistedCalendarCache(v2Provider, v2Provider),
+  false,
+  "an identical cache is not rewritten",
+);
+const sameTimestampDifferentCache = {
+  ...v2Provider,
+  events: [{ ...event("declared"), date: "2026-09-10" }],
+};
+assert.equal(
+  shouldReplacePersistedCalendarCache(sameTimestampDifferentCache, v2Provider),
+  false,
+  "an equal-timestamp cache with different safe content is not overwritten",
+);
+const persistedMixedForCleanup = cache("cache", [event("sample"), event("declared")]);
+assert.equal(
+  shouldReplacePersistedCalendarCache(
+    persistedMixedForCleanup,
+    sanitizedPersistedAlertCacheEntry(persistedMixedForCleanup),
+  ),
+  true,
+  "a sanitizer may conditionally clean the exact equal-version document it read",
+);
 
 const v1Unsafe = cache("cache", [event("sample"), event("estimated")], "fresh", 1);
 assert.deepEqual(

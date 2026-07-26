@@ -448,7 +448,7 @@ export async function saveCalendarEventContract(
     if (
       shouldReplacePersistedCalendarCache(
         persistedCache.exists()
-          ? persistedCache.data() as Pick<CalendarTickerCache<unknown>, "schemaVersion" | "fetchedAt">
+          ? fromCalendarCacheEntry(persistedCache.data() as CalendarCacheEntry)
           : null,
         entry,
       )
@@ -853,7 +853,29 @@ export async function saveCalendarTickerCacheEntry(
   uid: string,
   entry: CalendarTickerCache<Record<string, unknown>>,
 ): Promise<void> {
-  await saveCalendarCacheEntry(uid, toCalendarTickerCacheEntry(entry));
+  const db = requireDb();
+  const normalizedTicker = normalizeCalendarTicker(entry.ticker);
+  if (!normalizedTicker) throw new Error("A valid ticker is required to save a calendar ticker cache");
+  const cacheRef = doc(db, "users", uid, "calendarCache", normalizedTicker);
+  const payload = {
+    ...sanitizeFirestorePayload(toCalendarTickerCacheEntry(entry)),
+    updatedAt: serverTimestamp(),
+    createdAt: serverTimestamp(),
+  };
+  console.info("[dividend-calendar:trace] Firestore document save", { path: `users/${uid}/calendarCache/${normalizedTicker}`, document: payload });
+  await runTransaction(db, async (transaction) => {
+    const persistedCache = await transaction.get(cacheRef);
+    if (
+      shouldReplacePersistedCalendarCache(
+        persistedCache.exists()
+          ? fromCalendarCacheEntry(persistedCache.data() as CalendarCacheEntry)
+          : null,
+        entry,
+      )
+    ) {
+      transaction.set(cacheRef, payload);
+    }
+  });
 }
 
 export async function loadCalendarTickerCacheEntry(
@@ -988,7 +1010,7 @@ export async function savePortfolioCalendarEventContract(
     if (
       shouldReplacePersistedCalendarCache(
         persistedCache.exists()
-          ? persistedCache.data() as Pick<CalendarTickerCache<unknown>, "schemaVersion" | "fetchedAt">
+          ? fromCalendarCacheEntry(persistedCache.data() as CalendarCacheEntry)
           : null,
         entry,
       )
@@ -1019,10 +1041,25 @@ export async function deletePortfolioCalendarCustomEvent(uid: string, portfolioI
 }
 
 export async function savePortfolioCalendarTickerCacheEntry(uid: string, portfolioId: string, entry: CalendarTickerCache<Record<string, unknown>>): Promise<void> {
+  const db = requireDb();
   const normalizedTicker = normalizeCalendarTicker(entry.ticker);
+  if (!normalizedTicker) throw new Error("A valid ticker is required to save a portfolio calendar ticker cache");
+  const cacheRef = doc(db, "users", uid, "calendarPortfolios", portfolioId, "calendarCache", normalizedTicker);
   const payload = sanitizeFirestorePayload(toCalendarTickerCacheEntry(entry));
   console.info("[dividend-calendar:trace] Firestore document save", { path: `users/${uid}/calendarPortfolios/${portfolioId}/calendarCache/${normalizedTicker}`, document: payload });
-  await setDoc(doc(requireDb(), "users", uid, "calendarPortfolios", portfolioId, "calendarCache", normalizedTicker), payload, { merge: true });
+  await runTransaction(db, async (transaction) => {
+    const persistedCache = await transaction.get(cacheRef);
+    if (
+      shouldReplacePersistedCalendarCache(
+        persistedCache.exists()
+          ? fromCalendarCacheEntry(persistedCache.data() as CalendarCacheEntry)
+          : null,
+        entry,
+      )
+    ) {
+      transaction.set(cacheRef, payload, { merge: true });
+    }
+  });
 }
 
 export async function loadPortfolioCalendarTickerCacheEntry(uid: string, portfolioId: string, ticker: string): Promise<CalendarTickerCache<Record<string, unknown>> | null> {

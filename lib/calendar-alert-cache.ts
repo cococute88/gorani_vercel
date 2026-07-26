@@ -86,8 +86,8 @@ export function alertCacheEntriesNeedingPersistence(
  * older one regardless of timestamp.
  */
 export function shouldReplacePersistedCalendarCache(
-  persisted: Pick<CalendarTickerCache<unknown>, "schemaVersion" | "fetchedAt"> | null | undefined,
-  candidate: Pick<CalendarTickerCache<unknown>, "schemaVersion" | "fetchedAt">,
+  persisted: CalendarTickerCache<unknown> | null | undefined,
+  candidate: CalendarTickerCache<unknown>,
 ): boolean {
   if (!persisted) return true;
   const persistedSchemaVersion = Number.isFinite(persisted.schemaVersion) ? persisted.schemaVersion : 0;
@@ -99,5 +99,17 @@ export function shouldReplacePersistedCalendarCache(
   const candidateFetchedAt = Date.parse(candidate.fetchedAt);
   if (!Number.isFinite(candidateFetchedAt)) return false;
   if (!Number.isFinite(persistedFetchedAt)) return true;
-  return candidateFetchedAt >= persistedFetchedAt;
+  if (candidateFetchedAt !== persistedFetchedAt) return candidateFetchedAt > persistedFetchedAt;
+
+  const sameContractBody = (left: CalendarTickerCache<unknown>, right: CalendarTickerCache<unknown>) =>
+    left.ticker === right.ticker
+    && left.source === right.source
+    && left.expiresAt === right.expiresAt
+    && JSON.stringify(left.events) === JSON.stringify(right.events);
+  if (sameContractBody(persisted, candidate)) return false;
+
+  const sanitizedPersisted = sanitizedPersistedAlertCacheEntry(
+    persisted as CalendarTickerCache<CalendarEvent>,
+  );
+  return sameContractBody(sanitizedPersisted, candidate);
 }
