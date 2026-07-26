@@ -203,6 +203,10 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
   }, [user]);
 
   useEffect(() => {
+    setLiveRefreshState({ running: false, done: 0, total: 0, success: [], failed: [], message: "" });
+  }, [activePortfolioId, user?.uid]);
+
+  useEffect(() => {
     traceEffect("DividendCalendarPage useEffect: Local Cache Read / portfolio", { activePortfolioId });
     if (typeof window === "undefined") return;
     try {
@@ -707,17 +711,24 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
       uid: user?.uid ?? null,
       portfolioId: activePortfolioId,
     };
+    const refreshContextIsCurrent = () => calendarProviderContextMatches(
+      activeProviderContextRef.current,
+      refreshPersistenceContext.uid,
+      refreshPersistenceContext.portfolioId,
+    );
     setLiveRefreshState({ running: true, done: 0, total: uniqueTickers.length, success: [], failed: [], message: "Polygon 사용 가능 여부를 확인하는 중...", tone: "info" });
     let configuredDelayMs = 12500;
     try {
       const statusResponse = await fetch("/api/calendar/dividend-events/status", { cache: "no-store" });
       const statusPayload = (await statusResponse.json()) as { polygon?: "available" | "missing_key"; rateLimitDelayMs?: number; message?: string };
+      if (!refreshContextIsCurrent()) return;
       configuredDelayMs = statusPayload.rateLimitDelayMs ?? configuredDelayMs;
       if (!statusResponse.ok || statusPayload.polygon !== "available") {
         setLiveRefreshState({ running: false, done: 0, total: uniqueTickers.length, success: [], failed: uniqueTickers, message: statusPayload.message ?? "Polygon API Key가 설정되어 있지 않습니다. 관리자에게 문의하거나 환경변수를 확인하세요.", tone: "error" });
         return;
       }
     } catch {
+      if (!refreshContextIsCurrent()) return;
       setLiveRefreshState({ running: false, done: 0, total: uniqueTickers.length, success: [], failed: uniqueTickers, message: "Polygon 사용 가능 여부 확인에 실패했습니다. 네트워크 또는 서버 로그를 확인하세요.", tone: "error" });
       return;
     }
@@ -728,11 +739,13 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
     const failed: string[] = [];
 
     for (let index = 0; index < uniqueTickers.length; index += 1) {
+      if (!refreshContextIsCurrent()) return;
       const ticker = uniqueTickers[index];
       let rateLimitDelayMs: number | undefined;
       try {
         const response = await fetch(`/api/calendar/dividend-events?ticker=${encodeURIComponent(ticker)}`, { cache: "no-store" });
         const payload = (await response.json()) as DividendLiveResponse;
+        if (!refreshContextIsCurrent()) return;
         rateLimitDelayMs = payload.rateLimitDelayMs;
         if (!response.ok || payload.source === "unavailable" || payload.events.length === 0) {
           failed.push(ticker);
@@ -767,17 +780,20 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
           }
         }
       } catch (error) {
+        if (!refreshContextIsCurrent()) return;
         failed.push(ticker);
         console.warn(`[dividend-calendar] ${ticker} refresh network/client failure`, error);
       }
       const done = index + 1;
       const progressDelayMs = rateLimitDelayMs ?? configuredDelayMs;
+      if (!refreshContextIsCurrent()) return;
       setLiveRefreshState({ running: true, done, total: uniqueTickers.length, success: [...success], failed: [...failed], message: "Polygon API 무료 한도 보호를 위해 순차 조회 중...", details: buildLiveRefreshDetails(done, uniqueTickers.length, progressDelayMs), tone: "info" });
       if (index < uniqueTickers.length - 1 && rateLimitDelayMs && rateLimitDelayMs > 0) {
         await waitForLiveRefreshRateLimit(rateLimitDelayMs);
       }
     }
 
+    if (!refreshContextIsCurrent()) return;
     if (success.length > 0) {
       saveCalendarCacheMap(cacheMap, activePortfolioId);
       const nextProviderEvents = [
