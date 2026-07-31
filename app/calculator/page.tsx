@@ -3,8 +3,8 @@ import { Suspense } from "react";
 import CalculatorPage from "@/components/calculator/CalculatorPage";
 
 export const metadata: Metadata = {
-  title: "티커MDD 계산기",
-  description: "티커별 일봉 기반 최대 낙폭과 회복기간을 계산합니다.",
+  title: "금융 계산기",
+  description: "티커 MDD, 종목 및 포트폴리오 성과 비교 등 금융 계산기를 제공합니다.",
 };
 
 export default function Page() {

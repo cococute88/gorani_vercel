@@ -1,52 +1,37 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import TopNav from "@/components/TopNav";
 import StorageModeBadge from "@/components/common/StorageModeBadge";
 import DividendCaptureSimulator from "./DividendCaptureSimulator";
 import ConversionCalculator from "./ConversionCalculator";
 import MddCalculator from "./MddCalculator";
 import StockCompareCalculator from "./stock-compare/StockCompareCalculator";
+import PortfolioCompareCalculator from "./portfolio-compare/PortfolioCompareCalculator";
 import { defaultConversionInput } from "@/lib/conversion-calculator";
 import { defaultDividendCaptureInput } from "@/lib/dividend-capture-calculator";
 import { defaultMddInput } from "@/lib/mdd-calculator";
 import type { ConversionInput, DividendCaptureInput, MddInput } from "@/lib/calculator-types";
 import { useResolvedTheme } from "@/components/theme/ThemeProvider";
+import { resolveCalculatorTab } from "@/lib/calculator-tabs";
 
 // PORTFOLIO-CALCULATOR-UX-FIX-2 #7: 원본 Streamlit 입력 흐름에 맞춰 입력칸을 간소화하고
 // 프리셋 저장/선택/불러오기 UI는 메인 화면에서 제거했다.
 const tabs = [
   { key: "mdd", label: "티커MDD 계산기" },
   { key: "compare", label: "종목 성과 비교" },
+  { key: "portfolio-compare", label: "포트폴리오 성과 비교" },
   { key: "capture", label: "배당치기 시뮬" },
   { key: "conversion", label: "매도전환 계산기" },
 ] as const;
 
-type TabKey = (typeof tabs)[number]["key"];
-
-// 상단 nav 계산기 submenu 는 /calculator?tab=... 로 이동한다.
-// URL tab 값을 내부 탭 key 로 매핑한다.
-const TAB_PARAM_MAP: Record<string, TabKey> = {
-  "dividend-capture": "capture",
-  capture: "capture",
-  conversion: "conversion",
-  mdd: "mdd",
-  compare: "compare",
-};
-
 export default function CalculatorPage() {
   const theme = useResolvedTheme();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab");
-  const initialTab = (tabParam && TAB_PARAM_MAP[tabParam]) || "mdd";
-  const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
-
-  // 이미 계산기 페이지에 있을 때 submenu 로 다른 탭을 누르면 URL 만 바뀌므로
-  // searchParams 변화에 맞춰 활성 탭을 갱신한다.
-  useEffect(() => {
-    if (tabParam && TAB_PARAM_MAP[tabParam]) setActiveTab(TAB_PARAM_MAP[tabParam]);
-  }, [tabParam]);
+  const activeTab = resolveCalculatorTab(tabParam);
   const [captureInput, setCaptureInput] = useState<DividendCaptureInput>(defaultDividendCaptureInput);
   const [conversionInput, setConversionInput] = useState<ConversionInput>(defaultConversionInput);
   const [mddInput, setMddInput] = useState<MddInput>(defaultMddInput);
@@ -70,7 +55,9 @@ export default function CalculatorPage() {
             <button
               key={tab.key}
               type="button"
-              onClick={() => setActiveTab(tab.key)}
+              onClick={() => {
+                router.push(`/calculator?tab=${tab.key}`, { scroll: false });
+              }}
               className={`shrink-0 rounded-xl px-3 py-2 text-[12.5px] font-bold transition-colors sm:px-4 sm:text-[13px] ${
                 activeTab === tab.key
                   ? "bg-blue-600 text-white shadow-lg shadow-blue-950/20"
@@ -86,6 +73,7 @@ export default function CalculatorPage() {
         {activeTab === "conversion" && <ConversionCalculator input={conversionInput} onChange={setConversionInput} />}
         {activeTab === "mdd" && <MddCalculator input={mddInput} onChange={setMddInput} />}
         {activeTab === "compare" && <StockCompareCalculator />}
+        {activeTab === "portfolio-compare" && <PortfolioCompareCalculator />}
       </main>
     </div>
   );
