@@ -23,6 +23,7 @@ export const PORTFOLIO_ROLLING_MONTHS = [12, 36, 60, 120, 180, 240, 360] as cons
 type LevelPoint = { date: string; level: number };
 type AssetPathPoint = { date: string; level: number; virtual: boolean };
 type ConversionRequest = Pick<PortfolioCompareRequest, "returnMode" | "baseCurrency">;
+type ActiveTimeline = { dates: string[]; mixedMarket: boolean };
 
 export function portfolioSeriesKey(market: "US" | "KR", ticker: string): string {
   return `${market}:${normalizePortfolioTicker(ticker, market)}`;
@@ -160,7 +161,9 @@ function buildAssetPath(args: {
   const actualStart = actualLevels[0]?.date;
   if (!actualStart) throw new Error(`${holding.ticker}의 실제 시계열이 없습니다.`);
 
-  const useVirtual = request.analysisMode === "virtual" && holding.virtual?.enabled;
+  const useVirtual = request.analysisMode === "virtual"
+    && holding.virtual?.enabled
+    && timeline.some((date) => date >= availabilityStart && date < actualStart);
   if (!useVirtual) {
     return timeline.flatMap((date) => {
       const current = asOf(actualLevels, date);
@@ -274,7 +277,8 @@ function computeMetrics(
       totalReturnPct: null, cagrPct: null, mddPct: null, volatilityPct: null,
       sharpe: null, sortino: null, calmar: null, bestYearPct: null, worstYearPct: null,
       positiveYears: 0, negativeYears: 0, observationCount: Math.max(0, points.length - 1),
-      elapsedYears: null, periodsPerYear: null, drawdown: drawdownDetails(points),
+      elapsedYears: null, periodsPerYear: null, mixedMarket: useObservedPeriodsPerYear,
+      drawdown: drawdownDetails(points),
     };
   }
   const first = points[0];
@@ -302,38 +306,48 @@ function computeMetrics(
     observationCount: returns.length,
     elapsedYears: round(years, 6),
     periodsPerYear: round(periodsPerYear, 6),
+    mixedMarket: useObservedPeriodsPerYear,
     drawdown: drawdownDetails(points),
   };
 }
 
-function portfolioObservationDates(args: {
+function buildActiveTimeline(args: {
   holdings: PortfolioHoldingInput[];
   request: PortfolioCompareRequest;
   levelsByKey: Map<string, LevelPoint[]>;
   availabilityById: Map<string, string>;
   commonStart: string;
   endDate: string;
-}): { dates: Set<string>; mixedMarket: boolean } {
-  const dates = new Set<string>([args.commonStart, args.endDate]);
+}): ActiveTimeline {
+  const dates = new Set<string>();
   const markets = new Set<"US" | "KR">();
   for (const holding of args.holdings) {
-    markets.add(holding.market);
     const actual = args.levelsByKey.get(portfolioSeriesKey(holding.market, holding.ticker)) ?? [];
+    let actualUsed = false;
     for (const point of actual) {
-      if (point.date >= args.commonStart && point.date <= args.endDate) dates.add(point.date);
-    }
-    if (args.request.analysisMode !== "virtual" || !holding.virtual?.enabled) continue;
-    const actualStart = actual[0]?.date ?? args.endDate;
-    const virtualStart = args.availabilityById.get(holding.id) ?? args.commonStart;
-    for (const proxy of holding.virtual.proxies) {
-      markets.add(proxy.market);
-      const levels = args.levelsByKey.get(portfolioSeriesKey(proxy.market, proxy.ticker)) ?? [];
-      for (const point of levels) {
-        if (point.date >= virtualStart && point.date < actualStart && point.date >= args.commonStart) dates.add(point.date);
+      if (point.date >= args.commonStart && point.date <= args.endDate) {
+        dates.add(point.date);
+        actualUsed = true;
       }
     }
+    if (actualUsed) markets.add(holding.market);
+    if (args.request.analysisMode !== "virtual" || !holding.virtual?.enabled) continue;
+    const actualStart = actual[0]?.date ?? args.endDate;
+    const virtualStart = [args.commonStart, args.availabilityById.get(holding.id) ?? args.commonStart].sort().at(-1)!;
+    if (virtualStart >= actualStart || virtualStart > args.endDate) continue;
+    for (const proxy of holding.virtual.proxies) {
+      const levels = args.levelsByKey.get(portfolioSeriesKey(proxy.market, proxy.ticker)) ?? [];
+      let proxyUsed = false;
+      for (const point of levels) {
+        if (point.date >= virtualStart && point.date < actualStart && point.date <= args.endDate) {
+          dates.add(point.date);
+          proxyUsed = true;
+        }
+      }
+      if (proxyUsed) markets.add(proxy.market);
+    }
   }
-  return { dates, mixedMarket: markets.size > 1 };
+  return { dates: Array.from(dates).sort(), mixedMarket: markets.size > 1 };
 }
 
 function buildPortfolioResult(args: {
@@ -346,6 +360,7 @@ function buildPortfolioResult(args: {
   commonStart: string;
   endDate: string;
   availabilityById: Map<string, string>;
+  mixedMarket: boolean;
 }): PortfolioResult {
   const paths = new Map<string, AssetPathPoint[]>();
   const pathMaps = new Map<string, Map<string, AssetPathPoint>>();
@@ -414,14 +429,12 @@ function buildPortfolioResult(args: {
     };
   });
   const yearly = computeYearlyReturns(points);
-  const observations = portfolioObservationDates(args);
-  const metricPoints = points.filter((point) => observations.dates.has(point.date));
   return {
     name: args.name,
     points,
     holdings: holdingResults,
     yearly,
-    metrics: computeMetrics(metricPoints, yearly, observations.mixedMarket),
+    metrics: computeMetrics(points, yearly, args.mixedMarket),
   };
 }
 
@@ -523,32 +536,53 @@ export function computePortfolioComparison(args: {
     }
     availabilityById.set(holding.id, start);
   }
-  const commonStart = Array.from(availabilityById.values()).sort().at(-1)!;
-  const endDate = targetHoldings
+  const candidateStart = Array.from(availabilityById.values()).sort().at(-1)!;
+  const candidateEnd = targetHoldings
     .map((holding) => levelsByKey.get(portfolioSeriesKey(holding.market, holding.ticker))!.at(-1)!.date)
     .sort()[0];
-  if (!commonStart || !endDate || commonStart >= endDate) {
-    throw new Error(`공통 분석 기간이 없습니다. 시작일 ${commonStart || "없음"}, 종료일 ${endDate || "없음"}`);
+  if (!candidateStart || !candidateEnd || candidateStart >= candidateEnd) {
+    throw new Error(`공통 분석 기간이 없습니다. 시작일 ${candidateStart || "없음"}, 종료일 ${candidateEnd || "없음"}`);
   }
 
-  const dateSet = new Set<string>([commonStart, endDate]);
-  for (const levels of Array.from(levelsByKey.values())) {
-    for (const point of levels) if (point.date >= commonStart && point.date <= endDate) dateSet.add(point.date);
+  const preliminaryA = buildActiveTimeline({
+    holdings: args.request.portfolioA.holdings, request: args.request, levelsByKey, availabilityById,
+    commonStart: candidateStart, endDate: candidateEnd,
+  });
+  const preliminaryB = buildActiveTimeline({
+    holdings: args.request.portfolioB.holdings, request: args.request, levelsByKey, availabilityById,
+    commonStart: candidateStart, endDate: candidateEnd,
+  });
+  const commonStart = [...preliminaryA.dates, ...preliminaryB.dates].sort()[0];
+  const endDate = candidateEnd;
+  if (!commonStart || commonStart >= endDate) {
+    throw new Error(`공통 분석 기간의 유효 관측치가 부족합니다. 시작 후보 ${candidateStart}, 종료 후보 ${candidateEnd}`);
   }
-  const timeline = Array.from(dateSet).sort().filter((date) => date >= commonStart && date <= endDate);
-  if (timeline.length < 2) throw new Error("공통 분석 기간의 일별 관측치가 부족합니다.");
 
   const shared = {
     request: args.request,
     seriesByKey: args.seriesByKey,
     levelsByKey,
-    timeline,
     commonStart,
     endDate,
     availabilityById,
   };
-  const portfolioA = buildPortfolioResult({ ...shared, name: args.request.portfolioA.name, holdings: args.request.portfolioA.holdings });
-  const portfolioB = buildPortfolioResult({ ...shared, name: args.request.portfolioB.name, holdings: args.request.portfolioB.holdings });
+  const addCommonBoundaries = (timeline: ActiveTimeline): ActiveTimeline => ({
+    ...timeline,
+    dates: Array.from(new Set([commonStart, ...timeline.dates, endDate])).sort(),
+  });
+  const timelineA = addCommonBoundaries(buildActiveTimeline({ ...shared, holdings: args.request.portfolioA.holdings }));
+  const timelineB = addCommonBoundaries(buildActiveTimeline({ ...shared, holdings: args.request.portfolioB.holdings }));
+  if (timelineA.dates.length < 2 || timelineB.dates.length < 2) {
+    throw new Error("공통 분석 기간의 일별 관측치가 부족합니다.");
+  }
+  const portfolioA = buildPortfolioResult({
+    ...shared, name: args.request.portfolioA.name, holdings: args.request.portfolioA.holdings,
+    timeline: timelineA.dates, mixedMarket: timelineA.mixedMarket,
+  });
+  const portfolioB = buildPortfolioResult({
+    ...shared, name: args.request.portfolioB.name, holdings: args.request.portfolioB.holdings,
+    timeline: timelineB.dates, mixedMarket: timelineB.mixedMarket,
+  });
   const warnings = dedupePortfolioWarnings([
     ...Array.from(args.seriesByKey.values()).flatMap((series) => series.warnings.map((warning) => `${series.resolvedSymbol}: ${warning}`)),
     ...(args.fxSeries?.warnings ?? []).map((warning) => `${args.fxSeries?.resolvedSymbol ?? "KRW=X"}: ${warning}`),

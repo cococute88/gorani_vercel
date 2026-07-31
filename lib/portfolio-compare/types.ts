@@ -98,6 +98,7 @@ export type PortfolioMetrics = {
   observationCount: number;
   elapsedYears: number | null;
   periodsPerYear: number | null;
+  mixedMarket: boolean;
   drawdown: DrawdownDetails;
 };
 

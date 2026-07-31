@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { performance } from "node:perf_hooks";
+import { computeBacktestRiskMetrics } from "../lib/backtest-risk-metrics.ts";
 import {
   computePortfolioComparison,
   computeYearlyReturns,
@@ -77,6 +79,20 @@ function mapOf(...rows: ResolvedMarketSeries[]): Map<string, ResolvedMarketSerie
   return new Map(rows.map((row) => [portfolioSeriesKey(row.market, row.requestedTicker), row]));
 }
 
+function riskSnapshot(points: Array<{ date: string; value: number }>, periodsPerYear: number) {
+  const returns = points.slice(1).map((point, index) => point.value / points[index].value - 1);
+  const mean = returns.reduce((sum, value) => sum + value, 0) / returns.length;
+  const variance = returns.reduce((sum, value) => sum + (value - mean) ** 2, 0) / returns.length;
+  const risk = computeBacktestRiskMetrics(points.map((point) => point.value), periodsPerYear);
+  return {
+    periodsPerYear: Number(periodsPerYear.toFixed(6)),
+    volatility: Number((Math.sqrt(variance) * Math.sqrt(periodsPerYear) * 100).toFixed(2)),
+    sharpe: risk.sharpe == null ? null : Number(risk.sharpe.toFixed(2)),
+    sortino: risk.sortino == null ? null : Number(risk.sortino.toFixed(2)),
+    calmar: risk.calmar == null ? null : Number(risk.calmar.toFixed(2)),
+  };
+}
+
 const validationRequest = request(
   [holding("a1", "SPY", 60), holding("a2", "spy", 30)],
   [holding("b1", "QQQ", Number.NaN)],
@@ -145,6 +161,139 @@ assert.ok(Math.abs(boundaryBefore - boundaryAfter) < 1e-10, "Virtual 연결 경�
 assert.equal(virtual.portfolioA.points[transitionIndex - 1].virtual, true);
 assert.equal(virtual.portfolioA.points[transitionIndex].virtual, false);
 assert.ok(virtual.portfolioA.points.slice(transitionIndex).every((point) => !point.virtual), "실제 시작 후 프록시 미사용");
+
+// 비활성 프록시 거래일은 차트·연도·Rolling·위험지표의 공통 입력이 될 수 없다.
+const inactiveProxyDates = weekdays("2019-01-02", 800);
+const inactiveActualStart = inactiveProxyDates[100];
+const inactiveActualDates = inactiveProxyDates
+  .slice(100)
+  .filter((_date, index) => index % 17 !== 5);
+const inactiveActual = series({
+  ticker: "INACTIVE-TARGET",
+  dates: inactiveActualDates,
+  close: (index) => 80 * Math.exp(index * 0.0003 + Math.sin(index / 13) * 0.05),
+  currency: "USD",
+});
+const inactiveKrProxy = series({
+  ticker: "111111",
+  market: "KR",
+  dates: inactiveProxyDates,
+  close: (index) => 100 * Math.exp(index * 0.0002 + Math.sin(index / 11) * 0.04),
+  currency: "USD",
+});
+const activeVirtualHolding = (id: string): PortfolioHoldingInput => ({
+  id,
+  market: "US",
+  ticker: "INACTIVE-TARGET",
+  weightPct: 100,
+  virtual: {
+    enabled: true,
+    startDate: inactiveProxyDates[0],
+    proxies: [{ id: `${id}-proxy`, market: "KR", ticker: "111111", weightPct: 100 }],
+  },
+});
+const activeProxyResult = computePortfolioComparison({
+  request: request([activeVirtualHolding("active-a")], [activeVirtualHolding("active-b")], { analysisMode: "virtual" }),
+  seriesByKey: mapOf(inactiveActual, inactiveKrProxy),
+});
+const truncatedKrProxy = series({
+  ticker: "111111",
+  market: "KR",
+  dates: inactiveProxyDates.filter((date) => date < inactiveActualStart),
+  close: (index) => 100 * Math.exp(index * 0.0002 + Math.sin(index / 11) * 0.04),
+  currency: "USD",
+});
+const activeProxyBaseline = computePortfolioComparison({
+  request: request([activeVirtualHolding("active-a")], [activeVirtualHolding("active-b")], { analysisMode: "virtual" }),
+  seriesByKey: mapOf(inactiveActual, truncatedKrProxy),
+});
+const inactiveActualDateSet = new Set(inactiveActualDates);
+const postTransitionProxyOnly = inactiveProxyDates.filter((date) => (
+  date >= inactiveActualStart
+  && date <= inactiveActualDates.at(-1)!
+  && !inactiveActualDateSet.has(date)
+));
+const legacyActivePointCount = new Set([
+  ...inactiveProxyDates.filter((date) => date <= inactiveActualDates.at(-1)!),
+  ...inactiveActualDates,
+]).size;
+const activePointByDate = new Map(activeProxyResult.portfolioA.points.map((point) => [point.date, point]));
+let legacyCurrentPoint = activeProxyResult.portfolioA.points[0];
+const legacyActivePoints = inactiveProxyDates
+  .filter((date) => date >= activeProxyResult.commonStart && date <= activeProxyResult.endDate)
+  .map((date) => {
+    legacyCurrentPoint = activePointByDate.get(date) ?? legacyCurrentPoint;
+    return { date, value: legacyCurrentPoint.value };
+  });
+const legacyActiveYears = (
+  new Date(`${legacyActivePoints.at(-1)!.date}T00:00:00Z`).getTime()
+  - new Date(`${legacyActivePoints[0].date}T00:00:00Z`).getTime()
+) / (365.2425 * 24 * 60 * 60 * 1000);
+const legacyActiveRisk = riskSnapshot(legacyActivePoints, (legacyActivePoints.length - 1) / legacyActiveYears);
+assert.ok(postTransitionProxyOnly.length > 0, "전환 후 프록시 전용 거래일 fixture 존재");
+assert.equal(activeProxyResult.portfolioA.points.some((point) => postTransitionProxyOnly.includes(point.date)), false, "전환 후 프록시 전용 날짜 제외");
+assert.deepEqual(activeProxyResult.portfolioA.points, activeProxyBaseline.portfolioA.points, "비활성 프록시 날짜 제거 후 차트 경로 동등");
+assert.deepEqual(activeProxyResult.portfolioA.yearly, activeProxyBaseline.portfolioA.yearly, "연도별 수익률 불변");
+assert.deepEqual(activeProxyResult.rolling, activeProxyBaseline.rolling, "Rolling 결과 불변");
+assert.deepEqual(activeProxyResult.portfolioA.metrics, activeProxyBaseline.portfolioA.metrics, "위험지표 불변");
+assert.equal(activeProxyResult.portfolioA.metrics.mixedMarket, true, "분석기간 중 한국 프록시 사용 시 혼합시장");
+const activeTransitionIndex = activeProxyResult.portfolioA.points.findIndex((point) => point.date === inactiveActualStart);
+assert.ok(activeTransitionIndex > 0, "활성 Virtual→실제 전환점 존재");
+assert.ok(Math.abs(activeProxyResult.portfolioA.points[activeTransitionIndex - 1].value - activeProxyResult.portfolioA.points[activeTransitionIndex].value) < 1e-10, "활성 프록시 경계 연속성");
+
+// Virtual 구간이 공통 시작일 전에 끝났다면 설정에 남은 한국 프록시는 시장·날짜에 영향을 주지 않는다.
+const lateActualDates = inactiveActualDates.filter((date) => date >= inactiveProxyDates[300]);
+const lateActual = series({
+  ticker: "LATE-US",
+  dates: lateActualDates,
+  close: (index) => 120 * Math.exp(index * 0.0002 + Math.sin(index / 19) * 0.03),
+  currency: "USD",
+});
+const inactiveBeforeCommonHolding = (id: string, enabled: boolean): PortfolioHoldingInput => ({
+  ...activeVirtualHolding(id),
+  weightPct: 50,
+  virtual: { ...activeVirtualHolding(id).virtual!, enabled },
+});
+const lateHolding = (id: string): PortfolioHoldingInput => holding(id, "LATE-US", 50);
+const inactiveBeforeCommon = computePortfolioComparison({
+  request: request(
+    [inactiveBeforeCommonHolding("inactive-a", true), lateHolding("late-a")],
+    [inactiveBeforeCommonHolding("inactive-b", true), lateHolding("late-b")],
+    { analysisMode: "virtual" },
+  ),
+  seriesByKey: mapOf(inactiveActual, inactiveKrProxy, lateActual),
+});
+const removedInactiveProxy = computePortfolioComparison({
+  request: request(
+    [holding("inactive-a", "INACTIVE-TARGET", 50), lateHolding("late-a")],
+    [holding("inactive-b", "INACTIVE-TARGET", 50), lateHolding("late-b")],
+    { analysisMode: "virtual" },
+  ),
+  seriesByKey: mapOf(inactiveActual, lateActual),
+});
+const disabledInactiveProxy = computePortfolioComparison({
+  request: request(
+    [inactiveBeforeCommonHolding("inactive-a", false), lateHolding("late-a")],
+    [inactiveBeforeCommonHolding("inactive-b", false), lateHolding("late-b")],
+    { analysisMode: "virtual" },
+  ),
+  seriesByKey: mapOf(inactiveActual, inactiveKrProxy, lateActual),
+});
+assert.equal(inactiveBeforeCommon.portfolioA.metrics.mixedMarket, false, "commonStart 전에 끝난 한국 프록시는 혼합시장 제외");
+assert.equal(inactiveBeforeCommon.portfolioA.metrics.periodsPerYear, 252, "비활성 프록시만 남은 미국 경로는 252 유지");
+assert.deepEqual(inactiveBeforeCommon.portfolioA.points, removedInactiveProxy.portfolioA.points, "비활성 프록시 제거 결과와 가치 경로 동등");
+assert.deepEqual(inactiveBeforeCommon.portfolioA.yearly, removedInactiveProxy.portfolioA.yearly, "비활성 프록시 제거 결과와 연도별 동등");
+assert.deepEqual(inactiveBeforeCommon.rolling, removedInactiveProxy.rolling, "비활성 프록시 제거 결과와 Rolling 동등");
+assert.deepEqual(inactiveBeforeCommon.portfolioA.metrics, removedInactiveProxy.portfolioA.metrics, "비활성 프록시 제거 결과와 위험지표 동등");
+assert.deepEqual(disabledInactiveProxy.portfolioA.points, removedInactiveProxy.portfolioA.points, "disabled 프록시 날짜 미포함");
+const legacyInactivePeriods = inactiveBeforeCommon.portfolioA.metrics.observationCount / inactiveBeforeCommon.portfolioA.metrics.elapsedYears!;
+const legacyInactiveRisk = riskSnapshot(inactiveBeforeCommon.portfolioA.points, legacyInactivePeriods);
+
+// Outdated P2 두 건도 현재 구현에서 재활성화·직전 연말 기준 계약을 유지한다.
+const calculatorSource = readFileSync(new URL("../components/calculator/portfolio-compare/PortfolioCompareCalculator.tsx", import.meta.url), "utf8");
+assert.match(calculatorSource, /virtual:\s*enabled\s*\?\s*\{\s*enabled:\s*true,\s*startDate:\s*""/, "Virtual 재활성화 시 enabled true");
+assert.match(calculatorSource, /holding\.virtual\?\.enabled && \(/, "재활성화된 프록시 UI 표시");
+assert.match(calculatorSource, /filter\(\(holding\) => holding\.virtual\?\.enabled\)/, "재활성화 시 자동 시작일 lookup 재실행");
 
 const trPrDates = weekdays("2022-01-03", 300);
 const dividendAsset = series({ ticker: "DIV", dates: trPrDates, close: (i) => 100 + i * 0.02, adj: (i) => 100 + i * 0.05 });
@@ -341,6 +490,46 @@ console.log(JSON.stringify({
       sortino: mixedRisk.sortino,
       calmar: mixedRisk.calmar,
     },
+  },
+  inactiveProxyTimeline: {
+    activeInterval: {
+      legacyPointCount: legacyActivePointCount,
+      activePointCount: activeProxyResult.portfolioA.points.length,
+      postTransitionProxyOnlyBefore: postTransitionProxyOnly.length,
+      postTransitionProxyOnlyAfter: activeProxyResult.portfolioA.points.filter((point) => postTransitionProxyOnly.includes(point.date)).length,
+      legacyRisk: legacyActiveRisk,
+      activeRisk: {
+        periodsPerYear: activeProxyResult.portfolioA.metrics.periodsPerYear,
+        volatility: activeProxyResult.portfolioA.metrics.volatilityPct,
+        sharpe: activeProxyResult.portfolioA.metrics.sharpe,
+        sortino: activeProxyResult.portfolioA.metrics.sortino,
+        calmar: activeProxyResult.portfolioA.metrics.calmar,
+      },
+      mixedMarket: activeProxyResult.portfolioA.metrics.mixedMarket,
+      periodsPerYear: activeProxyResult.portfolioA.metrics.periodsPerYear,
+      volatility: activeProxyResult.portfolioA.metrics.volatilityPct,
+      sharpe: activeProxyResult.portfolioA.metrics.sharpe,
+      sortino: activeProxyResult.portfolioA.metrics.sortino,
+      calmar: activeProxyResult.portfolioA.metrics.calmar,
+      yearly: activeProxyResult.portfolioA.yearly,
+      rolling1Y: activeProxyResult.rolling.find((row) => row.months === 12)?.observations,
+    },
+    endedBeforeCommonStart: {
+      legacyMixedMarket: true,
+      activeMixedMarket: inactiveBeforeCommon.portfolioA.metrics.mixedMarket,
+      legacyRisk: legacyInactiveRisk,
+      activeRisk: {
+        periodsPerYear: inactiveBeforeCommon.portfolioA.metrics.periodsPerYear,
+        volatility: inactiveBeforeCommon.portfolioA.metrics.volatilityPct,
+        sharpe: inactiveBeforeCommon.portfolioA.metrics.sharpe,
+        sortino: inactiveBeforeCommon.portfolioA.metrics.sortino,
+        calmar: inactiveBeforeCommon.portfolioA.metrics.calmar,
+      },
+      pointCount: inactiveBeforeCommon.portfolioA.points.length,
+      rolling1Y: inactiveBeforeCommon.rolling.find((row) => row.months === 12)?.observations,
+    },
+    disabledProxyMatchesRemoved: true,
+    reactivation: { enabled: true, proxyUi: true, autoLookup: true },
   },
   virtualAutoStart: {
     spy: spyOnlyStart.autoStart,
