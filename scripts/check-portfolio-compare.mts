@@ -276,7 +276,9 @@ for (const [tab, expected] of [
   [null, "mdd"], ["mdd", "mdd"], ["compare", "compare"], ["portfolio-compare", "portfolio-compare"],
   ["dividend-capture", "capture"], ["capture", "capture"], ["conversion", "conversion"], ["invalid", "mdd"],
 ] as const) assert.equal(resolveCalculatorTab(tab), expected, `URL tab ${tab ?? "없음"}`);
-assert.deepEqual(dedupePortfolioWarnings(["SPY: 경고", "SPY: 경고", "005930.KS: 긴 한글 데이터 경고입니다."]), ["SPY: 경고", "005930.KS: 긴 한글 데이터 경고입니다."]);
+assert.deepEqual(dedupePortfolioWarnings([]), [], "warning 0개는 표시 대상 없음");
+assert.deepEqual(dedupePortfolioWarnings(["SPY: 단일 경고"]), ["SPY: 단일 경고"], "단일 warning 유지");
+assert.deepEqual(dedupePortfolioWarnings(["SPY: 경고", "SPY: 경고", "005930.KS: 긴 한글 데이터 경고입니다."]), ["SPY: 경고", "005930.KS: 긴 한글 데이터 경고입니다."], "중복 제거·여러 심볼·긴 한글 warning 유지");
 
 const longDates = weekdays("1986-01-02", 10_500);
 const longA = series({ ticker: "LONGA", dates: longDates, close: (i) => 100 * Math.pow(1.00025, i) });
