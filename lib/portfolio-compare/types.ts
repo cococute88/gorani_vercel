@@ -95,6 +95,9 @@ export type PortfolioMetrics = {
   worstYearPct: number | null;
   positiveYears: number;
   negativeYears: number;
+  observationCount: number;
+  elapsedYears: number | null;
+  periodsPerYear: number | null;
   drawdown: DrawdownDetails;
 };
 

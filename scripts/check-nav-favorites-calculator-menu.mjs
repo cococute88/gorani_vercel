@@ -10,6 +10,7 @@ const navFavorites = read("lib/nav-favorites.ts");
 const repos = read("lib/firebase/firestore-repositories.ts");
 const storageKeys = read("lib/storage-keys.ts");
 const calcPage = read("components/calculator/CalculatorPage.tsx");
+const calculatorTabs = read("lib/calculator-tabs.ts");
 const simPage = read("components/asset-simulator/AssetSimulatorPage.tsx");
 const pkg = JSON.parse(read("package.json"));
 
@@ -57,7 +58,10 @@ assert.match(calcMenu, /tab: "mdd"/, "MDD maps to mdd tab");
 
 // CalculatorPage 가 tab query 를 읽어 탭을 연다
 assert.match(calcPage, /useSearchParams/, "CalculatorPage reads tab query via useSearchParams");
-assert.match(calcPage, /TAB_PARAM_MAP/, "CalculatorPage maps tab query values to tab keys");
+assert.match(calcPage, /resolveCalculatorTab\(tabParam\)/, "CalculatorPage derives active tab from the current URL");
+assert.match(calculatorTabs, /CALCULATOR_TAB_PARAM_MAP/, "Calculator tab query mapping is centralized");
+assert.match(calculatorTabs, /if \(!tabParam\) return "mdd"/, "Missing tab returns MDD");
+assert.match(calculatorTabs, /\?\? "mdd"/, "Invalid tab returns MDD");
 
 // 6. submenu 가 hover/click/focus 중 최소 click 으로 동작
 assert.match(calcMenu, /onClick=\{\(\) => setOpen\(!open\)\}/, "Calculator submenu toggles on click");

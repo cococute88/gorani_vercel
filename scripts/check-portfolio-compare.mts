@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 import { performance } from "node:perf_hooks";
-import { computePortfolioComparison, portfolioSeriesKey } from "../lib/portfolio-compare/engine.ts";
+import {
+  computePortfolioComparison,
+  computeYearlyReturns,
+  dedupePortfolioWarnings,
+  portfolioSeriesKey,
+} from "../lib/portfolio-compare/engine.ts";
+import { resolveVirtualProxyStarts } from "../lib/portfolio-compare/service.ts";
+import { portfolioRequestHash, resolveAnalysisUiState, shouldApplyAnalysisResult } from "../lib/portfolio-compare/request-state.ts";
+import { resolveCalculatorTab } from "../lib/calculator-tabs.ts";
 import type {
   PortfolioCompareRequest,
   PortfolioHoldingInput,
@@ -165,6 +173,111 @@ assert.ok(Math.abs(krwBased.portfolioA.metrics.totalReturnPct! - 21) < 0.02, "KR
 assert.ok(Math.abs(usdBased.portfolioA.metrics.totalReturnPct! - 10) < 0.02, "USD 자산은 USD 기준 환율 미반영");
 assert.ok(usdBased.portfolioB.points.length > 80, "한미 휴장일 차이는 직전 평가값으로 정렬");
 
+const yearlyFixture = computeYearlyReturns([
+  { date: "2024-12-31", value: 100, virtual: true },
+  { date: "2025-01-02", value: 120, virtual: false },
+  { date: "2025-12-31", value: 132, virtual: false },
+]);
+assert.equal(yearlyFixture.find((row) => row.year === 2025)?.returnPct, 32, "새해 첫 거래일 이전 수익률 포함");
+assert.equal(yearlyFixture.find((row) => row.year === 2024), undefined, "한 점뿐인 연도는 데이터 부족");
+assert.equal(yearlyFixture.find((row) => row.year === 2025)?.partial, false, "완전한 연도 표시");
+const partialYearFixture = computeYearlyReturns([
+  { date: "2023-06-01", value: 100, virtual: true },
+  { date: "2023-12-29", value: 110, virtual: true },
+  { date: "2024-01-02", value: 111, virtual: false },
+  { date: "2024-08-30", value: 121, virtual: false },
+]);
+assert.equal(partialYearFixture[0].partial, true, "최초 부분 연도 표시");
+assert.equal(partialYearFixture[0].includesVirtual, true, "Virtual 포함 연도 표시");
+assert.equal(partialYearFixture[1].partial, true, "최종 부분 연도 표시");
+
+const unionDates = weekdays("2021-01-04", 900);
+const economicDates = unionDates.filter((_date, index) => index % 30 !== 29);
+const economicLevel = (date: string) => {
+  let index = 0;
+  while (index + 1 < economicDates.length && economicDates[index + 1] <= date) index += 1;
+  return 100 * Math.exp(index * 0.00035 + Math.sin(index / 17) * 0.08);
+};
+const economicUs = series({ ticker: "ECON-US", dates: economicDates, close: (index) => economicLevel(economicDates[index]), currency: "USD" });
+const economicKr = series({ ticker: "123456", market: "KR", dates: unionDates, close: (index) => economicLevel(unionDates[index]), currency: "USD" });
+const annualization = computePortfolioComparison({
+  request: request(
+    [holding("a1", "ECON-US", 100)],
+    [holding("b1", "ECON-US", 50), holding("b2", "123456", 50, "KR")],
+  ),
+  seriesByKey: mapOf(economicUs, economicKr),
+});
+const singleRisk = annualization.portfolioA.metrics;
+const mixedRisk = annualization.portfolioB.metrics;
+assert.equal(singleRisk.periodsPerYear, 252, "단일시장 252 계약");
+assert.ok(mixedRisk.periodsPerYear! > 252, "혼합시장 합집합 관측 밀도 적용");
+for (const key of ["volatilityPct", "sharpe", "sortino", "calmar"] as const) {
+  assert.ok(Math.abs(singleRisk[key]! - mixedRisk[key]!) < 0.08, `${key} carry-forward 연율화 동등성: ${singleRisk[key]} vs ${mixedRisk[key]}`);
+}
+assert.equal(singleRisk.mddPct, mixedRisk.mddPct, "MDD 연율화 무관");
+
+const proxySpyDates = weekdays("1993-01-29", 6_300);
+const proxyDivoDates = weekdays("2016-12-14", 1_900);
+const proxySpy = series({ ticker: "SPY-AUTO", dates: proxySpyDates, close: (index) => 100 + index * 0.02 });
+const proxyDivo = series({ ticker: "DIVO", dates: proxyDivoDates, close: (index) => 50 + index * 0.02 });
+const proxyRows = [
+  { id: "divo", market: "US" as const, ticker: "DIVO", weightPct: 70 },
+  { id: "spy", market: "US" as const, ticker: "SPY-AUTO", weightPct: 30 },
+];
+const autoLoader = async (ticker: string) => {
+  if (ticker === "DIVO") return proxyDivo;
+  if (ticker === "SPY-AUTO") return proxySpy;
+  throw new Error("fixture lookup failed");
+};
+const proxyStart = await resolveVirtualProxyStarts(proxyRows, "tr", "USD", autoLoader);
+assert.equal(proxyStart.proxies.find((row) => row.requestedTicker === "SPY-AUTO")?.usableStart, "1993-01-29");
+assert.equal(proxyStart.proxies.find((row) => row.requestedTicker === "DIVO")?.usableStart, "2016-12-14");
+assert.equal(proxyStart.autoStart, "2016-12-14", "프록시 공통 시작일은 가장 늦은 실제 시작일");
+const spyOnlyStart = await resolveVirtualProxyStarts([proxyRows[1]], "tr", "USD", autoLoader);
+assert.equal(spyOnlyStart.autoStart, "1993-01-29", "가장 늦은 프록시 삭제 시 자동 시작일 앞당김");
+const manuallySelected = "2018-01-02";
+assert.equal(manuallySelected >= proxyStart.autoStart!, true, "자동 시작일보다 늦은 사용자 날짜 보존");
+const clampedSelected = manuallySelected < "2020-01-02" ? "2020-01-02" : manuallySelected;
+assert.equal(clampedSelected, "2020-01-02", "더 늦은 프록시 추가 시 사용자 날짜 보정");
+const proxyFailure = await resolveVirtualProxyStarts([{ id: "bad", market: "US", ticker: "BAD", weightPct: 100 }], "tr", "USD", autoLoader);
+assert.equal(proxyFailure.autoStart, null, "프록시 실패 시 임의 시작일 금지");
+assert.match(proxyFailure.proxies[0].error!, /fixture lookup failed/);
+const modeDates = weekdays("2020-01-02", 100);
+const modeSeries = series({ ticker: "MODE", dates: modeDates, close: (index) => 100 + index, adj: (index) => index === 0 ? null : 100 + index });
+const modeLoader = async () => modeSeries;
+const trStart = await resolveVirtualProxyStarts([{ id: "mode", market: "US", ticker: "MODE", weightPct: 100 }], "tr", "USD", modeLoader);
+const prStart = await resolveVirtualProxyStarts([{ id: "mode", market: "US", ticker: "MODE", weightPct: 100 }], "pr", "USD", modeLoader);
+assert.equal(trStart.autoStart, modeDates[1], "TR 유효 조정종가 시작일");
+assert.equal(prStart.autoStart, modeDates[0], "PR 유효 종가 시작일");
+const fxStartDates = modeDates.slice(10);
+const startFx = series({ ticker: "KRW=X", dates: fxStartDates, currency: "KRW", close: () => 1_300 });
+const fxStartLoader = async (ticker: string) => ticker === "KRW=X" ? startFx : modeSeries;
+const convertedStart = await resolveVirtualProxyStarts([{ id: "mode", market: "US", ticker: "MODE", weightPct: 100 }], "pr", "KRW", fxStartLoader);
+assert.equal(convertedStart.autoStart, fxStartDates[0], "환산 가능한 실제 첫 날짜 반영");
+const mixedProxyKr = series({ ticker: "005930", market: "KR", dates: modeDates.slice(5), close: (index) => 70_000 + index });
+const mixedProxyLoader = async (ticker: string) => ticker === "KRW=X" ? startFx : ticker === "005930" ? mixedProxyKr : modeSeries;
+const mixedProxyStart = await resolveVirtualProxyStarts([
+  { id: "us", market: "US", ticker: "MODE", weightPct: 50 },
+  { id: "kr", market: "KR", ticker: "005930", weightPct: 50 },
+], "pr", "USD", mixedProxyLoader);
+assert.equal(mixedProxyStart.autoStart, fxStartDates[0], "미국·한국 프록시와 환율 공통 시작일");
+
+const stateRequest = request([holding("a1", "SPY", 100)], [holding("b1", "QQQ", 100)]);
+const changedRequest = { ...stateRequest, returnMode: "pr" as const };
+assert.notEqual(portfolioRequestHash(stateRequest), portfolioRequestHash(changedRequest), "TR→PR request hash 변경");
+assert.equal(shouldApplyAnalysisResult({ startedSequence: 1, currentSequence: 2, startedHash: "A", currentHash: "B" }), false, "느린 A 및 stale 프록시 응답 차단");
+assert.equal(shouldApplyAnalysisResult({ startedSequence: 2, currentSequence: 2, startedHash: "B", currentHash: "B" }), true, "최신 B만 반영");
+assert.equal(resolveAnalysisUiState({ loading: false, hasResult: false, hasError: false, stale: true }), "stale");
+assert.equal(resolveAnalysisUiState({ loading: true, hasResult: false, hasError: false, stale: false }), "loading");
+assert.equal(resolveAnalysisUiState({ loading: false, hasResult: false, hasError: true, stale: false }), "error");
+assert.equal(resolveAnalysisUiState({ loading: false, hasResult: true, hasError: false, stale: false }), "success");
+
+for (const [tab, expected] of [
+  [null, "mdd"], ["mdd", "mdd"], ["compare", "compare"], ["portfolio-compare", "portfolio-compare"],
+  ["dividend-capture", "capture"], ["capture", "capture"], ["conversion", "conversion"], ["invalid", "mdd"],
+] as const) assert.equal(resolveCalculatorTab(tab), expected, `URL tab ${tab ?? "없음"}`);
+assert.deepEqual(dedupePortfolioWarnings(["SPY: 경고", "SPY: 경고", "005930.KS: 긴 한글 데이터 경고입니다."]), ["SPY: 경고", "005930.KS: 긴 한글 데이터 경고입니다."]);
+
 const longDates = weekdays("1986-01-02", 10_500);
 const longA = series({ ticker: "LONGA", dates: longDates, close: (i) => 100 * Math.pow(1.00025, i) });
 const longB = series({ ticker: "LONGB", dates: longDates, close: (i) => 100 * Math.pow(1.0002, i) });
@@ -206,6 +319,37 @@ console.log(JSON.stringify({
     usdUsdAssetReturnPct: usdBased.portfolioA.metrics.totalReturnPct,
     usdKrAssetReturnPct: usdBased.portfolioB.metrics.totalReturnPct,
   },
+  yearlyBoundary: { previousYearEnd: 100, newYearFirst: 120, newYearEnd: 132, oldPct: 10, correctedPct: yearlyFixture.find((row) => row.year === 2025)?.returnPct },
+  annualization: {
+    single: {
+      elapsedYears: singleRisk.elapsedYears,
+      observations: singleRisk.observationCount,
+      periodsPerYear: singleRisk.periodsPerYear,
+      volatility: singleRisk.volatilityPct,
+      sharpe: singleRisk.sharpe,
+      sortino: singleRisk.sortino,
+      calmar: singleRisk.calmar,
+    },
+    mixed: {
+      elapsedYears: mixedRisk.elapsedYears,
+      observations: mixedRisk.observationCount,
+      periodsPerYear: mixedRisk.periodsPerYear,
+      volatility: mixedRisk.volatilityPct,
+      sharpe: mixedRisk.sharpe,
+      sortino: mixedRisk.sortino,
+      calmar: mixedRisk.calmar,
+    },
+  },
+  virtualAutoStart: {
+    spy: spyOnlyStart.autoStart,
+    divo: proxyStart.proxies.find((row) => row.requestedTicker === "DIVO")?.usableStart,
+    divo70Spy30: proxyStart.autoStart,
+    afterLatestProxyDelete: spyOnlyStart.autoStart,
+    laterManualSelectionPreserved: manuallySelected,
+    staleResponseApplied: false,
+  },
+  requestState: { stale: "stale", slowAResultApplied: false, latestBResultApplied: true, errorRetryRecovery: "success" },
+  urlTabs: { missing: resolveCalculatorTab(null), invalid: resolveCalculatorTab("invalid"), portfolioCompare: resolveCalculatorTab("portfolio-compare") },
   rollingObservations: Object.fromEntries(longResult.rolling.map((row) => [`${row.months / 12}Y`, row.observations])),
   performanceMs: Number(performanceMs.toFixed(2)),
 }, null, 2));

@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Info, Plus, Trash2 } from "lucide-react";
 import TrPrToggle, { type TrPrMode } from "@/components/common/TrPrToggle";
 import { useResolvedTheme } from "@/components/theme/ThemeProvider";
@@ -11,7 +11,12 @@ import { computeRollingPointsMulti } from "@/lib/stock-compare/metrics";
 import { windowCompareSeries } from "@/lib/stock-compare/total-return";
 import type { ComparePeriodKey, CompareSeries } from "@/lib/stock-compare/types";
 import { PORTFOLIO_ROLLING_MONTHS } from "@/lib/portfolio-compare/engine";
-import { analyzePortfolioComparison } from "@/lib/portfolio-compare/service";
+import {
+  analyzePortfolioComparison,
+  resolveVirtualProxyStarts,
+  type VirtualProxyStartResolution,
+} from "@/lib/portfolio-compare/service";
+import { portfolioRequestHash, shouldApplyAnalysisResult } from "@/lib/portfolio-compare/request-state";
 import type {
   AnalysisMode,
   BaseCurrency,
@@ -33,6 +38,24 @@ const PerformanceChart = dynamic(() => import("@/components/calculator/stock-com
 const panel = "min-w-0 rounded-2xl border border-slate-200 bg-white p-4 dark:border-[#2a3336] dark:bg-[#191f20] sm:p-5";
 const inputClass = "min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/25 dark:border-[#344044] dark:bg-[#111718] dark:text-white";
 const buttonClass = "rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-blue-500/40 dark:border-[#344044]";
+
+type ProxyLookupState = VirtualProxyStartResolution & {
+  key: string;
+  status: "loading" | "success" | "error";
+  error: string | null;
+};
+
+function proxyLookupKey(
+  holding: PortfolioHoldingInput,
+  returnMode: ReturnMode,
+  baseCurrency: BaseCurrency,
+): string {
+  return JSON.stringify({
+    returnMode,
+    baseCurrency,
+    proxies: (holding.virtual?.proxies ?? []).map(({ id, market, ticker }) => ({ id, market, ticker: ticker.trim().toUpperCase() })),
+  });
+}
 
 function newHolding(id: string, ticker = "SPY"): PortfolioHoldingInput {
   return { id, market: "US", ticker, weightPct: 100 };
@@ -82,7 +105,11 @@ function HoldingEditor(props: {
   label: string;
   portfolio: PortfolioInput;
   mode: AnalysisMode;
+  disabled: boolean;
+  proxyLookups: Record<string, ProxyLookupState>;
   onChange: (portfolio: PortfolioInput) => void;
+  onVirtualEnabledChange: (holdingId: string, enabled: boolean) => void;
+  onVirtualDateChange: (holdingId: string, date: string, minimum: string | null) => void;
 }) {
   const updateHolding = (id: string, patch: Partial<PortfolioHoldingInput>) => {
     props.onChange({ ...props.portfolio, holdings: props.portfolio.holdings.map((holding) => holding.id === id ? { ...holding, ...patch } : holding) });
@@ -96,7 +123,7 @@ function HoldingEditor(props: {
   };
 
   return (
-    <fieldset className="min-w-0 rounded-xl border border-slate-200 p-3 dark:border-[#303a3d]">
+    <fieldset disabled={props.disabled} className="min-w-0 rounded-xl border border-slate-200 p-3 disabled:opacity-70 dark:border-[#303a3d]">
       <legend className="px-1 text-sm font-extrabold text-slate-900 dark:text-white">{props.label}</legend>
       <label className="mt-1 block text-xs font-semibold text-slate-500">
         포트폴리오 이름
@@ -163,25 +190,44 @@ function HoldingEditor(props: {
                   <input
                     type="checkbox"
                     checked={holding.virtual?.enabled ?? false}
-                    onChange={(event) => updateHolding(holding.id, {
-                      virtual: event.target.checked
-                        ? holding.virtual ?? { enabled: true, startDate: "2010-01-04", proxies: [{ id: uid("proxy"), market: "US", ticker: "SPY", weightPct: 100 }] }
-                        : { ...(holding.virtual ?? { startDate: "", proxies: [] }), enabled: false },
-                    })}
+                    onChange={(event) => props.onVirtualEnabledChange(holding.id, event.target.checked)}
                   />
                   이 종목의 상장 전 Virtual Price 보완
                 </label>
                 {holding.virtual?.enabled && (
                   <div className="mt-3 space-y-2">
-                    <label className="block max-w-[220px] text-xs font-semibold text-slate-500">
-                      Virtual 적용 시작일
-                      <input
-                        type="date"
-                        className={`${inputClass} mt-1 w-full`}
-                        value={holding.virtual.startDate}
-                        onChange={(event) => updateHolding(holding.id, { virtual: { ...holding.virtual!, startDate: event.target.value } })}
-                      />
-                    </label>
+                    {(() => {
+                      const lookup = props.proxyLookups[holding.id];
+                      const ready = lookup?.status === "success" && Boolean(lookup.autoStart);
+                      return (
+                        <div className="min-w-0 rounded-lg border border-slate-200 bg-white p-2.5 dark:border-[#303a3d] dark:bg-[#171d1e]">
+                          <label className="block max-w-[240px] text-xs font-semibold text-slate-500">
+                            Virtual 적용 시작일
+                            <input
+                              type="date"
+                              min={lookup?.autoStart ?? undefined}
+                              disabled={!ready}
+                              className={`${inputClass} mt-1 w-full`}
+                              value={holding.virtual!.startDate}
+                              onChange={(event) => props.onVirtualDateChange(holding.id, event.target.value, lookup?.autoStart ?? null)}
+                            />
+                          </label>
+                          <div className="mt-1.5 break-words text-[11px] leading-relaxed text-slate-500">
+                            <b>프록시 공통 시작일 자동 계산</b>
+                            {lookup?.status === "loading" && <div>프록시 시작일 확인 중…</div>}
+                            {lookup?.status === "error" && <div className="text-red-600 dark:text-red-300">{lookup.error}</div>}
+                            {lookup?.status === "success" && (
+                              <>
+                                {lookup.proxies.map((row) => (
+                                  <div key={row.id}>{row.resolvedSymbol || row.requestedTicker} · {row.usableStart ? `실제 시작 ${row.usableStart}` : `조회 실패: ${row.error}`}</div>
+                                ))}
+                                <div className="font-bold text-blue-600 dark:text-blue-300">자동 시작일 {lookup.autoStart}</div>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
                     {holding.virtual.proxies.map((proxy, proxyIndex) => (
                       <div key={proxy.id} className="grid min-w-0 grid-cols-[88px_minmax(0,1fr)_96px_36px] gap-2">
                         <select
@@ -261,13 +307,125 @@ function HoldingEditor(props: {
 export default function PortfolioCompareCalculator() {
   const dark = useResolvedTheme() === "dark";
   const [request, setRequest] = useState<PortfolioCompareRequest>(initialRequest);
+  const requestRef = useRef(request);
   const [result, setResult] = useState<PortfolioCompareResult | null>(null);
   const [period, setPeriod] = useState<ComparePeriodKey>("max");
   const [rollingMonths, setRollingMonths] = useState<number>(12);
   const [hidden, setHidden] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [stale, setStale] = useState(false);
+  const [proxyLookups, setProxyLookups] = useState<Record<string, ProxyLookupState>>({});
+  const analysisSequence = useRef(0);
+  const proxyLookupSequence = useRef(0);
+  const appliedHash = useRef<string | null>(null);
+  const manualVirtualDates = useRef<Record<string, boolean>>({});
   const validation = useMemo(() => validatePortfolioCompareRequest(request), [request]);
+
+  const commitRequest = useCallback((next: PortfolioCompareRequest) => {
+    const previousHash = portfolioRequestHash(requestRef.current);
+    const nextHash = portfolioRequestHash(next);
+    if (previousHash === nextHash) return;
+    analysisSequence.current += 1;
+    requestRef.current = next;
+    setRequest(next);
+    setLoading(false);
+    setError(null);
+    if (appliedHash.current) {
+      appliedHash.current = null;
+      setResult(null);
+      setStale(true);
+    }
+  }, []);
+
+  const replaceHolding = useCallback((
+    source: PortfolioCompareRequest,
+    holdingId: string,
+    transform: (holding: PortfolioHoldingInput) => PortfolioHoldingInput,
+  ): PortfolioCompareRequest => ({
+    ...source,
+    portfolioA: { ...source.portfolioA, holdings: source.portfolioA.holdings.map((holding) => holding.id === holdingId ? transform(holding) : holding) },
+    portfolioB: { ...source.portfolioB, holdings: source.portfolioB.holdings.map((holding) => holding.id === holdingId ? transform(holding) : holding) },
+  }), []);
+
+  const proxyLookupSignature = useMemo(() => JSON.stringify({
+    mode: request.analysisMode,
+    returnMode: request.returnMode,
+    baseCurrency: request.baseCurrency,
+    holdings: [...request.portfolioA.holdings, ...request.portfolioB.holdings]
+      .filter((holding) => holding.virtual?.enabled)
+      .map((holding) => ({ id: holding.id, key: proxyLookupKey(holding, request.returnMode, request.baseCurrency) })),
+  }), [request]);
+
+  useEffect(() => {
+    if (requestRef.current.analysisMode !== "virtual") {
+      proxyLookupSequence.current += 1;
+      setProxyLookups({});
+      return;
+    }
+    const currentRequest = requestRef.current;
+    const enabled = [...currentRequest.portfolioA.holdings, ...currentRequest.portfolioB.holdings]
+      .filter((holding) => holding.virtual?.enabled);
+    const sequence = ++proxyLookupSequence.current;
+    if (!enabled.length) {
+      setProxyLookups({});
+      return;
+    }
+    setProxyLookups(Object.fromEntries(enabled.map((holding) => [holding.id, {
+      key: proxyLookupKey(holding, currentRequest.returnMode, currentRequest.baseCurrency),
+      status: "loading" as const,
+      autoStart: null,
+      proxies: [],
+      warnings: [],
+      error: null,
+    }])));
+    void Promise.all(enabled.map(async (holding) => ({
+      holding,
+      resolution: await resolveVirtualProxyStarts(
+        holding.virtual!.proxies,
+        currentRequest.returnMode,
+        currentRequest.baseCurrency,
+      ),
+    }))).then((resolved) => {
+      if (sequence !== proxyLookupSequence.current) return;
+      const states: Record<string, ProxyLookupState> = {};
+      let nextRequest = requestRef.current;
+      for (const { holding, resolution } of resolved) {
+        const failures = resolution.proxies.filter((row) => row.error);
+        const errorMessage = failures.length
+          ? failures.map((row) => `${row.requestedTicker || "(빈 티커)"}: ${row.error}`).join("\n")
+          : resolution.autoStart ? null : "프록시 공통 시작일을 계산할 수 없습니다.";
+        states[holding.id] = {
+          ...resolution,
+          key: proxyLookupKey(holding, currentRequest.returnMode, currentRequest.baseCurrency),
+          status: errorMessage ? "error" : "success",
+          error: errorMessage,
+        };
+        if (!resolution.autoStart) continue;
+        nextRequest = replaceHolding(nextRequest, holding.id, (latest) => {
+          if (!latest.virtual?.enabled) return latest;
+          const selected = latest.virtual.startDate;
+          const manual = manualVirtualDates.current[holding.id] === true;
+          const nextStart = !manual || !selected || selected < resolution.autoStart!
+            ? resolution.autoStart!
+            : selected;
+          return nextStart === selected ? latest : { ...latest, virtual: { ...latest.virtual, startDate: nextStart } };
+        });
+      }
+      setProxyLookups(states);
+      commitRequest(nextRequest);
+    }).catch((cause) => {
+      if (sequence !== proxyLookupSequence.current) return;
+      setProxyLookups(Object.fromEntries(enabled.map((holding) => [holding.id, {
+        key: proxyLookupKey(holding, currentRequest.returnMode, currentRequest.baseCurrency),
+        status: "error" as const,
+        autoStart: null,
+        proxies: [],
+        warnings: [],
+        error: cause instanceof Error ? cause.message : String(cause),
+      }])));
+    });
+  }, [commitRequest, proxyLookupSignature, replaceHolding]);
 
   const maxSeries = useMemo(() => result ? toCompareSeries(result) : [], [result]);
   const periodDays = COMPARE_PERIODS.find((item) => item.key === period)?.days ?? Infinity;
@@ -278,26 +436,73 @@ export default function PortfolioCompareCalculator() {
   );
   const activeRolling = result?.rolling.find((row) => row.months === rollingMonths);
 
+  const virtualLookupReady = useMemo(() => {
+    if (request.analysisMode !== "virtual") return true;
+    return [...request.portfolioA.holdings, ...request.portfolioB.holdings]
+      .filter((holding) => holding.virtual?.enabled)
+      .every((holding) => {
+        const lookup = proxyLookups[holding.id];
+        return lookup?.status === "success"
+          && lookup.key === proxyLookupKey(holding, request.returnMode, request.baseCurrency)
+          && Boolean(lookup.autoStart)
+          && holding.virtual!.startDate >= lookup.autoStart!;
+      });
+  }, [proxyLookups, request]);
+
   const runAnalysis = async () => {
-    if (validation.length) {
-      setError(validation.join("\n"));
+    const snapshot = JSON.parse(JSON.stringify(requestRef.current)) as PortfolioCompareRequest;
+    const snapshotValidation = validatePortfolioCompareRequest(snapshot);
+    if (snapshotValidation.length || !virtualLookupReady) {
+      setError(snapshotValidation.join("\n") || "프록시 시작일 확인이 끝난 뒤 분석할 수 있습니다.");
       return;
     }
+    const startedHash = portfolioRequestHash(snapshot);
+    const startedSequence = ++analysisSequence.current;
     setLoading(true);
     setError(null);
+    setStale(false);
+    setResult(null);
+    appliedHash.current = null;
     try {
-      setResult(await analyzePortfolioComparison(request));
+      const nextResult = await analyzePortfolioComparison(snapshot);
+      if (!shouldApplyAnalysisResult({
+        startedSequence,
+        currentSequence: analysisSequence.current,
+        startedHash,
+        currentHash: portfolioRequestHash(requestRef.current),
+      })) return;
+      setResult(nextResult);
+      appliedHash.current = startedHash;
       setHidden({});
     } catch (cause) {
+      if (startedSequence !== analysisSequence.current) return;
       setResult(null);
       setError(cause instanceof Error ? cause.message : "포트폴리오 분석에 실패했습니다.");
     } finally {
-      setLoading(false);
+      if (startedSequence === analysisSequence.current) setLoading(false);
     }
   };
 
   const updateRequest = <K extends keyof PortfolioCompareRequest>(key: K, value: PortfolioCompareRequest[K]) =>
-    setRequest((previous) => ({ ...previous, [key]: value }));
+    commitRequest({ ...requestRef.current, [key]: value });
+
+  const onVirtualEnabledChange = (holdingId: string, enabled: boolean) => {
+    manualVirtualDates.current[holdingId] = false;
+    commitRequest(replaceHolding(requestRef.current, holdingId, (holding) => ({
+      ...holding,
+      virtual: enabled
+        ? { enabled: true, startDate: "", proxies: holding.virtual?.proxies.length ? holding.virtual.proxies : [{ id: uid("proxy"), market: "US", ticker: "SPY", weightPct: 100 }] }
+        : { ...(holding.virtual ?? { startDate: "", proxies: [] }), enabled: false },
+    })));
+  };
+
+  const onVirtualDateChange = (holdingId: string, date: string, minimum: string | null) => {
+    manualVirtualDates.current[holdingId] = true;
+    const clamped = minimum && date < minimum ? minimum : date;
+    commitRequest(replaceHolding(requestRef.current, holdingId, (holding) => holding.virtual
+      ? { ...holding, virtual: { ...holding.virtual, startDate: clamped } }
+      : holding));
+  };
 
   return (
     <div className="min-w-0 space-y-5">
@@ -307,21 +512,21 @@ export default function PortfolioCompareCalculator() {
           공통 시작일에 입력 비중으로 한 번 매수한 뒤 리밸런싱 없이 보유한 포트폴리오 A와 B를 비교합니다.
         </p>
         <div className="mt-4 grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-2">
-          <HoldingEditor label="포트폴리오 A" portfolio={request.portfolioA} mode={request.analysisMode} onChange={(portfolioA) => updateRequest("portfolioA", portfolioA)} />
-          <HoldingEditor label="포트폴리오 B" portfolio={request.portfolioB} mode={request.analysisMode} onChange={(portfolioB) => updateRequest("portfolioB", portfolioB)} />
+          <HoldingEditor label="포트폴리오 A" portfolio={request.portfolioA} mode={request.analysisMode} disabled={loading} proxyLookups={proxyLookups} onChange={(portfolioA) => updateRequest("portfolioA", portfolioA)} onVirtualEnabledChange={onVirtualEnabledChange} onVirtualDateChange={onVirtualDateChange} />
+          <HoldingEditor label="포트폴리오 B" portfolio={request.portfolioB} mode={request.analysisMode} disabled={loading} proxyLookups={proxyLookups} onChange={(portfolioB) => updateRequest("portfolioB", portfolioB)} onVirtualEnabledChange={onVirtualEnabledChange} onVirtualDateChange={onVirtualDateChange} />
         </div>
 
         <div className="mt-4 grid grid-cols-1 gap-3 rounded-xl bg-slate-50 p-3 dark:bg-[#121819] md:grid-cols-3">
           <label className="text-xs font-bold text-slate-500">
             기준통화
-            <select className={`${inputClass} mt-1 w-full`} value={request.baseCurrency} onChange={(event) => updateRequest("baseCurrency", event.target.value as BaseCurrency)}>
+            <select disabled={loading} className={`${inputClass} mt-1 w-full`} value={request.baseCurrency} onChange={(event) => updateRequest("baseCurrency", event.target.value as BaseCurrency)}>
               <option value="KRW">KRW</option>
               <option value="USD">USD</option>
             </select>
           </label>
           <label className="text-xs font-bold text-slate-500">
             분석 모드
-            <select className={`${inputClass} mt-1 w-full`} value={request.analysisMode} onChange={(event) => updateRequest("analysisMode", event.target.value as AnalysisMode)}>
+            <select disabled={loading} className={`${inputClass} mt-1 w-full`} value={request.analysisMode} onChange={(event) => updateRequest("analysisMode", event.target.value as AnalysisMode)}>
               <option value="actual">실제 상장 이후</option>
               <option value="virtual">Virtual Price 보완</option>
             </select>
@@ -342,13 +547,18 @@ export default function PortfolioCompareCalculator() {
             <AlertTriangle className="mr-2 inline" size={16} />{error}
           </div>
         )}
+        {stale && !result && (
+          <div role="status" className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-200">
+            입력이 변경되었습니다. 다시 분석해 주세요.
+          </div>
+        )}
         <button
           type="button"
-          disabled={loading || validation.length > 0}
+          disabled={loading || validation.length > 0 || !virtualLookupReady}
           onClick={() => void runAnalysis()}
           className="mt-4 w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-extrabold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-45 dark:focus:ring-offset-[#191f20]"
         >
-          {loading ? "실제 시세 조회 및 계산 중…" : "포트폴리오 분석 실행"}
+          {loading ? "실제 시세 조회 및 계산 중…" : !virtualLookupReady ? "프록시 시작일 확인 중…" : "포트폴리오 분석 실행"}
         </button>
       </section>
 
@@ -482,7 +692,15 @@ export default function PortfolioCompareCalculator() {
           </section>
 
           <section className={`${panel} text-xs leading-relaxed text-slate-600 dark:text-slate-300`}>
-            <div className="flex gap-2"><Info className="mt-0.5 shrink-0 text-blue-500" size={16} /><div><b>최초 입력 비중으로 매수 후 리밸런싱 없이 보유 · 거래비용 및 세금 미반영</b><br />{result.returnMode.toUpperCase()} · {result.baseCurrency} · {result.analysisMode === "actual" ? "실제 상장 이후" : "Virtual 보완"} · 공통 시작일 {result.commonStart} · 종료일 {result.endDate} · 데이터 출처 Yahoo Finance 일별 {result.returnMode === "tr" ? "조정종가" : "종가"}{result.fxRequired ? ` · 환율 ${result.fxSymbol}` : ""}<br />Virtual 구간은 사용자가 지정한 프록시의 과거 수익률을 연결한 추정치이며 실제 거래 이력이 아닙니다. 실제 데이터 시작 후에는 실제 종목 수익률만 사용합니다.<br />계산 {result.calculationMs.toFixed(2)}ms · 기간/Zoom/Rolling 전환은 추가 API 요청 없이 메모리 데이터만 사용합니다.</div></div>
+            <div className="flex gap-2"><Info className="mt-0.5 shrink-0 text-blue-500" size={16} /><div><b>최초 입력 비중으로 매수 후 리밸런싱 없이 보유 · 거래비용 및 세금 미반영</b><br />{result.returnMode.toUpperCase()} · {result.baseCurrency} · {result.analysisMode === "actual" ? "실제 상장 이후" : "Virtual 보완"} · 공통 시작일 {result.commonStart} · 종료일 {result.endDate} · 데이터 출처 Yahoo Finance 일별 {result.returnMode === "tr" ? "조정종가" : "종가"}{result.fxRequired ? ` · 환율 ${result.fxSymbol}` : ""}<br />위험지표 연율화는 단일시장 252일 호환 계약을 유지하고, 혼합시장은 유효 수익률 관측치 ÷ 실제 경과연수를 공통 계수로 사용합니다.<br />Virtual 구간은 사용자가 지정한 프록시의 과거 수익률을 연결한 추정치이며 실제 거래 이력이 아닙니다. 실제 데이터 시작 후에는 실제 종목 수익률만 사용합니다.<br />계산 {result.calculationMs.toFixed(2)}ms · 기간/Zoom/Rolling 전환은 추가 API 요청 없이 메모리 데이터만 사용합니다.</div></div>
+            {result.warnings.length > 0 && (
+              <details className="mt-3 min-w-0 rounded-lg border border-amber-200 bg-amber-50/70 p-2.5 text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-100">
+                <summary className="cursor-pointer break-words font-bold">데이터 주의사항 ({result.warnings.length})</summary>
+                <ul className="mt-2 min-w-0 list-disc space-y-1 pl-5">
+                  {result.warnings.map((warning) => <li key={warning} className="break-words whitespace-pre-wrap">{warning}</li>)}
+                </ul>
+              </details>
+            )}
           </section>
         </>
       )}

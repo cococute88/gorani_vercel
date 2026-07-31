@@ -22,6 +22,7 @@ export const PORTFOLIO_ROLLING_MONTHS = [12, 36, 60, 120, 180, 240, 360] as cons
 
 type LevelPoint = { date: string; level: number };
 type AssetPathPoint = { date: string; level: number; virtual: boolean };
+type ConversionRequest = Pick<PortfolioCompareRequest, "returnMode" | "baseCurrency">;
 
 export function portfolioSeriesKey(market: "US" | "KR", ticker: string): string {
   return `${market}:${normalizePortfolioTicker(ticker, market)}`;
@@ -69,7 +70,7 @@ function buildFxLevels(fxSeries: ResolvedMarketSeries | null): LevelPoint[] {
 
 function buildConvertedLevels(
   series: ResolvedMarketSeries,
-  request: PortfolioCompareRequest,
+  request: ConversionRequest,
   fxLevels: LevelPoint[],
 ): LevelPoint[] {
   const validAdjusted = series.points.filter((point) => finitePositive(point.adjClose)).length;
@@ -96,6 +97,14 @@ function buildConvertedLevels(
     throw new Error(`${series.requestedTicker}(${series.resolvedSymbol})의 ${request.returnMode.toUpperCase()}·${request.baseCurrency} 시계열이 부족합니다.`);
   }
   return levels;
+}
+
+export function resolveUsableSeriesStart(args: {
+  series: ResolvedMarketSeries;
+  request: ConversionRequest;
+  fxSeries?: ResolvedMarketSeries | null;
+}): string {
+  return buildConvertedLevels(args.series, args.request, buildFxLevels(args.fxSeries ?? null))[0].date;
 }
 
 function getSeries(
@@ -187,7 +196,7 @@ function buildAssetPath(args: {
   });
 }
 
-function yearlyReturns(points: PortfolioValuePoint[], commonStart: string, endDate: string): YearlyReturnRow[] {
+export function computeYearlyReturns(points: PortfolioValuePoint[]): YearlyReturnRow[] {
   const byYear = new Map<number, PortfolioValuePoint[]>();
   for (const point of points) {
     const year = Number(point.date.slice(0, 4));
@@ -195,14 +204,21 @@ function yearlyReturns(points: PortfolioValuePoint[], commonStart: string, endDa
     rows.push(point);
     byYear.set(year, rows);
   }
-  return Array.from(byYear.entries()).flatMap(([year, rows]) => {
+  const years = Array.from(byYear.keys()).sort((a, b) => a - b);
+  let previousYearEnd: PortfolioValuePoint | null = null;
+  return years.flatMap((year, index) => {
+    const rows = byYear.get(year)!;
     const first = rows[0];
     const last = rows.at(-1);
-    if (!first || !last || !finitePositive(first.value) || rows.length < 2) return [];
+    const base = index === 0 ? first : previousYearEnd;
+    previousYearEnd = last ?? previousYearEnd;
+    if (!first || !last || !base || !finitePositive(base.value) || rows.length < 2) return [];
+    const startsNearYearOpen = first.date <= `${year}-01-07`;
+    const endsNearYearClose = last.date >= `${year}-12-24`;
     return [{
       year,
-      returnPct: round((last.value / first.value - 1) * 100, 4),
-      partial: first.date === commonStart || last.date === endDate,
+      returnPct: round((last.value / base.value - 1) * 100, 4),
+      partial: (index === 0 && !startsNearYearOpen) || !endsNearYearClose,
       includesVirtual: rows.some((row) => row.virtual),
     }];
   });
@@ -248,28 +264,34 @@ function drawdownDetails(points: PortfolioValuePoint[]) {
   };
 }
 
-function computeMetrics(points: PortfolioValuePoint[], yearly: YearlyReturnRow[]): PortfolioMetrics {
+function computeMetrics(
+  points: PortfolioValuePoint[],
+  yearly: YearlyReturnRow[],
+  useObservedPeriodsPerYear: boolean,
+): PortfolioMetrics {
   if (points.length < 2) {
     return {
       totalReturnPct: null, cagrPct: null, mddPct: null, volatilityPct: null,
       sharpe: null, sortino: null, calmar: null, bestYearPct: null, worstYearPct: null,
-      positiveYears: 0, negativeYears: 0, drawdown: drawdownDetails(points),
+      positiveYears: 0, negativeYears: 0, observationCount: Math.max(0, points.length - 1),
+      elapsedYears: null, periodsPerYear: null, drawdown: drawdownDetails(points),
     };
   }
   const first = points[0];
   const last = points.at(-1)!;
   const totalRatio = last.value / first.value;
   const years = Math.max(1 / 365.25, daysBetween(first.date, last.date) / 365.25);
+  const periodsPerYear = useObservedPeriodsPerYear ? (points.length - 1) / years : TRADING_DAYS_PER_YEAR;
   const returns = points.slice(1).map((point, index) => point.value / points[index].value - 1);
   const mean = returns.reduce((sum, value) => sum + value, 0) / returns.length;
   const variance = returns.reduce((sum, value) => sum + (value - mean) ** 2, 0) / returns.length;
-  const risk = computeBacktestRiskMetrics(points.map((point) => point.value));
+  const risk = computeBacktestRiskMetrics(points.map((point) => point.value), periodsPerYear);
   const yearValues = yearly.map((row) => row.returnPct);
   return {
     totalReturnPct: round((totalRatio - 1) * 100, 2),
     cagrPct: totalRatio > 0 ? round((Math.pow(totalRatio, 1 / years) - 1) * 100, 2) : null,
     mddPct: risk.mddPct == null ? null : round(risk.mddPct, 2),
-    volatilityPct: returns.length > 1 ? round(Math.sqrt(variance) * Math.sqrt(TRADING_DAYS_PER_YEAR) * 100, 2) : null,
+    volatilityPct: returns.length > 1 ? round(Math.sqrt(variance) * Math.sqrt(periodsPerYear) * 100, 2) : null,
     sharpe: risk.sharpe == null ? null : round(risk.sharpe, 2),
     sortino: risk.sortino == null ? null : round(risk.sortino, 2),
     calmar: risk.calmar == null ? null : round(risk.calmar, 2),
@@ -277,8 +299,41 @@ function computeMetrics(points: PortfolioValuePoint[], yearly: YearlyReturnRow[]
     worstYearPct: yearValues.length ? Math.min(...yearValues) : null,
     positiveYears: yearValues.filter((value) => value > 0).length,
     negativeYears: yearValues.filter((value) => value < 0).length,
+    observationCount: returns.length,
+    elapsedYears: round(years, 6),
+    periodsPerYear: round(periodsPerYear, 6),
     drawdown: drawdownDetails(points),
   };
+}
+
+function portfolioObservationDates(args: {
+  holdings: PortfolioHoldingInput[];
+  request: PortfolioCompareRequest;
+  levelsByKey: Map<string, LevelPoint[]>;
+  availabilityById: Map<string, string>;
+  commonStart: string;
+  endDate: string;
+}): { dates: Set<string>; mixedMarket: boolean } {
+  const dates = new Set<string>([args.commonStart, args.endDate]);
+  const markets = new Set<"US" | "KR">();
+  for (const holding of args.holdings) {
+    markets.add(holding.market);
+    const actual = args.levelsByKey.get(portfolioSeriesKey(holding.market, holding.ticker)) ?? [];
+    for (const point of actual) {
+      if (point.date >= args.commonStart && point.date <= args.endDate) dates.add(point.date);
+    }
+    if (args.request.analysisMode !== "virtual" || !holding.virtual?.enabled) continue;
+    const actualStart = actual[0]?.date ?? args.endDate;
+    const virtualStart = args.availabilityById.get(holding.id) ?? args.commonStart;
+    for (const proxy of holding.virtual.proxies) {
+      markets.add(proxy.market);
+      const levels = args.levelsByKey.get(portfolioSeriesKey(proxy.market, proxy.ticker)) ?? [];
+      for (const point of levels) {
+        if (point.date >= virtualStart && point.date < actualStart && point.date >= args.commonStart) dates.add(point.date);
+      }
+    }
+  }
+  return { dates, mixedMarket: markets.size > 1 };
 }
 
 function buildPortfolioResult(args: {
@@ -358,8 +413,16 @@ function buildPortfolioResult(args: {
       transitionDate: actualLevels[0].date,
     };
   });
-  const yearly = yearlyReturns(points, args.commonStart, args.endDate);
-  return { name: args.name, points, holdings: holdingResults, yearly, metrics: computeMetrics(points, yearly) };
+  const yearly = computeYearlyReturns(points);
+  const observations = portfolioObservationDates(args);
+  const metricPoints = points.filter((point) => observations.dates.has(point.date));
+  return {
+    name: args.name,
+    points,
+    holdings: holdingResults,
+    yearly,
+    metrics: computeMetrics(metricPoints, yearly, observations.mixedMarket),
+  };
 }
 
 function monthKeyBack(date: string, months: number): string {
@@ -486,7 +549,10 @@ export function computePortfolioComparison(args: {
   };
   const portfolioA = buildPortfolioResult({ ...shared, name: args.request.portfolioA.name, holdings: args.request.portfolioA.holdings });
   const portfolioB = buildPortfolioResult({ ...shared, name: args.request.portfolioB.name, holdings: args.request.portfolioB.holdings });
-  const warnings = Array.from(args.seriesByKey.values()).flatMap((series) => series.warnings.map((warning) => `${series.resolvedSymbol}: ${warning}`));
+  const warnings = dedupePortfolioWarnings([
+    ...Array.from(args.seriesByKey.values()).flatMap((series) => series.warnings.map((warning) => `${series.resolvedSymbol}: ${warning}`)),
+    ...(args.fxSeries?.warnings ?? []).map((warning) => `${args.fxSeries?.resolvedSymbol ?? "KRW=X"}: ${warning}`),
+  ]);
   return {
     portfolioA,
     portfolioB,
@@ -501,4 +567,8 @@ export function computePortfolioComparison(args: {
     warnings,
     calculationMs: round(performance.now() - startedAt, 2),
   };
+}
+
+export function dedupePortfolioWarnings(warnings: string[]): string[] {
+  return Array.from(new Set(warnings.map((warning) => warning.trim()).filter(Boolean)));
 }
