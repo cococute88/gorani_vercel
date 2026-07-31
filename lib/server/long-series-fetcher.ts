@@ -37,6 +37,12 @@ export type LongSeriesResponse = {
   source: "yahoo" | "empty";
   updatedAt: string;
   start: string;
+  metadata?: {
+    symbol: string;
+    name: string;
+    exchange: string | null;
+    currency: string | null;
+  };
   points: LongSeriesPoint[];
   dividends: LongSeriesDividend[];
   warnings: string[];
@@ -46,6 +52,14 @@ type YahooChartPayload = {
   chart?: {
     result?: Array<{
       timestamp?: number[];
+      meta?: {
+        symbol?: string;
+        shortName?: string;
+        longName?: string;
+        exchangeName?: string;
+        fullExchangeName?: string;
+        currency?: string;
+      };
       indicators?: {
         quote?: Array<{ close?: Array<number | null> }>;
         adjclose?: Array<{ adjclose?: Array<number | null> }>;
@@ -150,7 +164,23 @@ export async function getLongDailySeries(input: { symbol: string; start?: string
     const points = parsePoints(payload);
     const dividends = parseDividends(payload);
     if (points.length > 0) {
-      return { symbol, source: "yahoo", updatedAt: new Date().toISOString(), start: startIso, points, dividends, warnings };
+      const meta = payload.chart?.result?.[0]?.meta;
+      const resolvedSymbol = normalizeSymbol(meta?.symbol ?? symbol);
+      return {
+        symbol: resolvedSymbol,
+        source: "yahoo",
+        updatedAt: new Date().toISOString(),
+        start: startIso,
+        metadata: {
+          symbol: resolvedSymbol,
+          name: meta?.longName?.trim() || meta?.shortName?.trim() || resolvedSymbol,
+          exchange: meta?.fullExchangeName?.trim() || meta?.exchangeName?.trim() || null,
+          currency: meta?.currency?.trim().toUpperCase() || null,
+        },
+        points,
+        dividends,
+        warnings,
+      };
     }
     warnings.push(`Yahoo returned no usable daily candles for ${symbol}`);
   } catch (error) {

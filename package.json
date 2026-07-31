@@ -114,6 +114,7 @@
     "check:schd-calendar-portfolio-market-ux": "node scripts/check-schd-calendar-portfolio-market-ux.mjs",
     "check:stock-compare-rebase": "node scripts/check-stock-compare-rebase.mjs",
     "check:stock-compare-holdings": "node scripts/check-stock-compare-holdings.mjs",
+    "check:portfolio-compare": "npx --yes tsx scripts/check-portfolio-compare.mts",
     "check:small-ui-favicon-modal-chart-fix": "node scripts/check-small-ui-favicon-modal-chart-fix.mjs",
     "check:calculator-dense-history": "node scripts/check-calculator-dense-history.mjs",
     "check:firestore-portfolio-adapter": "node scripts/check-firestore-portfolio-adapter.mjs",

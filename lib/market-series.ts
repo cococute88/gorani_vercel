@@ -21,6 +21,12 @@ export type LongSeriesResponse = {
   source: "yahoo" | "empty";
   updatedAt: string;
   start: string;
+  metadata?: {
+    symbol: string;
+    name: string;
+    exchange: string | null;
+    currency: string | null;
+  };
   points: LongSeriesPoint[];
   dividends: LongSeriesDividend[];
   warnings: string[];

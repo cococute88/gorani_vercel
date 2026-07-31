@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import TopNav from "@/components/TopNav";
 import StorageModeBadge from "@/components/common/StorageModeBadge";
 import DividendCaptureSimulator from "./DividendCaptureSimulator";
 import ConversionCalculator from "./ConversionCalculator";
 import MddCalculator from "./MddCalculator";
 import StockCompareCalculator from "./stock-compare/StockCompareCalculator";
+import PortfolioCompareCalculator from "./portfolio-compare/PortfolioCompareCalculator";
 import { defaultConversionInput } from "@/lib/conversion-calculator";
 import { defaultDividendCaptureInput } from "@/lib/dividend-capture-calculator";
 import { defaultMddInput } from "@/lib/mdd-calculator";
@@ -19,6 +20,7 @@ import { useResolvedTheme } from "@/components/theme/ThemeProvider";
 const tabs = [
   { key: "mdd", label: "티커MDD 계산기" },
   { key: "compare", label: "종목 성과 비교" },
+  { key: "portfolio-compare", label: "포트폴리오 성과 비교" },
   { key: "capture", label: "배당치기 시뮬" },
   { key: "conversion", label: "매도전환 계산기" },
 ] as const;
@@ -33,10 +35,12 @@ const TAB_PARAM_MAP: Record<string, TabKey> = {
   conversion: "conversion",
   mdd: "mdd",
   compare: "compare",
+  "portfolio-compare": "portfolio-compare",
 };
 
 export default function CalculatorPage() {
   const theme = useResolvedTheme();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab");
   const initialTab = (tabParam && TAB_PARAM_MAP[tabParam]) || "mdd";
@@ -70,7 +74,10 @@ export default function CalculatorPage() {
             <button
               key={tab.key}
               type="button"
-              onClick={() => setActiveTab(tab.key)}
+              onClick={() => {
+                setActiveTab(tab.key);
+                router.push(`/calculator?tab=${tab.key}`, { scroll: false });
+              }}
               className={`shrink-0 rounded-xl px-3 py-2 text-[12.5px] font-bold transition-colors sm:px-4 sm:text-[13px] ${
                 activeTab === tab.key
                   ? "bg-blue-600 text-white shadow-lg shadow-blue-950/20"
@@ -86,6 +93,7 @@ export default function CalculatorPage() {
         {activeTab === "conversion" && <ConversionCalculator input={conversionInput} onChange={setConversionInput} />}
         {activeTab === "mdd" && <MddCalculator input={mddInput} onChange={setMddInput} />}
         {activeTab === "compare" && <StockCompareCalculator />}
+        {activeTab === "portfolio-compare" && <PortfolioCompareCalculator />}
       </main>
     </div>
   );
