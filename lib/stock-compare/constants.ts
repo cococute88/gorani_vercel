@@ -9,9 +9,9 @@ import type {
   MetricDef,
   SeriesMetrics,
 } from "@/lib/stock-compare/types";
-import { COMPARE_TICKER_OPTIONS, normalizeCompareTicker } from "@/lib/backtest-compare-tickers";
+import { COMPARE_TICKER_OPTIONS, normalizeCompareTicker, resolveCompareTickerInput } from "@/lib/backtest-compare-tickers";
 
-export { COMPARE_TICKER_OPTIONS, normalizeCompareTicker };
+export { COMPARE_TICKER_OPTIONS, normalizeCompareTicker, resolveCompareTickerInput };
 
 export const DEFAULT_COMPARE_A = "SPY";
 export const DEFAULT_COMPARE_B = "QQQ";

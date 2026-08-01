@@ -18,6 +18,6 @@ export async function GET(request: Request) {
       headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=3600" },
     });
   } catch {
-    return NextResponse.json({ error: "한국 종목 검색에 실패했습니다. 6자리 종목코드를 직접 입력할 수 있습니다." }, { status: 502 });
+    return NextResponse.json({ error: "한국 종목 검색에 실패했습니다. 영숫자 6자리 종목코드를 직접 입력할 수 있습니다." }, { status: 502 });
   }
 }

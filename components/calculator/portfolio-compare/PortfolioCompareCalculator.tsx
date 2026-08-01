@@ -10,7 +10,9 @@ import { COMPARE_PERIODS, formatSignedPct } from "@/lib/stock-compare/constants"
 import { computeRollingPointsMulti } from "@/lib/stock-compare/metrics";
 import { windowCompareSeries } from "@/lib/stock-compare/total-return";
 import type { ComparePeriodKey, CompareSeries } from "@/lib/stock-compare/types";
+import { resolveMddTicker } from "@/lib/mdd-market";
 import { PORTFOLIO_ROLLING_MONTHS } from "@/lib/portfolio-compare/engine";
+import { checkPortfolioSeriesAvailability, type PortfolioAvailabilityRow } from "@/lib/portfolio-compare/availability";
 import {
   analyzePortfolioComparison,
   resolveVirtualProxyStarts,
@@ -29,6 +31,7 @@ import type {
   ReturnMode,
 } from "@/lib/portfolio-compare/types";
 import { validatePortfolioCompareRequest } from "@/lib/portfolio-compare/validation";
+import { fetchResolvedMarketSeries } from "@/lib/resolved-market-series-client";
 
 const PerformanceChart = dynamic(() => import("@/components/calculator/stock-compare/PerformanceChart"), {
   ssr: false,
@@ -43,6 +46,12 @@ type ProxyLookupState = VirtualProxyStartResolution & {
   key: string;
   status: "loading" | "success" | "error";
   error: string | null;
+};
+
+type HoldingLookupState = {
+  key: string;
+  status: "idle" | "loading" | "success" | "error";
+  rows: PortfolioAvailabilityRow[];
 };
 
 function proxyLookupKey(
@@ -155,9 +164,9 @@ function HoldingEditor(props: {
                 <input
                   aria-label={`${props.label} ${index + 1} 티커`}
                   className={`${inputClass} mt-1 w-full uppercase`}
-                  placeholder={holding.market === "KR" ? "005930 또는 247540.KQ" : "SPY"}
+                  placeholder={holding.market === "KR" ? "0049M0 또는 247540.KQ" : "SPY"}
                   value={holding.ticker}
-                  onChange={(event) => updateHolding(holding.id, { ticker: event.target.value })}
+                  onChange={(event) => updateHolding(holding.id, { ticker: event.target.value.toUpperCase() })}
                 />
               </label>
               <label className="text-xs font-semibold text-slate-500">
@@ -244,7 +253,7 @@ function HoldingEditor(props: {
                           className={`${inputClass} w-full uppercase`}
                           value={proxy.ticker}
                           placeholder="QQQ"
-                          onChange={(event) => updateProxy(holding.id, proxy.id, { ticker: event.target.value })}
+                          onChange={(event) => updateProxy(holding.id, proxy.id, { ticker: event.target.value.toUpperCase() })}
                         />
                         <input
                           aria-label={`${holding.ticker} 프록시 ${proxyIndex + 1} 비중`}
@@ -300,6 +309,9 @@ function HoldingEditor(props: {
           비중 합계 {weightTotal(props.portfolio).toFixed(2)}%
         </span>
       </div>
+      <p className="mt-2 break-words text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
+        한국 종목은 숫자 또는 영문자가 포함된 6자리 종목코드를 입력해 주세요. .KS/.KQ 접미사도 지원합니다.
+      </p>
     </fieldset>
   );
 }
@@ -316,11 +328,23 @@ export default function PortfolioCompareCalculator() {
   const [error, setError] = useState<string | null>(null);
   const [stale, setStale] = useState(false);
   const [proxyLookups, setProxyLookups] = useState<Record<string, ProxyLookupState>>({});
+  const [holdingLookup, setHoldingLookup] = useState<HoldingLookupState>({ key: "", status: "idle", rows: [] });
   const analysisSequence = useRef(0);
   const proxyLookupSequence = useRef(0);
+  const holdingLookupSequence = useRef(0);
   const appliedHash = useRef<string | null>(null);
   const manualVirtualDates = useRef<Record<string, boolean>>({});
   const validation = useMemo(() => validatePortfolioCompareRequest(request), [request]);
+
+  const holdingAvailabilityInputs = useMemo(() => [
+    ...request.portfolioA.holdings.map((holding) => ({ key: `A:${holding.id}`, label: "포트폴리오 A", ticker: holding.ticker, market: holding.market })),
+    ...request.portfolioB.holdings.map((holding) => ({ key: `B:${holding.id}`, label: "포트폴리오 B", ticker: holding.ticker, market: holding.market })),
+  ], [request.portfolioA.holdings, request.portfolioB.holdings]);
+  const holdingLookupKey = useMemo(() => JSON.stringify(holdingAvailabilityInputs.map((row) => ({
+    key: row.key,
+    market: row.market,
+    ticker: row.ticker.trim().replace(/\s+/g, "").toUpperCase(),
+  }))), [holdingAvailabilityInputs]);
 
   const commitRequest = useCallback((next: PortfolioCompareRequest) => {
     const previousHash = portfolioRequestHash(requestRef.current);
@@ -356,6 +380,29 @@ export default function PortfolioCompareCalculator() {
       .filter((holding) => holding.virtual?.enabled)
       .map((holding) => ({ id: holding.id, key: proxyLookupKey(holding, request.returnMode, request.baseCurrency) })),
   }), [request]);
+
+  useEffect(() => {
+    const sequence = ++holdingLookupSequence.current;
+    const formatReady = holdingAvailabilityInputs.length > 0
+      && holdingAvailabilityInputs.every((row) => resolveMddTicker(row.ticker, row.market).ok);
+    if (!formatReady) {
+      setHoldingLookup({ key: holdingLookupKey, status: "idle", rows: [] });
+      return;
+    }
+
+    setHoldingLookup({ key: holdingLookupKey, status: "loading", rows: [] });
+    const timer = setTimeout(() => {
+      void checkPortfolioSeriesAvailability(holdingAvailabilityInputs, fetchResolvedMarketSeries).then((rows) => {
+        if (sequence !== holdingLookupSequence.current) return;
+        setHoldingLookup({
+          key: holdingLookupKey,
+          status: rows.some((row) => row.error) ? "error" : "success",
+          rows,
+        });
+      });
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [holdingAvailabilityInputs, holdingLookupKey]);
 
   useEffect(() => {
     if (requestRef.current.analysisMode !== "virtual") {
@@ -449,11 +496,15 @@ export default function PortfolioCompareCalculator() {
       });
   }, [proxyLookups, request]);
 
+  const holdingLookupReady = holdingLookup.key === holdingLookupKey && holdingLookup.status === "success";
+
   const runAnalysis = async () => {
     const snapshot = JSON.parse(JSON.stringify(requestRef.current)) as PortfolioCompareRequest;
     const snapshotValidation = validatePortfolioCompareRequest(snapshot);
-    if (snapshotValidation.length || !virtualLookupReady) {
-      setError(snapshotValidation.join("\n") || "프록시 시작일 확인이 끝난 뒤 분석할 수 있습니다.");
+    if (snapshotValidation.length || !virtualLookupReady || !holdingLookupReady) {
+      setError(snapshotValidation.join("\n") || (!holdingLookupReady
+        ? "모든 종목의 실제 가격 데이터 조회가 확인된 뒤 분석할 수 있습니다."
+        : "프록시 시작일 확인이 끝난 뒤 분석할 수 있습니다."));
       return;
     }
     const startedHash = portfolioRequestHash(snapshot);
@@ -542,6 +593,16 @@ export default function PortfolioCompareCalculator() {
             {validation[0]}{validation.length > 1 ? ` 외 ${validation.length - 1}건` : ""}
           </div>
         )}
+        {validation.length === 0 && holdingLookup.status === "loading" && (
+          <div role="status" className="mt-3 rounded-xl border border-blue-200 bg-blue-50 p-3 text-xs text-blue-700 dark:border-blue-900/50 dark:bg-blue-950/20 dark:text-blue-200">
+            입력한 종목의 실제 가격 데이터와 상장 시장을 확인하고 있습니다.
+          </div>
+        )}
+        {validation.length === 0 && holdingLookup.status === "error" && (
+          <div role="alert" className="mt-3 whitespace-pre-line break-words rounded-xl border border-red-200 bg-red-50 p-3 text-xs leading-relaxed text-red-700 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-200">
+            {holdingLookup.rows.filter((row) => row.error).map((row) => `${row.label} ${row.ticker}: ${row.error}`).join("\n")}
+          </div>
+        )}
         {error && (
           <div role="alert" className="mt-3 whitespace-pre-line rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-200">
             <AlertTriangle className="mr-2 inline" size={16} />{error}
@@ -554,11 +615,11 @@ export default function PortfolioCompareCalculator() {
         )}
         <button
           type="button"
-          disabled={loading || validation.length > 0 || !virtualLookupReady}
+          disabled={loading || validation.length > 0 || !virtualLookupReady || !holdingLookupReady}
           onClick={() => void runAnalysis()}
           className="mt-4 w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-extrabold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-45 dark:focus:ring-offset-[#191f20]"
         >
-          {loading ? "실제 시세 조회 및 계산 중…" : !virtualLookupReady ? "프록시 시작일 확인 중…" : "포트폴리오 분석 실행"}
+          {loading ? "실제 시세 조회 및 계산 중…" : !holdingLookupReady ? "종목 시세 확인 중…" : !virtualLookupReady ? "프록시 시작일 확인 중…" : "포트폴리오 분석 실행"}
         </button>
       </section>
 

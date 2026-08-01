@@ -1,3 +1,5 @@
+import { isKrxTicker } from "./krx-ticker";
+
 export const KOREAN_STOCK_SEARCH_LIMIT = 10;
 
 export type KoreanStockSearchResult = {
@@ -20,7 +22,7 @@ function normalizedSearchText(value: string) {
 }
 
 export function isDirectKoreanTicker(value: string) {
-  return /^\d{6}(?:\.(?:KS|KQ))?$/i.test(value.trim());
+  return isKrxTicker(value);
 }
 
 export function isKoreanStockNameQuery(value: string) {

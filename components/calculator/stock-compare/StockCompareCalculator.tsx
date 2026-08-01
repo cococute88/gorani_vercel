@@ -15,7 +15,7 @@ import {
   DEFAULT_COMPARE_PERIOD,
   DEFAULT_RISK_PERIOD,
   RISK_METRIC_PERIODS,
-  normalizeCompareTicker,
+  resolveCompareTickerInput,
 } from "@/lib/stock-compare/constants";
 import type { ComparePeriodKey, CompareSeries, SeriesMetrics } from "@/lib/stock-compare/types";
 import TickerSelector from "./TickerSelector";
@@ -70,12 +70,17 @@ export default function StockCompareCalculator() {
   const reqIdRef = useRef(0);
 
   const runCompare = useCallback(async (rawA: string, rawB: string) => {
-    const a = normalizeCompareTicker(rawA);
-    const b = normalizeCompareTicker(rawB);
-    if (!a || !b) {
-      setError("두 티커를 모두 입력해 주세요.");
+    const resolvedA = resolveCompareTickerInput(rawA);
+    const resolvedB = resolveCompareTickerInput(rawB);
+    if (!resolvedA.ok || !resolvedB.ok) {
+      setError([
+        !resolvedA.ok ? `티커 A: ${resolvedA.error}` : null,
+        !resolvedB.ok ? `티커 B: ${resolvedB.error}` : null,
+      ].filter(Boolean).join("\n"));
       return;
     }
+    const a = resolvedA.ticker;
+    const b = resolvedB.ticker;
     const reqId = reqIdRef.current + 1;
     reqIdRef.current = reqId;
     setLoading(true);
@@ -83,9 +88,12 @@ export default function StockCompareCalculator() {
     try {
       const result = await fetchCompareData(a, b);
       if (reqIdRef.current !== reqId) return; // 더 최신 요청이 있으면 폐기.
-      if (result.sourceA === "empty" && result.sourceB === "empty") {
+      if (result.sourceA === "empty" || result.sourceB === "empty") {
         setData(null);
-        setError(`'${a}' 와 '${b}' 의 가격 데이터를 찾을 수 없습니다. 티커를 확인해 주세요.`);
+        setError(result.warnings.join("\n") || [
+          result.sourceA === "empty" ? `${a}의 가격 데이터를 찾을 수 없습니다.` : null,
+          result.sourceB === "empty" ? `${b}의 가격 데이터를 찾을 수 없습니다.` : null,
+        ].filter(Boolean).join("\n"));
         return;
       }
       setData(result);
@@ -206,8 +214,8 @@ export default function StockCompareCalculator() {
       <section className={panel}>
         <h2 className={cardTitle}>종목 성과 비교</h2>
         <p className="mb-4 mt-1 text-[13px] text-slate-500 dark:text-slate-400">
-          Yahoo Finance 티커 2개를 Total Return 기준으로 비교합니다. ETF 는 구성종목 중복을 비중까지 반영해 중복 제거
-          성과를 함께 보여줍니다.
+          미국 티커 또는 숫자·영문자가 포함된 6자리 한국 종목코드 2개를 Total Return 기준으로 비교합니다. 한국 코드는
+          .KS/.KQ를 직접 입력하거나 접미사 없이 시장을 자동 확인할 수 있습니다.
         </p>
         <TickerSelector
           valueA={inputA}
@@ -226,7 +234,7 @@ export default function StockCompareCalculator() {
       {error && (
         <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-          <span>{error}</span>
+          <span className="whitespace-pre-line break-words">{error}</span>
         </div>
       )}
 

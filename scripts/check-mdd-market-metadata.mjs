@@ -14,12 +14,15 @@ const expectError = (input, market) => {
 expectOk("SPY", "US", ["SPY"]);
 expectOk(" brk-b ", "US", ["BRK-B"]);
 expectOk("000660", "KR", ["000660.KS", "000660.KQ"]);
+expectOk("0049m0", "KR", ["0049M0.KS", "0049M0.KQ"]);
+expectOk("0049M0.KS", "KR", ["0049M0.KS"]);
 expectOk("000660.KS", "KR", ["000660.KS"]);
 expectOk("247540.KQ", "KR", ["247540.KQ"]);
 expectError("000660", "US");
 expectError("SPY", "KR");
 expectError("123", "KR");
 expectError("1234567", "KR");
+expectError("0049M0.KS.KS", "KR");
 assert.equal(fallbackCurrency("000660.KS", "KR"), "KRW");
 assert.equal(fallbackCurrency("SPY", "US"), "USD");
 assert.equal(fallbackExchange("000660.KS"), "KOSPI");

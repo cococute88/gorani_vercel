@@ -14,8 +14,9 @@
 // =============================================================
 
 import { fetchLongSeries, type LongSeriesPoint } from "@/lib/market-series";
+import { fetchResolvedMarketSeries } from "@/lib/resolved-market-series-client";
 import { analyzeOverlap } from "@/lib/stock-compare/holdings";
-import { normalizeCompareTicker } from "@/lib/stock-compare/constants";
+import { normalizeCompareTicker, resolveCompareTickerInput } from "@/lib/stock-compare/constants";
 import type { OverlapResult } from "@/lib/stock-compare/types";
 
 // 전체 일별 히스토리 요청 시작일(요청 URL 안정화를 위해 이른 바닥값 고정).
@@ -47,16 +48,35 @@ function pairKey(a: string, b: string): string {
 }
 
 async function safeFetch(symbol: string) {
+  const resolution = resolveCompareTickerInput(symbol);
+  if (!resolution.ok) {
+    return {
+      symbol: normalizeCompareTicker(symbol),
+      source: "empty" as const,
+      points: [] as LongSeriesPoint[],
+      dividendCount: 0,
+      warnings: [resolution.error],
+    };
+  }
   try {
-    return await fetchLongSeries(symbol, HISTORY_START_ISO);
+    if (resolution.market === "KR") {
+      const series = await fetchResolvedMarketSeries(resolution.ticker, "KR");
+      return {
+        symbol: series.resolvedSymbol,
+        source: "yahoo" as const,
+        points: series.points,
+        dividendCount: series.dividendCount ?? 0,
+        warnings: series.warnings,
+      };
+    }
+    const series = await fetchLongSeries(resolution.ticker, HISTORY_START_ISO);
+    return { ...series, dividendCount: series.dividends?.length ?? 0 };
   } catch (error) {
     return {
-      symbol,
+      symbol: resolution.ticker,
       source: "empty" as const,
-      updatedAt: new Date().toISOString(),
-      start: HISTORY_START_ISO,
       points: [] as LongSeriesPoint[],
-      dividends: [],
+      dividendCount: 0,
       warnings: [error instanceof Error ? error.message : String(error)],
     };
   }
@@ -100,8 +120,8 @@ async function loadCompareData(rawA: string, rawB: string): Promise<CompareData>
     sourceB: resBFinal.source,
     pointsA: resA.points,
     pointsB: resBFinal.points,
-    dividendsA: resA.dividends?.length ?? 0,
-    dividendsB: resBFinal.dividends?.length ?? 0,
+    dividendsA: resA.dividendCount,
+    dividendsB: resBFinal.dividendCount,
     overlap,
     commonPoints,
     warnings,

@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowLeftRight, Search } from "lucide-react";
-import { COMPARE_TICKER_OPTIONS, normalizeCompareTicker } from "@/lib/stock-compare/constants";
+import { COMPARE_TICKER_OPTIONS, resolveCompareTickerInput } from "@/lib/stock-compare/constants";
 
 // =============================================================
 // 두 티커 입력 + datalist 자동완성. 비교 실행/스왑 컨트롤 포함.
@@ -45,7 +45,7 @@ function TickerField({
           autoComplete="off"
           list={`${id}-list`}
           value={value}
-          placeholder="예: SPY"
+          placeholder="예: SPY 또는 0049M0"
           onChange={(e) => onChange(e.target.value.toUpperCase())}
           onKeyDown={(e) => {
             if (e.key === "Enter") onEnter();
@@ -89,7 +89,7 @@ export default function TickerSelector({
       <button
         type="button"
         onClick={onSubmit}
-        disabled={loading || !normalizeCompareTicker(valueA) || !normalizeCompareTicker(valueB)}
+        disabled={loading || !resolveCompareTickerInput(valueA).ok || !resolveCompareTickerInput(valueB).ok}
         className="h-[42px] shrink-0 rounded-xl bg-blue-600 px-5 text-[14px] font-bold text-white shadow-lg shadow-blue-950/20 transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50 sm:mb-0.5"
       >
         {loading ? "분석 중…" : "비교"}
