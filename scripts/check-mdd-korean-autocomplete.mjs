@@ -27,6 +27,7 @@ assert.equal(isKoreanStockNameQuery("삼성"), true);
 assert.equal(isKoreanStockNameQuery("000660"), false);
 assert.equal(isDirectKoreanTicker("000660.KS"), true);
 assert.equal(isDirectKoreanTicker("247540.KQ"), true);
+assert.equal(isDirectKoreanTicker("0049m0"), true);
 
 const ranked = rankKoreanStockSearchResults("삼성", [
   { code: "009150", symbol: "009150.KS", displayName: "삼성전기", market: "KOSPI", exchange: "KOSPI", currency: "KRW", quoteType: "EQUITY" },
@@ -43,6 +44,6 @@ assert.ok(mdd.includes("koreanSearchAbortRef.current?.abort()") && mdd.includes(
 assert.ok(mdd.includes("ArrowDown") && mdd.includes("ArrowUp") && mdd.includes("Escape"), "keyboard autocomplete navigation is supported");
 assert.ok(mdd.includes("/api/quote/korean-stock-search"), "browser calls only the normalized internal search API");
 assert.ok(route.includes("isKoreanStockNameQuery") && provider.includes("front-api/search/autoComplete"), "server route validates and proxies Naver autocomplete");
-assert.ok(provider.includes("/^\\d{6}$/") && provider.includes("KOREAN_STOCK_SEARCH_LIMIT"), "only supported KRX codes and bounded results are exposed");
+assert.ok(provider.includes("/^[A-Z0-9]{6}$/i") && provider.includes("KOREAN_STOCK_SEARCH_LIMIT"), "only supported alphanumeric KRX codes and bounded results are exposed");
 
 console.log("MDD Korean autocomplete checks passed.");

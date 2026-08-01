@@ -50,6 +50,7 @@ export type ResolvedMarketSeries = {
   points: LongSeriesPoint[];
   dataStart: string;
   dataEnd: string;
+  dividendCount?: number;
   warnings: string[];
 };
 

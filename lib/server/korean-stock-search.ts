@@ -27,9 +27,9 @@ function toSearchResult(item: NaverAutocompleteItem): KoreanStockSearchResult | 
   const displayName = item.name?.trim();
   const market = item.typeCode === "KOSPI" || item.typeCode === "KOSDAQ" ? item.typeCode : null;
 
-  // MDD 분석이 지원하는 6자리 KRX 보통주·ETF 코드만 노출한다. 지수·코인·IPO와
-  // 영문/파생 코드가 섞인 Naver 자동완성 결과는 직접 티커로 해석하지 않는다.
-  if (!code || !/^\d{6}$/.test(code) || !displayName || !market || item.category !== "stock") return null;
+  // MDD 분석이 지원하는 영숫자 6자리 KRX 보통주·ETF 코드만 노출한다.
+  // 지수·코인·IPO 등 stock 이 아닌 자동완성 결과는 제외한다.
+  if (!code || !/^[A-Z0-9]{6}$/i.test(code) || !displayName || !market || item.category !== "stock") return null;
 
   return {
     code,

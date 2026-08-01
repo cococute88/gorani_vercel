@@ -8,6 +8,7 @@ import type {
   QuoteLastResponse,
 } from "@/lib/quote-types";
 import { fallbackCurrency, fallbackExchange, inferMddMarket, resolveMddTicker, type MddMarket } from "@/lib/mdd-market";
+import { lookupKoreanStockMetadata, type KoreanStockMetadata } from "@/lib/server/korean-stock-metadata";
 
 const DAY_MS = 86_400_000;
 const FETCH_TIMEOUT_MS = 12_000;
@@ -53,12 +54,6 @@ type YahooChartPayload = {
     }>;
     error?: { code?: string; description?: string } | null;
   };
-};
-
-type NaverKoreanStockMetadata = {
-  stockName?: string;
-  stockExchangeName?: string;
-  stockExchangeType?: { name?: string };
 };
 
 function nowIso() {
@@ -150,22 +145,12 @@ function chartMeta(payload: YahooChartPayload) {
   return payload.chart?.result?.[0]?.meta;
 }
 
-async function fetchKoreanStockMetadata(code: string): Promise<NaverKoreanStockMetadata | null> {
-  try {
-    const response = await fetchWithTimeout(`https://m.stock.naver.com/api/stock/${encodeURIComponent(code)}/basic`);
-    return (await response.json()) as NaverKoreanStockMetadata;
-  } catch {
-    // Name enrichment must never turn a valid Yahoo price series into an error.
-    return null;
-  }
-}
-
 function resolveQuoteMetadata(input: {
   requestedTicker: string;
   resolvedSymbol: string;
   market: MddMarket;
   yahoo?: ReturnType<typeof chartMeta>;
-  korean?: NaverKoreanStockMetadata | null;
+  korean?: KoreanStockMetadata | null;
 }) {
   const { requestedTicker, resolvedSymbol, market, yahoo, korean } = input;
   const currency = yahoo?.currency?.toUpperCase() === "KRW" ? "KRW" : fallbackCurrency(resolvedSymbol, market);
@@ -429,8 +414,9 @@ export async function getQuoteHistory(input: {
   const market = input.market ?? inferMddMarket(ticker);
   const tickerResolution = resolveMddTicker(ticker || "SPY", market);
   if (!tickerResolution.ok) return emptyQuoteHistory({ ticker, market, warning: tickerResolution.error });
-  const korean = market === "KR" ? await fetchKoreanStockMetadata(tickerResolution.candidates[0].slice(0, 6)) : null;
-  const candidates = market === "KR" && tickerResolution.candidates.length === 2 && korean?.stockExchangeName === "KOSDAQ"
+  const koreanLookup = market === "KR" ? await lookupKoreanStockMetadata(tickerResolution.requestedTicker) : null;
+  const korean = koreanLookup?.status === "found" ? koreanLookup.metadata : null;
+  const candidates = market === "KR" && tickerResolution.candidates.length === 2 && korean?.market === "KOSDAQ"
     ? [...tickerResolution.candidates].reverse()
     : tickerResolution.candidates;
   const normalizedTicker = candidates[0];

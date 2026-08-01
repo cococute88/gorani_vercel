@@ -645,7 +645,7 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
     setKoreanSearchResults([]);
     setActiveKoreanSearchIndex(-1);
     clearAnalysis();
-    // 검색어가 아니라 6자리 KRX 코드를 분석 입력값으로 확정한다.
+    // 검색어가 아니라 영숫자 6자리 KRX 코드를 분석 입력값으로 확정한다.
     onChange({ ...input, ticker: candidate.code });
   };
 
@@ -680,7 +680,7 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
 
   const handleSubmit = () => {
     if (market === "KR" && isKoreanStockNameQuery(input.ticker)) {
-      setValidationError("종목명 검색 결과에서 원하는 종목을 선택해주세요. 6자리 종목코드도 직접 입력할 수 있습니다.");
+      setValidationError("종목명 검색 결과에서 원하는 종목을 선택해주세요. 숫자 또는 영문자가 포함된 6자리 종목코드도 직접 입력할 수 있습니다.");
       return;
     }
     const resolution = resolveMddTicker(input.ticker, market);
@@ -721,7 +721,7 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
               compact
               labelTrailing={marketSelector}
               value={input.ticker}
-              placeholder={market === "KR" ? "종목명 또는 예: 000660, 005930" : "예: SPY, QQQ, AAPL"}
+              placeholder={market === "KR" ? "종목명 또는 예: 000660, 0049M0" : "예: SPY, QQQ, AAPL"}
               inputMode="text"
               onChange={handleTickerChange}
               onKeyDown={handleTickerKeyDown}
@@ -734,7 +734,7 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
               <div id={koreanSearchListId} role="listbox" aria-label="한국 종목 검색 결과" className="absolute z-30 mt-1 max-h-72 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white p-1 text-[13px] shadow-lg dark:border-[#344044] dark:bg-[#151a1b]">
                 {koreanSearchState === "searching" && <p className="px-3 py-2 text-slate-500 dark:text-slate-400">종목을 검색하는 중입니다…</p>}
                 {koreanSearchState === "empty" && <p className="px-3 py-2 text-slate-500 dark:text-slate-400">일치하는 한국 종목을 찾지 못했습니다.</p>}
-                {koreanSearchState === "error" && <p className="px-3 py-2 text-rose-600 dark:text-rose-300">종목 검색에 실패했습니다. 6자리 종목코드를 직접 입력할 수 있습니다.</p>}
+                {koreanSearchState === "error" && <p className="px-3 py-2 text-rose-600 dark:text-rose-300">종목 검색에 실패했습니다. 영숫자 6자리 종목코드를 직접 입력할 수 있습니다.</p>}
                 {koreanSearchState === "success" && koreanSearchResults.map((candidate, index) => {
                   const active = activeKoreanSearchIndex === index;
                   return (
@@ -762,7 +762,7 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
         </div>
         {customPickers}
         <p className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] text-slate-500 dark:border-[#2a3336] dark:bg-[#151a1b] dark:text-slate-400">
-          {market === "KR" ? "한국 시장은 종목명 또는 6자리 종목코드(예: 000660), .KS/.KQ 티커를 지원합니다. " : "미국 시장은 SPY, QQQ, AAPL 같은 티커를 지원합니다. "}
+          {market === "KR" ? "한국 시장은 종목명 또는 숫자·영문자가 포함된 6자리 종목코드(예: 000660, 0049M0), .KS/.KQ 티커를 지원합니다. " : "미국 시장은 SPY, QQQ, AAPL 같은 티커를 지원합니다. "}
           분석 실행 후 기간 버튼(1년·3년·5년·최대)으로 분석 구간을 조정하세요. 보유 데이터가 선택한 기간보다 짧으면 자동으로 전체 기간을 보여줍니다. &ldquo;커스텀&rdquo;을 선택하면 해당 티커의 실제 데이터 범위에서 시작일·종료일을 직접 지정할 수 있습니다.
         </p>
       </form>
@@ -772,7 +772,7 @@ export default function MddCalculator({ input, onChange }: { input: MddInput; on
       {!submitted ? (
         <div className={`${panel} text-center`}>
           <p className="text-[14px] font-bold text-slate-700 dark:text-slate-200">시장과 티커를 선택해 분석을 시작하세요.</p>
-          <p className="mt-2 text-[13px] text-slate-500 dark:text-slate-400">{market === "KR" ? "한국 종목은 6자리 코드만 입력해도 KOSPI·KOSDAQ를 자동으로 조회합니다." : "미국 티커를 입력하면 실제 시세 기준으로 MDD를 분석합니다."}</p>
+          <p className="mt-2 text-[13px] text-slate-500 dark:text-slate-400">{market === "KR" ? "한국 종목은 영숫자 6자리 코드만 입력해도 KOSPI·KOSDAQ를 자동으로 조회합니다." : "미국 티커를 입력하면 실제 시세 기준으로 MDD를 분석합니다."}</p>
         </div>
       ) : viewState === "loading" ? (
         <div className={`${panel} text-center`}>

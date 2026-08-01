@@ -1,3 +1,5 @@
+import { isLikelySuffixlessKrxTicker, krxYahooCandidates, normalizeTickerText, parseKrxTicker } from "@/lib/krx-ticker";
+
 export type MddMarket = "US" | "KR";
 
 export type MddTickerResolution =
@@ -6,26 +8,25 @@ export type MddTickerResolution =
 
 /**
  * Keep KRX codes as strings throughout the request path. A suffix-less code
- * intentionally produces both exchange candidates; Yahoo determines the
- * actual listing without a maintained local symbol directory.
+ * intentionally produces both exchange candidates. Server callers may narrow
+ * them with current exchange metadata before requesting a price provider.
  */
 export function resolveMddTicker(input: string, market: MddMarket): MddTickerResolution {
-  const requestedTicker = input.trim().replace(/\s+/g, "").toUpperCase();
+  const requestedTicker = normalizeTickerText(input);
   if (!requestedTicker) {
-    return { ok: false, error: market === "KR" ? "한국 종목코드 6자리를 입력해주세요. 예: 000660" : "미국 티커를 입력해주세요. 예: SPY" };
+    return { ok: false, error: market === "KR" ? "한국 종목은 숫자 또는 영문자가 포함된 6자리 종목코드를 입력해주세요. 예: 000660, 0049M0" : "미국 티커를 입력해주세요. 예: SPY" };
   }
 
   if (market === "KR") {
-    const match = requestedTicker.match(/^(\d{6})(?:\.(KS|KQ))?$/);
-    if (!match) {
-      return { ok: false, error: "한국 시장에서는 6자리 종목코드 또는 .KS/.KQ 티커를 입력해주세요. 예: 000660, 247540.KQ" };
+    const parsed = parseKrxTicker(requestedTicker);
+    if (!parsed) {
+      return { ok: false, error: "한국 종목은 숫자 또는 영문자가 포함된 6자리 종목코드와 선택적인 .KS/.KQ 접미사를 입력해주세요. 예: 000660, 0049M0, 247540.KQ" };
     }
-    const [, code, suffix] = match;
-    return { ok: true, requestedTicker, candidates: suffix ? [`${code}.${suffix}`] : [`${code}.KS`, `${code}.KQ`] };
+    return { ok: true, requestedTicker: parsed.requestedTicker, candidates: krxYahooCandidates(parsed.requestedTicker) };
   }
 
-  if (/^\d{6}(?:\.(KS|KQ))?$/.test(requestedTicker)) {
-    return { ok: false, error: "한국 종목은 시장을 ‘한국’으로 선택한 뒤 6자리 종목코드를 입력해주세요." };
+  if (/\.K[QS]$/.test(requestedTicker) || isLikelySuffixlessKrxTicker(requestedTicker)) {
+    return { ok: false, error: "한국 종목은 시장을 ‘한국’으로 선택한 뒤 숫자 또는 영문자가 포함된 6자리 종목코드를 입력해주세요." };
   }
   if (!/^[A-Z][A-Z0-9.-]*$/.test(requestedTicker)) {
     return { ok: false, error: "미국 티커 형식을 확인해주세요. 예: SPY, QQQ, AAPL" };
@@ -35,7 +36,7 @@ export function resolveMddTicker(input: string, market: MddMarket): MddTickerRes
 
 export function inferMddMarket(symbol: string, requestedMarket?: MddMarket): MddMarket {
   if (requestedMarket) return requestedMarket;
-  return /\.K[QS]$/i.test(symbol) ? "KR" : "US";
+  return /\.K[QS]$/i.test(symbol) || isLikelySuffixlessKrxTicker(symbol) ? "KR" : "US";
 }
 
 export function fallbackCurrency(symbol: string, market: MddMarket): "USD" | "KRW" {
