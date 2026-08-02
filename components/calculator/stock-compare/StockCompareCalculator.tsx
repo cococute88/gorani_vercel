@@ -277,7 +277,6 @@ export default function StockCompareCalculator() {
             metricsByKey={view.metricsByKey}
             periodLabel={periodLabel}
             correlation={correlation}
-            correlationMode={trMode === "tr" ? "TR" : "PR"}
             correlationState={correlationState}
           />
 
