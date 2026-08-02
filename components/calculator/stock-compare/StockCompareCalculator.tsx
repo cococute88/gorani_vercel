@@ -272,7 +272,14 @@ export default function StockCompareCalculator() {
       {view && series.length > 0 && (
         <>
           {/* 성과 카드 */}
-          <PerformanceCards series={series} metricsByKey={view.metricsByKey} periodLabel={periodLabel} />
+          <PerformanceCards
+            series={series}
+            metricsByKey={view.metricsByKey}
+            periodLabel={periodLabel}
+            correlation={correlation}
+            correlationMode={trMode === "tr" ? "TR" : "PR"}
+            correlationState={correlationState}
+          />
 
           {/* ① TradingView 스타일 성과 비교 메인 그래프 (성과 카드 바로 아래 = 원래 위치) */}
           <section className={panel}>
@@ -366,9 +373,6 @@ export default function StockCompareCalculator() {
             tickerA={data!.tickerA}
             tickerB={data!.tickerB}
             overlap={data!.overlap}
-            correlation={correlation}
-            correlationMode={trMode === "tr" ? "TR" : "PR"}
-            correlationState={correlationState}
           />
 
           {/* 상위 구성종목 비교 */}

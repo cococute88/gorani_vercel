@@ -1,7 +1,7 @@
 "use client";
 
-import { Info, Layers } from "lucide-react";
-import type { HoldingsStatus, OverlapResult, ReturnCorrelationResult } from "@/lib/stock-compare/types";
+import { Layers } from "lucide-react";
+import type { HoldingsStatus, OverlapResult } from "@/lib/stock-compare/types";
 
 // =============================================================
 // 구성종목 중복 분석.
@@ -16,9 +16,6 @@ interface Props {
   tickerA: string;
   tickerB: string;
   overlap: OverlapResult;
-  correlation: ReturnCorrelationResult | null;
-  correlationMode: "TR" | "PR";
-  correlationState: "idle" | "loading" | "ready";
 }
 
 const panel = "rounded-2xl border border-slate-200 bg-white p-5 dark:border-[#2a3336] dark:bg-[#191f20]";
@@ -78,69 +75,7 @@ function Bar({ label, pct, color }: { label: string; pct: number; color: string 
   );
 }
 
-function CorrelationMetric({
-  result,
-  mode,
-  state,
-}: {
-  result: ReturnCorrelationResult | null;
-  mode: "TR" | "PR";
-  state: Props["correlationState"];
-}) {
-  const calculating = state === "loading";
-  const idle = state === "idle";
-  const correlationValue = state === "ready" && result?.status === "ok" ? result.correlation : null;
-  const available = correlationValue != null;
-  const value = calculating
-    ? "계산 중…"
-    : idle
-      ? "비교 후 계산"
-      : available
-        ? correlationValue.toFixed(3)
-        : "계산 불가";
-  const reason = result?.status === "zero-variance"
-    ? "일별 수익률의 변동이 없어 계산할 수 없습니다."
-    : result?.status === "invalid-result"
-      ? "상관계수를 계산할 수 없습니다."
-      : "공통 거래일 데이터가 부족합니다.";
-
-  return (
-    <div className={`${subCard} mb-4`}>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0 flex-1 basis-56">
-          <details className="group">
-            <summary
-              className="flex w-fit cursor-pointer list-none items-center gap-1.5 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-200"
-              aria-label="수익률 상관계수 도움말"
-            >
-              <h3 className="text-[12.5px] font-bold text-slate-700 dark:text-slate-200">수익률 상관계수</h3>
-              <Info className="h-3.5 w-3.5" />
-            </summary>
-            <div className="mt-2 max-w-2xl rounded-lg border border-slate-200 bg-white p-3 text-[11.5px] leading-relaxed text-slate-500 shadow-sm dark:border-[#2a3336] dark:bg-[#191f20] dark:text-slate-400">
-              <p>+1에 가까울수록 같은 방향과 비슷한 폭으로, -1에 가까울수록 반대 방향으로 움직이는 경향이 강합니다. 0에 가까우면 일별 움직임의 선형 관계가 약합니다.</p>
-              <p className="mt-1.5">상관계수는 수익률 수준이나 미래 성과를 뜻하지 않으며, 구성종목 중복도와는 별개의 지표입니다.</p>
-            </div>
-          </details>
-          <div className="num mt-1 text-[28px] font-extrabold tracking-tight text-slate-900 dark:text-white">{value}</div>
-        </div>
-        <div className="min-w-0 basis-full text-left sm:basis-auto sm:text-right">
-          <p className="text-[12px] font-semibold text-slate-600 dark:text-slate-300">선택 기간의 일별 {mode} 수익률 기준</p>
-          {state === "ready" && result && (
-            <p className="mt-1 text-[11.5px] text-slate-400">공통 거래일 {result.observations}일</p>
-          )}
-        </div>
-      </div>
-      {!calculating && !idle && !available && <p className="mt-2 text-[11.5px] text-slate-400">{reason}</p>}
-      {idle && <p className="mt-2 text-[11.5px] text-slate-400">변경한 티커로 비교를 실행하면 다시 계산합니다.</p>}
-      <div className="mt-3 border-t border-slate-200 pt-3 text-[11.5px] leading-relaxed text-slate-500 dark:border-[#2a3336] dark:text-slate-400">
-        <p>두 종목이 일별로 얼마나 비슷하게 움직였는지 나타냅니다.</p>
-        <p className="mt-0.5 font-semibold">구성종목 중복도와는 별개의 지표입니다.</p>
-      </div>
-    </div>
-  );
-}
-
-export default function OverlapSummary({ tickerA, tickerB, overlap, correlation, correlationMode, correlationState }: Props) {
+export default function OverlapSummary({ tickerA, tickerB, overlap }: Props) {
   // proxy(동일 지수 별칭)로 해석된 티커가 있으면 근거를 명시한다.
   const proxyNotes = [
     overlap.statusA === "proxy" && overlap.proxyOfA
@@ -168,9 +103,6 @@ export default function OverlapSummary({ tickerA, tickerB, overlap, correlation,
       <h2 className="mb-4 flex items-center gap-2 text-[15px] font-bold text-slate-900 dark:text-white">
         <Layers className="h-4 w-4 text-blue-500" /> 구성종목 중복 분석
       </h2>
-
-      <CorrelationMetric result={correlation} mode={correlationMode} state={correlationState} />
-
       {!overlap.hasHoldings ? (
         <p className="text-[13px] text-slate-500 dark:text-slate-400">
           {buildUnavailableMessage(tickerA, tickerB, overlap)}
