@@ -76,19 +76,6 @@ function Bar({ label, pct, color }: { label: string; pct: number; color: string 
 }
 
 export default function OverlapSummary({ tickerA, tickerB, overlap }: Props) {
-  if (!overlap.hasHoldings) {
-    return (
-      <section className={panel}>
-        <h2 className="mb-1 flex items-center gap-2 text-[15px] font-bold text-slate-900 dark:text-white">
-          <Layers className="h-4 w-4 text-blue-500" /> 구성종목 중복 분석
-        </h2>
-        <p className="text-[13px] text-slate-500 dark:text-slate-400">
-          {buildUnavailableMessage(tickerA, tickerB, overlap)}
-        </p>
-      </section>
-    );
-  }
-
   // proxy(동일 지수 별칭)로 해석된 티커가 있으면 근거를 명시한다.
   const proxyNotes = [
     overlap.statusA === "proxy" && overlap.proxyOfA
@@ -116,56 +103,63 @@ export default function OverlapSummary({ tickerA, tickerB, overlap }: Props) {
       <h2 className="mb-4 flex items-center gap-2 text-[15px] font-bold text-slate-900 dark:text-white">
         <Layers className="h-4 w-4 text-blue-500" /> 구성종목 중복 분석
       </h2>
+      {!overlap.hasHoldings ? (
+        <p className="text-[13px] text-slate-500 dark:text-slate-400">
+          {buildUnavailableMessage(tickerA, tickerB, overlap)}
+        </p>
+      ) : (
+        <>
+          {proxyNotes.length > 0 && (
+            <p className="mb-3 text-[11.5px] text-slate-400">{proxyNotes.join(" ")}</p>
+          )}
 
-      {proxyNotes.length > 0 && (
-        <p className="mb-3 text-[11.5px] text-slate-400">{proxyNotes.join(" ")}</p>
-      )}
+          <div className="grid gap-4 md:grid-cols-2">
+            {/* 왼쪽: 얼마나 겹치나 */}
+            <div className={subCard}>
+              <div className="mb-3 text-[12.5px] font-bold text-slate-700 dark:text-slate-200">두 종목이 얼마나 겹치나</div>
+              <div className="space-y-4">
+                <MetricLine label="종목 개수 기준 중복도" value={countValue} hint={countHint} />
+                <MetricLine
+                  label="실제 비중 중복도"
+                  value={`${overlap.mutualWeightPct.toFixed(1)}%`}
+                  hint="양쪽이 공통으로 보유한 비중 · Σ min(비중A, 비중B)"
+                />
+              </div>
+            </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        {/* 왼쪽: 얼마나 겹치나 */}
-        <div className={subCard}>
-          <div className="mb-3 text-[12.5px] font-bold text-slate-700 dark:text-slate-200">두 종목이 얼마나 겹치나</div>
-          <div className="space-y-4">
-            <MetricLine label="종목 개수 기준 중복도" value={countValue} hint={countHint} />
-            <MetricLine
-              label="실제 비중 중복도"
-              value={`${overlap.mutualWeightPct.toFixed(1)}%`}
-              hint="양쪽이 공통으로 보유한 비중 · Σ min(비중A, 비중B)"
-            />
+            {/* 오른쪽: 각 ETF 안에서 공통 종목 비중 */}
+            <div className={subCard}>
+              <div className="mb-3 text-[12.5px] font-bold text-slate-700 dark:text-slate-200">
+                각 ETF 안에서 공통 종목이 차지하는 비중
+              </div>
+              <div className="space-y-4">
+                <Bar label={`${tickerA} 내 공통 종목 비중`} pct={overlap.weightOverlapPctA} color="#3b82f6" />
+                <Bar label={`${tickerB} 내 공통 종목 비중`} pct={overlap.weightOverlapPctB} color="#ec4899" />
+                <p className="text-[11.5px] text-slate-400">
+                  같은 공통 종목이라도 ETF 별 비중이 다르면 성과 기여가 달라집니다.
+                </p>
+              </div>
+            </div>
           </div>
-        </div>
 
-        {/* 오른쪽: 각 ETF 안에서 공통 종목 비중 */}
-        <div className={subCard}>
-          <div className="mb-3 text-[12.5px] font-bold text-slate-700 dark:text-slate-200">
-            각 ETF 안에서 공통 종목이 차지하는 비중
-          </div>
-          <div className="space-y-4">
-            <Bar label={`${tickerA} 내 공통 종목 비중`} pct={overlap.weightOverlapPctA} color="#3b82f6" />
-            <Bar label={`${tickerB} 내 공통 종목 비중`} pct={overlap.weightOverlapPctB} color="#ec4899" />
-            <p className="text-[11.5px] text-slate-400">
-              같은 공통 종목이라도 ETF 별 비중이 다르면 성과 기여가 달라집니다.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {overlap.commonTickers.length > 0 && (
-        <div className="mt-4">
-          <div className="mb-1.5 text-[11.5px] font-semibold text-slate-500 dark:text-slate-400">
-            공통 종목 ({overlap.commonCount}개)
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {overlap.commonTickers.map((t) => (
-              <span
-                key={t}
-                className="rounded-md bg-blue-50 px-2 py-0.5 text-[11.5px] font-semibold text-blue-700 dark:bg-blue-500/15 dark:text-blue-300"
-              >
-                {t}
-              </span>
-            ))}
-          </div>
-        </div>
+          {overlap.commonTickers.length > 0 && (
+            <div className="mt-4">
+              <div className="mb-1.5 text-[11.5px] font-semibold text-slate-500 dark:text-slate-400">
+                공통 종목 ({overlap.commonCount}개)
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {overlap.commonTickers.map((t) => (
+                  <span
+                    key={t}
+                    className="rounded-md bg-blue-50 px-2 py-0.5 text-[11.5px] font-semibold text-blue-700 dark:bg-blue-500/15 dark:text-blue-300"
+                  >
+                    {t}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
       )}
     </section>
   );

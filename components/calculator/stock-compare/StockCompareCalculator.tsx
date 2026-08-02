@@ -8,6 +8,7 @@ import { fetchCompareData, type CompareData } from "@/lib/stock-compare/service"
 import { buildCompareSeries, toTrLevels, windowCompareSeries, type TrLevels } from "@/lib/stock-compare/total-return";
 import { computeRollingPointsMulti, computeSeriesMetrics } from "@/lib/stock-compare/metrics";
 import { computeContribution } from "@/lib/stock-compare/contribution";
+import { computeDailyReturnCorrelation } from "@/lib/stock-compare/correlation";
 import {
   COMPARE_PERIODS,
   DEFAULT_COMPARE_A,
@@ -119,15 +120,22 @@ export default function StockCompareCalculator() {
     void runCompare(inputB, inputA);
   };
 
+  const selectedLevels = useMemo(() => {
+    if (!data) return null;
+    const useTr = options.totalReturn;
+    return {
+      a: toTrLevels(data.tickerA, data.pointsA, useTr),
+      b: toTrLevels(data.tickerB, data.pointsB, useTr),
+    };
+  }, [data, options.totalReturn]);
+
   // ── 파생 계산 ──
   // base: MAX(전체) 시리즈 + Rolling 을 한 번만 계산한다. 기간(period)에는
   // 의존하지 않으므로 기간 버튼을 눌러도 무거운 buildCompareSeries/중복 제거
   // 인덱스가 다시 계산되지 않는다(데이터/옵션 변경 시에만 재계산).
   const base = useMemo(() => {
-    if (!data) return null;
+    if (!data || !selectedLevels) return null;
     const useTr = options.totalReturn;
-    const aLevels: TrLevels = toTrLevels(data.tickerA, data.pointsA, useTr);
-    const bLevels: TrLevels = toTrLevels(data.tickerB, data.pointsB, useTr);
     const commonLevels = new Map<string, TrLevels>();
     data.commonPoints.forEach((pts, t) => commonLevels.set(t, toTrLevels(t, pts, useTr)));
 
@@ -137,8 +145,8 @@ export default function StockCompareCalculator() {
     const { series: maxSeries, exMeta } = buildCompareSeries({
       tickerA: data.tickerA,
       tickerB: data.tickerB,
-      aLevels,
-      bLevels,
+      aLevels: selectedLevels.a,
+      bLevels: selectedLevels.b,
       overlap: data.overlap,
       commonLevels,
       periodDays: Infinity,
@@ -150,7 +158,7 @@ export default function StockCompareCalculator() {
     const rollingByWindow = computeRollingPointsMulti(maxSeries, ROLLING_WINDOWS);
 
     return { maxSeries, exMeta, rollingByWindow };
-  }, [data, options]);
+  }, [data, options.removeOverlap, options.totalReturn, options.weighted, selectedLevels]);
 
   // view: 성과 카드/범례용 "기간 윈도" 시리즈·지표. MAX 시리즈를 잘라 0% 재기준화만
   // 하므로(가벼운 연산) 기간 변경 시 누적수익률을 다시 만들지 않는다.
@@ -193,6 +201,22 @@ export default function StockCompareCalculator() {
   const series: CompareSeries[] = view?.series ?? [];
   const periodLabel = COMPARE_PERIODS.find((p) => p.key === period)?.label ?? "";
   const periodDays = COMPARE_PERIODS.find((p) => p.key === period)?.days ?? 365;
+
+  const correlation = useMemo(() => {
+    if (!selectedLevels) return null;
+    return computeDailyReturnCorrelation(selectedLevels.a, selectedLevels.b, periodDays);
+  }, [selectedLevels, periodDays]);
+
+  const resolvedInputA = resolveCompareTickerInput(inputA);
+  const resolvedInputB = resolveCompareTickerInput(inputB);
+  const correlationMatchesInputs = Boolean(
+    data
+      && resolvedInputA.ok
+      && resolvedInputB.ok
+      && resolvedInputA.ticker === data.tickerA
+      && resolvedInputB.ticker === data.tickerB,
+  );
+  const correlationState = loading ? "loading" : correlationMatchesInputs ? "ready" : "idle";
 
   // 현재 선택된 Rolling 탭의 미리 계산된 포인트(없으면 빈 배열) + 부제 텍스트.
   const rollingPoints = base?.rollingByWindow[rollingWindow] ?? [];
@@ -248,7 +272,13 @@ export default function StockCompareCalculator() {
       {view && series.length > 0 && (
         <>
           {/* 성과 카드 */}
-          <PerformanceCards series={series} metricsByKey={view.metricsByKey} periodLabel={periodLabel} />
+          <PerformanceCards
+            series={series}
+            metricsByKey={view.metricsByKey}
+            periodLabel={periodLabel}
+            correlation={correlation}
+            correlationState={correlationState}
+          />
 
           {/* ① TradingView 스타일 성과 비교 메인 그래프 (성과 카드 바로 아래 = 원래 위치) */}
           <section className={panel}>
@@ -338,7 +368,11 @@ export default function StockCompareCalculator() {
           </section>
 
           {/* 구성종목 중복 분석 */}
-          <OverlapSummary tickerA={data!.tickerA} tickerB={data!.tickerB} overlap={data!.overlap} />
+          <OverlapSummary
+            tickerA={data!.tickerA}
+            tickerB={data!.tickerB}
+            overlap={data!.overlap}
+          />
 
           {/* 상위 구성종목 비교 */}
           <HoldingsComparisonTable tickerA={data!.tickerA} tickerB={data!.tickerB} overlap={data!.overlap} />

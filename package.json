@@ -114,6 +114,8 @@
     "check:schd-calendar-portfolio-market-ux": "node scripts/check-schd-calendar-portfolio-market-ux.mjs",
     "check:stock-compare-rebase": "node scripts/check-stock-compare-rebase.mjs",
     "check:stock-compare-holdings": "node scripts/check-stock-compare-holdings.mjs",
+    "check:stock-compare-correlation": "npx --yes tsx scripts/check-stock-compare-correlation.mts",
+    "verify:stock-compare-correlation-live": "npx --yes tsx scripts/verify-stock-compare-correlation-live.mts",
     "check:portfolio-compare": "npx --yes tsx scripts/check-portfolio-compare.mts",
     "check:krx-alphanumeric-tickers": "npx --yes tsx scripts/check-krx-alphanumeric-tickers.mts",
     "verify:krx-alphanumeric-provider": "npx --yes tsx scripts/verify-krx-alphanumeric-provider.mts",
