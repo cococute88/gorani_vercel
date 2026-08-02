@@ -150,6 +150,21 @@ export type ComparePeriod = {
   days: number; // Infinity → MAX
 };
 
+// ── 일별 수익률 상관계수 ────────────────────────────────────
+
+export type ReturnCorrelationStatus =
+  | "ok"
+  | "insufficient-data"
+  | "zero-variance"
+  | "invalid-result";
+
+export type ReturnCorrelationResult = {
+  correlation: number | null;
+  // 날짜 교집합에서 생성된 유효한 일별 수익률 쌍의 수.
+  observations: number;
+  status: ReturnCorrelationStatus;
+};
+
 // ── 전체 계산 결과(서비스 산출물) ───────────────────────────
 
 export type RawSeries = {
