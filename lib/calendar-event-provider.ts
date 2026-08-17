@@ -2,9 +2,9 @@ import {
   createCalendarTickerCacheEntry,
   isCalendarTickerCacheFresh,
   loadCalendarTickerCache,
-  saveCalendarTickerCache,
   type CalendarTickerCacheMap,
 } from "@/lib/calendar-cache";
+import { mergeRefreshedCalendarEvents } from "@/lib/calendar-event-retention";
 import {
   buildGeneratedCalendarEventId,
   getCanonicalCalendarEventId,
@@ -572,6 +572,18 @@ export async function getRealDividendEventsForTicker({
       return getMockCalendarResultForTicker(ticker, year, month, [...warnings, "Mock calendar fallback was used."]);
     }
 
+    if (providerSource === "sample" && persistedCache) {
+      const events = persistedCache.events.map(normalizeCalendarEventForCache);
+      const staleWarnings = [...warnings, "Existing calendar events were retained because the provider returned sample fallback data."];
+      return {
+        ticker,
+        events,
+        cacheEntry: { ...persistedCache, ticker, events, source: "cache", warnings: staleWarnings },
+        source: "cache",
+        warnings: staleWarnings,
+      };
+    }
+
     const historicalEvents = buildDividendEventsFromHistory({ ticker, dividends, sourceKind });
     const frequency = inferDividendFrequency(dividends.map((dividend) => dividend.date));
     const projectedEvents = projectEstimatedDividendEvents({ ticker, dividends, frequency, today });
@@ -581,9 +593,8 @@ export async function getRealDividendEventsForTicker({
     const estimatedEvents = response.source === "sample"
       ? projectedEvents.map((event) => ({ ...event, sourceKind: "sample" as const }))
       : projectedEvents;
-    const events = [...historicalEvents, ...estimatedEvents]
-      .map(normalizeCalendarEventForCache)
-      .sort((a, b) => a.date.localeCompare(b.date) || a.ticker.localeCompare(b.ticker) || a.type.localeCompare(b.type));
+    const refreshedEvents = [...historicalEvents, ...estimatedEvents].map(normalizeCalendarEventForCache);
+    const events = mergeRefreshedCalendarEvents(persistedCache?.events ?? [], refreshedEvents);
     const allWarnings = [
       ...warnings,
       ...frequency.warnings,
@@ -591,7 +602,6 @@ export async function getRealDividendEventsForTicker({
     ];
 
     const cacheEntry = buildCalendarTickerCacheFromEvents(ticker, events, providerSource, allWarnings);
-    saveCalendarTickerCache(cacheEntry);
 
     return {
       ticker,

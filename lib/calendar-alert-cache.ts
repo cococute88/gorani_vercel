@@ -108,6 +108,15 @@ export function shouldReplacePersistedCalendarCache(
     && JSON.stringify(left.events) === JSON.stringify(right.events);
   if (sameContractBody(persisted, candidate)) return false;
 
+  const persistedEventBodies = new Set(persisted.events.map((event) => JSON.stringify(event)));
+  const candidateEventBodies = new Set(candidate.events.map((event) => JSON.stringify(event)));
+  if (
+    candidateEventBodies.size > persistedEventBodies.size
+    && Array.from(persistedEventBodies).every((event) => candidateEventBodies.has(event))
+  ) {
+    return true;
+  }
+
   const sanitizedPersisted = sanitizedPersistedAlertCacheEntry(
     persisted as CalendarTickerCache<CalendarEvent>,
   );

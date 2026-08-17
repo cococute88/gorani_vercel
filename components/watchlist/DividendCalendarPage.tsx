@@ -51,6 +51,7 @@ import {
 import { DEFAULT_CALENDAR_PORTFOLIO_ID, getCalendarLocalStorageKey, getLegacyCalendarLocalStorageKey } from "@/lib/calendar-portfolio";
 import { buildLiveCalendarCacheEntry, mergeFetchedEventsWithExistingCache, type DividendLiveResponse, type ProviderStatus } from "@/lib/calendar-dividend-live";
 import { loadCalendarCacheMap, saveCalendarCacheMap } from "@/lib/calendar-cache";
+import { mergeCalendarEventCacheMaps } from "@/lib/calendar-event-retention";
 import CalendarGrid from "./CalendarGrid";
 import CalendarEventDialog from "./CalendarEventDialog";
 import CustomEventDialog, { type CustomEventSubmitInput } from "./CustomEventDialog";
@@ -81,61 +82,9 @@ function getCalendarEventMetaLookupKeys(event: CalendarEvent): string[] {
 }
 
 
-function summarizeCalendarEventForTrace(event: CalendarEvent) {
-  return {
-    ticker: event.ticker,
-    eventType: event.type,
-    estimated: event.status === "estimated" || event.sourceKind === "estimated",
-    exDate: event.exDivDate,
-    buyDate: event.buyDeadline,
-    paymentDate: event.paymentDate,
-    source: event.sourceKind ?? "unknown",
-    eventDate: event.date,
-    id: event.id,
-  };
-}
-
-const RITM_TRACE_TICKER = "RITM";
-
-function traceTimestamp() {
-  return new Date().toISOString();
-}
-
-function summarizeRitmEvents(events: CalendarEvent[]) {
-  return events.filter((event) => event.ticker === RITM_TRACE_TICKER).map(summarizeCalendarEventForTrace);
-}
-
-function traceCalendarFlow(stage: string, events: CalendarEvent[], changedBy?: string, beforeEvents?: CalendarEvent[]) {
-  const rows = events.map(summarizeCalendarEventForTrace);
-  const beforeRitm = beforeEvents ? summarizeRitmEvents(beforeEvents) : [];
-  const afterRitm = rows.filter((row) => row.ticker === RITM_TRACE_TICKER);
-  console.info(`[dividend-calendar:trace] ${traceTimestamp()} ${stage}`, {
-    timestamp: traceTimestamp(),
-    stage,
-    count: rows.length,
-    ticker: RITM_TRACE_TICKER,
-    before: beforeRitm,
-    after: afterRitm,
-    changedBy: changedBy ?? stage,
-    ritm: afterRitm,
-    rows,
-  });
-}
-
-function traceCalendarStateUpdate(name: string, nextEvents: CalendarEvent[], beforeEvents?: CalendarEvent[]) {
-  traceCalendarFlow(`React State Update: ${name}`, nextEvents, name, beforeEvents);
-}
-
-function traceEffect(name: string, detail?: Record<string, unknown>) {
-  console.info(`[dividend-calendar:effect] ${traceTimestamp()} ${name}`, { timestamp: traceTimestamp(), effect: name, ...detail });
-}
-
-function summarizeCacheEntryForTrace(entry: { ticker: string; events?: CalendarEvent[]; source?: string } | null | undefined) {
-  return entry ? { ticker: entry.ticker, source: entry.source, events: (entry.events ?? []).map(summarizeCalendarEventForTrace) } : null;
-}
-
-function areCacheEntryEventsEqual(a: { events?: CalendarEvent[] } | null | undefined, b: { events?: CalendarEvent[] } | null | undefined) {
-  return JSON.stringify((a?.events ?? []).map(summarizeCalendarEventForTrace)) === JSON.stringify((b?.events ?? []).map(summarizeCalendarEventForTrace));
+function cacheEntryContainsEvents(candidate: { events?: CalendarEvent[] }, persisted: { events?: CalendarEvent[] } | null | undefined) {
+  const persistedIds = new Set((persisted?.events ?? []).map((event) => event.canonicalEventId ?? event.id));
+  return (candidate.events ?? []).every((event) => persistedIds.has(event.canonicalEventId ?? event.id));
 }
 
 function resolveCalendarEventMeta(event: CalendarEvent, metas: Record<string, CalendarEventMeta>): CalendarEventMeta | undefined {
@@ -173,9 +122,8 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
   const [cloudSavedAt, setCloudSavedAt] = useState<string | null>(null);
   const [cloudSaveNeeded, setCloudSaveNeeded] = useState(false);
   const [liveRefreshedTickerSet, setLiveRefreshedTickerSet] = useState<Set<string>>(() => new Set());
-  const providerEventsTraceRef = useRef<CalendarEvent[]>(providerResult.events);
-  const legacyImportedEventsTraceRef = useRef<CalendarEvent[]>(legacyImportedEvents);
   const firestoreCacheTickersRef = useRef<Set<string>>(new Set());
+  const providerRequestSequenceRef = useRef(0);
   const activeProviderContextRef = useRef<CalendarProviderPersistenceContext>({
     uid: user?.uid ?? null,
     portfolioId: activePortfolioId,
@@ -187,33 +135,15 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
   };
 
   useEffect(() => {
-    providerEventsTraceRef.current = providerResult.events;
-  }, [providerResult.events]);
-
-  useEffect(() => {
-    legacyImportedEventsTraceRef.current = legacyImportedEvents;
-  }, [legacyImportedEvents]);
-
-  useEffect(() => {
-    traceEffect("Application Start", { activePortfolioId, activePortfolioName, tickers });
-  }, [activePortfolioId, activePortfolioName, tickers]);
-
-  useEffect(() => {
-    traceEffect("Authentication Ready", { uid: user?.uid ?? null, authenticated: Boolean(user) });
-  }, [user]);
-
-  useEffect(() => {
     setLiveRefreshState({ running: false, done: 0, total: 0, success: [], failed: [], message: "" });
   }, [activePortfolioId, user?.uid]);
 
   useEffect(() => {
-    traceEffect("DividendCalendarPage useEffect: Local Cache Read / portfolio", { activePortfolioId });
     if (typeof window === "undefined") return;
     try {
       const storageKey = getCalendarLocalStorageKey("eventMetas", activePortfolioId);
       const stored = window.localStorage.getItem(storageKey) ?? (activePortfolioId === DEFAULT_CALENDAR_PORTFOLIO_ID ? window.localStorage.getItem(getLegacyCalendarLocalStorageKey("eventMetas")) : null);
       if (stored) {
-        traceEffect("Local Cache Read: eventMetas", { activePortfolioId });
         setEventMetas(JSON.parse(stored) as Record<string, CalendarEventMeta>);
       }
     } catch {
@@ -223,14 +153,10 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
     setLegacyImportedEvents([]);
     setCloudSaveNeeded(false);
     setCloudSavedAt(null);
-    setProviderResult((current) => {
-      traceCalendarStateUpdate("setProviderResult(activePortfolio reset)", [], current.events);
-      return { ...current, events: [] };
-    });
+    setProviderResult((current) => ({ ...current, events: [] }));
   }, [activePortfolioId]);
 
   useEffect(() => {
-    traceEffect("DividendCalendarPage useEffect: Firestore Read", { uid: user?.uid ?? null, activePortfolioId });
     if (!user) return;
     const metaLoad = activePortfolioId === DEFAULT_CALENDAR_PORTFOLIO_ID ? loadCalendarEventMetas(user.uid) : loadPortfolioCalendarEventMetas(user.uid, activePortfolioId);
     metaLoad
@@ -248,13 +174,9 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
 
     if (activePortfolioId === DEFAULT_CALENDAR_PORTFOLIO_ID) {
       loadLegacyImportedCalendarEvents(user.uid)
-        .then((events) => {
-          traceCalendarStateUpdate("setLegacyImportedEvents(loadLegacyImportedCalendarEvents)", events, legacyImportedEventsTraceRef.current);
-          setLegacyImportedEvents(events);
-        })
+        .then(setLegacyImportedEvents)
         .catch((err) => warnFirestoreFallback("legacyCalendarEvents.load", err));
     } else {
-      traceCalendarStateUpdate("setLegacyImportedEvents(non-default portfolio reset)", [], legacyImportedEventsTraceRef.current);
       setLegacyImportedEvents([]);
     }
 
@@ -277,9 +199,9 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
   }, [user, activePortfolioId]);
 
   useEffect(() => {
-    traceEffect("DividendCalendarPage useEffect: Provider Load", { tickers, month: month.toISOString(), uid: user?.uid ?? null, activePortfolioId, authLoading, authConfigured });
     if (authConfigured && authLoading) return;
     let cancelled = false;
+    const requestSequence = ++providerRequestSequenceRef.current;
     const requestContext: CalendarProviderPersistenceContext = {
       uid: user?.uid ?? null,
       portfolioId: activePortfolioId,
@@ -320,23 +242,19 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
         }
       }
       await Promise.all(persistedCacheCleanupWrites);
-      if (cancelled) return;
+      if (cancelled || requestSequence !== providerRequestSequenceRef.current) return;
       firestoreCacheTickersRef.current = firestoreCacheTickers;
-      console.info(`[dividend-calendar:trace] ${traceTimestamp()} initial-load priority`, {
-        timestamp: traceTimestamp(),
-        stage: "Portfolio Load / Firestore Read / Local Cache Read",
-        priority: ["firestore", "user-cache/localStorage", "latest-refresh/provider", "default-data", "projection"],
-        firestoreCache: Object.values(typedFirestoreCacheMap).map((entry) => summarizeCacheEntryForTrace(entry as never)),
-        localStorageCache: Object.values(loadCalendarCacheMap<CalendarEvent>(activePortfolioId)).map(summarizeCacheEntryForTrace),
-      });
-      if (firestoreCacheTickers.size > 0) saveCalendarCacheMap(typedFirestoreCacheMap, activePortfolioId);
       const localCacheMap = loadCalendarCacheMap<CalendarEvent>(activePortfolioId);
+      const hydratedCacheMap = mergeCalendarEventCacheMaps(localCacheMap, typedFirestoreCacheMap);
+      if (Object.keys(typedFirestoreCacheMap).length > 0) {
+        saveCalendarCacheMap(hydratedCacheMap, activePortfolioId);
+      }
       return getCalendarEventsForTickersWithProvider({
         tickers,
         year: month.getFullYear(),
         month: month.getMonth() + 1,
         provider: "real",
-        cacheMap: { ...localCacheMap, ...typedFirestoreCacheMap },
+        cacheMap: hydratedCacheMap,
         preferFreshCache: true,
         firestoreCacheTickers,
       });
@@ -344,16 +262,18 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
 
     loadProviderEvents()
       .then((result) => {
-        if (cancelled || !result) return;
-        traceCalendarFlow("Provider Load -> Projection -> Merge", result.events, "getCalendarEventsForTickersWithProvider()", providerEventsTraceRef.current);
-        traceCalendarStateUpdate("setProviderResult(provider load)", result.events, providerEventsTraceRef.current);
+        if (cancelled || !result || requestSequence !== providerRequestSequenceRef.current) return;
+        const mergedLocalCache = mergeCalendarEventCacheMaps(
+          loadCalendarCacheMap<CalendarEvent>(activePortfolioId),
+          result.cacheMap,
+        );
+        saveCalendarCacheMap(mergedLocalCache, activePortfolioId);
         providerResultContextRef.current = requestContext;
-        setProviderResult(result);
+        setProviderResult({ ...result, cacheMap: mergedLocalCache });
       })
       .catch((error) => {
-        if (cancelled) return;
+        if (cancelled || requestSequence !== providerRequestSequenceRef.current) return;
         const fallbackEvents = getCalendarEventsForTickers({ tickers, year: month.getFullYear(), month: month.getMonth() + 1 });
-        traceCalendarFlow("provider failure -> default data", fallbackEvents, "getCalendarEventsForTickers()", providerEventsTraceRef.current);
         providerResultContextRef.current = requestContext;
         setProviderResult({
           events: fallbackEvents,
@@ -537,12 +457,6 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
   // stray SPY/QQQ/MSFT preview rows from polluting an imported calendar).
   const usedImportedEvents = legacyImportedEvents.length > 0;
   const dividendEvents = useMemo(() => {
-    traceEffect("DividendCalendarPage useMemo: Projection / Merge", {
-      providerEvents: providerResult.events.length,
-      legacyImportedEvents: legacyImportedEvents.length,
-      providerCacheTickers: Object.keys(providerResult.cacheMap),
-      liveRefreshedTickers: Array.from(liveRefreshedTickerSet),
-    });
     const selected = selectCalendarDividendEvents({ providerEvents: providerResult.events, importedEvents: legacyImportedEvents });
     const activeOnlyEvents = selected.events.filter((event) => !event.ticker || event.ticker === "CUSTOM" || activeTickerSet.has(event.ticker));
     const providerAuthoritativeTickerSet = new Set([
@@ -552,26 +466,21 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
         .map((entry) => entry.ticker),
     ]);
     if (!selected.usedImported || providerAuthoritativeTickerSet.size === 0) {
-      traceCalendarFlow("Merge: selectCalendarDividendEvents()", activeOnlyEvents, "selectCalendarDividendEvents()", providerResult.events);
       return activeOnlyEvents;
     }
     const authoritativeProviderEvents = providerResult.events.filter((event) => providerAuthoritativeTickerSet.has(event.ticker) && activeTickerSet.has(event.ticker));
     const preservedImportedEvents = legacyImportedEvents.filter((event) => !providerAuthoritativeTickerSet.has(event.ticker) && activeTickerSet.has(event.ticker));
-    const merged = [...preservedImportedEvents, ...authoritativeProviderEvents].sort((a, b) => a.date.localeCompare(b.date) || a.ticker.localeCompare(b.ticker) || a.type.localeCompare(b.type));
-    traceCalendarFlow("Merge: provider cache overrides legacy imported ticker", merged, "dividendEvents useMemo providerAuthoritativeTickerSet", legacyImportedEvents);
-    return merged;
+    return [...preservedImportedEvents, ...authoritativeProviderEvents].sort((a, b) => a.date.localeCompare(b.date) || a.ticker.localeCompare(b.ticker) || a.type.localeCompare(b.type));
   }, [activeTickerSet, legacyImportedEvents, liveRefreshedTickerSet, providerResult.cacheMap, providerResult.events]);
 
-  const events = useMemo(() => {
-    traceEffect("DividendCalendarPage useMemo: Calendar Render mergeGeneratedAndCustomCalendarEvents", { dividendEvents: dividendEvents.length, customEvents: customEvents.length });
-    const mergedEvents = mergeGeneratedAndCustomCalendarEvents(dividendEvents, customEvents).map((event) => {
+  const events = useMemo(
+    () => mergeGeneratedAndCustomCalendarEvents(dividendEvents, customEvents).map((event) => {
       const meta = resolveCalendarEventMeta(event, eventMetas);
       if (!meta) return event;
       return { ...event, favorite: meta.star ? "⭐" : meta.heart ? "💗" : event.favorite, note: meta.memo ?? event.note };
-    });
-    traceCalendarFlow("Calendar Render: final events memo", mergedEvents, "mergeGeneratedAndCustomCalendarEvents()", dividendEvents);
-    return mergedEvents;
-  }, [dividendEvents, customEvents, eventMetas]);
+    }),
+    [dividendEvents, customEvents, eventMetas],
+  );
   const filteredEvents = useMemo(() => events.filter((event) => filters[event.type]), [events, filters]);
   // Custom events always render on the grid (date-line text) regardless of the dividend-type filter.
   const customCalendarEvents = useMemo(() => events.filter((event) => event.type === "custom"), [events]);
@@ -657,10 +566,6 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
     return map;
   }, [taxRows]);
 
-  useEffect(() => {
-    traceCalendarFlow("final Calendar Event", filteredEvents);
-  }, [filteredEvents]);
-
   const moveMonth = (delta: number) => {
     setMonth((current) => new Date(current.getFullYear(), current.getMonth() + delta, 1));
   };
@@ -707,6 +612,7 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
 
   const handleRefreshDividendEvents = async () => {
     const uniqueTickers = Array.from(new Set(tickers.map((ticker) => ticker.trim().toUpperCase()).filter(Boolean)));
+    const requestSequence = ++providerRequestSequenceRef.current;
     const refreshPersistenceContext: CalendarProviderPersistenceContext = {
       uid: user?.uid ?? null,
       portfolioId: activePortfolioId,
@@ -715,7 +621,7 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
       activeProviderContextRef.current,
       refreshPersistenceContext.uid,
       refreshPersistenceContext.portfolioId,
-    );
+    ) && requestSequence === providerRequestSequenceRef.current;
     setLiveRefreshState({ running: true, done: 0, total: uniqueTickers.length, success: [], failed: [], message: "Polygon 사용 가능 여부를 확인하는 중...", tone: "info" });
     let configuredDelayMs = 12500;
     try {
@@ -733,7 +639,10 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
       return;
     }
     setLiveRefreshState({ running: true, done: 0, total: uniqueTickers.length, success: [], failed: [], message: "Polygon API 무료 한도 보호를 위해 순차 조회 중...", details: buildLiveRefreshDetails(0, uniqueTickers.length, configuredDelayMs), tone: "info" });
-    const cacheMap = loadCalendarCacheMap<CalendarEvent>(activePortfolioId);
+    const cacheMap = mergeCalendarEventCacheMaps(
+      loadCalendarCacheMap<CalendarEvent>(activePortfolioId),
+      providerResult.cacheMap,
+    );
     const successfulEvents: CalendarEvent[] = [];
     const success: string[] = [];
     const failed: string[] = [];
@@ -796,14 +705,18 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
     if (!refreshContextIsCurrent()) return;
     if (success.length > 0) {
       saveCalendarCacheMap(cacheMap, activePortfolioId);
-      const nextProviderEvents = [
-        ...providerResult.events.filter((event) => !success.includes(event.ticker)),
-        ...successfulEvents,
-      ].sort((a, b) => a.date.localeCompare(b.date) || a.ticker.localeCompare(b.ticker) || a.type.localeCompare(b.type));
-      traceCalendarFlow("latest-refresh result", nextProviderEvents, "handleRefreshDividendEvents()", providerResult.events);
       setProviderResult((current) => {
-        traceCalendarStateUpdate("setProviderResult(latest refresh)", nextProviderEvents, current.events);
-        return { ...current, events: nextProviderEvents, cacheMap: { ...current.cacheMap, ...cacheMap }, source: failed.length > 0 ? "partial" : "polygon", warnings: failed.length > 0 ? [`Live refresh partially failed: ${failed.join(", ")}`] : [] };
+        const nextProviderEvents = [
+          ...current.events.filter((event) => !success.includes(event.ticker)),
+          ...successfulEvents,
+        ].sort((a, b) => a.date.localeCompare(b.date) || a.ticker.localeCompare(b.ticker) || a.type.localeCompare(b.type));
+        return {
+          ...current,
+          events: nextProviderEvents,
+          cacheMap: mergeCalendarEventCacheMaps(current.cacheMap, cacheMap),
+          source: failed.length > 0 ? "partial" : "polygon",
+          warnings: failed.length > 0 ? [`Live refresh partially failed: ${failed.join(", ")}`] : [],
+        };
       });
       setLiveRefreshedTickerSet((current) => new Set([...Array.from(current), ...success]));
     }
@@ -816,19 +729,21 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
     if (!user) { setCloudSaveState({ running: false, message: "로그인이 필요합니다" }); return; }
     setCloudSaveState({ running: true, message: "클라우드 저장 중..." });
     try {
-      const cacheMap = loadCalendarCacheMap<CalendarEvent>(activePortfolioId);
+      const cacheMap = mergeCalendarEventCacheMaps(
+        loadCalendarCacheMap<CalendarEvent>(activePortfolioId),
+        providerResult.cacheMap,
+      );
+      saveCalendarCacheMap(cacheMap, activePortfolioId);
       const cacheEntries = Object.values(cacheMap)
         .map(authoritativeAlertCacheEntry)
         .filter((entry): entry is CalendarTickerCache<CalendarEvent> => Boolean(entry));
-      console.info("[dividend-calendar:trace] cloud-save payload", cacheEntries.map(summarizeCacheEntryForTrace));
       await Promise.all([
         ...cacheEntries.map((entry) => activePortfolioId === DEFAULT_CALENDAR_PORTFOLIO_ID ? saveCalendarTickerCacheEntry(user.uid, entry as never) : savePortfolioCalendarTickerCacheEntry(user.uid, activePortfolioId, entry as never)),
         ...customEvents.map((event) => activePortfolioId === DEFAULT_CALENDAR_PORTFOLIO_ID ? saveFirestoreCalendarCustomEvent(user.uid, event) : savePortfolioCalendarCustomEvent(user.uid, activePortfolioId, event)),
         ...Object.entries(eventMetas).map(([eventId, meta]) => activePortfolioId === DEFAULT_CALENDAR_PORTFOLIO_ID ? saveCalendarEventMeta(user.uid, eventId, meta) : savePortfolioCalendarEventMeta(user.uid, activePortfolioId, eventId, meta)),
       ]);
       const verifiedEntries = await Promise.all(cacheEntries.map((entry) => activePortfolioId === DEFAULT_CALENDAR_PORTFOLIO_ID ? loadCalendarTickerCacheEntry(user.uid, entry.ticker) : loadPortfolioCalendarTickerCacheEntry(user.uid, activePortfolioId, entry.ticker)));
-      console.info("[dividend-calendar:trace] cloud-save read-after-write", verifiedEntries.map((entry) => summarizeCacheEntryForTrace(entry as never)));
-      const mismatch = cacheEntries.find((entry, index) => !areCacheEntryEventsEqual(entry as never, verifiedEntries[index] as never));
+      const mismatch = cacheEntries.find((entry, index) => !cacheEntryContainsEvents(entry, verifiedEntries[index] as never));
       if (mismatch) throw new Error(`Calendar cache verification failed for ${mismatch.ticker}`);
       const savedAt = new Date().toISOString();
       await saveCalendarCloudSavedAt(user.uid, activePortfolioId, savedAt);
@@ -836,7 +751,7 @@ export default function DividendCalendarPage({ tickers, tickerManager, onManageP
       setCloudSaveNeeded(false);
       setCloudSaveState({ running: false, message: `클라우드 저장 완료: cache ${cacheEntries.length}개, custom ${customEvents.length}개, meta ${Object.keys(eventMetas).length}개` });
     } catch (error) {
-      console.error("[dividend-calendar:trace] cloud-save failed", error);
+      console.error("[dividend-calendar] cloud save failed", error instanceof Error ? error.message : String(error));
       setCloudSaveState({ running: false, message: "클라우드 저장에 실패했습니다. Firebase 설정과 로그인 상태를 확인하세요." });
     }
   };
