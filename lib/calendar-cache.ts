@@ -39,6 +39,23 @@ function isObjectRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function parseCalendarCacheMap<TEvent>(stored: string | null): CalendarTickerCacheMap<TEvent> {
+  if (!stored) return {};
+
+  const parsed = JSON.parse(stored) as unknown;
+  if (!isObjectRecord(parsed)) return {};
+
+  const out: CalendarTickerCacheMap<TEvent> = {};
+  for (const [rawTicker, rawEntry] of Object.entries(parsed)) {
+    if (!isObjectRecord(rawEntry)) continue;
+    const entry = rawEntry as CalendarTickerCache<TEvent>;
+    const ticker = normalizeCalendarCacheTicker(entry.ticker || rawTicker);
+    if (!ticker) continue;
+    out[ticker] = { ...entry, ticker };
+  }
+  return out;
+}
+
 export function normalizeCalendarCacheTicker(ticker: string): string {
   return normalizeCalendarTicker(ticker);
 }
@@ -101,26 +118,27 @@ export function loadCalendarCacheMap<TEvent = Record<string, unknown>>(portfolio
   try {
     const storageKey = calendarCacheStorageKey(portfolioId);
     const stored = window.localStorage.getItem(storageKey) ?? (portfolioId === DEFAULT_CALENDAR_PORTFOLIO_ID ? window.localStorage.getItem(getLegacyCalendarLocalStorageKey("cache")) : null);
-    if (!stored) return {};
-
-    const parsed = JSON.parse(stored) as unknown;
-    if (!isObjectRecord(parsed)) return {};
-
-    const out: CalendarTickerCacheMap<TEvent> = {};
-    for (const [rawTicker, rawEntry] of Object.entries(parsed)) {
-      if (!isObjectRecord(rawEntry)) continue;
-      const entry = rawEntry as CalendarTickerCache<TEvent>;
-      const ticker = normalizeCalendarCacheTicker(entry.ticker || rawTicker);
-      if (!ticker) continue;
-      out[ticker] = { ...entry, ticker };
-    }
-    return out;
+    return parseCalendarCacheMap<TEvent>(stored);
   } catch {
     try {
       window.localStorage.removeItem(calendarCacheStorageKey(portfolioId));
     } catch {
       // Ignore secondary storage errors and return an empty cache.
     }
+    return {};
+  }
+}
+
+/**
+ * Read the pre-portfolio cache independently from the canonical default
+ * namespace. The caller can union both maps so a partially migrated current
+ * cache does not hide surviving legacy events.
+ */
+export function loadLegacyCalendarCacheMap<TEvent = Record<string, unknown>>(): CalendarTickerCacheMap<TEvent> {
+  if (!hasWindowLocalStorage()) return {};
+  try {
+    return parseCalendarCacheMap<TEvent>(window.localStorage.getItem(CALENDAR_CACHE_STORAGE_KEY));
+  } catch {
     return {};
   }
 }

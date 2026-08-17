@@ -16,7 +16,11 @@ import {
   buildLiveCalendarCacheEntry,
   mergeFetchedEventsWithExistingCache,
 } from "../lib/calendar-dividend-live";
-import { mergeCalendarEventCacheMaps, mergeCalendarTickerCacheEntries } from "../lib/calendar-event-retention";
+import {
+  mergeCalendarEventCacheMaps,
+  mergeCalendarTickerCacheEntries,
+  mergeTrustedRecoveryEventsIntoCalendarCacheMap,
+} from "../lib/calendar-event-retention";
 import type { CalendarTickerCache, CalendarTickerCacheSource } from "../lib/calendar-event-identity";
 import type { CalendarEvent } from "../lib/mock-calendar-data";
 
@@ -420,9 +424,96 @@ assert.deepEqual(
 );
 
 const confirmedApamExDiv = { ...apamExDiv, sourceKind: "declared" as const, status: "confirmed" as const, dividendAmount: 0.82 };
+const confirmedApamBuyBy = { ...apamBuyBy, sourceKind: "declared" as const, status: "confirmed" as const, dividendAmount: 0.82 };
 const apamIdentityUpgrade = mergeFetchedEventsWithExistingCache([apamExDiv], [confirmedApamExDiv]);
 assert.equal(apamIdentityUpgrade.length, 1, "the same canonical event identity is deduplicated");
 assert.equal(apamIdentityUpgrade[0].sourceKind, "declared", "a confirmed provider row upgrades the same estimated identity");
+
+const apamOtherEvent = {
+  ...confirmedApamExDiv,
+  id: "dividend:APAM:earnings:2026-07-29",
+  canonicalEventId: "dividend:APAM:earnings:2026-07-29",
+  type: "earnings" as const,
+  date: "2026-07-29",
+};
+const currentApamCacheWithoutTargets: CalendarTickerCache<CalendarEvent> = {
+  ...cache("polygon", [apamOtherEvent]),
+  ticker: "APAM",
+};
+const recoveredFromTrustedHistory = mergeTrustedRecoveryEventsIntoCalendarCacheMap(
+  { APAM: currentApamCacheWithoutTargets },
+  [confirmedApamBuyBy, confirmedApamExDiv],
+  "2026-08-17T00:00:00.000Z",
+);
+assert.deepEqual(
+  recoveredFromTrustedHistory.APAM.events
+    .filter((row) => row.date === "2026-08-14" || row.date === "2026-08-17")
+    .map((row) => `${row.date}:${row.type}`),
+  ["2026-08-14:buy_by", "2026-08-17:ex_div"],
+  "a trusted provider or legacy history restores already-lost canonical APAM events",
+);
+const recoveredTwice = mergeTrustedRecoveryEventsIntoCalendarCacheMap(
+  recoveredFromTrustedHistory,
+  [confirmedApamBuyBy, confirmedApamExDiv],
+  "2026-08-18T00:00:00.000Z",
+);
+assert.equal(
+  recoveredTwice.APAM.events.filter((row) => row.date === "2026-08-14" && row.type === "buy_by").length,
+  1,
+  "trusted recovery is idempotent for the APAM buy deadline",
+);
+assert.equal(
+  recoveredTwice.APAM.events.filter((row) => row.date === "2026-08-17" && row.type === "ex_div").length,
+  1,
+  "trusted recovery is idempotent for the APAM ex-dividend event",
+);
+const recoveredOverSampleCache = mergeTrustedRecoveryEventsIntoCalendarCacheMap(
+  { APAM: { ...cache("sample", [{ ...apamOtherEvent, sourceKind: "sample" }]), ticker: "APAM" } },
+  [confirmedApamBuyBy, confirmedApamExDiv],
+  "2026-08-17T00:00:00.000Z",
+);
+assert.equal(recoveredOverSampleCache.APAM.source, "cache", "trusted recovery does not retain a sample entry source");
+assert.ok(
+  recoveredOverSampleCache.APAM.events.every((row) => row.sourceKind === "declared"),
+  "trusted recovery does not promote sample rows alongside recovered provider events",
+);
+assert.deepEqual(
+  alertCacheEntriesNeedingPersistence(
+    recoveredFromTrustedHistory,
+    new Set(["APAM"]),
+    new Date("2026-07-25T00:00:00.000Z"),
+    { APAM: currentApamCacheWithoutTargets },
+  ).map((entry) => entry.ticker),
+  ["APAM"],
+  "a current Firestore document is backfilled when another trusted cache restores missing identities",
+);
+
+const alreadyLostProviderRecovery = await getRealDividendEventsForTicker({
+  ticker: "APAM",
+  year: 2026,
+  month: 8,
+  today: new Date("2026-08-17T00:00:00.000Z"),
+  fetchDividends: async () => ({
+    ticker: "APAM",
+    normalizedTicker: "APAM",
+    source: "yahoo",
+    warnings: [],
+    updatedAt: "2026-08-17T00:00:00.000Z",
+    dividends: [
+      { date: "2025-11-17", amount: 0.7 },
+      { date: "2026-02-17", amount: 0.75 },
+      { date: "2026-05-18", amount: 0.78 },
+      { date: "2026-08-17", amount: 0.8 },
+    ],
+  }),
+});
+assert.deepEqual(
+  alreadyLostProviderRecovery.events
+    .filter((row) => row.date === "2026-08-14" || row.date === "2026-08-17")
+    .map((row) => `${row.date}:${row.type}:${row.status}`),
+  ["2026-08-14:buy_by:confirmed", "2026-08-17:ex_div:confirmed"],
+  "a provider-declared dividend reconstructs the already-lost buy and ex-dividend events without a persisted fixture",
+);
 
 const owlSameDate = { ...confirmedApamExDiv, id: "dividend:OWL:ex_div:2026-08-17", canonicalEventId: "dividend:OWL:ex_div:2026-08-17", ticker: "OWL" };
 assert.equal(

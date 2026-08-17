@@ -54,7 +54,7 @@ assert.match(page, /\.then\(\(\) => \{[\s\S]*activeProviderContextRef\.current[\
 assert.match(page, /buildLiveCalendarCacheEntry[\s\S]*sanitizedPersistedAlertCacheEntry\(cacheEntry\)[\s\S]*calendarCache\.liveRefresh\.save/, "live refresh writes use the alert cache provenance sanitizer");
 assert.match(page, /refreshPersistenceContext[\s\S]*activeProviderContextRef\.current[\s\S]*refreshPersistenceContext\.uid[\s\S]*refreshPersistenceContext\.portfolioId[\s\S]*firestoreCacheTickersRef\.current\.add[\s\S]*calendarCache\.liveRefresh\.save/, "stale live-refresh completion cannot contaminate the next user or portfolio ref");
 assert.match(page, /refreshContextIsCurrent[\s\S]*for \(let index[\s\S]*if \(!refreshContextIsCurrent\(\)\) return;[\s\S]*if \(success\.length > 0\)[\s\S]*saveCalendarCacheMap\(cacheMap, activePortfolioId\)[\s\S]*setProviderResult/, "stale live refresh cannot publish cache or provider state into the next user or portfolio");
-assert.match(page, /setLiveRefreshState\(\{ running: false, done: 0, total: 0, success: \[\], failed: \[\], message: "" \}\);\s*\}, \[activePortfolioId, user\?\.uid\]\);/, "user or portfolio changes clear stale live refresh UI state");
+assert.match(page, /setLiveRefreshState\(\{ running: false, done: 0, total: 0, success: \[\], failed: \[\], message: "" \}\);[\s\S]*firestoreCacheTickersRef\.current = new Set\(\);[\s\S]*firestoreCacheMapRef\.current = \{\};[\s\S]*\}, \[activePortfolioId, user\?\.uid\]\);/, "user or portfolio changes clear stale live refresh UI and Firestore comparison state");
 assert.match(page, /Object\.values\(cacheMap\)[\s\S]*\.map\(authoritativeAlertCacheEntry\)/, "manual cloud save uses the same alert cache sanitizer");
 assert.match(page, /saveCalendarEventContract/, "default portfolio mark save uses the atomic event contract writer");
 assert.match(page, /savePortfolioCalendarEventContract/, "named portfolio mark save uses the atomic event contract writer");
@@ -74,6 +74,12 @@ assert.match(live, /mergeFetchedEventsWithExistingCache/, "confirmed-cache merge
 assert.match(retention, /eventPriority[\s\S]*sourceKind === "declared"[\s\S]*status === "confirmed"/, "declared events outrank estimated events in merge helper");
 assert.match(retention, /for \(const event of existingEvents\)[\s\S]*isPersistedProviderEvent/, "refresh merge retains previously persisted provider events");
 assert.match(page, /mergeCalendarEventCacheMaps\(localCacheMap, typedFirestoreCacheMap\)/, "cloud hydration merges rather than replaces the local cache map");
+assert.match(page, /loadLegacyCalendarCacheMap/, "the canonical default namespace also reads the surviving pre-portfolio local cache");
+assert.match(page, /sanitizedPersistedAlertCacheEntry\(entry\)[\s\S]*entry\.events\.length > 0/, "pre-portfolio local recovery accepts only provenance-sanitized event bodies");
+assert.match(page, /mergeTrustedRecoveryEventsIntoCalendarCacheMap/, "normalized trusted legacy events are promoted into the canonical cache");
+assert.match(page, /events: calendarEventsFromCacheMap\(mergedLocalCache\)/, "provider rendering uses the recovered canonical cache body");
+assert.match(page, /firestoreCacheMapRef\.current/, "Firestore cache bodies remain available for missing-identity comparison");
+assert.match(page, /alertCacheEntriesNeedingPersistence\([\s\S]*firestoreCacheMapRef\.current/, "current Firestore documents are backfilled when trusted sources restore missing identities");
 assert.match(page, /providerRequestSequenceRef/, "provider and manual refresh publication is revision ordered");
 assert.match(route, /polygonBlockedFallback/, "Polygon rate-limited or failed state blocks projection fallback overwrite");
 assert.match(route, /providerStatus\.polygon === "missing_key" \? yahooRows/, "Yahoo fallback is allowed only when Polygon key is missing");

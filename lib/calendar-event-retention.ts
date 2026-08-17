@@ -1,4 +1,5 @@
 import { getCanonicalCalendarEventId, normalizeCalendarTicker, type CalendarTickerCache } from "@/lib/calendar-event-identity";
+import { createCalendarTickerCacheEntry } from "@/lib/calendar-cache";
 import type { CalendarEvent } from "@/lib/mock-calendar-data";
 
 function isGeneratedCalendarEvent(event: CalendarEvent): boolean {
@@ -113,4 +114,43 @@ export function mergeCalendarEventCacheMaps(
   }
 
   return merged;
+}
+
+/**
+ * Promote events from an explicitly trusted recovery source (for example the
+ * normalized legacy RTDB import) into the canonical ticker cache. Sample,
+ * custom, and economic rows are never promoted. Canonical identity makes the
+ * operation idempotent across reloads and across overlapping recovery sources.
+ */
+export function mergeTrustedRecoveryEventsIntoCalendarCacheMap(
+  currentMap: Record<string, CalendarTickerCache<CalendarEvent>>,
+  recoveryEvents: CalendarEvent[],
+  fetchedAt = new Date().toISOString(),
+): Record<string, CalendarTickerCache<CalendarEvent>> {
+  const byTicker = new Map<string, CalendarEvent[]>();
+
+  for (const event of recoveryEvents) {
+    if (!isGeneratedCalendarEvent(event) || !isPersistedProviderEvent(event)) continue;
+    const ticker = normalizeCalendarTicker(event.ticker);
+    if (!ticker) continue;
+    const events = byTicker.get(ticker) ?? [];
+    events.push(event);
+    byTicker.set(ticker, events);
+  }
+
+  const recoveryMap: Record<string, CalendarTickerCache<CalendarEvent>> = {};
+  for (const [ticker, events] of Array.from(byTicker.entries())) {
+    const current = currentMap[ticker];
+    recoveryMap[ticker] = !current || current.source === "sample" || current.source === "mock"
+      ? createCalendarTickerCacheEntry({
+          ticker,
+          events,
+          fetchedAt,
+          source: "cache",
+          warnings: ["Recovered canonical events from a trusted persisted source."],
+        })
+      : { ...current, events };
+  }
+
+  return mergeCalendarEventCacheMaps(currentMap, recoveryMap);
 }

@@ -1,4 +1,4 @@
-import type { CalendarTickerCache } from "@/lib/calendar-event-identity";
+import { getCanonicalCalendarEventId, normalizeCalendarTicker, type CalendarTickerCache } from "@/lib/calendar-event-identity";
 import type { CalendarEvent } from "@/lib/mock-calendar-data";
 import { isCalendarTickerCacheFresh } from "@/lib/calendar-cache";
 
@@ -69,12 +69,31 @@ export function alertCacheEntriesNeedingPersistence(
   cacheMap: Record<string, CalendarTickerCache<CalendarEvent>>,
   currentPersistedTickers: ReadonlySet<string>,
   now = new Date(),
+  persistedCacheMap: Readonly<Record<string, CalendarTickerCache<CalendarEvent>>> = {},
 ): CalendarTickerCache<CalendarEvent>[] {
+  const eventIdentity = (event: CalendarEvent) => {
+    try {
+      return getCanonicalCalendarEventId(event);
+    } catch {
+      return [normalizeCalendarTicker(event.ticker), event.type, event.date.slice(0, 10)].join("|");
+    }
+  };
+  const persistedContainsCandidate = (
+    persisted: CalendarTickerCache<CalendarEvent>,
+    candidate: CalendarTickerCache<CalendarEvent>,
+  ) => {
+    const persistedIdentities = new Set(persisted.events.map(eventIdentity));
+    return candidate.events.every((event) => persistedIdentities.has(eventIdentity(event)));
+  };
+
   return Object.values(cacheMap)
     .filter(
-      (entry) =>
-        isCalendarTickerCacheFresh(entry, now)
-        && !currentPersistedTickers.has(entry.ticker),
+      (entry) => {
+        if (!isCalendarTickerCacheFresh(entry, now)) return false;
+        if (!currentPersistedTickers.has(entry.ticker)) return true;
+        const persisted = persistedCacheMap[entry.ticker];
+        return Boolean(persisted && !persistedContainsCandidate(persisted, entry));
+      },
     )
     .map(authoritativeAlertCacheEntry)
     .filter((entry): entry is CalendarTickerCache<CalendarEvent> => Boolean(entry));
