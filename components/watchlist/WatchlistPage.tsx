@@ -45,12 +45,6 @@ function uniqUpper(arr: string[]): string[] {
   return uniqueCalendarTickers(arr);
 }
 
-
-function traceCalendarPageEffect(name: string, detail?: Record<string, unknown>) {
-  const timestamp = new Date().toISOString();
-  console.info(`[dividend-calendar:effect] ${timestamp} WatchlistPage ${name}`, { timestamp, effect: `WatchlistPage ${name}`, ...detail });
-}
-
 function readStoredMemos(): Record<string, string> {
   if (typeof window === "undefined") return {};
   try {
@@ -98,7 +92,6 @@ export default function WatchlistPage() {
   );
 
   useEffect(() => {
-    traceCalendarPageEffect("useEffect: Local Cache Read / portfolio", { activePortfolioId });
     if (typeof window === "undefined") return;
     try {
       const storageKey = getCalendarLocalStorageKey("tickerList", activePortfolioId);
@@ -120,25 +113,17 @@ export default function WatchlistPage() {
   }, [activePortfolioId]);
 
   useEffect(() => {
-    traceCalendarPageEffect("useEffect: Authentication Ready / Portfolio Load / Firestore Read", { uid: user?.uid ?? null, activePortfolioId });
     if (!user) return;
 
-    loadCalendarActivePortfolioId(user.uid).then((id) => {
-      traceCalendarPageEffect("React State Update: setActivePortfolioId", { before: activePortfolioId, after: id, changedBy: "loadCalendarActivePortfolioId()" });
-      setActivePortfolioId(id);
-    }).catch((err) => warnFirestoreFallback("calendarActivePortfolio.load", err));
+    loadCalendarActivePortfolioId(user.uid).then(setActivePortfolioId).catch((err) => warnFirestoreFallback("calendarActivePortfolio.load", err));
     loadCalendarPortfolios(user.uid).then((items) => setPortfolios(ensureDefaultCalendarPortfolio(items))).catch((err) => warnFirestoreFallback("calendarPortfolios.load", err));
     const loadManual = activePortfolioId === DEFAULT_CALENDAR_PORTFOLIO_ID ? loadManualCalendarTickers(user.uid) : loadPortfolioManualCalendarTickers(user.uid, activePortfolioId);
-    loadManual.then((list) => {
-      traceCalendarPageEffect("React State Update: setManualOverride", { tickerCount: list?.tickers.length ?? 0, changedBy: "loadManualCalendarTickers()" });
-      setManualOverride(list);
-    }).catch((err) => warnFirestoreFallback("manualCalendarTickers.load", err));
+    loadManual.then(setManualOverride).catch((err) => warnFirestoreFallback("manualCalendarTickers.load", err));
 
     // Legacy calendar ticker universe (preferred default source).
     loadLegacyDividendCalendarPortfolios(user.uid)
       .then((portfolios) => {
         const next = flattenLegacyPortfolioTickers(portfolios);
-        traceCalendarPageEffect("React State Update: setLegacyPortfolioTickers", { tickers: next, changedBy: "loadLegacyDividendCalendarPortfolios()" });
         setLegacyPortfolioTickers(next);
       })
       .catch((err) => warnFirestoreFallback("legacyDividendCalendarPortfolios.load", err));
@@ -146,7 +131,6 @@ export default function WatchlistPage() {
     loadLegacyImportedCalendarEvents(user.uid)
       .then((events) => {
         const next = extractTickersFromCalendarEvents(events);
-        traceCalendarPageEffect("React State Update: setLegacyEventTickers", { tickers: next, changedBy: "loadLegacyImportedCalendarEvents()" });
         setLegacyEventTickers(next);
       })
       .catch((err) => warnFirestoreFallback("legacyCalendarEventTickers.load", err));
@@ -154,9 +138,7 @@ export default function WatchlistPage() {
     // Legacy imported memos are the base; locally edited memos override them.
     loadLegacyDividendCalendarMemos(user.uid)
       .then((legacyMemos) => setMemos((current) => {
-        const next = mergeMemoMaps(legacyMemos, current);
-        traceCalendarPageEffect("React State Update: setMemos", { keys: Object.keys(next), changedBy: "loadLegacyDividendCalendarMemos()" });
-        return next;
+        return mergeMemoMaps(legacyMemos, current);
       }))
       .catch((err) => warnFirestoreFallback("legacyDividendCalendarMemos.load", err));
   }, [user, activePortfolioId]);

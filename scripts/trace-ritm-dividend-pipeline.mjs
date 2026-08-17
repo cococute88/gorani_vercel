@@ -146,14 +146,15 @@ printStage(
 // --- Stage 4: Merge (declared + projected) --------------------------------
 printStage("Stage 4 · Merge result (declared + surviving projected)", events);
 
-// --- Stage 5: Dedupe vs existing cache (simulate repeated 최신화) ----------
+// --- Stage 5: Retention merge vs existing cache (simulate repeated 최신화) --
 // existingEvents simulates a prior page-load cache that contained Yahoo-only
 // estimated rows (including a spurious 2026-07-30 estimate near the confirmed
-// 2026-07-31). The merge must keep the confirmed row and never resurrect the
-// estimate.
+// 2026-07-31). The provider projection no longer creates those rows, while the
+// retention layer intentionally keeps already-persisted identities unless an
+// explicit same-identity replacement or user deletion exists.
 const staleEstimatedCache = projectedYahooOnly; // contains the spurious estimates
 const dedupedFirst = mergeFetchedEventsWithExistingCache(staleEstimatedCache, events);
-printStage("Stage 5 · Dedupe vs stale estimated cache (1st 최신화)", dedupedFirst);
+printStage("Stage 5 · Retention merge vs stale estimated cache (1st 최신화)", dedupedFirst);
 const dedupedSecond = mergeFetchedEventsWithExistingCache(dedupedFirst, events);
 printStage("Stage 5 · Dedupe again (2nd 최신화 — must be identical, no regeneration)", dedupedSecond);
 
@@ -184,4 +185,4 @@ assert.equal(dedupedFirst.length, dedupedSecond.length, "repeated 최신화 does
 // Future estimates still roll forward beyond the confirmed window.
 assert.ok(events.some((e) => e.status === "estimated" && e.exDivDate > "2026-07-31"), "genuine future estimates still projected");
 
-console.log("\n✅ RITM trace assertions passed: confirmed Polygon dividends suppress estimated projections at the projection stage; refresh is idempotent.");
+console.log("\n✅ RITM trace assertions passed: Polygon suppresses new overlapping projections, retained cache identities survive refresh, and repeated refresh is idempotent.");

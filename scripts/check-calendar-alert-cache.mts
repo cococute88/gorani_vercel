@@ -16,6 +16,11 @@ import {
   buildLiveCalendarCacheEntry,
   mergeFetchedEventsWithExistingCache,
 } from "../lib/calendar-dividend-live";
+import {
+  mergeCalendarEventCacheMaps,
+  mergeCalendarTickerCacheEntries,
+  mergeTrustedRecoveryEventsIntoCalendarCacheMap,
+} from "../lib/calendar-event-retention";
 import type { CalendarTickerCache, CalendarTickerCacheSource } from "../lib/calendar-event-identity";
 import type { CalendarEvent } from "../lib/mock-calendar-data";
 
@@ -188,6 +193,35 @@ assert.equal(
   false,
   "an equal-timestamp cache with different safe content is not overwritten",
 );
+const sameTimestampSupersetCache = {
+  ...v2Provider,
+  events: [...v2Provider.events, { ...event("estimated"), date: "2026-08-11", id: "dividend:TEST:buy:2026-08-11", canonicalEventId: "dividend:TEST:buy:2026-08-11" }],
+};
+assert.equal(
+  shouldReplacePersistedCalendarCache(v2Provider, sameTimestampSupersetCache),
+  true,
+  "a same-revision cache may add a retained event without deleting the persisted body",
+);
+const preservationBase = cache("yahoo", [event("declared")]);
+const olderCandidateWithMissingEvent = {
+  ...cache("yahoo", [sameTimestampSupersetCache.events.at(-1)!], "stale"),
+};
+const restoredWithoutRevisionRollback = mergeCalendarTickerCacheEntries(preservationBase, olderCandidateWithMissingEvent);
+assert.equal(
+  restoredWithoutRevisionRollback.fetchedAt,
+  preservationBase.fetchedAt,
+  "restoring a missing event keeps the newest cache revision metadata",
+);
+assert.equal(
+  restoredWithoutRevisionRollback.events.length,
+  2,
+  "a stale snapshot may restore an omitted event without replacing newer events",
+);
+assert.equal(
+  shouldReplacePersistedCalendarCache(preservationBase, restoredWithoutRevisionRollback),
+  true,
+  "the merged superset is eligible for an atomic Firestore preservation write",
+);
 const persistedMixedForCleanup = cache("cache", [event("sample"), event("declared")]);
 assert.equal(
   shouldReplacePersistedCalendarCache(
@@ -328,6 +362,253 @@ assert.deepEqual(
   liveAlertEntry.events.map((row) => row.sourceKind),
   ["declared"],
   "live refresh persistence removes retained sample rows before Firestore write",
+);
+
+const apamBuyBy = {
+  ...event("estimated"),
+  id: "dividend:APAM:buy:2026-08-14",
+  canonicalEventId: "dividend:APAM:buy:2026-08-14",
+  ticker: "APAM",
+  type: "buy_by" as const,
+  date: "2026-08-14",
+  buyDeadline: "2026-08-14",
+  exDivDate: "2026-08-17",
+};
+const apamExDiv = {
+  ...event("estimated"),
+  id: "dividend:APAM:ex_div:2026-08-17",
+  canonicalEventId: "dividend:APAM:ex_div:2026-08-17",
+  ticker: "APAM",
+  type: "ex_div" as const,
+  date: "2026-08-17",
+  buyDeadline: "2026-08-14",
+  exDivDate: "2026-08-17",
+};
+const expiredApamCache: CalendarTickerCache<CalendarEvent> = {
+  ...cache("yahoo", [apamBuyBy, apamExDiv], "stale"),
+  ticker: "APAM",
+};
+
+const apamAfterAutomaticRefresh = await getRealDividendEventsForTicker({
+  ticker: "APAM",
+  year: 2026,
+  month: 8,
+  today: new Date("2026-08-17T00:00:00.000Z"),
+  cache: expiredApamCache,
+  preferFreshCache: true,
+  fetchDividends: async () => ({
+    ticker: "APAM",
+    normalizedTicker: "APAM",
+    source: "yahoo",
+    warnings: [],
+    updatedAt: "2026-08-17T00:00:00.000Z",
+    dividends: [
+      { date: "2025-09-01", amount: 0.5 },
+      { date: "2025-12-01", amount: 0.5 },
+      { date: "2026-03-02", amount: 0.5 },
+    ],
+  }),
+});
+assert.deepEqual(
+  apamAfterAutomaticRefresh.events
+    .filter((row) => row.ticker === "APAM" && (row.date === "2026-08-14" || row.date === "2026-08-17"))
+    .map((row) => `${row.date}:${row.type}`),
+  ["2026-08-14:buy_by", "2026-08-17:ex_div"],
+  "expired-cache automatic refresh retains the APAM 2026-08-14 and 2026-08-17 schedule",
+);
+
+assert.deepEqual(
+  mergeFetchedEventsWithExistingCache([apamBuyBy, apamExDiv], []).map((row) => row.date),
+  ["2026-08-14", "2026-08-17"],
+  "an empty refresh response cannot delete existing APAM events",
+);
+
+const confirmedApamExDiv = { ...apamExDiv, sourceKind: "declared" as const, status: "confirmed" as const, dividendAmount: 0.82 };
+const confirmedApamBuyBy = { ...apamBuyBy, sourceKind: "declared" as const, status: "confirmed" as const, dividendAmount: 0.82 };
+const apamIdentityUpgrade = mergeFetchedEventsWithExistingCache([apamExDiv], [confirmedApamExDiv]);
+assert.equal(apamIdentityUpgrade.length, 1, "the same canonical event identity is deduplicated");
+assert.equal(apamIdentityUpgrade[0].sourceKind, "declared", "a confirmed provider row upgrades the same estimated identity");
+
+const apamOtherEvent = {
+  ...confirmedApamExDiv,
+  id: "dividend:APAM:earnings:2026-07-29",
+  canonicalEventId: "dividend:APAM:earnings:2026-07-29",
+  type: "earnings" as const,
+  date: "2026-07-29",
+};
+const currentApamCacheWithoutTargets: CalendarTickerCache<CalendarEvent> = {
+  ...cache("polygon", [apamOtherEvent]),
+  ticker: "APAM",
+};
+const recoveredFromTrustedHistory = mergeTrustedRecoveryEventsIntoCalendarCacheMap(
+  { APAM: currentApamCacheWithoutTargets },
+  [confirmedApamBuyBy, confirmedApamExDiv],
+  "2026-08-17T00:00:00.000Z",
+);
+assert.deepEqual(
+  recoveredFromTrustedHistory.APAM.events
+    .filter((row) => row.date === "2026-08-14" || row.date === "2026-08-17")
+    .map((row) => `${row.date}:${row.type}`),
+  ["2026-08-14:buy_by", "2026-08-17:ex_div"],
+  "a trusted provider or legacy history restores already-lost canonical APAM events",
+);
+const recoveredTwice = mergeTrustedRecoveryEventsIntoCalendarCacheMap(
+  recoveredFromTrustedHistory,
+  [confirmedApamBuyBy, confirmedApamExDiv],
+  "2026-08-18T00:00:00.000Z",
+);
+assert.equal(
+  recoveredTwice.APAM.events.filter((row) => row.date === "2026-08-14" && row.type === "buy_by").length,
+  1,
+  "trusted recovery is idempotent for the APAM buy deadline",
+);
+assert.equal(
+  recoveredTwice.APAM.events.filter((row) => row.date === "2026-08-17" && row.type === "ex_div").length,
+  1,
+  "trusted recovery is idempotent for the APAM ex-dividend event",
+);
+const recoveredOverSampleCache = mergeTrustedRecoveryEventsIntoCalendarCacheMap(
+  { APAM: { ...cache("sample", [{ ...apamOtherEvent, sourceKind: "sample" }]), ticker: "APAM" } },
+  [confirmedApamBuyBy, confirmedApamExDiv],
+  "2026-08-17T00:00:00.000Z",
+);
+assert.equal(recoveredOverSampleCache.APAM.source, "cache", "trusted recovery does not retain a sample entry source");
+assert.ok(
+  recoveredOverSampleCache.APAM.events.every((row) => row.sourceKind === "declared"),
+  "trusted recovery does not promote sample rows alongside recovered provider events",
+);
+assert.deepEqual(
+  alertCacheEntriesNeedingPersistence(
+    recoveredFromTrustedHistory,
+    new Set(["APAM"]),
+    new Date("2026-07-25T00:00:00.000Z"),
+    { APAM: currentApamCacheWithoutTargets },
+  ).map((entry) => entry.ticker),
+  ["APAM"],
+  "a current Firestore document is backfilled when another trusted cache restores missing identities",
+);
+
+const alreadyLostProviderRecovery = await getRealDividendEventsForTicker({
+  ticker: "APAM",
+  year: 2026,
+  month: 8,
+  today: new Date("2026-08-17T00:00:00.000Z"),
+  fetchDividends: async () => ({
+    ticker: "APAM",
+    normalizedTicker: "APAM",
+    source: "yahoo",
+    warnings: [],
+    updatedAt: "2026-08-17T00:00:00.000Z",
+    dividends: [
+      { date: "2025-11-17", amount: 0.7 },
+      { date: "2026-02-17", amount: 0.75 },
+      { date: "2026-05-18", amount: 0.78 },
+      { date: "2026-08-17", amount: 0.8 },
+    ],
+  }),
+});
+assert.deepEqual(
+  alreadyLostProviderRecovery.events
+    .filter((row) => row.date === "2026-08-14" || row.date === "2026-08-17")
+    .map((row) => `${row.date}:${row.type}:${row.status}`),
+  ["2026-08-14:buy_by:confirmed", "2026-08-17:ex_div:confirmed"],
+  "a provider-declared dividend reconstructs the already-lost buy and ex-dividend events without a persisted fixture",
+);
+
+const owlSameDate = { ...confirmedApamExDiv, id: "dividend:OWL:ex_div:2026-08-17", canonicalEventId: "dividend:OWL:ex_div:2026-08-17", ticker: "OWL" };
+assert.equal(
+  mergeFetchedEventsWithExistingCache([apamExDiv], [owlSameDate]).length,
+  2,
+  "different tickers on the same date do not collide",
+);
+
+const owlCache: CalendarTickerCache<CalendarEvent> = {
+  ...cache("polygon", [owlSameDate]),
+  ticker: "OWL",
+};
+const mergedPartialCacheMap = mergeCalendarEventCacheMaps(
+  { APAM: expiredApamCache },
+  { OWL: owlCache },
+);
+assert.deepEqual(
+  Object.keys(mergedPartialCacheMap).sort(),
+  ["APAM", "OWL"],
+  "a partial cloud/local cache response cannot remove an omitted ticker",
+);
+assert.deepEqual(
+  mergedPartialCacheMap.APAM.events.map((row) => row.date),
+  ["2026-08-14", "2026-08-17"],
+  "local-to-cloud cache merge preserves exact ISO dates without timezone movement",
+);
+
+const peerTickers = ["SBRA", "CHRD", "MLPA", "OMF"];
+const peerCacheMap = Object.fromEntries(peerTickers.map((ticker, index) => {
+  const date = `2026-08-${String(18 + index).padStart(2, "0")}`;
+  const peerEvent = { ...confirmedApamExDiv, id: `dividend:${ticker}:ex_div:${date}`, canonicalEventId: `dividend:${ticker}:ex_div:${date}`, ticker, date, exDivDate: date };
+  return [ticker, { ...cache("polygon", [peerEvent]), ticker }];
+}));
+assert.deepEqual(
+  Object.keys(mergeCalendarEventCacheMaps({ APAM: expiredApamCache, ...peerCacheMap }, { OWL: owlCache })).sort(),
+  ["APAM", "CHRD", "MLPA", "OMF", "OWL", "SBRA"],
+  "partial ticker refresh preserves APAM, OWL, SBRA, CHRD, MLPA, and OMF independently",
+);
+
+const apamAfterEmptyProvider = await getRealDividendEventsForTicker({
+  ticker: "APAM",
+  year: 2026,
+  month: 8,
+  cache: expiredApamCache,
+  preferFreshCache: true,
+  fetchDividends: async () => ({
+    ticker: "APAM",
+    normalizedTicker: "APAM",
+    source: "yahoo",
+    warnings: [],
+    updatedAt: "2026-08-17T00:00:00.000Z",
+    dividends: [],
+  }),
+});
+assert.deepEqual(
+  apamAfterEmptyProvider.events.map((row) => row.date),
+  ["2026-08-14", "2026-08-17"],
+  "an empty automatic provider response retains the APAM cache",
+);
+
+const apamAfterProviderFailure = await getRealDividendEventsForTicker({
+  ticker: "APAM",
+  year: 2026,
+  month: 8,
+  cache: expiredApamCache,
+  preferFreshCache: true,
+  fetchDividends: async () => {
+    throw new Error("500 / timeout / network failure");
+  },
+});
+assert.deepEqual(
+  apamAfterProviderFailure.events.map((row) => row.date),
+  ["2026-08-14", "2026-08-17"],
+  "500, timeout, or network failure retains the APAM cache",
+);
+
+const apamAfterSampleFallback = await getRealDividendEventsForTicker({
+  ticker: "APAM",
+  year: 2026,
+  month: 8,
+  cache: expiredApamCache,
+  preferFreshCache: true,
+  fetchDividends: async () => ({
+    ticker: "APAM",
+    normalizedTicker: "APAM",
+    source: "sample",
+    warnings: ["provider unavailable"],
+    updatedAt: "2026-08-17T00:00:00.000Z",
+    dividends: [{ date: "2026-09-01", amount: 1 }],
+  }),
+});
+assert.deepEqual(
+  apamAfterSampleFallback.events.map((row) => row.date),
+  ["2026-08-14", "2026-08-17"],
+  "sample fallback data cannot replace a persisted provider cache",
 );
 
 const mixed = cache("cache", [event("sample"), event("declared")]);

@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { mergeDeclaredAndProjectedEvents, yahooRowsFromQuoteResponse, type DeclaredDividendRow, type DividendLiveResponse, type ProviderStatus } from "@/lib/calendar-dividend-live";
 import { normalizeTicker, getQuoteDividends } from "@/lib/server/quote-fetchers";
-import type { CalendarEvent } from "@/lib/mock-calendar-data";
 
 export const dynamic = "force-dynamic";
 
@@ -72,25 +71,6 @@ async function fetchPolygon(ticker: string, status: ProviderStatus, warnings: st
   return [];
 }
 
-// Full per-ticker event dump for the calendar refresh (server logs / Vercel
-// function logs). Prints every generated Calendar Event with the fields the team
-// compares against Streamlit: ticker · eventType · source · estimated · exDate ·
-// buyDate · paymentDate. This is the "최신화 직후 전체 이벤트 출력" diagnostic.
-function logGeneratedCalendarEvents(ticker: string, source: string, providerStatus: ProviderStatus, events: CalendarEvent[]) {
-  const rows = events.map((event) => ({
-    ticker: event.ticker,
-    eventType: event.type,
-    source: event.sourceKind,
-    estimated: event.status === "estimated",
-    exDate: event.exDivDate || "-",
-    buyDate: event.type === "buy_by" ? event.date : event.buyDeadline || "-",
-    paymentDate: event.paymentDate || "-",
-  }));
-  console.info(
-    `[dividend-events] ${ticker} · source=${source} · polygon=${providerStatus.polygon ?? "-"} · ${events.length} events ` +
-      JSON.stringify(rows),
-  );
-}
 async function fetchFinnhub(ticker: string, status: ProviderStatus, warnings: string[]): Promise<DeclaredDividendRow[]> {
   const key = process.env.FINNHUB_API_KEY;
   if (!key) { status.finnhub = "missing_key"; return []; }
@@ -129,6 +109,5 @@ export async function GET(request: Request) {
   const events = polygonBlockedFallback ? [] : declared.length > 0 || historyForProjection.length > 0 ? mergeDeclaredAndProjectedEvents(ticker, declared, historyForProjection) : [];
   const source = events.length === 0 ? "unavailable" : providerStatus.polygon === "ok" && polygonRows.length > 0 ? "live" : "partial";
   const failureCategory: DividendLiveResponse["failureCategory"] = providerStatus.polygon === "missing_key" ? "missing_key" : polygonBlockedFallback ? providerStatus.polygon as DividendLiveResponse["failureCategory"] : undefined;
-  logGeneratedCalendarEvents(ticker, source, providerStatus, events);
   return NextResponse.json({ ticker, source, events, failedReason: events.length === 0 ? (polygonBlockedFallback ? "Polygon dividend lookup failed; existing confirmed cache should be kept." : "No live dividend events were available.") : undefined, updatedAt, providerStatus, warnings, rateLimitDelayMs: providerStatus.polygon && providerStatus.polygon !== "missing_key" ? 12500 : undefined, failureCategory } satisfies DividendLiveResponse);
 }
