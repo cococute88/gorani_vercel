@@ -21,6 +21,7 @@ require.extensions[".ts"] = function transpileTypeScript(module, filename) {
 
 const { buildPortfolioAccountReturnRows, MIN_VISIBLE_ACCOUNT_AMOUNT_KRW } = require("../lib/portfolio-account-returns.ts");
 const { buildPortfolioPageFromSnapshot } = require("../lib/portfolio-from-snapshots.ts");
+const { classifyAccountStatusGroup } = require("../lib/account-status-group.ts");
 
 function holding(overrides = {}) { return { id: overrides.id ?? Math.random().toString(36), broker: "미래증권", assetType: "ETF", productName: "ETF", principalKRW: 800_000, valueKRW: 1_000_000, ...overrides }; }
 function financeAsset(overrides = {}) { return { id: overrides.id ?? Math.random().toString(36), groupName: "자유입출금 자산", productName: "계좌", amountKRW: 1_000_000, category: "투자성", ...overrides }; }
@@ -46,7 +47,24 @@ function snapshot(overrides = {}) { return { id: "s", snapshotDate: "2026-06-15"
 }
 {
   const result = buildPortfolioAccountReturnRows(snapshot({ holdings: [holding({ accountGroup: "위탁" }), holding({ accountGroup: "연금" }), holding({ accountGroup: "투자성 자산" })] }));
-  assert.deepEqual(new Set(result.rows.map((row) => row.statusGroup)), new Set(["위탁", "절세", "미확인"]));
+  assert.deepEqual(new Set(result.rows.map((row) => row.statusGroup)), new Set(["위탁", "절세"]));
+  assert.equal(result.rows.find((row) => row.label === "투자성 자산")?.statusGroup, "위탁");
+}
+{
+  for (const value of [undefined, null, "", "unknown", "unmapped legacy value"]) {
+    assert.equal(classifyAccountStatusGroup({ statusGroup: value }), "위탁");
+  }
+  assert.equal(classifyAccountStatusGroup({ statusGroup: "brokerage" }), "위탁");
+  assert.equal(classifyAccountStatusGroup({ statusGroup: "ISA" }), "절세");
+  assert.equal(classifyAccountStatusGroup({ statusGroup: "IRP" }), "절세");
+}
+{
+  const result = buildPortfolioAccountReturnRows(snapshot({ holdings: [
+    holding({ productName: "Microsoft", ticker: "MSFT", broker: undefined, assetType: undefined, accountGroup: undefined }),
+    holding({ productName: "RISE 머니마켓액티브", ticker: "488770.KS", broker: undefined, assetType: undefined, accountGroup: "unknown" }),
+  ] }));
+  assert.equal(result.rows.every((row) => row.statusGroup === "위탁"), true);
+  assert.equal(result.groups.some((group) => group.id === "unclassified"), false);
 }
 {
   const result = buildPortfolioAccountReturnRows(snapshot({ holdings: [holding({ accountGroup: "위탁", valueKRW: 1_000_000, principalKRW: 0 })] }));

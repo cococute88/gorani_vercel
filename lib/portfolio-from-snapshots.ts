@@ -350,7 +350,7 @@ function taxTypeFromName(name: string, type: string): PortfolioAccountRow["tax"]
   const text = `${name} ${type}`.toUpperCase();
   if (/ISA|IRP|연금|절세|비과세/.test(text)) return "비과세";
   if (/위탁|일반|해외주식|국내주식|과세/.test(text)) return "과세";
-  return "미확인";
+  return "과세";
 }
 
 function isNonDebtFinanceAsset(asset: FinanceAsset): boolean {

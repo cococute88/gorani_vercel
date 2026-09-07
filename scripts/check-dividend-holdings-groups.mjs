@@ -78,6 +78,22 @@ function assertTaxableInclude() {
   return { case: "taxable include", taxableRows: result.taxableHoldings.length, taxableTotalKRW: result.taxableTotalKRW };
 }
 
+function assertCanonicalIncomeEtfsAndFallbackAccounts() {
+  const result = buildDividendHoldingGroupsFromHoldings([
+    holding({ productName: "Schwab US Dividend Equity", ticker: "schd", broker: undefined, assetType: undefined, accountGroup: undefined, valueKRW: 1_000_000 }),
+    holding({ productName: "JPMorgan Equity Premium Income ETF", ticker: "jepi", broker: undefined, assetType: undefined, accountGroup: "unknown", valueKRW: 2_000_000 }),
+    holding({ productName: "JPMorgan Nasdaq Equity Premium Income ETF", ticker: "JEPQ", broker: undefined, assetType: undefined, accountGroup: "legacy-unmapped", valueKRW: 3_000_000 }),
+  ]);
+  assert.deepEqual(result.taxableHoldings.map((row) => row.ticker), ["SCHD", "JEPI", "JEPQ"]);
+  assert.equal(result.taxableTotalKRW, 6_000_000);
+
+  const unrelated = buildDividendHoldingGroupsFromHoldings([
+    holding({ productName: "Unrelated growth asset", ticker: "NVDA", accountGroup: undefined, valueKRW: 1_000_000 }),
+  ]);
+  assert.equal(unrelated.taxableHoldings.length, 0);
+  return { case: "SCHD/JEPI/JEPQ canonical tickers + brokerage fallback" };
+}
+
 function assertTaxableExcludedByAmount() {
   const result = buildDividendHoldingGroupsFromHoldings([
     holding({ productName: "①SCHD ②위탁 small", ticker: "SCHD", valueKRW: 200_000 }),
@@ -673,6 +689,7 @@ function assertDuplicateSpyRowsStillSeparate() {
 function main() {
   const rows = [
     assertTaxableInclude(),
+    assertCanonicalIncomeEtfsAndFallbackAccounts(),
     assertTaxableExcludedByAmount(),
     assertTaxableExcludedBySmallTag(),
     assertTaxableExcludedByCategory(),

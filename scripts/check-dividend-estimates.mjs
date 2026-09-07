@@ -39,6 +39,7 @@ require.extensions[".ts"] = function transpileTypeScript(module, filename) {
 
 const {
   buildDividendEstimateForHolding,
+  buildDividendEstimatesForHoldings,
   estimateAverageCostFromPrincipal,
   estimateQuantityFromValue,
   getTtmDividendPerShare,
@@ -185,10 +186,32 @@ function assertTickerDedupe() {
     { ticker: "schd" },
     { ticker: "SCHD" },
     { ticker: "SPY" },
+    { ticker: "jepi" },
+    { ticker: "JEPQ" },
     { ticker: "" },
   ]);
-  assert.deepEqual(tickers, ["SCHD", "SPY"]);
+  assert.deepEqual(tickers, ["JEPI", "JEPQ", "SCHD", "SPY"]);
   return { case: "same ticker dedupe", tickers: tickers.join(", ") };
+}
+
+function assertPartialProviderFailure() {
+  const inputs = ["SCHD", "JEPI", "JEPQ"].map((ticker) => ({ ticker, valueKRW: 1_375_000 }));
+  const valid = (ticker) => ({
+    quote: { ...usdQuote, ticker, normalizedTicker: ticker },
+    dividends: { ...dividends, ticker, normalizedTicker: ticker },
+    fx: usdFx,
+  });
+  const estimates = buildDividendEstimatesForHoldings(inputs, {
+    SCHD: valid("SCHD"),
+    JEPI: {},
+    JEPQ: valid("JEPQ"),
+  }, { asOf });
+  assert.equal(estimates.SCHD.annualDividendKRW, 41_250);
+  assert.equal(estimates.JEPI.annualDividendKRW, undefined);
+  assert.equal(estimates.JEPQ.annualDividendKRW, 41_250);
+  assert.equal(estimates.SCHD.dividendMonths.length > 0, true);
+  assert.equal(estimates.JEPQ.dividendMonths.length > 0, true);
+  return { case: "one provider failure preserves other ticker estimates" };
 }
 
 function assertNoSourceMutation() {
@@ -215,6 +238,7 @@ const rows = [
   assertQuoteFailure(),
   assertFxFailure(),
   assertTickerDedupe(),
+  assertPartialProviderFailure(),
   assertNoSourceMutation(),
   assertNoMockYieldDependency(),
 ];

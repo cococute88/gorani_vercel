@@ -32,7 +32,7 @@ type HoldingTickerInput = Partial<Pick<
 };
 
 const NON_QUOTE_TICKERS = new Set(["", "-", "CASH", "CASH_LIKE", "KRW", "USD"]);
-const MARKER_BUCKETS = new Set(["SCHD", "SPY", "MSFT", "QQQ", "QLD", "TQQQ", "VOO", "JEPI"]);
+const MARKER_BUCKETS = new Set(["SCHD", "SPY", "MSFT", "QQQ", "QLD", "TQQQ", "VOO", "JEPI", "JEPQ"]);
 const BUCKET_LIKE_TICKERS = new Set(["SCHD", "SPY", "QQQ", "QLD", "TQQQ"]);
 const CASH_LIKE_SUBSTRINGS = ["MMF", "머니마켓", "현금", "예수금", "CMA", "달러"];
 const CASH_LIKE_EXACT = new Set(["KRW", "USD", "원"]);
