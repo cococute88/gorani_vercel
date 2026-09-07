@@ -54,9 +54,12 @@ function snapshot(overrides = {}) { return { id: "s", snapshotDate: "2026-06-15"
   for (const value of [undefined, null, "", "unknown", "unmapped legacy value"]) {
     assert.equal(classifyAccountStatusGroup({ statusGroup: value }), "위탁");
   }
-  assert.equal(classifyAccountStatusGroup({ statusGroup: "brokerage" }), "위탁");
-  assert.equal(classifyAccountStatusGroup({ statusGroup: "ISA" }), "절세");
-  assert.equal(classifyAccountStatusGroup({ statusGroup: "IRP" }), "절세");
+  for (const value of ["brokerage", "위탁", "일반", "과세"]) {
+    assert.equal(classifyAccountStatusGroup({ statusGroup: value }), "위탁");
+  }
+  for (const value of ["ISA", "IRP", "연금", "연금저축", "퇴직연금", "절세", "비과세"]) {
+    assert.equal(classifyAccountStatusGroup({ statusGroup: value }), "절세");
+  }
 }
 {
   const result = buildPortfolioAccountReturnRows(snapshot({ holdings: [

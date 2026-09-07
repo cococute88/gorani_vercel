@@ -37,7 +37,6 @@ export type DividendHoldingCoverage = {
 
 const TAXABLE_MIN_VALUE_KRW = 200_000;
 const TAXABLE_SYMBOL_GROUPS = new Set(["SCHD", "SPY", "MSFT", "JEPI", "JEPQ"]);
-const TAX_ADVANTAGED_KEYWORDS = ["미래연금", "퇴직연금", "연금저축", "연금", "ISA", "IRP", "절세"];
 const CASH_LIKE_BUCKETS = new Set(["CASH_LIKE", "CASH", "KRW", "USD", "현금"]);
 const CASH_LIKE_TOKEN_KEYWORDS = ["CASH", "KRW", "USD"];
 const CASH_LIKE_SUBSTRING_KEYWORDS = ["CASH_LIKE", "현금", "원", "달러", "예수금", "MMF", "머니마켓", "CMA"];
@@ -56,7 +55,6 @@ type DividendHoldingClassification = {
   marker2: string | null;
   isSmall: boolean;
   isCashLike: boolean;
-  hasTaxAdvantagedSignal: boolean;
   isTaxableEligible: boolean;
   isTaxAdvantagedEligible: boolean;
   exclusionReasons: string[];
@@ -312,11 +310,6 @@ function isPositiveValue(holding: Holding): boolean {
   return Number.isFinite(holding.valueKRW) && holding.valueKRW > 0;
 }
 
-function hasTaxAdvantagedSignal(holding: Holding): boolean {
-  const searchableText = normalize(searchableTextOf(holding));
-  return TAX_ADVANTAGED_KEYWORDS.some((keyword) => searchableText.includes(normalize(keyword)));
-}
-
 function isCashLikeHolding(holding: Holding, normalizedTickerInfo: ReturnType<typeof normalizeHoldingTickerInfo>, marker1: string | null): boolean {
   if (normalizedTickerInfo.isCashLike) return true;
   if (marker1 && CASH_LIKE_BUCKETS.has(normalize(marker1))) return true;
@@ -340,11 +333,10 @@ function classifyDividendHolding(holding: Holding, originalIndex: number): Divid
   const marker1 = marker1Of(holding) ?? null;
   const marker2 = marker2Of(holding) ?? null;
   const dividendBucket = dividendBucketOf(holding) ?? null;
-  const taxAdvantagedSignal = hasTaxAdvantagedSignal(holding);
+  // Legacy snapshots can store their only account signal outside the structured account fields.
+  // Preserve the previous broad metadata coverage, then let the shared classifier apply tax-first fallback policy.
   const accountStatus = classifyAccountStatusGroup({
-    name: [holding.accountName, holding.accountGroup, holding.broker, holding.productName].filter(Boolean).join(" "),
-    type: holding.assetType,
-    statusGroup: holding.statusGroup,
+    name: searchableTextOf(holding),
   });
   const isSmall = hasSmallTag(holding);
   const isCashLike = isCashLikeHolding(holding, normalizedTickerInfo, marker1);
@@ -384,7 +376,6 @@ function classifyDividendHolding(holding: Holding, originalIndex: number): Divid
     marker2,
     isSmall,
     isCashLike,
-    hasTaxAdvantagedSignal: taxAdvantagedSignal,
     isTaxableEligible: taxableEligibility,
     isTaxAdvantagedEligible: taxAdvantagedEligibility,
     exclusionReasons,
