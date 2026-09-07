@@ -2,6 +2,7 @@ import { buildDividendHoldingRows, type DividendHoldingRow } from "./mock-divide
 import { normalizeHoldingTickerInfo } from "./holding-ticker-normalizer";
 import { applyKrxTickerMappingsToHoldings, type KrxTickerNameMap } from "./krx-ticker-name-map";
 import { parsePortfolioTags } from "./portfolio-tags";
+import { classifyAccountStatusGroup } from "./account-status-group";
 import type { Holding, PortfolioSnapshot } from "./portfolio-types";
 
 export type DividendHoldingGroupResult = {
@@ -35,14 +36,12 @@ export type DividendHoldingCoverage = {
 };
 
 const TAXABLE_MIN_VALUE_KRW = 200_000;
-const TAXABLE_ACCOUNT_MARKER = "위탁";
-const TAXABLE_SYMBOL_GROUPS = new Set(["SCHD", "SPY", "MSFT"]);
-const TAX_ADVANTAGED_KEYWORDS = ["미래연금", "퇴직연금", "연금저축", "연금", "ISA", "IRP", "절세"];
+const TAXABLE_SYMBOL_GROUPS = new Set(["SCHD", "SPY", "MSFT", "JEPI", "JEPQ"]);
 const CASH_LIKE_BUCKETS = new Set(["CASH_LIKE", "CASH", "KRW", "USD", "현금"]);
 const CASH_LIKE_TOKEN_KEYWORDS = ["CASH", "KRW", "USD"];
 const CASH_LIKE_SUBSTRING_KEYWORDS = ["CASH_LIKE", "현금", "원", "달러", "예수금", "MMF", "머니마켓", "CMA"];
-const DIVIDEND_BUCKETS = ["SCHD", "SPY", "MSFT", "QQQ", "QLD", "TQQQ", "VOO", "JEPI"] as const;
-const MARKER_1_VALUES = ["SCHD", "SPY", "MSFT", "QQQ", "QLD", "TQQQ", "KRW", "USD", "현금", "기타"] as const;
+const DIVIDEND_BUCKETS = ["SCHD", "SPY", "MSFT", "QQQ", "QLD", "TQQQ", "VOO", "JEPI", "JEPQ"] as const;
+const MARKER_1_VALUES = ["SCHD", "SPY", "MSFT", "QQQ", "QLD", "TQQQ", "JEPI", "JEPQ", "KRW", "USD", "현금", "기타"] as const;
 
 type DividendBucket = (typeof DIVIDEND_BUCKETS)[number];
 
@@ -56,7 +55,6 @@ type DividendHoldingClassification = {
   marker2: string | null;
   isSmall: boolean;
   isCashLike: boolean;
-  hasTaxAdvantagedSignal: boolean;
   isTaxableEligible: boolean;
   isTaxAdvantagedEligible: boolean;
   exclusionReasons: string[];
@@ -224,7 +222,7 @@ function primaryMarkerBucketOf(holding: Holding): DividendBucket | undefined {
   if (structured) return structured;
 
   const text = searchableTextOf(holding);
-  const markerMatch = text.match(/①\s*(SCHD|SPY|MSFT|QQQ|QLD|TQQQ|기타|현금|KRW|USD)(?=$|[\s/#①②③④])/i);
+  const markerMatch = text.match(/①\s*(SCHD|SPY|MSFT|QQQ|QLD|TQQQ|JEPI|JEPQ|기타|현금|KRW|USD)(?=$|[\s/#①②③④])/i);
   return normalizeBucket(markerMatch?.[1]);
 }
 
@@ -235,7 +233,7 @@ function marker1Of(holding: Holding): string | undefined {
   if (structured && MARKER_1_VALUES.some((value) => normalize(value) === normalizedStructured)) return structured;
 
   const text = searchableTextOf(holding);
-  const markerMatch = text.match(/①\s*(SCHD|SPY|MSFT|QQQ|QLD|TQQQ|기타|현금|KRW|USD)(?=$|[\s/#①②③④])/i);
+  const markerMatch = text.match(/①\s*(SCHD|SPY|MSFT|QQQ|QLD|TQQQ|JEPI|JEPQ|기타|현금|KRW|USD)(?=$|[\s/#①②③④])/i);
   return markerMatch?.[1] ? compact(markerMatch[1]) : undefined;
 }
 
@@ -273,6 +271,8 @@ function productNameFallbackBucketOf(holding: Holding): DividendBucket | undefin
     return "QQQ";
   }
   if (compacted.includes("SCHD")) return "SCHD";
+  if (/(^|[^A-Z0-9])JEPI([^A-Z0-9]|$)/i.test(text)) return "JEPI";
+  if (/(^|[^A-Z0-9])JEPQ([^A-Z0-9]|$)/i.test(text)) return "JEPQ";
   if (compacted.includes("MSFT") || lower.includes("microsoft")) return "MSFT";
 
   return undefined;
@@ -281,7 +281,7 @@ function productNameFallbackBucketOf(holding: Holding): DividendBucket | undefin
 function dividendBucketOf(holding: Holding): DividendBucket | undefined {
   const normalized = normalizeHoldingTickerInfo(holding);
   if (normalized.isCashLike) return undefined;
-  return normalizeBucket(normalized.dividendBucket) ?? primaryMarkerBucketOf(holding) ?? productNameFallbackBucketOf(holding);
+  return normalizeBucket(normalized.dividendBucket) ?? normalizeBucket(normalized.quoteTicker) ?? primaryMarkerBucketOf(holding) ?? productNameFallbackBucketOf(holding);
 }
 
 function displayTickerOf(classification: Pick<DividendHoldingClassification, "dividendBucket">): string | null {
@@ -310,11 +310,6 @@ function isPositiveValue(holding: Holding): boolean {
   return Number.isFinite(holding.valueKRW) && holding.valueKRW > 0;
 }
 
-function hasTaxAdvantagedSignal(holding: Holding): boolean {
-  const searchableText = normalize(searchableTextOf(holding));
-  return TAX_ADVANTAGED_KEYWORDS.some((keyword) => searchableText.includes(normalize(keyword)));
-}
-
 function isCashLikeHolding(holding: Holding, normalizedTickerInfo: ReturnType<typeof normalizeHoldingTickerInfo>, marker1: string | null): boolean {
   if (normalizedTickerInfo.isCashLike) return true;
   if (marker1 && CASH_LIKE_BUCKETS.has(normalize(marker1))) return true;
@@ -338,7 +333,11 @@ function classifyDividendHolding(holding: Holding, originalIndex: number): Divid
   const marker1 = marker1Of(holding) ?? null;
   const marker2 = marker2Of(holding) ?? null;
   const dividendBucket = dividendBucketOf(holding) ?? null;
-  const taxAdvantagedSignal = hasTaxAdvantagedSignal(holding);
+  // Legacy snapshots can store their only account signal outside the structured account fields.
+  // Preserve the previous broad metadata coverage, then let the shared classifier apply tax-first fallback policy.
+  const accountStatus = classifyAccountStatusGroup({
+    name: searchableTextOf(holding),
+  });
   const isSmall = hasSmallTag(holding);
   const isCashLike = isCashLikeHolding(holding, normalizedTickerInfo, marker1);
   const commonExclusionReasons: string[] = [];
@@ -356,11 +355,10 @@ function classifyDividendHolding(holding: Holding, originalIndex: number): Divid
   if (passesCommonRules && (!dividendBucket || !TAXABLE_SYMBOL_GROUPS.has(dividendBucket))) {
     taxableOnlyReasons.push("unsupported_taxable_bucket");
   }
-  if (passesCommonRules && normalize(marker2) !== normalize(TAXABLE_ACCOUNT_MARKER)) taxableOnlyReasons.push("not_strict_taxable_account");
-  if (passesCommonRules && taxAdvantagedSignal) taxableOnlyReasons.push("tax_advantaged_signal");
+  if (passesCommonRules && accountStatus !== "위탁") taxableOnlyReasons.push("tax_advantaged_account");
 
   const taxableEligibility = passesCommonRules && taxableOnlyReasons.length === 0;
-  const taxAdvantagedEligibility = passesCommonRules && taxAdvantagedSignal;
+  const taxAdvantagedEligibility = passesCommonRules && accountStatus === "절세";
   const exclusionReasons = [...commonExclusionReasons, ...taxableOnlyReasons];
   const classificationReason = taxableEligibility
     ? "strict-taxable"
@@ -378,7 +376,6 @@ function classifyDividendHolding(holding: Holding, originalIndex: number): Divid
     marker2,
     isSmall,
     isCashLike,
-    hasTaxAdvantagedSignal: taxAdvantagedSignal,
     isTaxableEligible: taxableEligibility,
     isTaxAdvantagedEligible: taxAdvantagedEligibility,
     exclusionReasons,

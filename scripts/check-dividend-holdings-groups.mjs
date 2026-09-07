@@ -78,6 +78,84 @@ function assertTaxableInclude() {
   return { case: "taxable include", taxableRows: result.taxableHoldings.length, taxableTotalKRW: result.taxableTotalKRW };
 }
 
+function assertCanonicalIncomeEtfsAndFallbackAccounts() {
+  const result = buildDividendHoldingGroupsFromHoldings([
+    holding({ productName: "Schwab US Dividend Equity", ticker: "schd", broker: undefined, assetType: undefined, accountGroup: undefined, valueKRW: 1_000_000 }),
+    holding({ productName: "JPMorgan Equity Premium Income ETF", ticker: "jepi", broker: undefined, assetType: undefined, accountGroup: "unknown", valueKRW: 2_000_000 }),
+    holding({ productName: "JPMorgan Nasdaq Equity Premium Income ETF", ticker: "JEPQ", broker: undefined, assetType: undefined, accountGroup: "legacy-unmapped", valueKRW: 3_000_000 }),
+    holding({ productName: "JPMorgan Equity Premium Income ETF", ticker: "JEPI", accountGroup: "위탁", valueKRW: 4_000_000 }),
+    holding({ productName: "JPMorgan Nasdaq Equity Premium Income ETF", ticker: "JEPQ", accountGroup: "위탁", valueKRW: 5_000_000 }),
+    holding({ productName: "JPMorgan Equity Premium Income ETF", ticker: "JEPI", accountGroup: "ISA", valueKRW: 6_000_000 }),
+    holding({ productName: "JPMorgan Nasdaq Equity Premium Income ETF", ticker: "JEPQ", accountGroup: "IRP", valueKRW: 7_000_000 }),
+  ]);
+  assert.deepEqual(result.taxableHoldings.map((row) => row.ticker), ["SCHD", "JEPI", "JEPQ", "JEPI", "JEPQ"]);
+  assert.deepEqual(result.taxAdvantagedHoldings.map((row) => row.ticker), ["JEPI", "JEPQ"]);
+  assert.equal(result.taxableTotalKRW, 15_000_000);
+  assert.equal(result.taxAdvantagedTotalKRW, 13_000_000);
+
+  const unrelated = buildDividendHoldingGroupsFromHoldings([
+    holding({ productName: "Unrelated growth asset", ticker: "NVDA", accountGroup: undefined, valueKRW: 1_000_000 }),
+  ]);
+  assert.equal(unrelated.taxableHoldings.length, 0);
+  return { case: "SCHD/JEPI/JEPQ canonical tickers + brokerage fallback" };
+}
+
+function assertCashLikeFallbackAccountsExcluded() {
+  const result = buildDividendHoldingGroupsFromHoldings([
+    holding({ productName: "RISE 머니마켓액티브", ticker: "488770.KS", broker: undefined, assetType: undefined, accountGroup: "unknown", valueKRW: 1_000_000 }),
+    holding({ productName: "MMF", ticker: "", broker: undefined, assetType: undefined, accountGroup: undefined, valueKRW: 2_000_000 }),
+    holding({ productName: "현금", ticker: "KRW", broker: undefined, assetType: undefined, accountGroup: undefined, valueKRW: 3_000_000 }),
+  ]);
+
+  assert.equal(result.taxableHoldings.length, 0);
+  assert.equal(result.taxAdvantagedHoldings.length, 0);
+  assert.equal(result.taxableTotalKRW, 0);
+  assert.equal(result.taxAdvantagedTotalKRW, 0);
+  assert.equal(result.warnings.filter((warning) => warning.includes("cash_like")).length, 3);
+
+  return { case: "cash-like fallback accounts excluded from dividends" };
+}
+
+function assertLegacyTaxAdvantagedMetadataPreserved() {
+  const parsedTags = {
+    accountGroup: "퇴직연금",
+    legacyTags: [],
+    cleanName: "Invesco QQQ",
+    isSmallExcluded: false,
+  };
+  const result = buildDividendHoldingGroupsFromHoldings([
+    holding({ productName: "Schwab US Dividend Equity", ticker: "SCHD", category: "ISA", valueKRW: 1_000_000 }),
+    holding({ productName: "Schwab US Dividend Equity", ticker: "SCHD", tag: "IRP", valueKRW: 2_000_000 }),
+    holding({ productName: "Invesco QQQ", ticker: "QQQ", purposeGroup: "연금저축", valueKRW: 3_000_000 }),
+    holding({ productName: "Schwab US Dividend Equity", ticker: "SCHD", memo: "비과세", valueKRW: 4_000_000 }),
+    holding({ productName: "Invesco QQQ", ticker: "QQQ", parsedTags, valueKRW: 5_000_000 }),
+    holding({ productName: "Schwab US Dividend Equity", ticker: "SCHD", accountName: "ISA", valueKRW: 6_000_000 }),
+    holding({ productName: "Schwab US Dividend Equity", ticker: "SCHD", accountGroup: "IRP", valueKRW: 7_000_000 }),
+    holding({ productName: "Schwab US Dividend Equity", ticker: "SCHD", statusGroup: "절세", valueKRW: 8_000_000 }),
+  ]);
+
+  assert.equal(result.taxableHoldings.length, 0);
+  assert.deepEqual(result.taxAdvantagedHoldings.map((row) => row.ticker), [
+    "SCHD",
+    "SCHD",
+    "QQQ",
+    "SCHD",
+    "QQQ",
+    "SCHD",
+    "SCHD",
+    "SCHD",
+  ]);
+  assert.equal(result.taxAdvantagedTotalKRW, 36_000_000);
+
+  return {
+    case: "legacy tax-saving metadata remains tax-advantaged",
+    categoryOnlySchd: result.taxAdvantagedHoldings[0].ticker,
+    tagOnlySchd: result.taxAdvantagedHoldings[1].ticker,
+    purposeOnlyQqq: result.taxAdvantagedHoldings[2].ticker,
+    parsedTagsOnlyQqq: result.taxAdvantagedHoldings[4].ticker,
+  };
+}
+
 function assertTaxableExcludedByAmount() {
   const result = buildDividendHoldingGroupsFromHoldings([
     holding({ productName: "①SCHD ②위탁 small", ticker: "SCHD", valueKRW: 200_000 }),
@@ -673,6 +751,9 @@ function assertDuplicateSpyRowsStillSeparate() {
 function main() {
   const rows = [
     assertTaxableInclude(),
+    assertCanonicalIncomeEtfsAndFallbackAccounts(),
+    assertCashLikeFallbackAccountsExcluded(),
+    assertLegacyTaxAdvantagedMetadataPreserved(),
     assertTaxableExcludedByAmount(),
     assertTaxableExcludedBySmallTag(),
     assertTaxableExcludedByCategory(),

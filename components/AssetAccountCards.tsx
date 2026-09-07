@@ -14,7 +14,7 @@ import { isVisibleAccountCard } from "@/lib/account-card-visibility";
 
 type Props = { theme?: "dark" | "light"; compact?: boolean };
 
-// 계좌 카드 grid를 위탁 / 절세(/ 미확인)로 나눠 보여준다.
+// 계좌 카드 grid를 위탁 / 절세로 나눠 보여준다.
 // PORTFOLIO-PERF-UI-1: 기존 단일 "계좌 현황"을 위탁/절세 두 그룹으로 분리.
 // UI-3: compact=true 면 1300px+ 우측 컬럼(트리맵 옆)에 맞춰 카드 폭을 좁혀 2열·작은 패딩으로 렌더링한다.
 export default function AssetAccountCards({ theme = "light", compact = false }: Props) {
@@ -33,7 +33,7 @@ export default function AssetAccountCards({ theme = "light", compact = false }: 
   const hintCls = isLight ? "text-amber-700 bg-amber-50 border-amber-200" : "text-amber-200 bg-amber-500/10 border-amber-500/20";
   const dividerCls = isLight ? "border-slate-200" : "border-[#2a3336]";
 
-  // 카드를 위탁 / 절세 / 미확인 그룹으로 분류.
+  // 카드를 위탁 / 절세 그룹으로 분류.
   // 그룹 합계(계좌 합계)는 받은 행 전체 기준으로 계산해 변하지 않게 유지하고,
   // 카드 렌더링 단계에서만 100만원 미만 계좌를 숨긴다(표시 전용).
   const groups = new Map<AccountStatusGroup, PortfolioAccountRow[]>();

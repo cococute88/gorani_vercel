@@ -1,12 +1,12 @@
 // =============================================================
-// 계좌 현황 분류 헬퍼 (위탁 / 절세 / 미확인)
+// 계좌 현황 분류 헬퍼 (위탁 / 절세)
 // PORTFOLIO-PERF-UI-1: /portfolio 계좌 현황을 위탁/절세로 안전하게 나눈다.
 //
-// 데이터 모양이 계좌 레벨 분류를 항상 보장하지 않으므로, 신호가 없으면
-// 추측하지 않고 "미확인"으로 둔다 (조용히 위탁으로 떨어뜨리지 않는다).
+// 명시적인 절세 신호가 없는 계좌는 위탁으로 분류한다. 이 fallback은
+// portfolio/dividend 등 downstream 계산이 동일한 정책을 쓰도록 공통 헬퍼에서 적용한다.
 // =============================================================
 
-export type AccountStatusGroup = "위탁" | "절세" | "미확인";
+export type AccountStatusGroup = "위탁" | "절세";
 
 // 절세(세제혜택) 계좌 신호. "비과세"는 "과세"를 부분 문자열로 포함하므로
 // 위탁 신호보다 먼저 검사한다.
@@ -64,7 +64,7 @@ function devLogAccountClassification(
   });
 }
 
-// 계좌 카드/보유 신호를 보고 위탁/절세를 판단한다. 신호가 전혀 없으면 "미확인".
+// 계좌 카드/보유 신호를 보고 위탁/절세를 판단한다. 신호가 없거나 인식할 수 없으면 위탁.
 export function classifyAccountStatusGroup(input: AccountStatusClassifiable): AccountStatusGroup {
   const haystack = [input.name, input.type, input.statusGroup, input.tax]
     .filter(Boolean)
@@ -79,8 +79,8 @@ export function classifyAccountStatusGroup(input: AccountStatusClassifiable): Ac
     devLogAccountClassification(input, "위탁", "brokerage-signal");
     return "위탁";
   }
-  devLogAccountClassification(input, "미확인", "fallback", "no tax-saving or brokerage signal matched");
-  return "미확인";
+  devLogAccountClassification(input, "위탁", "brokerage-fallback", "no explicit tax-saving or brokerage signal matched");
+  return "위탁";
 }
 
 // =============================================================
@@ -121,10 +121,9 @@ export function canonicalizeAccountGroupLabel(raw: string | undefined): string |
   return trimmed;
 }
 
-export const ACCOUNT_STATUS_GROUP_ORDER: AccountStatusGroup[] = ["위탁", "절세", "미확인"];
+export const ACCOUNT_STATUS_GROUP_ORDER: AccountStatusGroup[] = ["위탁", "절세"];
 
 export const ACCOUNT_STATUS_GROUP_LABEL: Record<AccountStatusGroup, string> = {
   위탁: "위탁 계좌 현황",
   절세: "절세 계좌 현황",
-  미확인: "분류 미확인 계좌",
 };
