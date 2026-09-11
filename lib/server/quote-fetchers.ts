@@ -492,6 +492,23 @@ export async function getQuoteHistory(input: {
   };
 }
 
+/** Dedicated batch history for 1 USD = N KRW. The generic ticker resolver
+ * intentionally rejects Yahoo's `=` symbols, so FX history uses this narrow,
+ * server-only boundary instead of weakening stock ticker validation. */
+export async function getUsdKrwHistory(input: { start?: string | null; end?: string | null }) {
+  const window = resolveDateWindow({ ...input, range: "max" });
+  const warnings: string[] = [];
+  try {
+    const yahoo = await fetchYahooChart({ ticker: "KRW=X", start: input.start, end: input.end, events: "history" });
+    const prices = parseYahooPrices(yahoo, window).map((point) => ({ date: point.date, rate: point.close }));
+    if (prices.length) return { pair: "USDKRW" as const, source: "yahoo" as const, updatedAt: nowIso(), prices, warnings };
+    warnings.push("Yahoo returned no usable USD/KRW daily rates");
+  } catch (error) {
+    warnings.push(createWarning("Yahoo USD/KRW history fetch failed:", error instanceof Error ? error.message : String(error)));
+  }
+  return { pair: "USDKRW" as const, source: "empty" as const, updatedAt: nowIso(), prices: [], warnings };
+}
+
 export async function getQuoteDividends(input: {
   ticker: string;
   range?: string | null;

@@ -63,3 +63,11 @@ export type QuoteFxResponse = DataResultMeta<Extract<DataSource, "yahoo" | "samp
   rate: number | null;
   date: string | null;
 };
+
+export type QuoteFxHistoryResponse = {
+  pair: "USDKRW";
+  source: "yahoo" | "empty";
+  updatedAt: string;
+  prices: Array<{ date: string; rate: number }>;
+  warnings: string[];
+};

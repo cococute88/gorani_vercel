@@ -63,6 +63,107 @@ export type SchdAttractivenessMetrics = {
   warnings: string[];
 };
 
+export type SchdFxPoint = { date: string; rate: number };
+
+export type SchdKrwPoint = SchdYieldPoint & {
+  fxDate: string;
+  usdKrw: number;
+  krwPrice: number;
+  dividendEfficiency: number | null;
+};
+
+export type SchdKrwSummary = {
+  points: SchdKrwPoint[];
+  latestRate: number;
+  latestRateDate: string;
+  currentKrwPrice: number;
+  averageKrwPrice: number;
+  priceDeviationPct: number;
+  pricePercentile: number;
+  currentEfficiency: number;
+  averageEfficiency: number;
+  efficiencyDeviationPct: number;
+  efficiencyPercentile: number;
+};
+
+const MAX_FX_FORWARD_FILL_DAYS = 7;
+const ONE_MILLION_KRW = 1_000_000;
+
+/**
+ * SCHD 거래일을 기준으로 같은 날 또는 직전 USD/KRW 영업일만 매칭한다.
+ * 7일을 넘는 공백은 오래된 환율을 조용히 사용하는 대신 누락 처리한다.
+ */
+export function buildSchdKrwSeries(points: SchdYieldPoint[], fxPoints: SchdFxPoint[], maxGapDays = MAX_FX_FORWARD_FILL_DAYS): SchdKrwPoint[] {
+  const fx = fxPoints
+    .map((point) => ({ date: normalizeDate(point.date), ms: parseDateMs(point.date), rate: Number(point.rate) }))
+    .filter((point) => Number.isFinite(point.ms) && isFinitePositive(point.rate))
+    .sort((a, b) => a.ms - b.ms);
+  if (!fx.length) return [];
+
+  const result: SchdKrwPoint[] = [];
+  let fxIndex = -1;
+  for (const point of points) {
+    const pointMs = parseDateMs(point.date);
+    if (!Number.isFinite(pointMs) || !isFinitePositive(point.price)) continue;
+    while (fxIndex + 1 < fx.length && fx[fxIndex + 1].ms <= pointMs) fxIndex += 1;
+    if (fxIndex < 0) continue; // 미래 환율을 과거에 소급하지 않는다.
+    const matched = fx[fxIndex];
+    const gapDays = (pointMs - matched.ms) / (24 * 60 * 60 * 1000);
+    if (gapDays > maxGapDays) continue;
+    const krwPrice = point.price * matched.rate;
+    const dividendEfficiency = isFinitePositive(point.ttmDividend)
+      ? (ONE_MILLION_KRW / krwPrice) * point.ttmDividend
+      : null;
+    result.push({ ...point, fxDate: matched.date, usdKrw: matched.rate, krwPrice, dividendEfficiency });
+  }
+  return result;
+}
+
+function average(values: number[]) {
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function percentile(values: number[], current: number) {
+  if (!values.length) return NaN;
+  return (values.filter((value) => value <= current).length / values.length) * 100;
+}
+
+export function calculateSchdKrwSummary(
+  metrics: SchdAttractivenessMetrics,
+  fxPoints: SchdFxPoint[],
+  range: SchdRangeKey,
+): SchdKrwSummary | null {
+  const allPoints = buildSchdKrwSeries(metrics.points, fxPoints);
+  const points = filterSchdRange(allPoints, range);
+  const latestFx = fxPoints
+    .map((point) => ({ date: normalizeDate(point.date), rate: Number(point.rate) }))
+    .filter((point) => Number.isFinite(parseDateMs(point.date)) && isFinitePositive(point.rate))
+    .sort((a, b) => parseDateMs(a.date) - parseDateMs(b.date))
+    .at(-1);
+  if (!latestFx || !points.length || !isFinitePositive(metrics.currentPrice) || !isFinitePositive(metrics.latestFourDividend)) return null;
+
+  const prices = points.map((point) => point.krwPrice).filter(isFinitePositive);
+  const efficiencies = points.map((point) => point.dividendEfficiency).filter(isFinitePositive);
+  if (!prices.length || !efficiencies.length) return null;
+  const currentKrwPrice = metrics.currentPrice * latestFx.rate;
+  const currentEfficiency = (ONE_MILLION_KRW / currentKrwPrice) * metrics.latestFourDividend;
+  const averageKrwPrice = average(prices);
+  const averageEfficiency = average(efficiencies);
+  return {
+    points,
+    latestRate: latestFx.rate,
+    latestRateDate: latestFx.date,
+    currentKrwPrice,
+    averageKrwPrice,
+    priceDeviationPct: (currentKrwPrice / averageKrwPrice - 1) * 100,
+    pricePercentile: percentile(prices, currentKrwPrice),
+    currentEfficiency,
+    averageEfficiency,
+    efficiencyDeviationPct: (currentEfficiency / averageEfficiency - 1) * 100,
+    efficiencyPercentile: percentile(efficiencies, currentEfficiency),
+  };
+}
+
 function parseDateMs(date: string) {
   const ms = new Date(`${date}T00:00:00Z`).getTime();
   return Number.isFinite(ms) ? ms : NaN;
@@ -339,7 +440,7 @@ export function calculateSchdAttractiveness(
   };
 }
 
-export function filterSchdRange(points: SchdYieldPoint[], range: SchdRangeKey) {
+export function filterSchdRange<T extends SchdYieldPoint>(points: T[], range: SchdRangeKey): T[] {
   if (!points.length) return points;
   const latestMs = parseDateMs(points[points.length - 1].date);
   const daysByRange: Record<SchdRangeKey, number> = { "1M": 31, "6M": 183, "1Y": 365, "5Y": 365 * 5, "10Y": 365 * 10 };

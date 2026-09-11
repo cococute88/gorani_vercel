@@ -122,7 +122,8 @@
     "check:small-ui-favicon-modal-chart-fix": "node scripts/check-small-ui-favicon-modal-chart-fix.mjs",
     "check:calculator-dense-history": "node scripts/check-calculator-dense-history.mjs",
     "check:firestore-portfolio-adapter": "node scripts/check-firestore-portfolio-adapter.mjs",
-    "validate:firestore-contract": "node scripts/validate-firestore-contract.mjs"
+    "validate:firestore-contract": "node scripts/validate-firestore-contract.mjs",
+    "check:schd-krw-analysis": "npx --yes tsx scripts/check-schd-krw-analysis.mts"
   },
   "dependencies": {
     "firebase": "^11.0.0",
