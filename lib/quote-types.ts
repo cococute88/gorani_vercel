@@ -11,6 +11,9 @@ export type DataResultMeta<S extends DataSource = DataSource> = {
   source: S;
   warnings: string[];
   updatedAt: string;
+  /** Set only when the client reuses a recent trusted provider response. */
+  cacheStatus?: "stale";
+  cachedAt?: string;
 };
 
 export type QuoteSource = Extract<DataSource, "yahoo" | "stooq" | "sample">;

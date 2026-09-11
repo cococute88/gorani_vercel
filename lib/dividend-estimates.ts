@@ -204,7 +204,8 @@ export function buildDividendEstimateForHolding(
     return estimate;
   }
 
-  estimate.currentPrice = marketData.quote.price;
+  const quotePrice = marketData.quote.price;
+  estimate.currentPrice = quotePrice;
   estimate.currentPriceCurrency = currency;
 
   const fxRate = marketData.fx?.rate ?? undefined;
@@ -213,11 +214,17 @@ export function buildDividendEstimateForHolding(
       code: marketData.fx?.source === "sample" ? "fx_sample" : "fx_missing",
       message: `${input.ticker}: USD/KRW 환율 없음`,
     });
-    return estimate;
   }
 
-  estimate.currentPriceKRW = currency === "KRW" ? marketData.quote.price : marketData.quote.price * (fxRate as number);
-  estimate.estimatedQuantity = estimateQuantityFromValue(input.valueKRW, estimate.currentPriceKRW);
+  estimate.currentPriceKRW =
+    currency === "KRW"
+      ? quotePrice
+      : isUsableFx(marketData.fx)
+        ? quotePrice * marketData.fx.rate
+        : undefined;
+  estimate.estimatedQuantity = estimate.currentPriceKRW
+    ? estimateQuantityFromValue(input.valueKRW, estimate.currentPriceKRW)
+    : undefined;
   if (!estimate.estimatedQuantity) {
     warnings.push({ code: "value_missing", message: `${input.ticker}: 평가금액 기준 추정수량 계산 불가` });
   }
@@ -252,9 +259,15 @@ export function buildDividendEstimateForHolding(
   estimate.ttmDividendPerShare = ttm.amount;
   estimate.ttmDividendCurrency = currency;
 
-  if (estimate.estimatedQuantity && estimate.currentPriceKRW) {
-    const dividendPerShareKRW = currency === "KRW" ? ttm.amount : ttm.amount * (fxRate as number);
-    estimate.annualDividendKRW = Math.round(estimate.estimatedQuantity * dividendPerShareKRW * taxFactor);
+  // 평가금액 기준 추정에서는 USD/KRW가 수량 환산과 배당금 환산 양쪽에
+  // 동일하게 곱해져 상쇄된다:
+  // valueKRW / (quoteUSD * fx) * (dividendUSD * fx)
+  //   === valueKRW * dividendUSD / quoteUSD
+  // 따라서 실제 quote + 실제 배당 이력이 있으면 FX 일시 장애 중에도
+  // 연간/월별 배당 추정은 정확히 유지한다. FX는 원화 현재가·추정수량과
+  // 평균단가, 목표 종목 원화 가격 계산에만 필요하다.
+  if (isFinitePositive(input.valueKRW)) {
+    estimate.annualDividendKRW = Math.round((input.valueKRW * ttm.amount * taxFactor) / quotePrice);
     const yieldBasis =
       isFinitePositive(input.principalKRW) ? input.principalKRW : isFinitePositive(input.valueKRW) ? input.valueKRW : undefined;
     if (yieldBasis) {
@@ -263,10 +276,9 @@ export function buildDividendEstimateForHolding(
     }
     estimate.dividendMonths = ttm.rows.map((row) => {
       const date = new Date(`${row.date}T00:00:00.000Z`);
-      const dividendPerShareKRW = currency === "KRW" ? row.amount : row.amount * (fxRate as number);
       return {
         month: date.getUTCMonth() + 1,
-        amountKRW: estimate.estimatedQuantity ? estimate.estimatedQuantity * dividendPerShareKRW * taxFactor : 0,
+        amountKRW: (input.valueKRW * row.amount * taxFactor) / quotePrice,
         source: "dividend-date",
       };
     });

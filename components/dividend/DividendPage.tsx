@@ -74,6 +74,7 @@ export default function DividendPage() {
     monthlyAvgKRW,
     convertedAnnualDividendKRW,
     dividendDataAvailable,
+    dividendDataStatus,
     goalProgress,
     achievementPct,
     goalProgressLabel,
@@ -210,6 +211,23 @@ export default function DividendPage() {
             배당은 최근 12개월 실제 배당 이력 기준입니다. 배당 이력이 없거나 quote/fx 조회가 실패한 종목은 예상 배당을 계산하지 않습니다.
             {marketData.loading ? " 현재가·배당 데이터를 불러오는 중입니다." : ""}
           </div>
+          {!marketData.loading && dividendGroups.taxableHoldings.length + dividendGroups.taxAdvantagedHoldings.length > 0 && (
+            <div className={`mt-2 text-[12px] font-semibold ${
+              dividendDataStatus === "normal"
+                ? "text-emerald-600 dark:text-emerald-400"
+                : dividendDataStatus === "partial"
+                  ? "text-amber-600 dark:text-amber-400"
+                  : "text-rose-600 dark:text-rose-400"
+            }`}>
+              {dividendDataStatus === "normal"
+                ? marketData.stale
+                  ? "정상 · 일부 최근 정상 시장 데이터 사용 중"
+                  : "정상"
+                : dividendDataStatus === "partial"
+                  ? "일부 종목 데이터 미조회"
+                  : "전체 시장 데이터 조회 실패"}
+            </div>
+          )}
           {marketData.warnings.length > 0 && (
             <div className="mt-2 text-[12px] text-slate-500 dark:text-slate-500">
               {marketData.warnings.slice(0, 3).join(" · ")}

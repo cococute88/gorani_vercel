@@ -39,6 +39,7 @@
     "check:asset-map": "node scripts/check-asset-map-exposure.mjs",
     "check:korean-etf": "node scripts/check-korean-etf-registry.mjs",
     "check:dividend-estimates": "node scripts/check-dividend-estimates.mjs",
+    "check:dividend-market-data-resilience": "node scripts/check-dividend-market-data-resilience.mjs",
     "check:dividend-summary-cards": "node scripts/check-dividend-summary-cards.mjs",
     "check:dividend-summary-mobile-labels": "node scripts/check-dividend-summary-mobile-labels.mjs",
     "check:dividend-holdings": "node scripts/check-dividend-holdings-groups.mjs",
