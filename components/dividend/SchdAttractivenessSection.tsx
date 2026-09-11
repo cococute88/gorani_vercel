@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { quoteDividendsPath, quoteDividendsPrecisePath, quoteHistoryPath, quoteLastPath } from "@/lib/quote-client";
+import { quoteDividendsPath, quoteDividendsPrecisePath, quoteFxHistoryPath, quoteHistoryPath, quoteLastPath } from "@/lib/quote-client";
 import { DEFAULT_DETAIL_RANGE, INDEX_DEFS, fetchIndexQuote, type DetailLinePoint, type IndexDef, type IndexQuote } from "@/lib/market-index";
 import { buildSchdDetailLineTabs } from "@/lib/schd-detail-tabs";
-import type { QuoteDividendsResponse, QuoteHistoryResponse, QuoteLastResponse } from "@/lib/quote-types";
+import type { QuoteDividendsResponse, QuoteFxHistoryResponse, QuoteHistoryResponse, QuoteLastResponse } from "@/lib/quote-types";
 const IndexSparkline = dynamic(() => import("@/components/market/IndexSparkline"), { ssr: false });
 // Reuse the exact market detail chart (lightweight-charts); load client-only when opened.
 const IndexDetailModal = dynamic(() => import("@/components/market/IndexDetailModal"), { ssr: false });
@@ -23,6 +23,7 @@ import {
   SCHD_RANGE_OPTIONS,
   SCHD_SEEKING_ALPHA_URL,
   calculateSchdAttractiveness,
+  calculateSchdKrwSummary,
   filterSchdRange,
   getSchdAssessment,
   type SchdAttractivenessMetrics,
@@ -30,6 +31,8 @@ import {
   type SchdDividendHistoryRow,
   type SchdRangeKey,
 } from "@/lib/schd-attractiveness";
+
+type CurrencyMode = "USD" | "KRW";
 
 async function fetchJson<T>(path: string): Promise<T> {
   const response = await fetch(path, { cache: "no-store" });
@@ -39,6 +42,12 @@ async function fetchJson<T>(path: string): Promise<T> {
 
 function fmtCurrency(value: number | null | undefined) {
   return Number.isFinite(value ?? NaN) ? `$${(value as number).toFixed(2)}` : "조회 불가";
+}
+function fmtKrw(value: number | null | undefined) {
+  return Number.isFinite(value ?? NaN) ? `₩${Math.round(value as number).toLocaleString("ko-KR")}` : "조회 불가";
+}
+function fmtEfficiency(value: number | null | undefined) {
+  return Number.isFinite(value ?? NaN) ? `$${(value as number).toFixed(1)} / year` : "조회 불가";
 }
 // Exact dividend amount as provided by the source (no rounding / zero padding).
 function fmtRawAmount(value: number | null | undefined) {
@@ -229,6 +238,11 @@ function DividendGrowthTable({ rows }: { rows: SchdDividendGrowthRow[] }) {
 
 export default function SchdAttractivenessSection() {
   const [range, setRange] = useState<SchdRangeKey>("5Y");
+  const [currencyMode, setCurrencyMode] = useState<CurrencyMode>("USD");
+  const [fxHistory, setFxHistory] = useState<QuoteFxHistoryResponse | null>(null);
+  const [fxLoading, setFxLoading] = useState(false);
+  const [fxError, setFxError] = useState(false);
+  const fxRequestedRef = useRef(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [metrics, setMetrics] = useState<SchdAttractivenessMetrics | null>(null);
@@ -271,8 +285,37 @@ export default function SchdAttractivenessSection() {
     return () => { active = false; };
   }, []);
 
+  // USD 기본 화면에는 환율 요청 비용을 더하지 않는다. 최초 KRW 전환 때
+  // 11년 일별 시계열을 단 한 번 batch 조회하고 이후 토글/기간 변경에 재사용한다.
+  useEffect(() => {
+    if (currencyMode !== "KRW" || fxHistory || fxRequestedRef.current) return;
+    fxRequestedRef.current = true;
+    let active = true;
+    setFxLoading(true);
+    setFxError(false);
+    const historyWindow = getSchdDailyHistoryWindow();
+    fetchJson<QuoteFxHistoryResponse>(quoteFxHistoryPath(historyWindow))
+      .then((response) => {
+        if (!active) return;
+        if (response.source !== "yahoo" || !response.prices.length) throw new Error("USD/KRW history unavailable");
+        setFxHistory(response);
+      })
+      .catch(() => {
+        fxRequestedRef.current = false;
+        if (active) setFxError(true);
+      })
+      .finally(() => { if (active) setFxLoading(false); });
+    return () => { active = false; };
+  }, [currencyMode, fxHistory]);
+
   const chartData = useMemo(() => metrics ? filterSchdRange(metrics.points, range).filter((p) => Number.isFinite(p.ttmYield ?? NaN)) : [], [metrics, range]);
   const assessment = getSchdAssessment(metrics?.currentTtmYield);
+  const krwSummary = useMemo(
+    () => metrics && fxHistory
+      ? calculateSchdKrwSummary(metrics, fxHistory.prices, range)
+      : null,
+    [fxHistory, metrics, range],
+  );
   const targetSummary = metrics?.targetRows.slice(0, 3).map((row) => `${row.targetYield} ${fmtCurrency(row.ttmBuyPrice)}`).join(" · ");
 
   // SCHD Dividend Yield (TTM) as a full daily line series — the SAME source as
@@ -300,6 +343,27 @@ export default function SchdAttractivenessSection() {
 
   return (
     <section className="space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="inline-flex rounded-xl border border-slate-200 bg-white p-1 shadow-sm dark:border-[#2a3336] dark:bg-[#191f20]" role="group" aria-label="SCHD 분석 기준 통화">
+          {(["USD", "KRW"] as const).map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              aria-pressed={currencyMode === mode}
+              onClick={() => setCurrencyMode(mode)}
+              className={`rounded-lg px-3 py-1.5 text-[12px] font-extrabold transition-colors ${currencyMode === mode ? "bg-blue-600 text-white shadow-sm" : "text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/5"}`}
+            >
+              {mode === "USD" ? "달러 기준" : "원화 기준"}
+            </button>
+          ))}
+        </div>
+        {currencyMode === "KRW" && krwSummary && (
+          <span className="text-[11px] font-bold tabular-nums text-slate-500 dark:text-slate-400">
+            USD/KRW {krwSummary.latestRate.toLocaleString("ko-KR", { maximumFractionDigits: 2 })} KRW/USD · 기준 {krwSummary.latestRateDate}
+          </span>
+        )}
+      </div>
+
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <MetricCard label="현재 TTM 배당률" value={fmtPercent(metrics.currentTtmYield)} subtext={assessment.label} tone={assessment.tone === "neutral" ? "default" : assessment.tone} />
         <MetricCard label={`현재가 = 52H ${fmtPercent(metrics.drawdownFrom52wHighPct, 1)}`} value={fmtCurrency(metrics.currentPrice)} subtext={<span className="text-[10px] text-emerald-600 dark:text-emerald-300">{targetSummary}</span>} />
@@ -321,6 +385,21 @@ export default function SchdAttractivenessSection() {
         <MetricCard label="최근 분기 배당금" value={fmtRawAmount(metrics.recentQuarterDividendDisplay)} subtext="가장 최근 1회 배당 (실제 지급액)" />
       </div>
 
+      {currencyMode === "KRW" && (
+        fxLoading ? (
+          <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-center text-xs font-bold text-slate-500 dark:border-[#2a3336] dark:bg-[#191f20]">원화 분석 데이터를 불러오는 중입니다…</div>
+        ) : fxError || !krwSummary ? (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-center text-xs font-bold text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">환율 데이터를 불러오지 못했습니다. 달러 기준 분석은 정상적으로 이용할 수 있습니다.</div>
+        ) : (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <MetricCard label="현재 원화 환산가" value={fmtKrw(krwSummary.currentKrwPrice)} subtext={`${fmtCurrency(metrics.currentPrice)} × ${krwSummary.latestRate.toLocaleString("ko-KR", { maximumFractionDigits: 2 })}원`} />
+            <MetricCard label={`${range} 평균 원화가격`} value={fmtKrw(krwSummary.averageKrwPrice)} subtext={`${fmtSignedPercent(krwSummary.priceDeviationPct, 1)} ${krwSummary.priceDeviationPct <= 0 ? "저렴" : "비쌈"} · 가격 백분위 ${krwSummary.pricePercentile.toFixed(0)}%`} />
+            <MetricCard label="100만원당 TTM 배당 확보액" value={fmtEfficiency(krwSummary.currentEfficiency)} subtext="원화 신규매수 효율" />
+            <MetricCard label={`${range} 평균 매수 효율`} value={fmtEfficiency(krwSummary.averageEfficiency)} subtext={`${fmtSignedPercent(krwSummary.efficiencyDeviationPct, 1)} ${krwSummary.efficiencyDeviationPct >= 0 ? "유리" : "불리"} · 효율 백분위 ${krwSummary.efficiencyPercentile.toFixed(0)}%`} />
+          </div>
+        )
+      )}
+
       <div>
         <div className="mb-2 text-[12px] font-bold text-slate-500 dark:text-slate-400">조회 기간</div>
         <div className="flex flex-wrap gap-2">
@@ -333,6 +412,7 @@ export default function SchdAttractivenessSection() {
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-[#2a3336] dark:bg-[#191f20]">
           <h2 className="mb-3 text-[14px] font-extrabold text-slate-900 dark:text-white">SCHD Dividend Yield TTM</h2>
+          {currencyMode === "KRW" && <p className="mb-2 text-[10px] font-bold text-slate-400">배당률은 주가와 배당금을 같은 환율로 환산하면 동일합니다.</p>}
           {chartData.length ? (
             <div className="h-[420px] w-full">
               <ResponsiveContainer width="100%" height="100%">
@@ -360,7 +440,7 @@ export default function SchdAttractivenessSection() {
             <table className="w-full min-w-[320px] text-left text-[12px]">
               <thead className="bg-slate-50 text-slate-500 dark:bg-white/5 dark:text-slate-400"><tr><th className="px-2 py-2 font-extrabold">목표 배당률</th><th className="px-2 py-2 font-extrabold">TTM 기준 매수가</th><th className="px-2 py-2 font-extrabold">최근 분기×4 기준 매수가</th><th className="px-2 py-2 font-extrabold">현재가 대비 하락률</th></tr></thead>
               <tbody className="divide-y divide-slate-100 dark:divide-white/10">
-                {metrics.targetRows.map((row) => <tr key={row.targetYield}><td className="px-2 py-2 font-bold">{row.targetYield}</td><td className="px-2 py-2">{fmtCurrency(row.ttmBuyPrice)}</td><td className="px-2 py-2">{fmtCurrency(row.quarterBuyPrice)}</td><td className="px-2 py-2">{fmtPercent(row.drawdownPct, 1)}</td></tr>)}
+                {metrics.targetRows.map((row) => <tr key={row.targetYield}><td className="px-2 py-2 font-bold">{row.targetYield}</td><td className="px-2 py-2">{currencyMode === "KRW" && krwSummary ? fmtKrw((row.ttmBuyPrice ?? NaN) * krwSummary.latestRate) : fmtCurrency(row.ttmBuyPrice)}</td><td className="px-2 py-2">{currencyMode === "KRW" && krwSummary ? fmtKrw((row.quarterBuyPrice ?? NaN) * krwSummary.latestRate) : fmtCurrency(row.quarterBuyPrice)}</td><td className="px-2 py-2">{fmtPercent(row.drawdownPct, 1)}</td></tr>)}
               </tbody>
             </table>
           </div>
@@ -369,6 +449,41 @@ export default function SchdAttractivenessSection() {
           <SchdMiniCandleChart onOpen={() => setDetailOpen(true)} />
         </aside>
       </div>
+
+      {currencyMode === "KRW" && krwSummary && (
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+          <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-[#2a3336] dark:bg-[#191f20]">
+            <h2 className="mb-3 text-[14px] font-extrabold text-slate-900 dark:text-white">원화 기준 SCHD 매수가</h2>
+            <div className="h-[280px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={krwSummary.points} margin={{ top: 10, right: 12, left: 8, bottom: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#d6dee6" opacity={0.7} />
+                  <XAxis dataKey="date" tickFormatter={fmtDateTick} minTickGap={42} tick={{ fontSize: 10, fill: "#64748b" }} />
+                  <YAxis tickFormatter={(value) => `${Math.round(Number(value) / 1000)}천`} width={45} tick={{ fontSize: 10, fill: "#64748b" }} domain={["auto", "auto"]} />
+                  <Tooltip labelFormatter={(label) => fmtTooltipDate(String(label))} formatter={(value) => [fmtKrw(Number(value)), "원화 매수가"]} contentStyle={{ borderRadius: 12, border: "1px solid #dbe3ea" }} />
+                  <ReferenceLine y={krwSummary.averageKrwPrice} stroke="#60a5fa" strokeDasharray="6 4" label={{ value: `${range} 평균`, fontSize: 10, fill: "#64748b" }} />
+                  <Line type="monotone" dataKey="krwPrice" stroke="#2563eb" strokeWidth={2} dot={false} activeDot={{ r: 4 }} isAnimationActive={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+          <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-[#2a3336] dark:bg-[#191f20]">
+            <h2 className="mb-3 text-[14px] font-extrabold text-slate-900 dark:text-white">원화 100만원당 TTM 배당 확보액</h2>
+            <div className="h-[280px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={krwSummary.points} margin={{ top: 10, right: 12, left: 4, bottom: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#d6dee6" opacity={0.7} />
+                  <XAxis dataKey="date" tickFormatter={fmtDateTick} minTickGap={42} tick={{ fontSize: 10, fill: "#64748b" }} />
+                  <YAxis tickFormatter={(value) => `$${Number(value).toFixed(0)}`} width={38} tick={{ fontSize: 10, fill: "#64748b" }} domain={["auto", "auto"]} />
+                  <Tooltip labelFormatter={(label) => fmtTooltipDate(String(label))} formatter={(value) => [fmtEfficiency(Number(value)), "배당 확보액"]} contentStyle={{ borderRadius: 12, border: "1px solid #dbe3ea" }} />
+                  <ReferenceLine y={krwSummary.averageEfficiency} stroke="#60a5fa" strokeDasharray="6 4" label={{ value: `${range} 평균`, fontSize: 10, fill: "#64748b" }} />
+                  <Line type="monotone" dataKey="dividendEfficiency" connectNulls={false} stroke="#10b981" strokeWidth={2} dot={false} activeDot={{ r: 4 }} isAnimationActive={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <CollapsibleHistory title="최근 배당금 히스토리" open={historyOpen} onToggle={() => setHistoryOpen((v) => !v)}>

@@ -1,6 +1,7 @@
 import type {
   QuoteDividendsResponse,
   QuoteFxResponse,
+  QuoteFxHistoryResponse,
   QuoteHistoryResponse,
   QuoteLastResponse,
 } from "@/lib/quote-types";
@@ -81,6 +82,12 @@ export function quoteFxPath() {
   return "/api/quote/fx";
 }
 
+export function quoteFxHistoryPath(input: { start: string; end: string }) {
+  return `/api/quote/fx-history?${createQuery(input)}`;
+}
+
+export type { QuoteFxHistoryResponse };
+
 export function requestQuoteHistory(input: QuoteHistoryRequest, fallback: QuoteHistoryResponse) {
   return fetchQuoteApi<QuoteHistoryResponse>(quoteHistoryPath(input), fallback);
 }
@@ -96,4 +103,3 @@ export function requestQuoteLast(input: QuoteLastRequest, fallback: QuoteLastRes
 export function requestQuoteFx(fallback: QuoteFxResponse) {
   return fetchQuoteApi<QuoteFxResponse>(quoteFxPath(), fallback);
 }
-
