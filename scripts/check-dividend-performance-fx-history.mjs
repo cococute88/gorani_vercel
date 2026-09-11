@@ -92,6 +92,7 @@ const taxable = buildAccountGroupPerformance(snapshots, "위탁", { holdings: ta
 const taxAdvantaged = buildAccountGroupPerformance(snapshots, "절세", { holdings: taxAdvantagedHoldings, priceHistories, fxHistory, latestDate: "2026-09-10", months: 24 });
 assert.equal(taxable.available, true, "위탁 성과가 available이어야 한다");
 assert.equal(taxAdvantaged.available, true, "절세 성과가 available이어야 한다");
+assert.ok(!taxable.warnings.some((warning) => warning.includes("비교선을 표시하지 않습니다")), "계좌별 benchmark를 별도 계산할 때 거짓 경고를 남기면 안 된다");
 
 const schdFailed = buildDividendPerformanceBackcast({
   holdings: taxableHoldings,

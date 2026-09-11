@@ -180,8 +180,8 @@ export function buildDividendPerformanceBackcast(input: BuildBackcastInput): Div
   const excludedForFx = usable.filter((row) => !isKrwTicker(row.ticker, row.holding) && !fxAvailable).map((row) => row.ticker);
   if (excludedForFx.length > 0) warnings.push(`USD/KRW 과거 환율이 없어 USD 종목을 제외했습니다: ${Array.from(new Set(excludedForFx)).join(", ")}`);
   if (usable.some((row) => !finite(row.holding.quantity) && row.quantity > 0)) warnings.push("수량 원본값이 없는 종목은 수량(추정) 또는 평가금액/현재가 기준 추정 수량으로 계산했습니다.");
-  if (!schdValues.some((value) => value != null)) warnings.push("SCHD 가격/환율 데이터를 불러오지 못해 SCHD 비교선을 표시하지 않습니다.");
-  if (!sp500Values.some((value) => value != null)) warnings.push("S&P 500 가격/환율 데이터를 불러오지 못해 S&P 500 비교선을 표시하지 않습니다.");
+  if (input.benchmarkHistories && !schdValues.some((value) => value != null)) warnings.push("SCHD 가격/환율 데이터를 불러오지 못해 SCHD 비교선을 표시하지 않습니다.");
+  if (input.benchmarkHistories && !sp500Values.some((value) => value != null)) warnings.push("S&P 500 가격/환율 데이터를 불러오지 못해 S&P 500 비교선을 표시하지 않습니다.");
   return { available: true, dataSource: "latest-holdings-backcast", sampleFallbackUsed: false, points, kpis: { cumulativeDepositKRW: base, portfolioValueKRW: latest.portfolio, portfolioReturnPct: pct(latest.portfolio, base), schdValueKRW: latest.schd, schdReturnPct: pct(latest.schd, base), sp500ValueKRW: latest.sp500, sp500ReturnPct: pct(latest.sp500, base) }, availableYears: Object.keys(yearlyProfitKRW).map(Number).sort((a, b) => a - b), yearlyProfitKRW, warnings };
 }
 
