@@ -26,7 +26,6 @@ import {
 } from "@/lib/money-level/settings";
 import { isSuspiciousMoneyLevelUpdatedAt } from "@/lib/money-level/portfolio-selector";
 import { useMoneyLevelMarketWeather, type MoneyLevelWeatherState } from "@/lib/money-level/use-money-level-market-weather";
-import { resolveMoneyLevelTimeOfDay } from "@/lib/money-level/weather";
 import type {
   HeartBreakdown,
   HpHeartBreakdown,
@@ -44,6 +43,12 @@ const EMPTY_SNAPSHOT: MoneyLevelPortfolioSnapshot = {
   pensionPrincipal: 0,
   updatedAt: "1970-01-01T00:00:00.000Z",
 };
+const PREVIEW_SNAPSHOT: MoneyLevelPortfolioSnapshot = {
+  brokerageValue: 427_486_959,
+  isaPrincipal: 32_833_192,
+  pensionPrincipal: 108_946_382,
+  updatedAt: "2026-09-12T00:00:00.000Z",
+};
 const phrases = [
   "오늘도 천천히 갑니다.", "조금씩 자유로워지는 중.", "곰라니는 산책 중이에요.",
   "다람쥐는 오늘도 바빠요.", "숲이 잘 자라고 있어요.", "오늘도 좋은 하루예요.", "머니파워 충전 중.",
@@ -51,7 +56,7 @@ const phrases = [
 
 type SyncMessage = { kind: "normal" | "error"; text: string } | null;
 
-export default function MoneyLevelForest() {
+export default function MoneyLevelForest({ previewOverridesEnabled }: { previewOverridesEnabled: boolean }) {
   const theme = useResolvedTheme();
   const live = useMoneyLevelPortfolioSnapshot();
   const refreshController = usePortfolioRefresh();
@@ -63,7 +68,7 @@ export default function MoneyLevelForest() {
   const [syncMessage, setSyncMessage] = useState<SyncMessage>(null);
   const [manualLiveAccepted, setManualLiveAccepted] = useState(false);
   const [now] = useState(() => new Date());
-  const marketWeather = useMoneyLevelMarketWeather(now);
+  const marketWeather = useMoneyLevelMarketWeather(now, previewOverridesEnabled);
 
   useEffect(() => {
     setSettings(readStoredSettings());
@@ -93,8 +98,8 @@ export default function MoneyLevelForest() {
 
   const liveIsAuthoritative = live.syncStatus === "applied" || manualLiveAccepted;
   const snapshot = lastGood && !liveIsAuthoritative ? lastGood : live.snapshot ?? lastGood;
-  const sceneSnapshot = snapshot ?? (marketWeather.fallback === "forced-preview" ? EMPTY_SNAPSHOT : null);
-  const displaySnapshot = snapshot ?? EMPTY_SNAPSHOT;
+  const sceneSnapshot = snapshot ?? (marketWeather.previewActive ? PREVIEW_SNAPSHOT : null);
+  const displaySnapshot = sceneSnapshot ?? EMPTY_SNAPSHOT;
   const calculations = useMemo(() => {
     const income = calculateMoneyLevelIncome(displaySnapshot, settings);
     const mp = calculateMoneyLevelMp(displaySnapshot);
@@ -117,7 +122,7 @@ export default function MoneyLevelForest() {
   }, [displaySnapshot, now, settings]);
 
   const weather = marketWeather.weather;
-  const timeOfDay = resolveMoneyLevelTimeOfDay(now);
+  const timeOfDay = marketWeather.timeOfDay;
   const isCachedFallback = Boolean(lastGood) && !liveIsAuthoritative;
   const suspiciousUpdatedAt = snapshot ? isSuspiciousMoneyLevelUpdatedAt(snapshot.updatedAt) : false;
 
@@ -158,6 +163,7 @@ export default function MoneyLevelForest() {
         data-tax-stage={snapshot ? calculations.houses.taxAdvantaged.art : ""}
         data-weather={weather}
         data-weather-fallback={String(marketWeather.fallback)}
+        data-time-of-day={timeOfDay}
       >
         <main className={`forest-shell weather-${weather} time-${timeOfDay}`}>
           <section className="forest-card" aria-label="곰라니 머니레벨 숲">
@@ -267,6 +273,7 @@ function MarketWeatherDebug({ state }: { state: MoneyLevelWeatherState }) {
       <span>change: {data ? `${data.changePct.toFixed(4)}%` : "unavailable"}</span>
       <span>resolved: {data?.resolvedWeather ?? "unavailable"}</span>
       <span>displayed: {state.weather}</span>
+      <span>time: {state.timeOfDay}</span>
       <span>source: {data?.source ?? "none"} · fallback: {String(state.fallback)}</span>
     </aside>
   );

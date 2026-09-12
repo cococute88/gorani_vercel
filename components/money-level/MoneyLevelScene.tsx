@@ -321,23 +321,25 @@ export default function MoneyLevelScene({
 
   return (
     <section ref={sceneRef} className="forest-scene" aria-label="고라니와 다람쥐가 사는 숲">
-      <div className="scene-illustration" aria-hidden="true"><img src={FOREST_SCENE.background.src} alt={FOREST_SCENE.background.alt} draggable={false} /></div>
+      <div className="scene-world">
+        <div className="scene-illustration" aria-hidden="true"><img src={FOREST_SCENE.background.src} alt={FOREST_SCENE.background.alt} draggable={false} /></div>
+        <div className="scene-prop-layer"><SceneProp /></div>
+        <div className="house-place brokerage-house"><HouseVisual kind="brokerage" stage={brokerageStage} /></div>
+        <div className="house-place tax-house"><HouseVisual kind="tax" stage={taxStage} /></div>
+        <div className="character-ground-layer" aria-hidden="true">
+          <CharacterAnchor id="gorani" layer="shadow" /><CharacterAnchor id="daramji" layer="shadow" />
+        </div>
+        <div ref={stageRef} className="spine-forest-stage" data-runtime-version={runtimeVersion} />
+        <div className="scene-activity-layer" aria-hidden="true">
+          <span className="pond-activity fishing-activity" hidden>
+            <img className="fishing-rod" src="/money-level/art/props/fishing-rod.webp" alt="" draggable={false} />
+            <i className="fishing-line" /><b className="fishing-bobber" />
+          </span>
+        </div>
+      </div>
       <div className="scene-tint" aria-hidden="true" />
       <div className="weather-atmosphere" aria-hidden="true" />
-      <div className="scene-prop-layer"><SceneProp /></div>
-      <div className="house-place brokerage-house"><HouseVisual kind="brokerage" stage={brokerageStage} /></div>
-      <div className="house-place tax-house"><HouseVisual kind="tax" stage={taxStage} /></div>
-      <div className="character-ground-layer" aria-hidden="true">
-        <CharacterAnchor id="gorani" layer="shadow" /><CharacterAnchor id="daramji" layer="shadow" />
-      </div>
-      <div ref={stageRef} className="spine-forest-stage" data-runtime-version={runtimeVersion} />
       {characterError ? <p className="character-fallback" role="status">캐릭터 표시를 불러오지 못했어요.</p> : null}
-      <div className="scene-activity-layer" aria-hidden="true">
-        <span className="pond-activity fishing-activity" hidden>
-          <img className="fishing-rod" src="/money-level/art/props/fishing-rod.webp" alt="" draggable={false} />
-          <i className="fishing-line" /><b className="fishing-bobber" />
-        </span>
-      </div>
       <div className="character-interaction-layer">
         <CharacterAnchor id="gorani" layer="hit" /><CharacterAnchor id="daramji" layer="hit" />
       </div>

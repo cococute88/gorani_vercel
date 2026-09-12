@@ -12,7 +12,7 @@
 .moneyLevelRoot button, .moneyLevelRoot input{ font: inherit; }
 .moneyLevelRoot button{ color: inherit; }
 
-.moneyLevelRoot .forest-shell{ display: grid; min-height: 100vh; padding: 18px; place-items: center; }
+.moneyLevelRoot .forest-shell{ --money-level-time-filter: brightness(1) saturate(1); --money-level-weather-filter: brightness(1) saturate(1); display: grid; min-height: 100vh; padding: 18px; place-items: center; }
 .moneyLevelRoot .forest-card{ width: min(1320px, 100%); overflow: hidden; border: 2px solid #907759; border-radius: 30px; background: #fff9e9; box-shadow: 0 28px 80px rgba(67,78,49,.22), inset 0 0 0 4px rgba(255,255,255,.5); }
 
 .moneyLevelRoot .topbar{ display: flex; align-items: center; justify-content: space-between; min-height: 74px; padding: 11px 20px 9px; border-bottom: 1px dashed rgba(128,101,68,.28); background: linear-gradient(180deg, #fffdf2, #fff7df); }
@@ -45,10 +45,12 @@
 .moneyLevelRoot .heart-groups{ display: flex; flex: 1; flex-wrap: wrap; align-items: center; gap: 4px 10px; min-width: 0; }
 
 .moneyLevelRoot .forest-scene{ position: relative; height: clamp(520px,64vh,610px); min-height: 520px; overflow: hidden; isolation: isolate; border-top: 2px solid #927858; border-bottom: 2px solid #927858; background: #acd76d; }
+.moneyLevelRoot .scene-world{ position: absolute; inset: 0; z-index: 0; filter: var(--money-level-time-filter) var(--money-level-weather-filter); pointer-events: none; transition: filter .5s ease; }
 .moneyLevelRoot .scene-illustration{ position: absolute; inset: 0; z-index: 0; overflow: hidden; }
 .moneyLevelRoot .scene-illustration img{ width: 100%; height: 100%; object-fit: cover; object-position: 50% 50%; user-select: none; }
-.moneyLevelRoot .scene-tint{ position: absolute; inset: 0; z-index: 1; pointer-events: none; transition: background .5s ease; }
-.moneyLevelRoot .weather-atmosphere{ position: absolute; inset: 0; z-index: 5; pointer-events: none; transition: background .5s ease, box-shadow .5s ease; }
+.moneyLevelRoot .scene-tint{ position: absolute; inset: 0; z-index: 6; overflow: hidden; pointer-events: none; transition: background .5s ease, box-shadow .5s ease; }
+.moneyLevelRoot .scene-tint::before, .moneyLevelRoot .scene-tint::after{ position: absolute; inset: 0; pointer-events: none; content: ""; }
+.moneyLevelRoot .weather-atmosphere{ position: absolute; inset: 0; z-index: 7; pointer-events: none; transition: background .5s ease, box-shadow .5s ease; }
 .moneyLevelRoot .scene-prop-layer{ position: absolute; inset: 0; z-index: 2; pointer-events: none; }
 .moneyLevelRoot .scene-prop{ position: absolute; top: var(--prop-y); left: var(--prop-x); width: var(--prop-width); transform: translate(-50%,-50%); }
 .moneyLevelRoot .scene-prop img{ display: block; width: 100%; height: auto; user-select: none; }
@@ -58,7 +60,7 @@
 .moneyLevelRoot .house-art-image{ display: block; width: 100%; height: auto; user-select: none; filter: drop-shadow(0 9px 7px rgba(66,76,40,.14)); }
 .moneyLevelRoot .house-composite-masked .house-art-image{ -webkit-mask-image: radial-gradient(ellipse 49% 47% at 50% 55%,#000 67%,transparent 100%); mask-image: radial-gradient(ellipse 49% 47% at 50% 55%,#000 67%,transparent 100%); }
 .moneyLevelRoot .house-composite-masked.house-family-camp .house-art-image{ -webkit-mask-image: radial-gradient(ellipse 48% 46% at 50% 55%,#000 68%,transparent 100%); mask-image: radial-gradient(ellipse 48% 46% at 50% 55%,#000 68%,transparent 100%); }
-.moneyLevelRoot .scene-label-layer{ position: absolute; inset: 0; z-index: 7; pointer-events: none; }
+.moneyLevelRoot .scene-label-layer{ position: absolute; inset: 0; z-index: 10; pointer-events: none; }
 .moneyLevelRoot .house-label{ position: absolute; top: var(--label-y); left: var(--label-x); display: flex; align-items: center; gap: 7px; min-width: 155px; padding: 7px 10px; border: 2px solid #876b4c; border-radius: 8px 10px 7px 9px; color: #55422c; background: linear-gradient(145deg,#fff8dc,#eed39d); box-shadow: inset 0 0 0 2px rgba(255,255,255,.5),0 4px 0 rgba(92,66,39,.2); transform: translate(-50%,-50%); text-align: left; }
 .moneyLevelRoot .house-leaf{ color: #678d48; font-size: 1.1rem; }
 .moneyLevelRoot .house-label p{ margin: 0; font-size: .69rem; font-weight: 900; }
@@ -71,7 +73,7 @@
 .moneyLevelRoot .character-ground-layer{ z-index: 3; }
 .moneyLevelRoot .spine-forest-stage{ position: absolute; inset: 0; z-index: 4; pointer-events: none; }
 .moneyLevelRoot .scene-activity-layer{ z-index: 5; }
-.moneyLevelRoot .character-interaction-layer{ z-index: 6; }
+.moneyLevelRoot .character-interaction-layer{ z-index: 11; }
 .moneyLevelRoot .scene-only .spine-forest-stage, .moneyLevelRoot .scene-only .character-ground-layer, .moneyLevelRoot .scene-only .scene-activity-layer, .moneyLevelRoot .scene-only .character-interaction-layer{ display: none; }
 .moneyLevelRoot .character-anchor{ position: absolute; width: 0; height: 0; }
 .moneyLevelRoot .character-contact-shadow{ position: absolute; left: 0; top: 0; display: block; width: 38px; height: 10px; border-radius: 50%; background: rgba(83,75,43,.24); filter: blur(3.5px); opacity: .72; transform: translate(-50%,-48%) scale(var(--perspective-scale,1)); transition: width .18s ease, height .18s ease, opacity .18s ease, filter .18s ease; }
@@ -93,14 +95,14 @@
 @keyframes money-level-fishing-bobber-float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(2px); } }
 .moneyLevelRoot .stage-status{ position: absolute; inset: 0; z-index: 4; display: grid; place-items: center; color: rgba(70,69,43,.74); font-size: .82rem; }
 .moneyLevelRoot .stage-status[hidden]{ display: none; }
-.moneyLevelRoot .character-fallback { position: absolute; z-index: 9; right: 14px; bottom: 52px; margin: 0; padding: 5px 9px; border-radius: 9px; color: #7b5c43; background: rgba(255,248,226,.88); font-size: .67rem; }
+.moneyLevelRoot .character-fallback { position: absolute; z-index: 12; right: 14px; bottom: 52px; margin: 0; padding: 5px 9px; border-radius: 9px; color: #7b5c43; background: rgba(255,248,226,.88); font-size: .67rem; }
 .moneyLevelRoot .empty-forest-copy { position: absolute; z-index: 9; top: 50%; left: 50%; display: grid; gap: 9px; width: min(340px,calc(100% - 32px)); padding: 18px; border: 2px solid #907354; border-radius: 18px; color: #574932; background: rgba(255,249,226,.94); box-shadow: 0 6px 0 rgba(91,66,39,.16); transform: translate(-50%,-50%); text-align: center; }
 .moneyLevelRoot .empty-forest-copy a { color: #5f8147; font-size: .78rem; font-weight: 850; text-decoration: underline; }
-.moneyLevelRoot .scene-weather{ position: absolute; top: 14px; right: 16px; z-index: 9; display: flex; align-items: center; gap: 6px; padding: 7px 11px; border: 2px solid #8c7252; border-radius: 12px 15px 11px 14px; color: #5b4b35; background: rgba(255,248,222,.92); box-shadow: inset 0 0 0 2px rgba(255,255,255,.5),0 4px 0 rgba(92,66,39,.14); }
+.moneyLevelRoot .scene-weather{ position: absolute; top: 14px; right: 16px; z-index: 12; display: flex; align-items: center; gap: 6px; padding: 7px 11px; border: 2px solid #8c7252; border-radius: 12px 15px 11px 14px; color: #5b4b35; background: rgba(255,248,222,.92); box-shadow: inset 0 0 0 2px rgba(255,255,255,.5),0 4px 0 rgba(92,66,39,.14); }
 .moneyLevelRoot .scene-weather span{ color: #e9a329; font-size: 1rem; }
 .moneyLevelRoot .scene-weather b{ font-size: .68rem; }
 .moneyLevelRoot .scene-weather small{ padding-left: 6px; border-left: 1px solid rgba(91,75,53,.3); color: #807157; font-size: .61rem; }
-.moneyLevelRoot .forest-phrase{ position: absolute; z-index: 8; left: 50%; bottom: 14px; margin: 0; padding: 9px 17px; border: 2px solid #907354; border-radius: 999px; color: #574932; background: rgba(255,249,226,.94); box-shadow: inset 0 0 0 2px rgba(255,255,255,.5),0 4px 0 rgba(91,66,39,.16); transform: translateX(-50%); font-size: .79rem; font-weight: 800; white-space: nowrap; }
+.moneyLevelRoot .forest-phrase{ position: absolute; z-index: 11; left: 50%; bottom: 14px; margin: 0; padding: 9px 17px; border: 2px solid #907354; border-radius: 999px; color: #574932; background: rgba(255,249,226,.94); box-shadow: inset 0 0 0 2px rgba(255,255,255,.5),0 4px 0 rgba(91,66,39,.16); transform: translateX(-50%); font-size: .79rem; font-weight: 800; white-space: nowrap; }
 .moneyLevelRoot .forest-phrase::before{ margin-right: 7px; color: #6e984e; content: "♧"; }
 
 .moneyLevelRoot .navigation-debug{ position: absolute; inset: 0; z-index: 10; pointer-events: none; }
@@ -127,30 +129,36 @@
 .moneyLevelRoot .character-state-debug b{ grid-row: span 2; color: #0a57a6; }
 .moneyLevelRoot .character-state-debug span{ white-space: nowrap; }
 
-.moneyLevelRoot .rain-layer, .moneyLevelRoot .lightning-layer{ position: absolute; inset: 0; z-index: 6; display: none; overflow: hidden; pointer-events: none; }
+.moneyLevelRoot .rain-layer, .moneyLevelRoot .lightning-layer{ position: absolute; inset: 0; z-index: 8; display: none; overflow: hidden; pointer-events: none; }
 .moneyLevelRoot .weather-rain .rain-layer, .moneyLevelRoot .weather-thunderstorm .rain-layer, .moneyLevelRoot .weather-thunderstorm .lightning-layer{ display: block; }
 .moneyLevelRoot .rain-layer{ background: rgba(63,91,104,.08); }
 .moneyLevelRoot .rain-layer i{ position: absolute; top: -15%; left: calc(var(--i) * 2.9%); width: 2px; height: 28px; border-radius: 999px; background: rgba(220,246,250,.72); transform: rotate(13deg); animation: money-level-rainfall calc(1.35s + var(--i) * .015s) linear infinite; animation-delay: calc(var(--i) * -.14s); }
 .moneyLevelRoot .weather-rain .rain-layer i:nth-child(n+23){ display: none; }
 .moneyLevelRoot .weather-thunderstorm .rain-layer{ background: rgba(38,61,76,.15); }
 .moneyLevelRoot .weather-thunderstorm .rain-layer i{ height: 34px; background: rgba(218,241,247,.78); animation-duration: calc(1.02s + var(--i) * .012s); }
-.moneyLevelRoot .lightning-layer{ z-index: 7; background: rgba(231,241,255,.24); opacity: 0; animation: money-level-lightning 18s ease-out infinite; }
+.moneyLevelRoot .lightning-layer{ z-index: 9; background: rgba(231,241,255,.24); opacity: 0; animation: money-level-lightning 18s ease-out infinite; }
 @keyframes money-level-rainfall { to { transform: translate(55px,720px) rotate(13deg); } }
 .moneyLevelRoot .weather-sunny .weather-atmosphere{ background: radial-gradient(circle at 18% 4%,rgba(255,244,181,.13),transparent 35%); }
-.moneyLevelRoot .weather-cloudy .scene-illustration, .moneyLevelRoot .weather-cloudy .house-art-image, .moneyLevelRoot .weather-cloudy .scene-prop img{ filter: saturate(.84) brightness(.98); }
+.moneyLevelRoot .weather-cloudy{ --money-level-weather-filter: saturate(.88) brightness(.98); }
 .moneyLevelRoot .weather-cloudy .weather-atmosphere{ background: linear-gradient(180deg,rgba(116,137,151,.14),rgba(111,132,133,.05) 56%,transparent); }
-.moneyLevelRoot .weather-rain .scene-illustration, .moneyLevelRoot .weather-rain .house-art-image, .moneyLevelRoot .weather-rain .scene-prop img{ filter: saturate(.78) brightness(.88); }
+.moneyLevelRoot .weather-rain{ --money-level-weather-filter: saturate(.82) brightness(.9); }
 .moneyLevelRoot .weather-rain .weather-atmosphere{ background: linear-gradient(180deg,rgba(54,81,96,.21),rgba(52,91,94,.1)); box-shadow: inset 0 0 90px rgba(29,59,65,.08); }
-.moneyLevelRoot .weather-thunderstorm .scene-illustration, .moneyLevelRoot .weather-thunderstorm .house-art-image, .moneyLevelRoot .weather-thunderstorm .scene-prop img{ filter: saturate(.65) brightness(.72); }
+.moneyLevelRoot .weather-thunderstorm{ --money-level-weather-filter: saturate(.72) brightness(.8); }
 .moneyLevelRoot .weather-thunderstorm .weather-atmosphere{ background: linear-gradient(180deg,rgba(32,49,72,.36),rgba(35,68,74,.19)); box-shadow: inset 0 0 130px rgba(18,34,51,.2); }
 @keyframes money-level-lightning { 0%,88%,88.45%,88.9%,100% { opacity: 0; } 88.2% { opacity: .32; } 88.68% { opacity: .13; } }
-.moneyLevelRoot .time-morning .scene-tint{ background: linear-gradient(90deg,rgba(255,230,168,.09),transparent 48%); }
-.moneyLevelRoot .time-evening .scene-tint{ background: linear-gradient(180deg,rgba(197,119,102,.12),rgba(255,194,113,.09)); }
-.moneyLevelRoot .time-night{ background: #32483f; }
-.moneyLevelRoot .time-night .scene-illustration, .moneyLevelRoot .time-night .scene-prop img{ filter: brightness(.56) saturate(.72) hue-rotate(5deg); }
-.moneyLevelRoot .time-night .scene-tint{ background: linear-gradient(180deg,rgba(36,51,91,.42),rgba(24,55,54,.24)); box-shadow: inset 0 0 120px rgba(18,33,57,.28); }
-.moneyLevelRoot .time-evening .house-art-image, .moneyLevelRoot .time-night .house-art-image{ filter: brightness(.76) saturate(.85) drop-shadow(0 0 11px rgba(255,194,87,.34)); }
-.moneyLevelRoot .time-night.weather-rain .house-art-image, .moneyLevelRoot .time-night.weather-thunderstorm .house-art-image{ filter: brightness(.63) saturate(.68) drop-shadow(0 0 12px rgba(255,194,87,.36)); }
+.moneyLevelRoot .time-morning{ --money-level-time-filter: brightness(1.01) saturate(.99); }
+.moneyLevelRoot .time-morning .scene-tint{ background: linear-gradient(115deg,rgba(255,239,190,.13),transparent 48%,rgba(255,250,226,.04)); }
+.moneyLevelRoot .time-morning .scene-tint::before{ background: radial-gradient(ellipse at 18% 9%,rgba(255,245,196,.2),transparent 44%); mix-blend-mode: screen; }
+.moneyLevelRoot .time-day .scene-tint{ background: transparent; }
+.moneyLevelRoot .time-evening{ --money-level-time-filter: brightness(.92) saturate(1.09) sepia(.09); }
+.moneyLevelRoot .time-evening .scene-tint{ background: linear-gradient(180deg,rgba(105,75,127,.21) 0,rgba(222,119,105,.22) 34%,rgba(255,170,80,.12) 67%,rgba(108,73,43,.07)); }
+.moneyLevelRoot .time-evening .scene-tint::before{ background: radial-gradient(ellipse at 49% 19%,rgba(255,224,153,.34),transparent 50%); mix-blend-mode: screen; }
+.moneyLevelRoot .time-evening .scene-tint::after{ background: radial-gradient(circle at 30.5% 47%,rgba(255,181,80,.17),transparent 12%),radial-gradient(circle at 71.8% 50%,rgba(255,174,71,.18),transparent 11%); mix-blend-mode: screen; }
+.moneyLevelRoot .time-night{ --money-level-time-filter: brightness(.72) saturate(.84) hue-rotate(6deg); }
+.moneyLevelRoot .time-night .forest-scene{ background: #263f49; }
+.moneyLevelRoot .time-night .scene-tint{ background: linear-gradient(180deg,rgba(28,43,85,.37),rgba(18,63,72,.25)); box-shadow: inset 0 0 120px rgba(11,27,48,.25); }
+.moneyLevelRoot .time-night .scene-tint::before{ background: radial-gradient(ellipse at 76% 8%,rgba(151,190,221,.13),transparent 44%); mix-blend-mode: screen; }
+.moneyLevelRoot .time-night .scene-tint::after{ background: radial-gradient(circle at 30.5% 47%,rgba(255,174,61,.2),transparent 12%),radial-gradient(circle at 71.8% 50%,rgba(255,163,52,.22),transparent 11%); mix-blend-mode: screen; }
 
 .moneyLevelRoot .weather-debug{ display: grid; gap: 2px; padding: 8px 14px; color: #d8ebff; background: #172538; font: 600 11px/1.35 ui-monospace,SFMono-Regular,Consolas,monospace; }
 .moneyLevelRoot .weather-debug b{ color: #91d5ff; }

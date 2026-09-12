@@ -30,6 +30,10 @@ const {
   resolveMoneyLevelMarketWeather,
   selectLatestCompletedSessionCloses,
 } = require("../lib/money-level/market-weather.ts");
+const {
+  moneyLevelPreviewOverridesEnabled,
+  parseMoneyLevelPreviewOverrides,
+} = require("../lib/money-level/preview.ts");
 
 for (const [changePct, expected] of [
   [2, "sunny"],
@@ -88,13 +92,38 @@ assert.equal(selectLatestCompletedSessionCloses(weekendRows, fridaySession.endEp
 assert.equal(buildMoneyLevelMarketWeatherData(null, new Date().toISOString()), null, "missing sessions must not fabricate weather");
 assert.throws(() => resolveMoneyLevelMarketWeather(Number.NaN), RangeError, "malformed change must be rejected");
 
+assert.equal(moneyLevelPreviewOverridesEnabled({ nodeEnv: "development" }), true, "local development must allow QA overrides");
+assert.equal(moneyLevelPreviewOverridesEnabled({ nodeEnv: "production", vercelEnv: "preview" }), true, "Vercel Preview must allow QA overrides");
+assert.equal(moneyLevelPreviewOverridesEnabled({ nodeEnv: "production", vercelEnv: "production" }), false, "Production must reject QA overrides");
+assert.deepEqual(
+  parseMoneyLevelPreviewOverrides("?weather=rain&time=night&weatherdebug=1", true),
+  { weather: "rain", time: "night", debug: true },
+  "weather and time overrides must compose",
+);
+assert.deepEqual(
+  parseMoneyLevelPreviewOverrides("?weather=thunderstorm&time=evening&weatherdebug=1", false),
+  { weather: null, time: null, debug: false },
+  "disabled Production gate must ignore every override",
+);
+assert.deepEqual(
+  parseMoneyLevelPreviewOverrides("?weather=snow&time=midnight", true),
+  { weather: null, time: null, debug: false },
+  "unknown preview values must be rejected",
+);
+
 const source = fs.readFileSync(path.join(rootDir, "lib/server/money-level-weather-source.ts"), "utf8");
 const hook = fs.readFileSync(path.join(rootDir, "lib/money-level/use-money-level-market-weather.ts"), "utf8");
+const page = fs.readFileSync(path.join(rootDir, "app/money-level/page.tsx"), "utf8");
 const css = fs.readFileSync(path.join(rootDir, "components/money-level/money-level.css"), "utf8");
 assert.ok(source.includes("fetchYahooChart"), "Money Level weather must reuse the existing Yahoo chart helper");
 assert.ok(source.includes("range: \"1m\"") && source.includes("events: \"history\""), "Money Level weather must use daily history");
 assert.ok(!source.includes("regularMarketPrice") && !source.includes("adjclose"), "weather must use regular daily close, not intraday or adjusted close");
 assert.ok(hook.includes("lastKnown.resolvedWeather") && hook.includes("resolveMoneyLevelSeededWeather"), "fallback order must retain last-known then seeded weather");
+assert.ok(page.includes("process.env.VERCEL_ENV") && page.includes("previewOverridesEnabled"), "server page must gate Vercel Preview overrides from deployment metadata");
+assert.ok(hook.includes("parseMoneyLevelPreviewOverrides(window.location.search, previewOverridesEnabled)"), "client overrides must use the server-provided gate");
+assert.ok(!hook.includes("hostname"), "client must not guess Preview from its hostname");
+assert.ok(css.includes("--money-level-time-filter") && css.includes(".scene-world"), "time styling must target the complete visual world");
+assert.ok(!css.includes(".time-evening .house-art-image") && !css.includes(".time-night .house-art-image"), "time styling must not dim houses independently");
 assert.ok(css.includes("prefers-reduced-motion") && css.includes("pointer-events: none"), "weather overlays must be accessible and non-interactive");
 
 console.log("Money Level SPY market weather checks passed");
