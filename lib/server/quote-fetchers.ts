@@ -619,17 +619,22 @@ export async function getQuoteFx(input: { pair?: string | null } = {}): Promise<
   const pair = (input.pair || "USDKRW").toUpperCase();
   if (pair !== "USDKRW") warnings.push(`Unsupported pair ${pair}; USDKRW was used.`);
 
+  // FX symbols intentionally contain `=` and therefore must not pass through
+  // getQuoteHistory's stock ticker resolver. That resolver rejects Yahoo FX
+  // symbols by design; routing KRW=X through it made /api/quote/fx return the
+  // deterministic sample on every request even while Yahoo itself was healthy.
   for (const symbol of ["KRW=X", "USDKRW=X"]) {
     try {
-      const history = await getQuoteHistory({ ticker: symbol, range: "1m" });
-      const latest = history.prices.at(-1);
+      const window = resolveDateWindow({ range: "1m" });
+      const yahoo = await fetchYahooChart({ ticker: symbol, range: "1m", events: "history" });
+      const latest = parseYahooPrices(yahoo, window).at(-1);
       const rate = latest?.close ?? null;
       if (rate !== null && rate >= 700 && rate <= 3_000) {
         return {
           pair: "USDKRW",
-          source: history.source === "sample" ? "sample" : "yahoo",
+          source: "yahoo",
           updatedAt: nowIso(),
-          warnings: [...warnings, ...history.warnings],
+          warnings,
           rate,
           date: latest?.date ?? null,
         };

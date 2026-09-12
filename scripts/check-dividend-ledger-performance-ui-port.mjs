@@ -66,7 +66,7 @@ assert.ok(portfolioLine && portfolioLine[0].includes("COLOR_PORTFOLIO"), "포트
 assert.ok(portfolioLine && !portfolioLine[0].includes("strokeDasharray"), "포트폴리오 line은 실선(점선 아님)이어야 한다");
 
 // 8) sample/mock series 사용 금지 + 10) benchmark 실패 시 fake line 금지
-assert.ok(comp.includes('response.source === "sample"'), "sample source는 unavailable 처리해야 한다");
+assert.ok(page.includes('response.source === "sample"'), "shared loader는 sample source를 unavailable 처리해야 한다");
 assert.ok(!comp.includes("buildSampleHistory"), "컴포넌트가 sample history를 직접 생성하면 안 된다");
 
 // 9) empty state + 11) source badge

@@ -3,10 +3,12 @@ import fs from 'node:fs';
 
 const account = fs.readFileSync('components/dividend/DividendAccountPerformanceSection.tsx', 'utf8');
 const total = fs.readFileSync('components/dividend/DividendPerformanceSection.tsx', 'utf8');
+const page = fs.readFileSync('components/dividend/DividendPage.tsx', 'utf8');
 const ledger = fs.readFileSync('lib/dividend-ledger-performance.ts', 'utf8');
 
-assert.match(account, /const SP500_TICKER = "SPY"/);
-assert.match(account, /const SCHD_TICKER = "SCHD"/);
+assert.match(page, /new Set\(\[\.\.\.tickers, "SCHD", "SPY"\]\)/);
+assert.match(page, /schd: prices\.SCHD/);
+assert.match(page, /sp500: prices\.SPY/);
 assert.match(account, /startPrincipalKRW: base\.points\[0\]\?\.depositKRW/);
 assert.match(ledger, /startPrincipalKRW\?: number/);
 assert.match(ledger, /return lastValue > 0 \? lastValue : null/);

@@ -12,5 +12,7 @@ export async function GET(request: Request) {
     end: searchParams.get("end"),
   });
 
-  return NextResponse.json(response);
+  return NextResponse.json(response, {
+    headers: { "Cache-Control": "public, s-maxage=21600, stale-while-revalidate=604800" },
+  });
 }

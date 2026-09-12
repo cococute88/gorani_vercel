@@ -24,6 +24,7 @@ export const STORAGE_KEYS = {
   calendarCache: "gorani.dividend-calendar.cache.v1",
   calendarActivePortfolio: "calendar:activePortfolio",
   quoteCache: "gorani.quote.cache.v1",
+  dividendMarketDataCache: "gorani.dividend.market-data-cache.v1",
   marketCache: "gorani.market.cache.v1",
   uiPreferences: "gorani.ui-preferences.v1",
   trackerConfig: "gorani.tracker-config.v1",

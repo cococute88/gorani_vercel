@@ -6,8 +6,8 @@ import { Target } from "lucide-react";
 import TopNav from "@/components/TopNav";
 import { buildMonthlyDividendsFromRows } from "@/lib/mock-dividend-data";
 import { formatPercent } from "@/lib/format";
-import { quoteHistoryPath } from "@/lib/quote-client";
-import type { QuoteHistoryResponse } from "@/lib/quote-types";
+import { quoteFxHistoryPath, quoteHistoryPath } from "@/lib/quote-client";
+import type { QuoteFxHistoryResponse, QuoteHistoryResponse } from "@/lib/quote-types";
 import { useDividendSummary } from "@/lib/use-dividend-summary";
 import { useDividendGoal, setDividendGoal } from "@/lib/dividend-goal-store";
 import DividendSummaryCards from "./DividendSummaryCards";
@@ -74,6 +74,7 @@ export default function DividendPage() {
     monthlyAvgKRW,
     convertedAnnualDividendKRW,
     dividendDataAvailable,
+    dividendDataStatus,
     goalProgress,
     achievementPct,
     goalProgressLabel,
@@ -86,8 +87,18 @@ export default function DividendPage() {
     return points.length > 0 ? points : null;
   }
 
+  function toBackcastFxSeries(response: QuoteFxHistoryResponse | undefined): BackcastPricePoint[] | null {
+    if (!response || response.source !== "yahoo") return null;
+    const points = response.prices
+      .filter((price) => Number.isFinite(price.rate) && price.rate > 0)
+      .map((price) => ({ date: price.date, close: price.rate }));
+    return points.length > 0 ? points : null;
+  }
+
+  const dividendTickerKey = dividendTickers.join("|");
+
   useEffect(() => {
-    const tickers = dividendTickers;
+    const tickers = dividendTickerKey.split("|").filter(Boolean);
     if (tickers.length === 0) {
       setPerformanceHistories({ prices: {}, schd: null, sp500: null, fx: null });
       return;
@@ -96,25 +107,50 @@ export default function DividendPage() {
     async function loadPerformanceHistories() {
       async function fetchHistory(ticker: string): Promise<QuoteHistoryResponse | undefined> {
         try {
-          return await fetchQuoteJson<QuoteHistoryResponse>(quoteHistoryPath({ ticker, range: "3y" }));
-        } catch {
+          const response = await fetchQuoteJson<QuoteHistoryResponse>(quoteHistoryPath({ ticker, range: "3y" }));
+          if (response.source === "sample" || response.prices.length === 0) {
+            console.warn("[dividend-performance] holding price history unavailable", { ticker, source: response.source, warnings: response.warnings });
+          }
+          return response;
+        } catch (error) {
+          console.warn("[dividend-performance] holding price history request failed", { ticker, error });
           return undefined;
         }
       }
-      const entries = await Promise.all(tickers.map(async (ticker) => [ticker, toBackcastSeries(await fetchHistory(ticker)) ?? []] as const));
-      // 비교 대상을 SCHD 로 통일한다(기존 ^KS11/KOSPI 제거). SCHD 는 USD 라 환율(KRW=X)로 KRW 환산한다.
-      const [schd, sp500, fx] = await Promise.all([fetchHistory("SCHD"), fetchHistory("SPY"), fetchHistory("KRW=X")]);
+      async function fetchFxHistory(): Promise<QuoteFxHistoryResponse | undefined> {
+        const end = new Date();
+        const start = new Date(end);
+        start.setUTCFullYear(start.getUTCFullYear() - 3);
+        const window = { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) };
+        try {
+          const response = await fetchQuoteJson<QuoteFxHistoryResponse>(quoteFxHistoryPath(window));
+          if (response.source !== "yahoo" || response.prices.length === 0) {
+            console.warn("[dividend-performance] USD/KRW history unavailable", { source: response.source, warnings: response.warnings });
+          }
+          return response;
+        } catch (error) {
+          console.warn("[dividend-performance] USD/KRW history request failed", { error });
+          return undefined;
+        }
+      }
+      // 주식/ETF 가격은 generic history, USD/KRW는 전용 FX history 경계에서 각각 한 번만 조회한다.
+      const requestedTickers = Array.from(new Set([...tickers, "SCHD", "SPY"]));
+      const [entries, fx] = await Promise.all([
+        Promise.all(requestedTickers.map(async (ticker) => [ticker, toBackcastSeries(await fetchHistory(ticker)) ?? []] as const)),
+        fetchFxHistory(),
+      ]);
       if (!active) return;
+      const prices = Object.fromEntries(entries);
       setPerformanceHistories({
-        prices: Object.fromEntries(entries),
-        schd: toBackcastSeries(schd),
-        sp500: toBackcastSeries(sp500),
-        fx: toBackcastSeries(fx),
+        prices,
+        schd: prices.SCHD?.length ? prices.SCHD : null,
+        sp500: prices.SPY?.length ? prices.SPY : null,
+        fx: toBackcastFxSeries(fx),
       });
     }
     void loadPerformanceHistories();
     return () => { active = false; };
-  }, [dividendTickers]);
+  }, [dividendTickerKey]);
 
   const chartRows = useMemo(
     () => [
@@ -210,6 +246,23 @@ export default function DividendPage() {
             배당은 최근 12개월 실제 배당 이력 기준입니다. 배당 이력이 없거나 quote/fx 조회가 실패한 종목은 예상 배당을 계산하지 않습니다.
             {marketData.loading ? " 현재가·배당 데이터를 불러오는 중입니다." : ""}
           </div>
+          {!marketData.loading && dividendGroups.taxableHoldings.length + dividendGroups.taxAdvantagedHoldings.length > 0 && (
+            <div className={`mt-2 text-[12px] font-semibold ${
+              dividendDataStatus === "normal"
+                ? "text-emerald-600 dark:text-emerald-400"
+                : dividendDataStatus === "partial"
+                  ? "text-amber-600 dark:text-amber-400"
+                  : "text-rose-600 dark:text-rose-400"
+            }`}>
+              {dividendDataStatus === "normal"
+                ? marketData.stale
+                  ? "정상 · 일부 최근 정상 시장 데이터 사용 중"
+                  : "정상"
+                : dividendDataStatus === "partial"
+                  ? "일부 종목 데이터 미조회"
+                  : "전체 시장 데이터 조회 실패"}
+            </div>
+          )}
           {marketData.warnings.length > 0 && (
             <div className="mt-2 text-[12px] text-slate-500 dark:text-slate-500">
               {marketData.warnings.slice(0, 3).join(" · ")}
@@ -286,6 +339,12 @@ export default function DividendPage() {
         <DividendAccountPerformanceSection
           snapshots={snapshots}
           latestBackcastHoldings={accountBackcastHoldings}
+          histories={{
+            sp500: performanceHistories.sp500,
+            schd: performanceHistories.schd,
+            fx: performanceHistories.fx,
+            holdingPrices: performanceHistories.prices,
+          }}
           periodMonths={performanceMonths}
           onPeriodMonthsChange={setPerformanceMonths}
         />

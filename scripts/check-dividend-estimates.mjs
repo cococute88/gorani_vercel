@@ -176,9 +176,11 @@ function assertFxFailure() {
   );
 
   assert.equal(estimate.estimatedQuantity, undefined);
-  assert.equal(estimate.annualDividendKRW, undefined);
+  assert.equal(estimate.currentPriceKRW, undefined);
+  assert.equal(estimate.annualDividendKRW, 41_250);
+  assert.equal(estimate.dividendMonths.length > 0, true);
   assert.equal(estimate.warnings.some((warning) => warning.code === "fx_sample"), true);
-  return { case: "FX sample/failure blocks USD estimates" };
+  return { case: "FX failure preserves dividend estimate" };
 }
 
 function assertTickerDedupe() {

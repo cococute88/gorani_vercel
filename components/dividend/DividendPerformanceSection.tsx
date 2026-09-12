@@ -135,7 +135,7 @@ export default function DividendPerformanceSection({
         {!result.available || !result.kpis || !windowedKpis ? (
           <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-[13px] text-slate-500 dark:border-[#334044] dark:bg-[#11181a]">
             <div className="font-semibold text-slate-700 dark:text-slate-300">{result.unavailableReason ?? "성과분석 데이터 부족"}</div>
-            <div className="mt-1">과거 가격 데이터를 불러오지 못했습니다. 샘플/가짜 그래프는 표시하지 않습니다.</div>
+            <div className="mt-1">실제 가격·환율 이력이 충분하지 않습니다. 샘플/가짜 그래프는 표시하지 않습니다.</div>
           </div>
         ) : (
           <>

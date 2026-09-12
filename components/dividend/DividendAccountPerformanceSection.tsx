@@ -26,9 +26,6 @@ import {
   buildAccountGroupPerformance,
   computeBenchmarkSeries,
 } from "@/lib/dividend-ledger-performance";
-import { quoteHistoryPath } from "@/lib/quote-client";
-import { normalizeHoldingTickerInfo } from "@/lib/holding-ticker-normalizer";
-import type { QuoteHistoryResponse } from "@/lib/quote-types";
 import { AXIS_LINE, AXIS_TICK_SM, CHART_GRID, CHART_MARGIN, TOOLTIP_STYLE } from "@/lib/chart-style";
 import { formatPercent } from "@/lib/format";
 import {
@@ -42,6 +39,12 @@ import PerformancePeriodToggle from "./PerformancePeriodToggle";
 interface Props {
   snapshots: PortfolioSnapshot[];
   latestBackcastHoldings?: Record<AccountPerfGroup, DividendPerformanceHoldingInput[]>;
+  histories: {
+    sp500: BenchmarkPricePoint[] | null;
+    schd: BenchmarkPricePoint[] | null;
+    fx: BenchmarkPricePoint[] | null;
+    holdingPrices: Record<string, BenchmarkPricePoint[]>;
+  };
   // 성과 그래프 표시 구간(개월). 위탁/절세/전체합산 그래프가 공유한다(데이터 계산은 불변).
   periodMonths?: number;
   onPeriodMonthsChange?: (months: number) => void;
@@ -54,12 +57,6 @@ const COLOR_SP500 = "#F97316"; // 주황 점선
 const COLOR_SCHD = "#3B82F6"; // 파랑 점선 (SCHD 비교선 — 색상은 기존 디자인 유지)
 const COLOR_PROFIT = "#EF4444"; // 수익 bar (빨강)
 const COLOR_LOSS = "#3B82F6"; // 손실 bar (파랑)
-
-// 벤치마크 티커: 기존 quote/history API를 재사용한다 (신규 의존성 없음).
-// 비교 대상을 SCHD(미국 ETF, USD)로 통일한다(기존 ^KS11/KOSPI 제거).
-const SP500_TICKER = "SPY";
-const SCHD_TICKER = "SCHD";
-const FX_TICKER = "KRW=X";
 
 const card = "rounded-2xl border border-slate-200 bg-white p-5 dark:border-[#2a3336] dark:bg-[#191f20]";
 const LEGEND_WRAPPER = { fontSize: 12, paddingTop: 8 };
@@ -100,26 +97,6 @@ type GroupView = {
   base: AccountPerfBase;
   benchmarks: BenchmarkLine[];
 };
-
-// Quote history 응답을 벤치마크 가격 시계열로 변환한다.
-// source === "sample" 이거나 비어 있으면 null(=fake 금지, unavailable 처리).
-function toPriceSeries(response: QuoteHistoryResponse | undefined): BenchmarkPricePoint[] | null {
-  if (!response || response.source === "sample") return null;
-  const points = response.prices
-    .filter((price) => Number.isFinite(price.close) && price.close > 0)
-    .map((price) => ({ date: price.date, close: price.close }));
-  return points.length > 0 ? points : null;
-}
-
-async function fetchHistory(ticker: string, start: string): Promise<QuoteHistoryResponse | undefined> {
-  try {
-    const response = await fetch(quoteHistoryPath({ ticker, start, range: "max" }), { cache: "no-store" });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    return (await response.json()) as QuoteHistoryResponse;
-  } catch {
-    return undefined;
-  }
-}
 
 function Kpi({
   label,
@@ -166,11 +143,6 @@ function paddedDomain(values: Array<number | null | undefined>, includeZero = fa
   return [min - range * 0.12, max + range * 0.12];
 }
 
-function monthHistoryStart(latestDate: string, months: number): string {
-  const date = new Date(`${latestDate}T00:00:00Z`);
-  date.setUTCMonth(date.getUTCMonth() - months);
-  return date.toISOString().slice(0, 10);
-}
 function performanceDomain(rows: Array<Record<string, number | string | null>>): [number | string, number | string] {
   const values = rows.flatMap((row) => [row.deposit, row.portfolio, row.sp500, row.schd]).filter((value): value is number => typeof value === "number" && Number.isFinite(value));
   if (values.length === 0) return ["auto", "auto"];
@@ -282,7 +254,7 @@ function GroupBlock({ view, periodMonths }: { view: GroupView; periodMonths: num
           <div className="font-semibold text-slate-700 dark:text-slate-300">
             {base.unavailableReason ?? "성과분석 데이터 부족"}
           </div>
-          <div className="mt-1">과거 가격 데이터를 불러오지 못했습니다. 샘플/가짜 그래프는 표시하지 않습니다.</div>
+          <div className="mt-1">실제 가격·환율 이력이 충분하지 않습니다. 샘플/가짜 그래프는 표시하지 않습니다.</div>
         </div>
       ) : (
         <>
@@ -441,52 +413,11 @@ function GroupBlock({ view, periodMonths }: { view: GroupView; periodMonths: num
 export default function DividendAccountPerformanceSection({
   snapshots,
   latestBackcastHoldings,
+  histories,
   periodMonths = DEFAULT_PERFORMANCE_MONTHS,
   onPeriodMonthsChange,
 }: Props) {
   const latestSnapshot = useMemo(() => [...snapshots].filter((snapshot) => snapshot.snapshotDate).sort((a, b) => (a.snapshotDate < b.snapshotDate ? 1 : -1))[0], [snapshots]);
-  const accountTickers = useMemo(() => Array.from(new Set((latestBackcastHoldings ? [...latestBackcastHoldings["위탁"], ...latestBackcastHoldings["절세"]] : (latestSnapshot?.holdings ?? [])).map((holding) => ((holding as { normalizedTicker?: string }).normalizedTicker ?? holding.ticker ?? normalizeHoldingTickerInfo(holding).quoteTicker ?? "").trim().toUpperCase()).filter(Boolean))).sort(), [latestBackcastHoldings, latestSnapshot]);
-
-
-  const earliestDate = latestSnapshot?.snapshotDate ? monthHistoryStart(latestSnapshot.snapshotDate, 25) : null;
-
-  const [histories, setHistories] = useState<{
-    sp500: BenchmarkPricePoint[] | null;
-    schd: BenchmarkPricePoint[] | null;
-    fx: BenchmarkPricePoint[] | null;
-    holdingPrices: Record<string, BenchmarkPricePoint[]>;
-    loaded: boolean;
-  }>({ sp500: null, schd: null, fx: null, holdingPrices: {}, loaded: false });
-
-  useEffect(() => {
-    if (!earliestDate) {
-      setHistories({ sp500: null, schd: null, fx: null, holdingPrices: {}, loaded: false });
-      return;
-    }
-    let active = true;
-    async function load(start: string) {
-      const [sp500, schd, fx, holdingEntries] = await Promise.all([
-        fetchHistory(SP500_TICKER, start),
-        fetchHistory(SCHD_TICKER, start),
-        fetchHistory(FX_TICKER, start),
-        Promise.all(accountTickers.map(async (ticker) => [ticker, toPriceSeries(await fetchHistory(ticker, start)) ?? []] as const)),
-      ]);
-      if (!active) return;
-      setHistories({
-        sp500: toPriceSeries(sp500),
-        schd: toPriceSeries(schd),
-        fx: toPriceSeries(fx),
-        holdingPrices: Object.fromEntries(holdingEntries),
-        loaded: true,
-      });
-    }
-    void load(earliestDate);
-    return () => {
-      active = false;
-    };
-  }, [earliestDate, accountTickers]);
-
-
   const bases = useMemo(
     () => ACCOUNT_PERF_GROUPS.map((group) => buildAccountGroupPerformance(snapshots, group, { priceHistories: histories.holdingPrices, fxHistory: histories.fx, latestDate: latestSnapshot?.snapshotDate, months: 24, holdings: latestBackcastHoldings?.[group] })),
     [histories.fx, histories.holdingPrices, latestBackcastHoldings, latestSnapshot?.snapshotDate, snapshots],

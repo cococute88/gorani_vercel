@@ -17,6 +17,7 @@ import {
   type DividendHoldingGroupResult,
 } from "@/lib/dividend-holdings-from-portfolio";
 import { quoteDividendsPath, quoteFxPath, quoteLastPath } from "@/lib/quote-client";
+import { requestDividendMarketData } from "@/lib/dividend-market-data-cache";
 import type {
   QuoteDividendsResponse,
   QuoteFxResponse,
@@ -34,6 +35,7 @@ export type DividendMarketDataState = {
   dividends: Record<string, QuoteDividendsResponse | undefined>;
   fx?: QuoteFxResponse;
   warnings: string[];
+  stale: boolean;
 };
 
 const EMPTY_MARKET_DATA: DividendMarketDataState = {
@@ -42,7 +44,10 @@ const EMPTY_MARKET_DATA: DividendMarketDataState = {
   quotes: {},
   dividends: {},
   warnings: [],
+  stale: false,
 };
+
+export type DividendDataStatus = "normal" | "partial" | "unavailable";
 
 // 배당현황 페이지 기본 상태(세후 · 위탁만 · 목표 SCHD 3300주)와 동일한 기준값.
 // 투자현황 카드는 이 기본값으로 훅을 호출해 두 화면의 숫자가 항상 일치하도록 한다.
@@ -116,6 +121,7 @@ export type DividendSummaryResult = {
   convertedAnnualDividendKRW: number;
   convertedMonthlyDividendKRW: number;
   dividendDataAvailable: boolean;
+  dividendDataStatus: DividendDataStatus;
   goalProgress: SchdGoalProgress;
   achievementPct: number;
   goalProgressLabel: string;
@@ -161,65 +167,83 @@ export function useDividendSummary(options: DividendSummaryOptions = {}): Divide
     [dividendTickers, targetTickerNormalized],
   );
   const marketTickerKey = marketTickers.join("|");
+  const dividendTickerKey = dividendTickers.join("|");
 
   useEffect(() => {
+    const requestKey = `${marketTickerKey}::${dividendTickerKey}`;
     if (!marketTickerKey) {
       setMarketData(EMPTY_MARKET_DATA);
       return;
     }
 
     let active = true;
-    const tickers = marketTickers;
+    const tickers = marketTickerKey.split("|").filter(Boolean);
+    const dividendRequestTickers = dividendTickerKey.split("|").filter(Boolean);
     const needsUsdKrw = tickers.some((ticker) => !isKrwTicker(ticker));
-    setMarketData((current) => ({
-      ...current,
-      loading: true,
-      tickerKey: marketTickerKey,
-      warnings: [],
-    }));
+    setMarketData((current) =>
+      current.tickerKey === requestKey
+        ? { ...current, loading: true, warnings: [] }
+        : { ...EMPTY_MARKET_DATA, loading: true, tickerKey: requestKey },
+    );
 
     async function load() {
       const warnings: string[] = [];
-      const quoteEntries = await Promise.all(
+      const quotePromise = Promise.all(
         tickers.map(async (ticker) => {
-          try {
-            const quote = await fetchQuoteJson<QuoteLastResponse>(quoteLastPath({ ticker }));
-            return [ticker, quote] as const;
-          } catch (error) {
-            warnings.push(`${ticker}: 현재가 요청 실패 (${error instanceof Error ? error.message : String(error)})`);
-            return [ticker, undefined] as const;
-          }
+          const quote = await requestDividendMarketData<QuoteLastResponse>({
+            path: quoteLastPath({ ticker }),
+            kind: "quote",
+            key: ticker,
+            fetcher: fetchQuoteJson,
+          });
+          return [ticker, quote] as const;
         }),
       );
-      const dividendEntries = await Promise.all(
-        tickers.map(async (ticker) => {
-          try {
-            const dividends = await fetchQuoteJson<QuoteDividendsResponse>(quoteDividendsPath({ ticker, range: "1y" }));
-            return [ticker, dividends] as const;
-          } catch (error) {
-            warnings.push(`${ticker}: 배당 요청 실패 (${error instanceof Error ? error.message : String(error)})`);
-            return [ticker, undefined] as const;
-          }
+      const dividendPromise = Promise.all(
+        dividendRequestTickers.map(async (ticker) => {
+          const dividends = await requestDividendMarketData<QuoteDividendsResponse>({
+            path: quoteDividendsPath({ ticker, range: "1y" }),
+            kind: "dividends",
+            key: ticker,
+            fetcher: fetchQuoteJson,
+          });
+          return [ticker, dividends] as const;
         }),
       );
 
-      let fx: QuoteFxResponse | undefined;
+      const fxPromise = needsUsdKrw
+        ? requestDividendMarketData<QuoteFxResponse>({
+            path: quoteFxPath(),
+            kind: "fx",
+            key: "USDKRW",
+            fetcher: fetchQuoteJson,
+          })
+        : Promise.resolve(undefined);
+
+      const [quoteEntries, dividendEntries, fx] = await Promise.all([quotePromise, dividendPromise, fxPromise]);
+      for (const [ticker, quote] of quoteEntries) {
+        if (!quote) warnings.push(`${ticker}: 현재가 요청 실패`);
+        else warnings.push(...quote.warnings.map((warning) => `${ticker} quote: ${warning}`));
+      }
+      for (const [ticker, dividends] of dividendEntries) {
+        if (!dividends) warnings.push(`${ticker}: 배당 요청 실패`);
+        else warnings.push(...dividends.warnings.map((warning) => `${ticker} dividend: ${warning}`));
+      }
       if (needsUsdKrw) {
-        try {
-          fx = await fetchQuoteJson<QuoteFxResponse>(quoteFxPath());
-        } catch (error) {
-          warnings.push(`USDKRW: 환율 요청 실패 (${error instanceof Error ? error.message : String(error)})`);
-        }
+        if (!fx) warnings.push("USDKRW: 환율 요청 실패");
+        else warnings.push(...fx.warnings.map((warning) => `USDKRW fx: ${warning}`));
       }
 
       if (!active) return;
       setMarketData({
         loading: false,
-        tickerKey: marketTickerKey,
+        tickerKey: requestKey,
         quotes: Object.fromEntries(quoteEntries),
         dividends: Object.fromEntries(dividendEntries),
         fx,
-        warnings,
+        warnings: Array.from(new Set(warnings)),
+        stale: [...quoteEntries.map(([, value]) => value), ...dividendEntries.map(([, value]) => value), fx]
+          .some((value) => value?.cacheStatus === "stale"),
       });
     }
 
@@ -227,7 +251,7 @@ export function useDividendSummary(options: DividendSummaryOptions = {}): Divide
     return () => {
       active = false;
     };
-  }, [marketTickerKey, marketTickers]);
+  }, [dividendTickerKey, marketTickerKey]);
 
   const enrichRows = useMemo(
     () =>
@@ -286,14 +310,6 @@ export function useDividendSummary(options: DividendSummaryOptions = {}): Divide
     [dividendGroups.taxAdvantagedHoldings, enrichRows],
   );
 
-  const dividendDataAvailable = useMemo(
-    () =>
-      [...estimatedTaxableHoldings, ...estimatedTaxAdvantagedHoldings].some(
-        (row) => row.dividendDataStatus === "available",
-      ),
-    [estimatedTaxAdvantagedHoldings, estimatedTaxableHoldings],
-  );
-
   const summaryRows = useMemo(
     () =>
       includeTaxAdvantaged
@@ -301,6 +317,17 @@ export function useDividendSummary(options: DividendSummaryOptions = {}): Divide
         : estimatedTaxableHoldings,
     [estimatedTaxAdvantagedHoldings, estimatedTaxableHoldings, includeTaxAdvantaged],
   );
+
+  const availableDividendRowCount = summaryRows.filter((row) => row.dividendDataStatus === "available").length;
+  const dividendDataAvailable = availableDividendRowCount > 0;
+  const allDividendRows = [...estimatedTaxableHoldings, ...estimatedTaxAdvantagedHoldings];
+  const allAvailableDividendRowCount = allDividendRows.filter((row) => row.dividendDataStatus === "available").length;
+  const dividendDataStatus: DividendDataStatus =
+    allAvailableDividendRowCount === 0
+      ? "unavailable"
+      : allAvailableDividendRowCount < allDividendRows.length
+        ? "partial"
+        : "normal";
 
   const evaluationKRW = summaryRows.reduce((s, r) => s + r.valueKRW, 0);
   const ttmAnnualDividendKRW = summaryRows.reduce((s, r) => s + r.annualDividendKRW, 0);
@@ -355,6 +382,7 @@ export function useDividendSummary(options: DividendSummaryOptions = {}): Divide
     convertedAnnualDividendKRW,
     convertedMonthlyDividendKRW,
     dividendDataAvailable,
+    dividendDataStatus,
     goalProgress,
     achievementPct,
     goalProgressLabel,
