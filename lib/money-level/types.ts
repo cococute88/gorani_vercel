@@ -27,5 +27,6 @@ export interface HpHeartBreakdown extends HeartBreakdown {
   special: number;
 }
 
-export type MoneyLevelWeather = "clear" | "cloudy" | "rain";
+export type MoneyLevelWeather = "sunny" | "cloudy" | "rain" | "thunderstorm";
 export type MoneyLevelTimeOfDay = "morning" | "day" | "evening" | "night";
+export type MoneyLevelWindIntensity = "none" | "breeze" | "strong";

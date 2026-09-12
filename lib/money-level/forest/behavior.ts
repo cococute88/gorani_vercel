@@ -257,7 +257,7 @@ export class ForestBehaviorController {
     const weighted = WAYPOINTS.map((waypoint) => {
       let weight = waypoint.weight;
       if (waypoint.id === config.homeWaypoint) weight *= BEHAVIOR_CONFIG.homeWeightMultiplier;
-      if (this.weather() === "rain" && [config.homeWaypoint, "large_tree"].includes(waypoint.id)) {
+      if (["rain", "thunderstorm"].includes(this.weather()) && [config.homeWaypoint, "large_tree"].includes(waypoint.id)) {
         weight *= BEHAVIOR_CONFIG.rainShelterMultiplier;
       }
       if (waypoint.id === this.waypoint.id) weight *= forceDifferent ? 0 : 0.18;

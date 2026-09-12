@@ -64,6 +64,7 @@
     "check:money-level-domain": "node scripts/check-money-level-domain.mjs",
     "check:money-level-route": "node scripts/check-money-level-route.mjs",
     "check:money-level-assets": "node scripts/check-money-level-assets.mjs",
+    "check:money-level-market-weather": "node scripts/check-money-level-market-weather.mjs",
     "check:portfolio-overview-cleanup": "node scripts/check-portfolio-overview-cleanup.mjs",
     "check:portfolio-manager-summary-ux": "node scripts/check-portfolio-manager-summary-ux.mjs",
     "check:portfolio-market-indicators-live": "node scripts/check-portfolio-market-indicators-live.mjs",
