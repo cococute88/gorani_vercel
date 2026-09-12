@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Money Level · Time × Weather Art Review</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --ink: #f4f0e8;
+        --muted: #aaa69c;
+        --panel: #171a19;
+        --line: #353a37;
+        --accent: #d8f59d;
+        --base-opacity: 0;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        background: #0d0f0e;
+        color: var(--ink);
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      header {
+        position: sticky;
+        z-index: 20;
+        top: 0;
+        display: flex;
+        gap: 20px;
+        align-items: center;
+        justify-content: space-between;
+        padding: 18px 24px;
+        border-bottom: 1px solid var(--line);
+        background: rgb(13 15 14 / 94%);
+        backdrop-filter: blur(16px);
+      }
+
+      h1, h2, p { margin: 0; }
+      h1 { font-size: clamp(18px, 2vw, 28px); letter-spacing: -.03em; }
+      h2 { margin-bottom: 14px; font-size: 18px; }
+      .eyebrow { margin-bottom: 4px; color: var(--accent); font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+      .meta { margin-top: 5px; color: var(--muted); font-size: 12px; }
+
+      .toolbar { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+      button {
+        appearance: none;
+        padding: 8px 12px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: #202421;
+        color: var(--ink);
+        font: inherit;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      button:hover, button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+
+      main { padding: 24px; }
+      .status {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        margin-bottom: 20px;
+        padding: 12px 14px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: var(--panel);
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .status strong { color: var(--ink); }
+      .status[data-state="pass"] .dot { background: #9de36b; }
+      .status[data-state="fail"] .dot { background: #ff766f; }
+      .dot { width: 9px; height: 9px; border-radius: 50%; background: #e9c75f; box-shadow: 0 0 14px currentColor; }
+
+      .matrix {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(220px, 1fr));
+        gap: 12px;
+      }
+
+      .card {
+        overflow: hidden;
+        padding: 0;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: var(--panel);
+        text-align: left;
+      }
+      .card:hover { border-color: #697069; transform: translateY(-1px); }
+      .card[aria-pressed="true"] { color: var(--ink); }
+
+      .compare {
+        position: relative;
+        display: block;
+        overflow: hidden;
+        aspect-ratio: 1672 / 941;
+        background: #080908;
+      }
+      .compare img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill; }
+      .compare .base { opacity: var(--base-opacity); }
+      .compare::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background-image: linear-gradient(rgb(255 255 255 / 14%) 1px, transparent 1px), linear-gradient(90deg, rgb(255 255 255 / 14%) 1px, transparent 1px);
+        background-size: 25% 50%;
+        opacity: 0;
+      }
+      body.grid-on .compare::after { opacity: 1; }
+
+      .label { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 10px 11px 5px; }
+      .label strong { font-size: 13px; letter-spacing: .02em; text-transform: uppercase; }
+      .label span { color: var(--muted); font-size: 10px; text-transform: uppercase; }
+      .filename { display: block; overflow: hidden; padding: 0 11px 11px; color: #8e958f; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+
+      .reference-section { margin-top: 32px; }
+      .reference-grid { display: grid; grid-template-columns: repeat(4, minmax(220px, 1fr)); gap: 12px; }
+      figure { overflow: hidden; margin: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+      figure img { display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: cover; object-position: center 35%; }
+      figcaption { padding: 9px 11px; color: var(--muted); font-size: 11px; }
+
+      dialog {
+        width: min(1500px, calc(100vw - 32px));
+        max-height: calc(100vh - 32px);
+        padding: 0;
+        border: 1px solid #565e58;
+        border-radius: 16px;
+        background: #111312;
+        color: var(--ink);
+      }
+      dialog::backdrop { background: rgb(0 0 0 / 78%); backdrop-filter: blur(4px); }
+      .dialog-head { position: sticky; z-index: 2; top: 0; display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--line); background: #111312; }
+      .dialog-body { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; padding: 12px; }
+      .dialog-body .compare { border: 1px solid var(--line); border-radius: 10px; }
+      .refs { display: grid; align-content: start; gap: 10px; }
+      .refs figure img { aspect-ratio: 16 / 9; }
+
+      @media (max-width: 980px) {
+        header { position: static; align-items: flex-start; flex-direction: column; }
+        .toolbar { justify-content: flex-start; }
+        .matrix, .reference-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .dialog-body { grid-template-columns: 1fr; }
+      }
+      @media (max-width: 560px) {
+        main, header { padding: 14px; }
+        .matrix, .reference-grid { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div>
+        <p class="eyebrow">Phase A · Development-only</p>
+        <h1>Money Level · Time × Weather</h1>
+        <p class="meta">4 time rows × 4 weather columns · click a card for reference comparison</p>
+      </div>
+      <div class="toolbar" aria-label="Geometry comparison mode">
+        <button type="button" data-mode="variant" aria-pressed="true">Variant</button>
+        <button type="button" data-mode="original" aria-pressed="false">Original</button>
+        <button type="button" data-mode="overlay" aria-pressed="false">50/50 Overlay</button>
+        <button type="button" data-mode="flicker" aria-pressed="false">Flicker</button>
+        <button type="button" id="grid" aria-pressed="false">Landmark Grid</button>
+      </div>
+    </header>
+
+    <main>
+      <div class="status" id="status" data-state="loading">
+        <span class="dot" aria-hidden="true"></span>
+        <span><strong>Dimension check:</strong> loading 16 masters against 1672×941 base…</span>
+      </div>
+      <section>
+        <h2>Asset matrix</h2>
+        <div class="matrix" id="matrix"></div>
+      </section>
+
+      <section class="reference-section">
+        <h2>Visual references</h2>
+        <div class="reference-grid" id="references"></div>
+      </section>
+    </main>
+
+    <dialog id="reviewDialog">
+      <div class="dialog-head">
+        <div>
+          <strong id="dialogTitle"></strong>
+          <div class="meta" id="dialogFile"></div>
+        </div>
+        <button type="button" id="closeDialog">Close</button>
+      </div>
+      <div class="dialog-body">
+        <div class="compare" id="dialogCompare"></div>
+        <div class="refs" id="dialogRefs"></div>
+      </div>
+    </dialog>
+
+    <script>
+      const base = "../../../public/money-level/art/background/cozy-forest-base.png";
+      const times = ["morning", "day", "evening", "night"];
+      const weather = ["sunny", "cloudy", "rain", "storm"];
+      const timeRefs = {
+        morning: ["morning.png"],
+        day: ["am.png", "pm.png"],
+        evening: ["evening.png"],
+        night: ["night.png"],
+      };
+      const weatherRefs = { sunny: [], cloudy: ["cloudy.png"], rain: ["rain.png"], storm: ["strom.png"] };
+      const allRefs = ["morning.png", "am.png", "pm.png", "evening.png", "night.png", "cloudy.png", "rain.png", "strom.png"];
+      const title = value => value[0].toUpperCase() + value.slice(1);
+      const assetPath = (time, condition) => `assets/forest-${time}-${condition}.png`;
+      const refPath = file => `../../../reference/${file}`;
+
+      const matrix = document.querySelector("#matrix");
+      const cards = [];
+      for (const time of times) {
+        for (const condition of weather) {
+          const filename = `forest-${time}-${condition}.png`;
+          const card = document.createElement("button");
+          card.type = "button";
+          card.className = "card";
+          card.dataset.time = time;
+          card.dataset.weather = condition;
+          card.innerHTML = `
+            <span class="compare">
+              <img class="variant" src="${assetPath(time, condition)}" alt="${title(time)} ${title(condition)} background" />
+              <img class="base" src="${base}" alt="" />
+            </span>
+            <span class="label"><strong>${title(time)}</strong><span>${title(condition)}</span></span>
+            <span class="filename">${filename}</span>`;
+          card.addEventListener("click", () => openReview(time, condition));
+          matrix.append(card);
+          cards.push(card);
+        }
+      }
+
+      const referenceGrid = document.querySelector("#references");
+      for (const file of allRefs) {
+        const figure = document.createElement("figure");
+        figure.innerHTML = `<img src="${refPath(file)}" alt="${file} visual reference" /><figcaption>${file}</figcaption>`;
+        referenceGrid.append(figure);
+      }
+
+      const modeButtons = [...document.querySelectorAll("[data-mode]")];
+      let flickerTimer;
+      function setMode(mode) {
+        clearInterval(flickerTimer);
+        modeButtons.forEach(button => button.setAttribute("aria-pressed", String(button.dataset.mode === mode)));
+        const setOpacity = value => document.documentElement.style.setProperty("--base-opacity", value);
+        if (mode === "variant") setOpacity(0);
+        if (mode === "original") setOpacity(1);
+        if (mode === "overlay") setOpacity(.5);
+        if (mode === "flicker") {
+          let originalVisible = false;
+          setOpacity(0);
+          flickerTimer = setInterval(() => {
+            originalVisible = !originalVisible;
+            setOpacity(originalVisible ? 1 : 0);
+          }, 650);
+        }
+      }
+      modeButtons.forEach(button => button.addEventListener("click", () => setMode(button.dataset.mode)));
+      document.querySelector("#grid").addEventListener("click", event => {
+        document.body.classList.toggle("grid-on");
+        event.currentTarget.setAttribute("aria-pressed", String(document.body.classList.contains("grid-on")));
+      });
+
+      const dialog = document.querySelector("#reviewDialog");
+      function openReview(time, condition) {
+        document.querySelector("#dialogTitle").textContent = `${title(time)} · ${title(condition)}`;
+        document.querySelector("#dialogFile").textContent = `forest-${time}-${condition}.png`;
+        document.querySelector("#dialogCompare").innerHTML = `
+          <img class="variant" src="${assetPath(time, condition)}" alt="${title(time)} ${title(condition)} generated asset" />
+          <img class="base" src="${base}" alt="Approved base overlay" />`;
+        const refs = [...timeRefs[time], ...weatherRefs[condition]];
+        document.querySelector("#dialogRefs").innerHTML = refs.map(file => `
+          <figure><img src="${refPath(file)}" alt="${file} reference" /><figcaption>Reference · ${file}</figcaption></figure>`).join("") ||
+          `<figure><img src="${refPath(timeRefs[time][0])}" alt="${time} reference" /><figcaption>Reference · ${timeRefs[time][0]}</figcaption></figure>`;
+        dialog.showModal();
+      }
+      document.querySelector("#closeDialog").addEventListener("click", () => dialog.close());
+      dialog.addEventListener("click", event => { if (event.target === dialog) dialog.close(); });
+
+      Promise.all(cards.map(card => new Promise(resolve => {
+        const image = card.querySelector(".variant");
+        if (image.complete) resolve({ file: image.src, width: image.naturalWidth, height: image.naturalHeight });
+        else {
+          image.addEventListener("load", () => resolve({ file: image.src, width: image.naturalWidth, height: image.naturalHeight }), { once: true });
+          image.addEventListener("error", () => resolve({ file: image.src, width: 0, height: 0 }), { once: true });
+        }
+      }))).then(results => {
+        const failures = results.filter(image => image.width !== 1672 || image.height !== 941);
+        const status = document.querySelector("#status");
+        status.dataset.state = failures.length ? "fail" : "pass";
+        status.querySelector("span:last-child").innerHTML = failures.length
+          ? `<strong>Dimension check failed:</strong> ${failures.length} asset(s) differ from 1672×941.`
+          : `<strong>Dimension check passed:</strong> all 16 masters match the 1672×941 base. Use 50/50 Overlay or Flicker for landmark drift review.`;
+      });
+    </script>
+  </body>
+</html>
