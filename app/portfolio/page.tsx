@@ -60,7 +60,7 @@ export default function PortfolioPage() {
             href="/money-level"
             aria-label="곰라니 머니레벨 열기"
             title="곰라니 머니레벨"
-            className="ml-auto grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-emerald-200 bg-emerald-50 text-lg shadow-sm transition hover:border-emerald-300 hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:border-emerald-800 dark:bg-emerald-950/50 min-[1600px]:hidden"
+            className="ml-auto grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-emerald-200 bg-emerald-50 text-lg shadow-sm transition hover:border-emerald-300 hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:border-emerald-800 dark:bg-emerald-950/50"
           >
             <span aria-hidden="true">🌲</span>
           </Link>
