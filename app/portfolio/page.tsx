@@ -47,15 +47,23 @@ export default function PortfolioPage() {
       <main className="mx-auto min-w-0 max-w-[1640px] overflow-x-hidden px-4 py-6 sm:px-6 lg:px-8">
         {/* 제목줄: 제목 + 스냅샷 기준일. 데이터 관리(최근 동기화/최신화/확인이 필요한 항목)는
             포트폴리오 관리 페이지로 이동했다. 투자현황은 조회 화면으로 유지한다. */}
-        <div className="mb-4 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5">
-          <h1 className="text-[20px] font-extrabold text-slate-900 dark:text-white">
+        <div className="mb-4 flex min-w-0 flex-nowrap items-center gap-x-3">
+          <h1 className="shrink-0 text-[20px] font-extrabold text-slate-900 dark:text-white">
             포트폴리오 현황
           </h1>
-          <span className="text-[12.5px] text-slate-500">
+          <span className="min-w-0 truncate text-[12.5px] text-slate-500">
             {portfolioView.snapshot
               ? `${portfolioView.snapshot.snapshotDate} 스냅샷 기준`
               : "저장된 스냅샷 없음"}
           </span>
+          <Link
+            href="/money-level"
+            aria-label="곰라니 머니레벨 열기"
+            title="곰라니 머니레벨"
+            className="ml-auto grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-emerald-200 bg-emerald-50 text-lg shadow-sm transition hover:border-emerald-300 hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:border-emerald-800 dark:bg-emerald-950/50 min-[1600px]:hidden"
+          >
+            <span aria-hidden="true">🌲</span>
+          </Link>
         </div>
 
         {/* 상단 compact 시장지표 strip: /api/market live briefing 재사용 (mock 미사용) */}
@@ -71,27 +79,6 @@ export default function PortfolioPage() {
         <section className="mb-6">
           <PortfolioSummary theme={theme} />
         </section>
-
-        <Link
-          href="/money-level"
-          aria-label="곰라니 머니레벨 숲 보러가기"
-          className="group mb-6 flex min-w-0 items-center justify-between gap-3 rounded-2xl border border-emerald-200/80 bg-gradient-to-r from-emerald-50 to-amber-50 px-4 py-3 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:border-emerald-800/60 dark:from-emerald-950/40 dark:to-amber-950/20 dark:hover:border-emerald-700"
-        >
-          <span className="flex min-w-0 items-center gap-3">
-            <span aria-hidden="true" className="text-xl">🌱</span>
-            <span className="min-w-0">
-              <span className="block text-[14px] font-extrabold text-emerald-950 dark:text-emerald-100">
-                곰라니 머니레벨
-              </span>
-              <span className="block text-[12px] text-emerald-800/75 dark:text-emerald-200/70">
-                내 자산이 자라는 숲 보러가기
-              </span>
-            </span>
-          </span>
-          <span aria-hidden="true" className="shrink-0 text-emerald-700 transition group-hover:translate-x-0.5 dark:text-emerald-300">
-            →
-          </span>
-        </Link>
 
         {/* 중간 차트 3개 */}
         <section className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-3">

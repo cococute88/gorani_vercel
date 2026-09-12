@@ -333,7 +333,7 @@ export default function MoneyLevelScene({
       {characterError ? <p className="character-fallback" role="status">캐릭터 표시를 불러오지 못했어요.</p> : null}
       <div className="scene-activity-layer" aria-hidden="true">
         <span className="pond-activity fishing-activity" hidden>
-          <img className="fishing-rod" src="/money-level/art/props/fishing-rod.png" alt="" draggable={false} />
+          <img className="fishing-rod" src="/money-level/art/props/fishing-rod.webp" alt="" draggable={false} />
           <i className="fishing-line" /><b className="fishing-bobber" />
         </span>
       </div>

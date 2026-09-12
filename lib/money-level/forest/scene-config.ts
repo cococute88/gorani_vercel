@@ -14,44 +14,44 @@ export interface ScenePlacement {
 }
 
 const TAX_CAMP_PLUS: SceneAsset = {
-  src: "/money-level/art/houses/tax-stage-10-15-camp-plus.png",
+  src: "/money-level/art/houses/tax-stage-10-15-camp-plus.webp",
   alt: "모닥불과 돗자리, 작은 생활 소품이 있는 소박한 야영지",
 };
 
 const TAX_SMALL_WHITE_TENT: SceneAsset = {
-  src: "/money-level/art/houses/tax-stage-15-20-small-white-tent.png",
+  src: "/money-level/art/houses/tax-stage-15-20-small-white-tent.webp",
   alt: "작은 하얀 천막과 모닥불이 있는 야영지",
 };
 
 const TAX_LARGE_WHITE_TENT: SceneAsset = {
-  src: "/money-level/art/houses/tax-stage-20-25-large-white-tent.png",
+  src: "/money-level/art/houses/tax-stage-20-25-large-white-tent.webp",
   alt: "큰 하얀 천막과 간단한 침구가 있는 야영지",
 };
 
 const TAX_COLORED_TENT: SceneAsset = {
-  src: "/money-level/art/houses/tax-stage-25-30-colored-tent.png",
+  src: "/money-level/art/houses/tax-stage-25-30-colored-tent.webp",
   alt: "노란 천막과 모닥불, 풍성한 생활 소품이 있는 캠프",
 };
 
 const BROKERAGE_SMALL_CABIN: SceneAsset = {
-  src: "/money-level/art/houses/brokerage-stage-35-40-small-cabin.png",
+  src: "/money-level/art/houses/brokerage-stage-35-40-small-cabin.webp",
   alt: "꽃과 초록 지붕이 있는 작은 오두막",
 };
 
 const BROKERAGE_EXPANDED_CABIN: SceneAsset = {
-  src: "/money-level/art/houses/brokerage-stage-40-45-expanded-cabin-alpha.png",
+  src: "/money-level/art/houses/brokerage-stage-40-45-expanded-cabin-alpha.webp",
   alt: "꽃과 초록 지붕이 있는 확장 오두막",
   composite: "alpha",
 };
 
 const BROKERAGE_PROPER_HOUSE: SceneAsset = {
-  src: "/money-level/art/houses/brokerage-stage-45-50-proper-house.png",
+  src: "/money-level/art/houses/brokerage-stage-45-50-proper-house.webp",
   alt: "넓은 현관과 정원이 있는 정식 초록 지붕 주택",
 };
 
 export const FOREST_SCENE = {
   background: {
-    src: "/money-level/art/background/cozy-forest-base.png",
+    src: "/money-level/art/background/cozy-forest-base.webp",
     alt: "민트빛 산과 꽃, 오솔길, 연못이 있는 따뜻한 숲",
   },
   backgroundPosition: {
@@ -73,7 +73,7 @@ export const FOREST_SCENE = {
   props: {
     dockConnector: {
       asset: {
-        src: "/money-level/art/props/dock-connector.png",
+        src: "/money-level/art/props/dock-connector.webp",
         alt: "육지와 연못 데크를 잇는 짧은 목재 연결부",
         composite: "alpha",
       },

@@ -158,7 +158,10 @@ export default function MoneyLevelForest() {
           <section className="forest-card" aria-label="곰라니 머니레벨 숲">
             <header className="topbar">
               <div className="brand-lockup"><span className="brand-mark" aria-hidden="true">♧</span><div><p>나의 작은 자산 숲</p><h1>곰라니 머니레벨</h1></div></div>
-              <button className="icon-button" type="button" aria-label="설정 열기" onClick={() => setSettingsOpen(true)}>⚙</button>
+              <div className="topbar-actions">
+                <Link href="/portfolio" className="icon-button icon-button-back" aria-label="포트폴리오로 돌아가기" title="포트폴리오로 돌아가기"><span aria-hidden="true">←</span></Link>
+                <button className="icon-button" type="button" aria-label="설정 열기" onClick={() => setSettingsOpen(true)}>⚙</button>
+              </div>
             </header>
             <section className="money-hud" aria-label="금융 상태" aria-busy={!storageReady || live.syncStatus === "loading"}>
               <div className="retirement-card">
@@ -183,7 +186,7 @@ export default function MoneyLevelForest() {
               />
             ) : (
               <section className="forest-scene forest-empty" aria-label="포트폴리오 데이터 대기 중">
-                <div className="scene-illustration" aria-hidden="true"><img src="/money-level/art/background/cozy-forest-base.png" alt="" draggable={false} /></div>
+                <div className="scene-illustration" aria-hidden="true"><img src="/money-level/art/background/cozy-forest-base.webp" alt="" draggable={false} /></div>
                 <div className="scene-tint" aria-hidden="true" />
                 <div className="empty-forest-copy" role="status"><strong>{live.syncStatus === "loading" ? "숲을 불러오는 중이에요…" : "포트폴리오 데이터를 아직 불러오지 못했어요."}</strong><Link href="/portfolio">포트폴리오 보기</Link></div>
               </section>
