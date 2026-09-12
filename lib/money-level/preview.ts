@@ -1,7 +1,7 @@
 import type { MoneyLevelTimeOfDay, MoneyLevelWeather } from "./types";
 
 const PREVIEW_WEATHERS: readonly MoneyLevelWeather[] = ["sunny", "cloudy", "rain", "thunderstorm"];
-const PREVIEW_TIMES: readonly MoneyLevelTimeOfDay[] = ["morning", "day", "evening", "night"];
+const PREVIEW_TIMES: readonly MoneyLevelTimeOfDay[] = ["morning", "am", "pm", "evening", "night"];
 
 export type MoneyLevelPreviewOverrides = {
   weather: MoneyLevelWeather | null;

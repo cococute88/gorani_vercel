@@ -1,4 +1,4 @@
-import type { MoneyLevelTimeOfDay, MoneyLevelWeather } from "./types";
+import type { MoneyLevelTimeOfDay, MoneyLevelWeather, MoneyLevelWindIntensity } from "./types";
 
 export function hashMoneyLevelDate(dateKey: string): number {
   let hash = 2166136261;
@@ -22,8 +22,15 @@ export const resolveMoneyLevelWeather = resolveMoneyLevelSeededWeather;
 
 export function resolveMoneyLevelTimeOfDay(date: Date): MoneyLevelTimeOfDay {
   const hour = date.getHours();
-  if (hour >= 6 && hour < 10) return "morning";
-  if (hour >= 10 && hour < 17) return "day";
-  if (hour >= 17 && hour < 20) return "evening";
+  if (hour >= 5 && hour < 9) return "morning";
+  if (hour >= 9 && hour < 12) return "am";
+  if (hour >= 12 && hour < 16) return "pm";
+  if (hour >= 16 && hour < 19) return "evening";
   return "night";
+}
+
+export function resolveMoneyLevelWindIntensity(weather: MoneyLevelWeather): MoneyLevelWindIntensity {
+  if (weather === "thunderstorm") return "strong";
+  if (weather === "cloudy" || weather === "rain") return "breeze";
+  return "none";
 }

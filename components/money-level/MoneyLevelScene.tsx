@@ -19,6 +19,7 @@ import { FISHING_VISUAL_CONFIG, type SemanticActivityZone } from "@/lib/money-le
 import { perspectiveScale, type ScenePoint } from "@/lib/money-level/forest/navigation";
 import { FOREST_SCENE, HOUSE_ART_FAMILY } from "@/lib/money-level/forest/scene-config";
 import type { CharacterId, CharacterState } from "@/lib/money-level/forest/character-types";
+import { resolveMoneyLevelWindIntensity } from "@/lib/money-level/weather";
 import { SpineStage, type BoneScreenPoint } from "./runtime/spine-stage";
 
 const MOBILE_BREAKPOINT = 560;
@@ -80,6 +81,8 @@ export default function MoneyLevelScene({
     const initialization = new AbortController();
     let stage: SpineStage | null = null;
     let interactionTimer = 0;
+    let lightningTimer = 0;
+    let lightningResetTimer = 0;
     const cleanupListeners: Array<() => void> = [];
     const mobile = () => window.innerWidth <= MOBILE_BREAKPOINT;
     const states: Record<CharacterId, CharacterState> = {
@@ -95,6 +98,21 @@ export default function MoneyLevelScene({
     activeRuntimeCount += 1;
     stageElement.dataset.activeRuntimeCount = String(activeRuntimeCount);
     setCharacterError(false);
+
+    const lightning = scene.querySelector<HTMLElement>(".lightning-layer");
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const scheduleLightning = () => {
+      if (weather !== "thunderstorm" || reducedMotion || !lightning) return;
+      lightningTimer = window.setTimeout(() => {
+        lightning.dataset.flashCount = String(Number(lightning.dataset.flashCount ?? "0") + 1);
+        lightning.classList.add("is-flashing");
+        lightningResetTimer = window.setTimeout(() => {
+          lightning.classList.remove("is-flashing");
+          scheduleLightning();
+        }, 620);
+      }, 15_000 + Math.random() * 15_000);
+    };
+    scheduleLightning();
 
     const worldPlacement = (id: CharacterId) => {
       const viewportHeight = 270;
@@ -305,6 +323,9 @@ export default function MoneyLevelScene({
       cancelled = true;
       initialization.abort();
       window.clearInterval(interactionTimer);
+      window.clearTimeout(lightningTimer);
+      window.clearTimeout(lightningResetTimer);
+      lightning?.classList.remove("is-flashing");
       if (dragSession) window.clearTimeout(dragSession.timer);
       cleanupListeners.forEach((cleanup) => cleanup());
       controllers.gorani.stop();
@@ -338,10 +359,15 @@ export default function MoneyLevelScene({
         </div>
       </div>
       <div className="scene-tint" aria-hidden="true" />
+      <div className="water-reflection-layer" aria-hidden="true" />
+      <div className="world-lighting-layer" aria-hidden="true" />
       <div className="weather-atmosphere" aria-hidden="true" />
       {characterError ? <p className="character-fallback" role="status">캐릭터 표시를 불러오지 못했어요.</p> : null}
       <div className="character-interaction-layer">
         <CharacterAnchor id="gorani" layer="hit" /><CharacterAnchor id="daramji" layer="hit" />
+      </div>
+      <div className={`wind-layer wind-${resolveMoneyLevelWindIntensity(weather)}`} aria-hidden="true">
+        {Array.from({ length: 10 }, (_, index) => <i key={index} style={{ "--i": index } as CSSProperties} />)}
       </div>
       <div className="rain-layer" aria-hidden="true">{Array.from({ length: 36 }, (_, index) => <i key={index} style={{ "--i": index } as CSSProperties} />)}</div>
       <div className="lightning-layer" aria-hidden="true" />
@@ -397,4 +423,4 @@ function CharacterAnchor({ id, layer }: { id: CharacterId; layer: "shadow" | "hi
 
 function weatherLabel(value: MoneyLevelWeather): string { return ({ sunny: "맑음", cloudy: "흐림", rain: "비", thunderstorm: "천둥번개" } as const)[value]; }
 function weatherIcon(value: MoneyLevelWeather): string { return ({ sunny: "☀", cloudy: "☁", rain: "☂", thunderstorm: "ϟ" } as const)[value]; }
-function timeLabel(value: MoneyLevelTimeOfDay): string { return ({ morning: "아침", day: "낮", evening: "저녁", night: "밤" } as const)[value]; }
+function timeLabel(value: MoneyLevelTimeOfDay): string { return ({ morning: "아침", am: "오전", pm: "오후", evening: "저녁", night: "밤" } as const)[value]; }

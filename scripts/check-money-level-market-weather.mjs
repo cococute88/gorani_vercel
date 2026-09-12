@@ -34,6 +34,10 @@ const {
   moneyLevelPreviewOverridesEnabled,
   parseMoneyLevelPreviewOverrides,
 } = require("../lib/money-level/preview.ts");
+const {
+  resolveMoneyLevelTimeOfDay,
+  resolveMoneyLevelWindIntensity,
+} = require("../lib/money-level/weather.ts");
 
 for (const [changePct, expected] of [
   [2, "sunny"],
@@ -92,14 +96,40 @@ assert.equal(selectLatestCompletedSessionCloses(weekendRows, fridaySession.endEp
 assert.equal(buildMoneyLevelMarketWeatherData(null, new Date().toISOString()), null, "missing sessions must not fabricate weather");
 assert.throws(() => resolveMoneyLevelMarketWeather(Number.NaN), RangeError, "malformed change must be rejected");
 
+for (const [hour, minute, expected] of [
+  [4, 59, "night"],
+  [5, 0, "morning"],
+  [8, 59, "morning"],
+  [9, 0, "am"],
+  [11, 59, "am"],
+  [12, 0, "pm"],
+  [15, 59, "pm"],
+  [16, 0, "evening"],
+  [18, 59, "evening"],
+  [19, 0, "night"],
+]) {
+  assert.equal(
+    resolveMoneyLevelTimeOfDay(new Date(2026, 8, 12, hour, minute)),
+    expected,
+    `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")} must resolve to ${expected}`,
+  );
+}
+
+assert.equal(resolveMoneyLevelWindIntensity("sunny"), "none");
+assert.equal(resolveMoneyLevelWindIntensity("cloudy"), "breeze");
+assert.equal(resolveMoneyLevelWindIntensity("rain"), "breeze");
+assert.equal(resolveMoneyLevelWindIntensity("thunderstorm"), "strong");
+
 assert.equal(moneyLevelPreviewOverridesEnabled({ nodeEnv: "development" }), true, "local development must allow QA overrides");
 assert.equal(moneyLevelPreviewOverridesEnabled({ nodeEnv: "production", vercelEnv: "preview" }), true, "Vercel Preview must allow QA overrides");
 assert.equal(moneyLevelPreviewOverridesEnabled({ nodeEnv: "production", vercelEnv: "production" }), false, "Production must reject QA overrides");
 assert.deepEqual(
-  parseMoneyLevelPreviewOverrides("?weather=rain&time=night&weatherdebug=1", true),
-  { weather: "rain", time: "night", debug: true },
+  parseMoneyLevelPreviewOverrides("?weather=rain&time=evening&weatherdebug=1", true),
+  { weather: "rain", time: "evening", debug: true },
   "weather and time overrides must compose",
 );
+assert.equal(parseMoneyLevelPreviewOverrides("?time=am", true).time, "am", "AM preview must be accepted");
+assert.equal(parseMoneyLevelPreviewOverrides("?time=pm", true).time, "pm", "PM preview must be accepted");
 assert.deepEqual(
   parseMoneyLevelPreviewOverrides("?weather=thunderstorm&time=evening&weatherdebug=1", false),
   { weather: null, time: null, debug: false },
@@ -114,6 +144,7 @@ assert.deepEqual(
 const source = fs.readFileSync(path.join(rootDir, "lib/server/money-level-weather-source.ts"), "utf8");
 const hook = fs.readFileSync(path.join(rootDir, "lib/money-level/use-money-level-market-weather.ts"), "utf8");
 const page = fs.readFileSync(path.join(rootDir, "app/money-level/page.tsx"), "utf8");
+const scene = fs.readFileSync(path.join(rootDir, "components/money-level/MoneyLevelScene.tsx"), "utf8");
 const css = fs.readFileSync(path.join(rootDir, "components/money-level/money-level.css"), "utf8");
 assert.ok(source.includes("fetchYahooChart"), "Money Level weather must reuse the existing Yahoo chart helper");
 assert.ok(source.includes("range: \"1m\"") && source.includes("events: \"history\""), "Money Level weather must use daily history");
@@ -124,6 +155,10 @@ assert.ok(hook.includes("parseMoneyLevelPreviewOverrides(window.location.search,
 assert.ok(!hook.includes("hostname"), "client must not guess Preview from its hostname");
 assert.ok(css.includes("--money-level-time-filter") && css.includes(".scene-world"), "time styling must target the complete visual world");
 assert.ok(!css.includes(".time-evening .house-art-image") && !css.includes(".time-night .house-art-image"), "time styling must not dim houses independently");
-assert.ok(css.includes("prefers-reduced-motion") && css.includes("pointer-events: none"), "weather overlays must be accessible and non-interactive");
+assert.ok(css.includes(".wind-breeze") && css.includes(".wind-strong"), "weather visuals must share one intensity-based wind system");
+assert.ok(scene.includes("15_000 + Math.random() * 15_000"), "lightning must use an irregular 15-30 second interval");
+assert.ok(css.includes("prefers-reduced-motion") && css.includes(".wind-layer, .moneyLevelRoot .lightning-layer{ display: none !important; }"), "reduced motion must disable leaves and lightning");
+assert.ok(css.includes("pointer-events: none"), "weather overlays must be non-interactive");
+assert.ok(![page, hook, scene, css].some((value) => value.includes("reference/")), "local visual references must never enter the runtime bundle");
 
 console.log("Money Level SPY market weather checks passed");
