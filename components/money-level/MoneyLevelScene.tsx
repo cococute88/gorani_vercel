@@ -323,6 +323,7 @@ export default function MoneyLevelScene({
     <section ref={sceneRef} className="forest-scene" aria-label="고라니와 다람쥐가 사는 숲">
       <div className="scene-illustration" aria-hidden="true"><img src={FOREST_SCENE.background.src} alt={FOREST_SCENE.background.alt} draggable={false} /></div>
       <div className="scene-tint" aria-hidden="true" />
+      <div className="weather-atmosphere" aria-hidden="true" />
       <div className="scene-prop-layer"><SceneProp /></div>
       <div className="house-place brokerage-house"><HouseVisual kind="brokerage" stage={brokerageStage} /></div>
       <div className="house-place tax-house"><HouseVisual kind="tax" stage={taxStage} /></div>
@@ -340,7 +341,8 @@ export default function MoneyLevelScene({
       <div className="character-interaction-layer">
         <CharacterAnchor id="gorani" layer="hit" /><CharacterAnchor id="daramji" layer="hit" />
       </div>
-      <div className="rain-layer" aria-hidden="true">{Array.from({ length: 22 }, (_, index) => <i key={index} style={{ "--i": index } as CSSProperties} />)}</div>
+      <div className="rain-layer" aria-hidden="true">{Array.from({ length: 36 }, (_, index) => <i key={index} style={{ "--i": index } as CSSProperties} />)}</div>
+      <div className="lightning-layer" aria-hidden="true" />
       <div className="scene-label-layer">
         <HouseLabel kind="brokerage" stage={brokerageStage} value={brokerageValue} displayLevel={brokerageLevel} />
         <HouseLabel kind="tax" stage={taxStage} value={taxValue} displayLevel={taxLevel} />
@@ -391,6 +393,6 @@ function CharacterAnchor({ id, layer }: { id: CharacterId; layer: "shadow" | "hi
   return <span className="character-anchor character-hit-anchor" data-character-anchor={id}><span className="character-hit-target" id={`${id}-drag-target`} role="button" aria-label={`${id === "gorani" ? "고라니" : "다람쥐"} 옮기기`} tabIndex={0} style={style} /></span>;
 }
 
-function weatherLabel(value: MoneyLevelWeather): string { return ({ clear: "맑음", cloudy: "흐림", rain: "비" } as const)[value]; }
-function weatherIcon(value: MoneyLevelWeather): string { return ({ clear: "☀", cloudy: "☁", rain: "☂" } as const)[value]; }
+function weatherLabel(value: MoneyLevelWeather): string { return ({ sunny: "맑음", cloudy: "흐림", rain: "비", thunderstorm: "천둥번개" } as const)[value]; }
+function weatherIcon(value: MoneyLevelWeather): string { return ({ sunny: "☀", cloudy: "☁", rain: "☂", thunderstorm: "ϟ" } as const)[value]; }
 function timeLabel(value: MoneyLevelTimeOfDay): string { return ({ morning: "아침", day: "낮", evening: "저녁", night: "밤" } as const)[value]; }

@@ -25,7 +25,8 @@ import {
   normalizeMoneyLevelSettings,
 } from "@/lib/money-level/settings";
 import { isSuspiciousMoneyLevelUpdatedAt } from "@/lib/money-level/portfolio-selector";
-import { resolveMoneyLevelTimeOfDay, resolveMoneyLevelWeather } from "@/lib/money-level/weather";
+import { useMoneyLevelMarketWeather, type MoneyLevelWeatherState } from "@/lib/money-level/use-money-level-market-weather";
+import { resolveMoneyLevelTimeOfDay } from "@/lib/money-level/weather";
 import type {
   HeartBreakdown,
   HpHeartBreakdown,
@@ -62,6 +63,7 @@ export default function MoneyLevelForest() {
   const [syncMessage, setSyncMessage] = useState<SyncMessage>(null);
   const [manualLiveAccepted, setManualLiveAccepted] = useState(false);
   const [now] = useState(() => new Date());
+  const marketWeather = useMoneyLevelMarketWeather(now);
 
   useEffect(() => {
     setSettings(readStoredSettings());
@@ -91,6 +93,7 @@ export default function MoneyLevelForest() {
 
   const liveIsAuthoritative = live.syncStatus === "applied" || manualLiveAccepted;
   const snapshot = lastGood && !liveIsAuthoritative ? lastGood : live.snapshot ?? lastGood;
+  const sceneSnapshot = snapshot ?? (marketWeather.fallback === "forced-preview" ? EMPTY_SNAPSHOT : null);
   const displaySnapshot = snapshot ?? EMPTY_SNAPSHOT;
   const calculations = useMemo(() => {
     const income = calculateMoneyLevelIncome(displaySnapshot, settings);
@@ -113,7 +116,7 @@ export default function MoneyLevelForest() {
     };
   }, [displaySnapshot, now, settings]);
 
-  const weather = resolveMoneyLevelWeather(now);
+  const weather = marketWeather.weather;
   const timeOfDay = resolveMoneyLevelTimeOfDay(now);
   const isCachedFallback = Boolean(lastGood) && !liveIsAuthoritative;
   const suspiciousUpdatedAt = snapshot ? isSuspiciousMoneyLevelUpdatedAt(snapshot.updatedAt) : false;
@@ -153,6 +156,8 @@ export default function MoneyLevelForest() {
         data-tax-level={snapshot ? calculations.taxLevel : ""}
         data-brokerage-stage={snapshot ? calculations.houses.brokerage.art : ""}
         data-tax-stage={snapshot ? calculations.houses.taxAdvantaged.art : ""}
+        data-weather={weather}
+        data-weather-fallback={String(marketWeather.fallback)}
       >
         <main className={`forest-shell weather-${weather} time-${timeOfDay}`}>
           <section className="forest-card" aria-label="곰라니 머니레벨 숲">
@@ -172,12 +177,12 @@ export default function MoneyLevelForest() {
               <div className="heart-row hp-row"><div className="hud-label"><span>HP</span><small>월 {formatWon(calculations.income.totalMonthlyIncome)}</small></div><div className="heart-groups"><HpGroup label="위탁" color="brokerage" breakdown={calculations.hearts.brokerage} /><HpGroup label="ISA" color="isa" breakdown={calculations.hearts.isa} /><HpGroup label="연금" color="pension" breakdown={calculations.hearts.pension} /></div></div>
               <div className="heart-row mp-row"><div className="hud-label"><span>MP</span><small>{(calculations.mp / 100_000_000).toFixed(1)}억원</small></div><div className="heart-groups"><HeartGroup label="전체 자산" color="mp" breakdown={calculations.hearts.mp} /></div></div>
             </section>
-            {snapshot ? (
+            {sceneSnapshot ? (
               <MoneyLevelScene
                 brokerageStage={calculations.houses.brokerage}
                 taxStage={calculations.houses.taxAdvantaged}
-                brokerageValue={snapshot.brokerageValue}
-                taxValue={snapshot.isaPrincipal + snapshot.pensionPrincipal}
+                brokerageValue={sceneSnapshot.brokerageValue}
+                taxValue={sceneSnapshot.isaPrincipal + sceneSnapshot.pensionPrincipal}
                 brokerageLevel={calculations.brokerageLevel}
                 taxLevel={calculations.taxLevel}
                 weather={weather}
@@ -192,6 +197,7 @@ export default function MoneyLevelForest() {
               </section>
             )}
             {isCachedFallback ? <div className="source-notice is-error">최신 데이터를 불러오지 못해 마지막 정상 숲을 보여드리고 있어요.</div> : null}
+            {marketWeather.debugEnabled ? <MarketWeatherDebug state={marketWeather} /> : null}
             <footer className="forest-footer">
               <div className={`sync-copy${syncMessage?.kind === "error" ? " is-error" : ""}`} title={suspiciousUpdatedAt ? "동기화 시간이 확인이 필요합니다." : undefined}><span className="status-dot" /><span>{syncMessage?.text ?? (snapshot ? <>마지막 동기화 <time>{formatSyncTime(snapshot.updatedAt)}</time>{suspiciousUpdatedAt ? " · 시간 확인 필요" : ""}</> : "동기화된 데이터 없음")}</span></div>
               <button className="sync-button" type="button" onClick={() => void handleSync()} disabled={refreshController.isRefreshing} aria-busy={refreshController.isRefreshing}><span aria-hidden="true">↻</span> 동기화</button>
@@ -250,3 +256,18 @@ function formatSyncTime(value: string): string {
   return Number.isFinite(parsed.getTime()) ? new Intl.DateTimeFormat("ko-KR", { hour: "2-digit", minute: "2-digit" }).format(parsed) : "시간 미상";
 }
 function sample<T>(values: readonly T[]): T { return values[Math.floor(Math.random() * values.length)]; }
+
+function MarketWeatherDebug({ state }: { state: MoneyLevelWeatherState }) {
+  const data = state.market;
+  return (
+    <aside className="weather-debug" aria-label="Market weather debug">
+      <b>Market weather debug</b>
+      <span>sessions: {data ? `${data.previousSessionDate} → ${data.latestSessionDate}` : "unavailable"}</span>
+      <span>closes: {data ? `${data.previousClose} → ${data.latestClose}` : "unavailable"}</span>
+      <span>change: {data ? `${data.changePct.toFixed(4)}%` : "unavailable"}</span>
+      <span>resolved: {data?.resolvedWeather ?? "unavailable"}</span>
+      <span>displayed: {state.weather}</span>
+      <span>source: {data?.source ?? "none"} · fallback: {String(state.fallback)}</span>
+    </aside>
+  );
+}

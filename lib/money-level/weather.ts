@@ -9,13 +9,16 @@ export function hashMoneyLevelDate(dateKey: string): number {
   return hash >>> 0;
 }
 
-export function resolveMoneyLevelWeather(date: Date): MoneyLevelWeather {
+export function resolveMoneyLevelSeededWeather(date: Date): MoneyLevelWeather {
   const key = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
   const roll = hashMoneyLevelDate(key) / 0x1_0000_0000;
-  if (roll < 0.6) return "clear";
+  if (roll < 0.6) return "sunny";
   if (roll < 0.85) return "cloudy";
   return "rain";
 }
+
+/** Backwards-compatible name for the deterministic market-data fallback. */
+export const resolveMoneyLevelWeather = resolveMoneyLevelSeededWeather;
 
 export function resolveMoneyLevelTimeOfDay(date: Date): MoneyLevelTimeOfDay {
   const hour = date.getHours();
