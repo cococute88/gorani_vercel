@@ -19,6 +19,7 @@ import {
   toTenthHearts,
 } from "@/lib/money-level/finance";
 import { resolveMoneyLevelPortfolioHouses } from "@/lib/money-level/house-stages";
+import { FOREST_TIME_BACKGROUNDS } from "@/lib/money-level/forest/scene-config";
 import { calculateRetirementProgress } from "@/lib/money-level/retirement";
 import {
   DEFAULT_MONEY_LEVEL_SETTINGS,
@@ -197,8 +198,7 @@ export default function MoneyLevelForest({ previewOverridesEnabled }: { previewO
               />
             ) : (
               <section className="forest-scene forest-empty" aria-label="포트폴리오 데이터 대기 중">
-                <div className="scene-illustration" aria-hidden="true"><img src="/money-level/art/background/cozy-forest-base.webp" alt="" draggable={false} /></div>
-                <div className="scene-tint" aria-hidden="true" />
+                <div className="scene-illustration" aria-hidden="true"><img src={FOREST_TIME_BACKGROUNDS[timeOfDay]} alt="" draggable={false} /></div>
                 <div className="empty-forest-copy" role="status"><strong>{live.syncStatus === "loading" ? "숲을 불러오는 중이에요…" : "포트폴리오 데이터를 아직 불러오지 못했어요."}</strong><Link href="/portfolio">포트폴리오 보기</Link></div>
               </section>
             )}

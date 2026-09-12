@@ -145,6 +145,7 @@ const source = fs.readFileSync(path.join(rootDir, "lib/server/money-level-weathe
 const hook = fs.readFileSync(path.join(rootDir, "lib/money-level/use-money-level-market-weather.ts"), "utf8");
 const page = fs.readFileSync(path.join(rootDir, "app/money-level/page.tsx"), "utf8");
 const scene = fs.readFileSync(path.join(rootDir, "components/money-level/MoneyLevelScene.tsx"), "utf8");
+const sceneConfig = fs.readFileSync(path.join(rootDir, "lib/money-level/forest/scene-config.ts"), "utf8");
 const css = fs.readFileSync(path.join(rootDir, "components/money-level/money-level.css"), "utf8");
 assert.ok(source.includes("fetchYahooChart"), "Money Level weather must reuse the existing Yahoo chart helper");
 assert.ok(source.includes("range: \"1m\"") && source.includes("events: \"history\""), "Money Level weather must use daily history");
@@ -153,11 +154,18 @@ assert.ok(hook.includes("lastKnown.resolvedWeather") && hook.includes("resolveMo
 assert.ok(page.includes("process.env.VERCEL_ENV") && page.includes("previewOverridesEnabled"), "server page must gate Vercel Preview overrides from deployment metadata");
 assert.ok(hook.includes("parseMoneyLevelPreviewOverrides(window.location.search, previewOverridesEnabled)"), "client overrides must use the server-provided gate");
 assert.ok(!hook.includes("hostname"), "client must not guess Preview from its hostname");
-assert.ok(css.includes("--money-level-time-filter") && css.includes(".scene-world"), "time styling must target the complete visual world");
+for (const time of ["morning", "am", "pm", "evening", "night"]) {
+  assert.ok(sceneConfig.includes(`forest-${time}.webp`), `${time} must have a pre-rendered background`);
+}
+assert.ok(!css.includes("--money-level-time-filter"), "runtime time tint must not double-grade pre-rendered backgrounds");
+assert.ok(scene.includes("BACKGROUND_CROSSFADE_MS = 800") && scene.includes("new Image()"), "time backgrounds must crossfade after loading the requested asset");
 assert.ok(!css.includes(".time-evening .house-art-image") && !css.includes(".time-night .house-art-image"), "time styling must not dim houses independently");
 assert.ok(css.includes(".wind-breeze") && css.includes(".wind-strong"), "weather visuals must share one intensity-based wind system");
+assert.ok(css.includes("money-level-leaf-breeze") && css.includes("translate3d(29vw,-20px") && css.includes("translate3d(57vw,34px"), "breeze leaves must follow a curved fluttering trajectory");
+assert.ok(scene.includes("rain-depth-") && scene.includes("Array.from({ length: 96 }") && css.includes("nth-child(n+65)") && css.includes("--rain-angle"), "rain must use varied multi-depth drops with denser storm reuse");
+assert.ok(scene.includes("pond-ripple-layer") && css.includes("money-level-pond-ripple"), "rain and storm must include pond-bounded ripples");
 assert.ok(scene.includes("15_000 + Math.random() * 15_000"), "lightning must use an irregular 15-30 second interval");
-assert.ok(css.includes("prefers-reduced-motion") && css.includes(".wind-layer, .moneyLevelRoot .lightning-layer{ display: none !important; }"), "reduced motion must disable leaves and lightning");
+assert.ok(css.includes("prefers-reduced-motion") && css.includes(".wind-layer, .moneyLevelRoot .pond-ripple-layer, .moneyLevelRoot .lightning-layer{ display: none !important; }"), "reduced motion must disable leaves, ripples, and lightning");
 assert.ok(css.includes("pointer-events: none"), "weather overlays must be non-interactive");
 assert.ok(![page, hook, scene, css].some((value) => value.includes("reference/")), "local visual references must never enter the runtime bundle");
 

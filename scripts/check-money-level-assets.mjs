@@ -32,7 +32,9 @@ const webpRenditions = pngMasters
   .filter((file) => file.startsWith("art/"))
   .map((file) => file.replace(/\.png$/, ".webp"));
 assert.equal(webpRenditions.length, 10, "Every environmental art PNG must have a WebP rendition");
-const required = [...pngMasters, ...webpRenditions];
+const timeBackgrounds = ["morning", "am", "pm", "evening", "night"]
+  .map((time) => `art/background/forest-${time}.webp`);
+const required = [...pngMasters, ...webpRenditions, ...timeBackgrounds];
 
 async function assertExactCase(relativePath) {
   let current = assetRoot;
@@ -76,6 +78,10 @@ for (const file of pngMasters) {
 for (const file of webpRenditions) {
   const publicUrl = `/money-level/${file}`;
   assert(scene.includes(publicUrl) || (file.endsWith("fishing-rod.webp") && (await readFile(path.join(root, "components", "money-level", "MoneyLevelScene.tsx"), "utf8")).includes(publicUrl)), `WebP rendition is not used at runtime: ${publicUrl}`);
+}
+for (const file of timeBackgrounds) {
+  const publicUrl = `/money-level/${file}`;
+  assert(scene.includes(publicUrl), `Time background is not mapped at runtime: ${publicUrl}`);
 }
 assert(!`${catalog}\n${scene}`.match(/\/money-level\/art\/[^"']+\.png/), "Runtime scene config must not load environmental PNG masters");
 assert(!`${catalog}\n${scene}`.includes("curation"), "Production config must not import curation assets");

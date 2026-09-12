@@ -17,12 +17,13 @@ import {
 } from "@/lib/money-level/forest/behavior";
 import { FISHING_VISUAL_CONFIG, type SemanticActivityZone } from "@/lib/money-level/forest/activity-zones";
 import { perspectiveScale, type ScenePoint } from "@/lib/money-level/forest/navigation";
-import { FOREST_SCENE, HOUSE_ART_FAMILY } from "@/lib/money-level/forest/scene-config";
+import { FOREST_SCENE, FOREST_TIME_BACKGROUNDS, HOUSE_ART_FAMILY } from "@/lib/money-level/forest/scene-config";
 import type { CharacterId, CharacterState } from "@/lib/money-level/forest/character-types";
 import { resolveMoneyLevelWindIntensity } from "@/lib/money-level/weather";
 import { SpineStage, type BoneScreenPoint } from "./runtime/spine-stage";
 
 const MOBILE_BREAKPOINT = 560;
+const BACKGROUND_CROSSFADE_MS = 800;
 let activeRuntimeCount = 0;
 
 type DebugCharacterState = {
@@ -343,7 +344,7 @@ export default function MoneyLevelScene({
   return (
     <section ref={sceneRef} className="forest-scene" aria-label="고라니와 다람쥐가 사는 숲">
       <div className="scene-world">
-        <div className="scene-illustration" aria-hidden="true"><img src={FOREST_SCENE.background.src} alt={FOREST_SCENE.background.alt} draggable={false} /></div>
+        <TimeBackground timeOfDay={timeOfDay} />
         <div className="scene-prop-layer"><SceneProp /></div>
         <div className="house-place brokerage-house"><HouseVisual kind="brokerage" stage={brokerageStage} /></div>
         <div className="house-place tax-house"><HouseVisual kind="tax" stage={taxStage} /></div>
@@ -358,8 +359,6 @@ export default function MoneyLevelScene({
           </span>
         </div>
       </div>
-      <div className="scene-tint" aria-hidden="true" />
-      <div className="water-reflection-layer" aria-hidden="true" />
       <div className="world-lighting-layer" aria-hidden="true" />
       <div className="weather-atmosphere" aria-hidden="true" />
       {characterError ? <p className="character-fallback" role="status">캐릭터 표시를 불러오지 못했어요.</p> : null}
@@ -369,7 +368,8 @@ export default function MoneyLevelScene({
       <div className={`wind-layer wind-${resolveMoneyLevelWindIntensity(weather)}`} aria-hidden="true">
         {Array.from({ length: 10 }, (_, index) => <i key={index} style={{ "--i": index } as CSSProperties} />)}
       </div>
-      <div className="rain-layer" aria-hidden="true">{Array.from({ length: 36 }, (_, index) => <i key={index} style={{ "--i": index } as CSSProperties} />)}</div>
+      <div className="rain-layer" aria-hidden="true">{Array.from({ length: 96 }, (_, index) => <i key={index} className={`rain-depth-${index % 3}`} style={rainDropStyle(index)} />)}</div>
+      <div className="pond-ripple-layer" aria-hidden="true">{POND_RIPPLES.map((ripple, index) => <i key={index} style={rippleStyle(ripple, index)} />)}</div>
       <div className="lightning-layer" aria-hidden="true" />
       <div className="scene-label-layer">
         <HouseLabel kind="brokerage" stage={brokerageStage} value={brokerageValue} displayLevel={brokerageLevel} />
@@ -379,6 +379,84 @@ export default function MoneyLevelScene({
       <p className="forest-phrase">{phrase}</p>
     </section>
   );
+}
+
+function TimeBackground({ timeOfDay }: { timeOfDay: MoneyLevelTimeOfDay }) {
+  const requestedSrc = FOREST_TIME_BACKGROUNDS[timeOfDay];
+  const activeSrcRef = useRef(requestedSrc);
+  const transitionTimerRef = useRef(0);
+  const frameRef = useRef(0);
+  const [activeSrc, setActiveSrc] = useState(requestedSrc);
+  const [previousSrc, setPreviousSrc] = useState<string | null>(null);
+  const [revealed, setRevealed] = useState(true);
+
+  useEffect(() => {
+    if (requestedSrc === activeSrcRef.current) return;
+    let cancelled = false;
+    const preload = new Image();
+    preload.decoding = "async";
+    preload.onload = () => {
+      if (cancelled) return;
+      window.clearTimeout(transitionTimerRef.current);
+      window.cancelAnimationFrame(frameRef.current);
+      setPreviousSrc(activeSrcRef.current);
+      activeSrcRef.current = requestedSrc;
+      setActiveSrc(requestedSrc);
+      setRevealed(false);
+      frameRef.current = window.requestAnimationFrame(() => {
+        frameRef.current = window.requestAnimationFrame(() => setRevealed(true));
+      });
+      transitionTimerRef.current = window.setTimeout(() => setPreviousSrc(null), BACKGROUND_CROSSFADE_MS);
+    };
+    preload.src = requestedSrc;
+    return () => {
+      cancelled = true;
+      preload.onload = null;
+    };
+  }, [requestedSrc]);
+
+  useEffect(() => () => {
+    window.clearTimeout(transitionTimerRef.current);
+    window.cancelAnimationFrame(frameRef.current);
+  }, []);
+
+  return (
+    <div className="scene-illustration" aria-hidden="true" data-background-src={activeSrc}>
+      {previousSrc ? <img className={`scene-background scene-background-previous${revealed ? " is-hidden" : ""}`} src={previousSrc} alt="" draggable={false} /> : null}
+      <img className={`scene-background scene-background-current${previousSrc && !revealed ? " is-entering" : ""}`} src={activeSrc} alt={FOREST_SCENE.background.alt} draggable={false} />
+    </div>
+  );
+}
+
+const POND_RIPPLES = [
+  { x: 68, y: 78, mobileX: 74, mobileY: 77 },
+  { x: 75, y: 72, mobileX: 84, mobileY: 70 },
+  { x: 83, y: 84, mobileX: 90, mobileY: 86 },
+  { x: 91, y: 74, mobileX: 96, mobileY: 74 },
+  { x: 78, y: 91, mobileX: 83, mobileY: 91 },
+  { x: 95, y: 89, mobileX: 97, mobileY: 90 },
+] as const;
+
+function rainDropStyle(index: number): CSSProperties {
+  const speed = 1.05 + (index % 7) * 0.11;
+  return {
+    "--rain-x": `${(index * 37 + 11) % 101}%`,
+    "--rain-delay": `${-((index * 0.173) % 2.7).toFixed(3)}s`,
+    "--rain-speed": `${speed.toFixed(2)}s`,
+    "--storm-rain-speed": `${(speed * 0.72).toFixed(2)}s`,
+    "--rain-angle": `${10 + (index % 5) * 1.4}deg`,
+  } as CSSProperties;
+}
+
+function rippleStyle(ripple: (typeof POND_RIPPLES)[number], index: number): CSSProperties {
+  const speed = 4.4 + (index % 3) * 0.9;
+  return {
+    "--ripple-x": `${ripple.x}%`, "--ripple-y": `${ripple.y}%`,
+    "--ripple-mobile-x": `${ripple.mobileX}%`, "--ripple-mobile-y": `${ripple.mobileY}%`,
+    "--ripple-delay": `${-(index * 1.37).toFixed(2)}s`,
+    "--ripple-speed": `${speed.toFixed(1)}s`,
+    "--storm-ripple-speed": `${(speed * 0.72).toFixed(1)}s`,
+  } as CSSProperties;
 }
 
 function SceneProp() {

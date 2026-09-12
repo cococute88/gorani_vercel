@@ -1,4 +1,5 @@
 import type { MoneyLevelHouseArt } from "../house-stages";
+import type { MoneyLevelTimeOfDay } from "../types";
 
 export interface SceneAsset {
   src: string;
@@ -12,6 +13,14 @@ export interface ScenePlacement {
   width: number;
   mobile: { x: number; y: number; width: number };
 }
+
+export const FOREST_TIME_BACKGROUNDS: Record<MoneyLevelTimeOfDay, string> = {
+  morning: "/money-level/art/background/forest-morning.webp",
+  am: "/money-level/art/background/forest-am.webp",
+  pm: "/money-level/art/background/forest-pm.webp",
+  evening: "/money-level/art/background/forest-evening.webp",
+  night: "/money-level/art/background/forest-night.webp",
+};
 
 const TAX_CAMP_PLUS: SceneAsset = {
   src: "/money-level/art/houses/tax-stage-10-15-camp-plus.webp",
