@@ -13,6 +13,7 @@ import { buildAssetClassAllocation } from "@/lib/asset-class-allocation";
 import { getAuthoritativeTotalAssetsKRW } from "@/lib/portfolio-authoritative-total";
 import { useResolvedTheme } from "@/components/theme/ThemeProvider";
 import { useMemo } from "react";
+import Link from "next/link";
 
 // 스크린샷 4: 다크모드 포트폴리오 현황 + 자산군 도넛
 export default function PortfolioPage() {
@@ -70,6 +71,27 @@ export default function PortfolioPage() {
         <section className="mb-6">
           <PortfolioSummary theme={theme} />
         </section>
+
+        <Link
+          href="/money-level"
+          aria-label="곰라니 머니레벨 숲 보러가기"
+          className="group mb-6 flex min-w-0 items-center justify-between gap-3 rounded-2xl border border-emerald-200/80 bg-gradient-to-r from-emerald-50 to-amber-50 px-4 py-3 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:border-emerald-800/60 dark:from-emerald-950/40 dark:to-amber-950/20 dark:hover:border-emerald-700"
+        >
+          <span className="flex min-w-0 items-center gap-3">
+            <span aria-hidden="true" className="text-xl">🌱</span>
+            <span className="min-w-0">
+              <span className="block text-[14px] font-extrabold text-emerald-950 dark:text-emerald-100">
+                곰라니 머니레벨
+              </span>
+              <span className="block text-[12px] text-emerald-800/75 dark:text-emerald-200/70">
+                내 자산이 자라는 숲 보러가기
+              </span>
+            </span>
+          </span>
+          <span aria-hidden="true" className="shrink-0 text-emerald-700 transition group-hover:translate-x-0.5 dark:text-emerald-300">
+            →
+          </span>
+        </Link>
 
         {/* 중간 차트 3개 */}
         <section className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
