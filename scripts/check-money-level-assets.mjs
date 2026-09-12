@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { access, readdir, readFile } from "node:fs/promises";
+import { access, readdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
 
 const root = process.cwd();
@@ -32,8 +32,10 @@ const webpRenditions = pngMasters
   .filter((file) => file.startsWith("art/"))
   .map((file) => file.replace(/\.png$/, ".webp"));
 assert.equal(webpRenditions.length, 10, "Every environmental art PNG must have a WebP rendition");
-const timeBackgrounds = ["morning", "am", "pm", "evening", "night"]
-  .map((time) => `art/background/forest-${time}.webp`);
+const timeBackgrounds = ["morning", "day", "evening", "night"]
+  .flatMap((time) => ["sunny", "cloudy", "rain", "storm"]
+    .map((weather) => `art/background/forest-${time}-${weather}.webp`));
+assert.equal(timeBackgrounds.length, 16, "Production must contain the complete 4x4 illustrated background matrix");
 const required = [...pngMasters, ...webpRenditions, ...timeBackgrounds];
 
 async function assertExactCase(relativePath) {
@@ -47,6 +49,10 @@ async function assertExactCase(relativePath) {
 }
 
 for (const file of required) await assertExactCase(file);
+for (const file of timeBackgrounds) {
+  const info = await stat(path.join(assetRoot, file));
+  assert(info.size > 100_000, `Illustrated background rendition is unexpectedly small: ${file}`);
+}
 
 async function listFiles(directory, prefix = "") {
   const entries = await readdir(directory, { withFileTypes: true });

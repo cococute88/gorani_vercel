@@ -23,8 +23,7 @@ export const resolveMoneyLevelWeather = resolveMoneyLevelSeededWeather;
 export function resolveMoneyLevelTimeOfDay(date: Date): MoneyLevelTimeOfDay {
   const hour = date.getHours();
   if (hour >= 5 && hour < 9) return "morning";
-  if (hour >= 9 && hour < 12) return "am";
-  if (hour >= 12 && hour < 16) return "pm";
+  if (hour >= 9 && hour < 16) return "day";
   if (hour >= 16 && hour < 19) return "evening";
   return "night";
 }

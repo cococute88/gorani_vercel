@@ -38,6 +38,10 @@ const {
   resolveMoneyLevelTimeOfDay,
   resolveMoneyLevelWindIntensity,
 } = require("../lib/money-level/weather.ts");
+const {
+  FOREST_WEATHER_BACKGROUNDS,
+  resolveForestBackground,
+} = require("../lib/money-level/forest/scene-config.ts");
 
 for (const [changePct, expected] of [
   [2, "sunny"],
@@ -100,10 +104,10 @@ for (const [hour, minute, expected] of [
   [4, 59, "night"],
   [5, 0, "morning"],
   [8, 59, "morning"],
-  [9, 0, "am"],
-  [11, 59, "am"],
-  [12, 0, "pm"],
-  [15, 59, "pm"],
+  [9, 0, "day"],
+  [11, 59, "day"],
+  [12, 0, "day"],
+  [15, 59, "day"],
   [16, 0, "evening"],
   [18, 59, "evening"],
   [19, 0, "night"],
@@ -125,21 +129,31 @@ assert.equal(moneyLevelPreviewOverridesEnabled({ nodeEnv: "production", vercelEn
 assert.equal(moneyLevelPreviewOverridesEnabled({ nodeEnv: "production", vercelEnv: "production" }), false, "Production must reject QA overrides");
 assert.deepEqual(
   parseMoneyLevelPreviewOverrides("?weather=rain&time=evening&weatherdebug=1", true),
-  { weather: "rain", time: "evening", debug: true },
+  { weather: "rain", time: "evening", debug: true, ambientEnabled: true },
   "weather and time overrides must compose",
 );
-assert.equal(parseMoneyLevelPreviewOverrides("?time=am", true).time, "am", "AM preview must be accepted");
-assert.equal(parseMoneyLevelPreviewOverrides("?time=pm", true).time, "pm", "PM preview must be accepted");
+assert.equal(parseMoneyLevelPreviewOverrides("?time=am", true).time, "day", "AM preview alias must resolve to day");
+assert.equal(parseMoneyLevelPreviewOverrides("?time=pm", true).time, "day", "PM preview alias must resolve to day");
+assert.equal(parseMoneyLevelPreviewOverrides("?ambient=off", true).ambientEnabled, false, "Preview ambient toggle must disable motion");
 assert.deepEqual(
   parseMoneyLevelPreviewOverrides("?weather=thunderstorm&time=evening&weatherdebug=1", false),
-  { weather: null, time: null, debug: false },
+  { weather: null, time: null, debug: false, ambientEnabled: true },
   "disabled Production gate must ignore every override",
 );
 assert.deepEqual(
   parseMoneyLevelPreviewOverrides("?weather=snow&time=midnight", true),
-  { weather: null, time: null, debug: false },
+  { weather: null, time: null, debug: false, ambientEnabled: true },
   "unknown preview values must be rejected",
 );
+
+for (const time of ["morning", "day", "evening", "night"]) {
+  for (const weather of ["sunny", "cloudy", "rain", "thunderstorm"]) {
+    const suffix = weather === "thunderstorm" ? "storm" : weather;
+    const expected = `/money-level/art/background/forest-${time}-${suffix}.webp`;
+    assert.equal(FOREST_WEATHER_BACKGROUNDS[time][weather], expected, `${time}/${weather} must map explicitly`);
+    assert.equal(resolveForestBackground(time, weather), expected, `${time}/${weather} resolver mismatch`);
+  }
+}
 
 const source = fs.readFileSync(path.join(rootDir, "lib/server/money-level-weather-source.ts"), "utf8");
 const hook = fs.readFileSync(path.join(rootDir, "lib/money-level/use-money-level-market-weather.ts"), "utf8");
@@ -154,18 +168,22 @@ assert.ok(hook.includes("lastKnown.resolvedWeather") && hook.includes("resolveMo
 assert.ok(page.includes("process.env.VERCEL_ENV") && page.includes("previewOverridesEnabled"), "server page must gate Vercel Preview overrides from deployment metadata");
 assert.ok(hook.includes("parseMoneyLevelPreviewOverrides(window.location.search, previewOverridesEnabled)"), "client overrides must use the server-provided gate");
 assert.ok(!hook.includes("hostname"), "client must not guess Preview from its hostname");
-for (const time of ["morning", "am", "pm", "evening", "night"]) {
-  assert.ok(sceneConfig.includes(`forest-${time}.webp`), `${time} must have a pre-rendered background`);
+for (const time of ["morning", "day", "evening", "night"]) {
+  for (const weather of ["sunny", "cloudy", "rain", "storm"]) {
+    assert.ok(sceneConfig.includes(`forest-${time}-${weather}.webp`), `${time}/${weather} must have a pre-rendered background`);
+  }
 }
-assert.ok(!css.includes("--money-level-time-filter"), "runtime time tint must not double-grade pre-rendered backgrounds");
-assert.ok(scene.includes("BACKGROUND_CROSSFADE_MS = 800") && scene.includes("new Image()"), "time backgrounds must crossfade after loading the requested asset");
-assert.ok(!css.includes(".time-evening .house-art-image") && !css.includes(".time-night .house-art-image"), "time styling must not dim houses independently");
+assert.ok(!css.includes("--money-level-time-filter") && !css.includes("--money-level-weather-filter") && !css.includes("weather-atmosphere"), "runtime must not double-grade completed backgrounds");
+assert.ok(scene.includes("BACKGROUND_CROSSFADE_MS = 800") && scene.includes("new Image()"), "backgrounds must crossfade after loading only the requested asset");
+assert.ok(css.includes("--money-level-time-ambient") && css.includes("--money-level-character-time-ambient"), "foreground objects and characters must share restrained scene lighting");
 assert.ok(css.includes(".wind-breeze") && css.includes(".wind-strong"), "weather visuals must share one intensity-based wind system");
-assert.ok(css.includes("money-level-leaf-breeze") && css.includes("translate3d(29vw,-20px") && css.includes("translate3d(57vw,34px"), "breeze leaves must follow a curved fluttering trajectory");
-assert.ok(scene.includes("rain-depth-") && scene.includes("Array.from({ length: 96 }") && css.includes("nth-child(n+65)") && css.includes("--rain-angle"), "rain must use varied multi-depth drops with denser storm reuse");
-assert.ok(scene.includes("pond-ripple-layer") && css.includes("money-level-pond-ripple"), "rain and storm must include pond-bounded ripples");
-assert.ok(scene.includes("15_000 + Math.random() * 15_000"), "lightning must use an irregular 15-30 second interval");
+assert.ok(css.includes("money-level-leaf-breeze") && css.includes("translate3d(28vw,-14px") && css.includes("translate3d(56vw,22px"), "breeze leaves must follow a curved fluttering trajectory");
+assert.ok(scene.includes("rain-depth-") && scene.includes("Array.from({ length: 48 }") && css.includes("nth-child(n+31)") && css.includes("--rain-angle"), "rain must use subtle multi-depth drops with denser storm reuse");
+assert.ok(scene.includes("pond-shimmer-layer") && scene.includes("pond-ripple-layer") && css.includes("@keyframes money-level-pond-shimmer") && css.includes("money-level-pond-ripple"), "pond motion must include subtle shimmer and weather ripples");
+assert.ok(scene.includes("sky-drift-layer") && css.includes("@keyframes money-level-sky-drift"), "cloudy weather must include a slow sky-only atmosphere drift");
+assert.ok(scene.includes("18_000 + Math.random() * 20_000") && !css.includes("money-level-lightning-bolt"), "lightning must be an irregular diffuse sky illumination without a bolt sprite");
 assert.ok(css.includes("prefers-reduced-motion") && css.includes(".wind-layer, .moneyLevelRoot .pond-ripple-layer, .moneyLevelRoot .lightning-layer{ display: none !important; }"), "reduced motion must disable leaves, ripples, and lightning");
+assert.ok(scene.includes("ambientEnabled") && css.includes(".ambient-off .ambient-motion-layer"), "Preview ambient-off comparison must disable every ambient layer");
 assert.ok(css.includes("pointer-events: none"), "weather overlays must be non-interactive");
 assert.ok(![page, hook, scene, css].some((value) => value.includes("reference/")), "local visual references must never enter the runtime bundle");
 

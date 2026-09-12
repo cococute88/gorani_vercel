@@ -22,11 +22,14 @@ assert(forest.includes("useMoneyLevelPortfolioSnapshot()"), "Route must consume 
 assert(hook.includes("usePortfolioFirestoreSnapshot()") && hook.includes("usePortfolioView()"), "Portfolio source must reuse the normalized /portfolio flow");
 assert(!forest.includes("/api/portfolio/latest-snapshot"), "Money Level UI must not create a raw fetch pipeline");
 assert(forest.includes("href=\"/portfolio\"") && forest.includes("포트폴리오로 돌아가기"), "Money Level route must provide a stable Portfolio back link");
-for (const time of ["morning", "am", "pm", "evening", "night"]) {
-  assert(sceneConfig.includes(`forest-${time}.webp`), `${time} must map to one pre-rendered WebP background`);
+for (const time of ["morning", "day", "evening", "night"]) {
+  for (const weather of ["sunny", "cloudy", "rain", "storm"]) {
+    assert(sceneConfig.includes(`forest-${time}-${weather}.webp`), `${time}/${weather} must map to one pre-rendered WebP background`);
+  }
 }
-assert(scene.includes("TimeBackground") && scene.includes("fishing-rod.webp"), "Forest environmental art must use time WebPs at runtime");
-assert(scene.includes("new Image()") && !scene.includes("Object.values(FOREST_TIME_BACKGROUNDS)"), "Time switching must preload only the requested background");
+assert(scene.includes("WeatherBackground") && scene.includes("resolveForestBackground") && scene.includes("fishing-rod.webp"), "Forest environmental art must resolve the time/weather WebP at runtime");
+assert(scene.includes("new Image()") && !scene.includes("Object.values(FOREST_WEATHER_BACKGROUNDS)"), "Scene switching must preload only the requested background");
+assert(forest.includes("ambientEnabled={marketWeather.ambientEnabled}"), "Forest must pass the Preview ambient toggle into the scene");
 assert(forest.includes("gorani.money-level.settings.v1"));
 assert(forest.includes("gorani.money-level.snapshot.v1"));
 assert(scene.includes("SpineStage.create") && scene.includes("createdStage.dispose()"));

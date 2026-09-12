@@ -19,7 +19,7 @@ import {
   toTenthHearts,
 } from "@/lib/money-level/finance";
 import { resolveMoneyLevelPortfolioHouses } from "@/lib/money-level/house-stages";
-import { FOREST_TIME_BACKGROUNDS } from "@/lib/money-level/forest/scene-config";
+import { resolveForestBackground } from "@/lib/money-level/forest/scene-config";
 import { calculateRetirementProgress } from "@/lib/money-level/retirement";
 import {
   DEFAULT_MONEY_LEVEL_SETTINGS,
@@ -165,8 +165,9 @@ export default function MoneyLevelForest({ previewOverridesEnabled }: { previewO
         data-weather={weather}
         data-weather-fallback={String(marketWeather.fallback)}
         data-time-of-day={timeOfDay}
+        data-ambient={marketWeather.ambientEnabled ? "on" : "off"}
       >
-        <main className={`forest-shell weather-${weather} time-${timeOfDay}`}>
+        <main className={`forest-shell weather-${weather} time-${timeOfDay}${marketWeather.ambientEnabled ? "" : " ambient-off"}`}>
           <section className="forest-card" aria-label="곰라니 머니레벨 숲">
             <header className="topbar">
               <div className="brand-lockup"><span className="brand-mark" aria-hidden="true">♧</span><div><p>나의 작은 자산 숲</p><h1>곰라니 머니레벨</h1></div></div>
@@ -194,11 +195,12 @@ export default function MoneyLevelForest({ previewOverridesEnabled }: { previewO
                 taxLevel={calculations.taxLevel}
                 weather={weather}
                 timeOfDay={timeOfDay}
+                ambientEnabled={marketWeather.ambientEnabled}
                 phrase={phrase}
               />
             ) : (
               <section className="forest-scene forest-empty" aria-label="포트폴리오 데이터 대기 중">
-                <div className="scene-illustration" aria-hidden="true"><img src={FOREST_TIME_BACKGROUNDS[timeOfDay]} alt="" draggable={false} /></div>
+                <div className="scene-illustration" aria-hidden="true"><img src={resolveForestBackground(timeOfDay, weather)} alt="" draggable={false} /></div>
                 <div className="empty-forest-copy" role="status"><strong>{live.syncStatus === "loading" ? "숲을 불러오는 중이에요…" : "포트폴리오 데이터를 아직 불러오지 못했어요."}</strong><Link href="/portfolio">포트폴리오 보기</Link></div>
               </section>
             )}

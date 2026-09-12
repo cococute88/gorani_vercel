@@ -1,6 +1,5 @@
 "use client";
-/* eslint-disable @next/next/no-img-element -- Phase 2 intentionally preserves approved PNG masters without Next image optimization. */
-/* eslint-disable @next/next/no-img-element -- approved PNG masters are intentionally unoptimized in this phase */
+/* eslint-disable @next/next/no-img-element -- approved art renditions intentionally keep the existing scene loading path */
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import type { MoneyLevelHouseStage } from "@/lib/money-level/house-stages";
@@ -17,7 +16,7 @@ import {
 } from "@/lib/money-level/forest/behavior";
 import { FISHING_VISUAL_CONFIG, type SemanticActivityZone } from "@/lib/money-level/forest/activity-zones";
 import { perspectiveScale, type ScenePoint } from "@/lib/money-level/forest/navigation";
-import { FOREST_SCENE, FOREST_TIME_BACKGROUNDS, HOUSE_ART_FAMILY } from "@/lib/money-level/forest/scene-config";
+import { FOREST_SCENE, HOUSE_ART_FAMILY, resolveForestBackground } from "@/lib/money-level/forest/scene-config";
 import type { CharacterId, CharacterState } from "@/lib/money-level/forest/character-types";
 import { resolveMoneyLevelWindIntensity } from "@/lib/money-level/weather";
 import { SpineStage, type BoneScreenPoint } from "./runtime/spine-stage";
@@ -56,6 +55,7 @@ export default function MoneyLevelScene({
   taxLevel,
   weather,
   timeOfDay,
+  ambientEnabled,
   phrase,
 }: {
   brokerageStage: MoneyLevelHouseStage;
@@ -66,6 +66,7 @@ export default function MoneyLevelScene({
   taxLevel: number;
   weather: MoneyLevelWeather;
   timeOfDay: MoneyLevelTimeOfDay;
+  ambientEnabled: boolean;
   phrase: string;
 }) {
   const sceneRef = useRef<HTMLElement>(null);
@@ -103,15 +104,15 @@ export default function MoneyLevelScene({
     const lightning = scene.querySelector<HTMLElement>(".lightning-layer");
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const scheduleLightning = () => {
-      if (weather !== "thunderstorm" || reducedMotion || !lightning) return;
+      if (weather !== "thunderstorm" || !ambientEnabled || reducedMotion || !lightning) return;
       lightningTimer = window.setTimeout(() => {
         lightning.dataset.flashCount = String(Number(lightning.dataset.flashCount ?? "0") + 1);
         lightning.classList.add("is-flashing");
         lightningResetTimer = window.setTimeout(() => {
           lightning.classList.remove("is-flashing");
           scheduleLightning();
-        }, 620);
-      }, 15_000 + Math.random() * 15_000);
+        }, 480);
+      }, 18_000 + Math.random() * 20_000);
     };
     scheduleLightning();
 
@@ -339,12 +340,13 @@ export default function MoneyLevelScene({
         delete window.__MONEY_LEVEL_DEBUG__;
       }
     };
-  }, [runtimeVersion, weather]);
+  }, [ambientEnabled, runtimeVersion, weather]);
 
   return (
-    <section ref={sceneRef} className="forest-scene" aria-label="고라니와 다람쥐가 사는 숲">
+    <section ref={sceneRef} className="forest-scene" data-ambient={ambientEnabled ? "on" : "off"} aria-label="고라니와 다람쥐가 사는 숲">
       <div className="scene-world">
-        <TimeBackground timeOfDay={timeOfDay} />
+        <WeatherBackground timeOfDay={timeOfDay} weather={weather} />
+        {ambientEnabled ? <div className="pond-shimmer-layer ambient-motion-layer" aria-hidden="true" /> : null}
         <div className="scene-prop-layer"><SceneProp /></div>
         <div className="house-place brokerage-house"><HouseVisual kind="brokerage" stage={brokerageStage} /></div>
         <div className="house-place tax-house"><HouseVisual kind="tax" stage={taxStage} /></div>
@@ -359,18 +361,20 @@ export default function MoneyLevelScene({
           </span>
         </div>
       </div>
-      <div className="world-lighting-layer" aria-hidden="true" />
-      <div className="weather-atmosphere" aria-hidden="true" />
+      <div className="practical-lighting-layer" aria-hidden="true" />
+      {ambientEnabled ? <div className="sky-drift-layer ambient-motion-layer" aria-hidden="true" /> : null}
       {characterError ? <p className="character-fallback" role="status">캐릭터 표시를 불러오지 못했어요.</p> : null}
       <div className="character-interaction-layer">
         <CharacterAnchor id="gorani" layer="hit" /><CharacterAnchor id="daramji" layer="hit" />
       </div>
-      <div className={`wind-layer wind-${resolveMoneyLevelWindIntensity(weather)}`} aria-hidden="true">
-        {Array.from({ length: 10 }, (_, index) => <i key={index} style={{ "--i": index } as CSSProperties} />)}
-      </div>
-      <div className="rain-layer" aria-hidden="true">{Array.from({ length: 96 }, (_, index) => <i key={index} className={`rain-depth-${index % 3}`} style={rainDropStyle(index)} />)}</div>
-      <div className="pond-ripple-layer" aria-hidden="true">{POND_RIPPLES.map((ripple, index) => <i key={index} style={rippleStyle(ripple, index)} />)}</div>
-      <div className="lightning-layer" aria-hidden="true" />
+      {ambientEnabled ? <>
+        <div className={`wind-layer wind-${resolveMoneyLevelWindIntensity(weather)} ambient-motion-layer`} aria-hidden="true">
+          {Array.from({ length: 8 }, (_, index) => <i key={index} style={{ "--i": index } as CSSProperties} />)}
+        </div>
+        <div className="rain-layer ambient-motion-layer" aria-hidden="true">{Array.from({ length: 48 }, (_, index) => <i key={index} className={`rain-depth-${index % 3}`} style={rainDropStyle(index)} />)}</div>
+        <div className="pond-ripple-layer ambient-motion-layer" aria-hidden="true">{POND_RIPPLES.map((ripple, index) => <i key={index} style={rippleStyle(ripple, index)} />)}</div>
+        <div className="lightning-layer ambient-motion-layer" aria-hidden="true" />
+      </> : null}
       <div className="scene-label-layer">
         <HouseLabel kind="brokerage" stage={brokerageStage} value={brokerageValue} displayLevel={brokerageLevel} />
         <HouseLabel kind="tax" stage={taxStage} value={taxValue} displayLevel={taxLevel} />
@@ -381,8 +385,8 @@ export default function MoneyLevelScene({
   );
 }
 
-function TimeBackground({ timeOfDay }: { timeOfDay: MoneyLevelTimeOfDay }) {
-  const requestedSrc = FOREST_TIME_BACKGROUNDS[timeOfDay];
+function WeatherBackground({ timeOfDay, weather }: { timeOfDay: MoneyLevelTimeOfDay; weather: MoneyLevelWeather }) {
+  const requestedSrc = resolveForestBackground(timeOfDay, weather);
   const activeSrcRef = useRef(requestedSrc);
   const transitionTimerRef = useRef(0);
   const frameRef = useRef(0);
@@ -429,33 +433,36 @@ function TimeBackground({ timeOfDay }: { timeOfDay: MoneyLevelTimeOfDay }) {
 }
 
 const POND_RIPPLES = [
-  { x: 68, y: 78, mobileX: 74, mobileY: 77 },
-  { x: 75, y: 72, mobileX: 84, mobileY: 70 },
-  { x: 83, y: 84, mobileX: 90, mobileY: 86 },
-  { x: 91, y: 74, mobileX: 96, mobileY: 74 },
-  { x: 78, y: 91, mobileX: 83, mobileY: 91 },
-  { x: 95, y: 89, mobileX: 97, mobileY: 90 },
+  { x: 62, y: 77, mobileX: 67, mobileY: 77, size: 16 },
+  { x: 74, y: 70, mobileX: 82, mobileY: 70, size: 21 },
+  { x: 86, y: 79, mobileX: 91, mobileY: 80, size: 14 },
+  { x: 93, y: 72, mobileX: 96, mobileY: 72, size: 19 },
+  { x: 79, y: 91, mobileX: 85, mobileY: 91, size: 17 },
+  { x: 95, y: 89, mobileX: 97, mobileY: 90, size: 13 },
+  { x: 68, y: 88, mobileX: 74, mobileY: 87, size: 12 },
+  { x: 88, y: 94, mobileX: 92, mobileY: 94, size: 18 },
 ] as const;
 
 function rainDropStyle(index: number): CSSProperties {
-  const speed = 1.05 + (index % 7) * 0.11;
+  const speed = 1.55 + (index % 7) * 0.14;
   return {
     "--rain-x": `${(index * 37 + 11) % 101}%`,
-    "--rain-delay": `${-((index * 0.173) % 2.7).toFixed(3)}s`,
+    "--rain-delay": `${-((index * 0.317) % 4.1).toFixed(3)}s`,
     "--rain-speed": `${speed.toFixed(2)}s`,
-    "--storm-rain-speed": `${(speed * 0.72).toFixed(2)}s`,
-    "--rain-angle": `${10 + (index % 5) * 1.4}deg`,
+    "--storm-rain-speed": `${(speed * 0.76).toFixed(2)}s`,
+    "--rain-angle": `${8 + (index % 5) * 1.2}deg`,
   } as CSSProperties;
 }
 
 function rippleStyle(ripple: (typeof POND_RIPPLES)[number], index: number): CSSProperties {
-  const speed = 4.4 + (index % 3) * 0.9;
+  const speed = 7.2 + (index % 4) * 1.05;
   return {
     "--ripple-x": `${ripple.x}%`, "--ripple-y": `${ripple.y}%`,
     "--ripple-mobile-x": `${ripple.mobileX}%`, "--ripple-mobile-y": `${ripple.mobileY}%`,
-    "--ripple-delay": `${-(index * 1.37).toFixed(2)}s`,
+    "--ripple-size": `${ripple.size}px`,
+    "--ripple-delay": `${-(index * 2.13).toFixed(2)}s`,
     "--ripple-speed": `${speed.toFixed(1)}s`,
-    "--storm-ripple-speed": `${(speed * 0.72).toFixed(1)}s`,
+    "--storm-ripple-speed": `${(speed * 0.7).toFixed(1)}s`,
   } as CSSProperties;
 }
 
@@ -501,4 +508,4 @@ function CharacterAnchor({ id, layer }: { id: CharacterId; layer: "shadow" | "hi
 
 function weatherLabel(value: MoneyLevelWeather): string { return ({ sunny: "맑음", cloudy: "흐림", rain: "비", thunderstorm: "천둥번개" } as const)[value]; }
 function weatherIcon(value: MoneyLevelWeather): string { return ({ sunny: "☀", cloudy: "☁", rain: "☂", thunderstorm: "ϟ" } as const)[value]; }
-function timeLabel(value: MoneyLevelTimeOfDay): string { return ({ morning: "아침", am: "오전", pm: "오후", evening: "저녁", night: "밤" } as const)[value]; }
+function timeLabel(value: MoneyLevelTimeOfDay): string { return ({ morning: "아침", day: "낮", evening: "저녁", night: "밤" } as const)[value]; }

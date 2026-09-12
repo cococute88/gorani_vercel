@@ -1,5 +1,5 @@
 import type { MoneyLevelHouseArt } from "../house-stages";
-import type { MoneyLevelTimeOfDay } from "../types";
+import type { MoneyLevelTimeOfDay, MoneyLevelWeather } from "../types";
 
 export interface SceneAsset {
   src: string;
@@ -14,13 +14,38 @@ export interface ScenePlacement {
   mobile: { x: number; y: number; width: number };
 }
 
-export const FOREST_TIME_BACKGROUNDS: Record<MoneyLevelTimeOfDay, string> = {
-  morning: "/money-level/art/background/forest-morning.webp",
-  am: "/money-level/art/background/forest-am.webp",
-  pm: "/money-level/art/background/forest-pm.webp",
-  evening: "/money-level/art/background/forest-evening.webp",
-  night: "/money-level/art/background/forest-night.webp",
+export const FOREST_BACKGROUND_FALLBACK = "/money-level/art/background/forest-day-sunny.webp";
+
+export const FOREST_WEATHER_BACKGROUNDS: Record<MoneyLevelTimeOfDay, Record<MoneyLevelWeather, string>> = {
+  morning: {
+    sunny: "/money-level/art/background/forest-morning-sunny.webp",
+    cloudy: "/money-level/art/background/forest-morning-cloudy.webp",
+    rain: "/money-level/art/background/forest-morning-rain.webp",
+    thunderstorm: "/money-level/art/background/forest-morning-storm.webp",
+  },
+  day: {
+    sunny: "/money-level/art/background/forest-day-sunny.webp",
+    cloudy: "/money-level/art/background/forest-day-cloudy.webp",
+    rain: "/money-level/art/background/forest-day-rain.webp",
+    thunderstorm: "/money-level/art/background/forest-day-storm.webp",
+  },
+  evening: {
+    sunny: "/money-level/art/background/forest-evening-sunny.webp",
+    cloudy: "/money-level/art/background/forest-evening-cloudy.webp",
+    rain: "/money-level/art/background/forest-evening-rain.webp",
+    thunderstorm: "/money-level/art/background/forest-evening-storm.webp",
+  },
+  night: {
+    sunny: "/money-level/art/background/forest-night-sunny.webp",
+    cloudy: "/money-level/art/background/forest-night-cloudy.webp",
+    rain: "/money-level/art/background/forest-night-rain.webp",
+    thunderstorm: "/money-level/art/background/forest-night-storm.webp",
+  },
 };
+
+export function resolveForestBackground(time: MoneyLevelTimeOfDay, weather: MoneyLevelWeather): string {
+  return FOREST_WEATHER_BACKGROUNDS[time]?.[weather] ?? FOREST_BACKGROUND_FALLBACK;
+}
 
 const TAX_CAMP_PLUS: SceneAsset = {
   src: "/money-level/art/houses/tax-stage-10-15-camp-plus.webp",

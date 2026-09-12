@@ -20,6 +20,7 @@ export type MoneyLevelWeatherState = {
   timeOfDay: MoneyLevelTimeOfDay;
   previewActive: boolean;
   debugEnabled: boolean;
+  ambientEnabled: boolean;
 };
 
 declare global {
@@ -49,13 +50,14 @@ export function useMoneyLevelMarketWeather(
     timeOfDay: fallbackTime,
     previewActive: false,
     debugEnabled: false,
+    ambientEnabled: true,
   }));
 
   useEffect(() => {
     let cancelled = false;
     const preview = parseMoneyLevelPreviewOverrides(window.location.search, previewOverridesEnabled);
     const forcedWeather = preview.weather;
-    const previewActive = Boolean(preview.weather || preview.time);
+    const previewActive = Boolean(preview.weather || preview.time || !preview.ambientEnabled);
     const lastKnown = readLastKnownWeather();
 
     setState((current) => forcedWeather
@@ -66,6 +68,7 @@ export function useMoneyLevelMarketWeather(
         timeOfDay: preview.time ?? fallbackTime,
         previewActive,
         debugEnabled: preview.debug,
+        ambientEnabled: preview.ambientEnabled,
       }
       : lastKnown
         ? {
@@ -75,12 +78,14 @@ export function useMoneyLevelMarketWeather(
           timeOfDay: preview.time ?? fallbackTime,
           previewActive,
           debugEnabled: preview.debug,
+          ambientEnabled: preview.ambientEnabled,
         }
         : {
           ...current,
           timeOfDay: preview.time ?? fallbackTime,
           previewActive,
           debugEnabled: preview.debug,
+          ambientEnabled: preview.ambientEnabled,
         });
 
     void (async () => {
@@ -102,6 +107,7 @@ export function useMoneyLevelMarketWeather(
             timeOfDay: preview.time ?? fallbackTime,
             previewActive,
             debugEnabled: preview.debug,
+            ambientEnabled: preview.ambientEnabled,
           });
         }
       } catch (error) {
