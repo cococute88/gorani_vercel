@@ -20,6 +20,8 @@ assert(forest.startsWith('"use client"'), "Interactive root must be a Client Com
 assert(forest.includes("useMoneyLevelPortfolioSnapshot()"), "Route must consume the Phase 1 normalized selector hook");
 assert(hook.includes("usePortfolioFirestoreSnapshot()") && hook.includes("usePortfolioView()"), "Portfolio source must reuse the normalized /portfolio flow");
 assert(!forest.includes("/api/portfolio/latest-snapshot"), "Money Level UI must not create a raw fetch pipeline");
+assert(forest.includes("href=\"/portfolio\"") && forest.includes("포트폴리오로 돌아가기"), "Money Level route must provide a stable Portfolio back link");
+assert(forest.includes("cozy-forest-base.webp") && scene.includes("fishing-rod.webp"), "Forest environmental art must use WebP at runtime");
 assert(forest.includes("gorani.money-level.settings.v1"));
 assert(forest.includes("gorani.money-level.snapshot.v1"));
 assert(scene.includes("SpineStage.create") && scene.includes("createdStage.dispose()"));

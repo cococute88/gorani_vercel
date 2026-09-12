@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { fetchMarketPayload, type BriefingItem, type MarketPayload } from "@/lib/market-data";
 import { DEFAULT_DETAIL_RANGE, INDEX_DETAIL_DEFS, type IndexDef } from "@/lib/market-index";
 
@@ -114,7 +115,7 @@ export default function PortfolioMarketIndicatorStrip({ theme = "light" }: Props
         <StatusText payload={payload} loading={loading} />
       </div>
       {showCards ? (
-        <div className="no-scrollbar -mx-4 flex min-w-0 gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">
+        <div className="no-scrollbar -mx-4 flex min-w-0 gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0 min-[1600px]:flex-nowrap">
           {ordered.map((item) => {
             const unavailable = item.changePct === null;
             const color = unavailable ? undefined : item.up ? UP : DOWN;
@@ -143,6 +144,15 @@ export default function PortfolioMarketIndicatorStrip({ theme = "light" }: Props
               </button>
             );
           })}
+          <Link
+            href="/money-level"
+            aria-label="곰라니 머니레벨 열기"
+            title="곰라니 머니레벨"
+            className={`hidden w-[120px] shrink-0 flex-col items-center justify-center rounded-xl border px-3 py-2 text-center shadow-sm transition hover:border-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 min-[1600px]:flex ${cardCls}`}
+          >
+            <span aria-hidden="true" className="text-xl leading-none">🌲</span>
+            <span className={`mt-1 text-[11px] font-bold ${valueCls}`}>머니레벨</span>
+          </Link>
         </div>
       ) : null}
       {active && (
