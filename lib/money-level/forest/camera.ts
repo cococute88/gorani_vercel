@@ -13,7 +13,7 @@ export interface ForestCamera {
   maxX: number;
 }
 
-export const TOUCH_SLOP_PX = 12;
+export const TOUCH_SLOP_PX = 16;
 export const PAN_THRESHOLD_PX = 10;
 export const EDGE_ZONE_PX = 52;
 export const EDGE_MAX_SPEED_PX = 150;

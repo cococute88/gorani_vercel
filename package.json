@@ -69,6 +69,8 @@
     "check:money-level-activities": "npx --yes tsx scripts/check-money-level-activities.mts",
     "check:money-level-mobile": "npx --yes tsx scripts/check-money-level-mobile.mts",
     "check:money-level-mobile-browser": "node scripts/check-money-level-mobile-browser.mjs",
+    "check:money-level-house-lighting": "npx --yes tsx scripts/check-money-level-house-lighting.mts",
+    "check:money-level-follow-up-browser": "node scripts/check-money-level-follow-up-browser.mjs",
     "check:portfolio-overview-cleanup": "node scripts/check-portfolio-overview-cleanup.mjs",
     "check:portfolio-manager-summary-ux": "node scripts/check-portfolio-manager-summary-ux.mjs",
     "check:portfolio-market-indicators-live": "node scripts/check-portfolio-market-indicators-live.mjs",

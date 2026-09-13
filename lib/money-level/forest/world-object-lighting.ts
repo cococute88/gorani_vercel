@@ -11,8 +11,8 @@ type AmbientGrade = {
 };
 
 // The painted backgrounds and character Spine layer are intentionally excluded.
-// A shared time/weather grade gives houses, camps, and statues the same ambient
-// direction; small category brightness differences keep tiny statue details legible.
+// Preserve the approved statue grade. House/camp material calibration below
+// has a separate time base and weather modifier, with unchanged exposure.
 const TIME_LIGHTING: Record<MoneyLevelTimeOfDay, {
   houseBrightness: number;
   statueBrightness: number;
@@ -65,8 +65,32 @@ export function getWorldObjectLighting(time: MoneyLevelTimeOfDay, weather: Money
   const saturation = day.saturation * sky.saturation;
   const hue = day.hueRotateDeg + sky.hueRotateDeg;
   const rgb = day.rgb.map((channel, index) => Number((channel * sky.rgb[index]).toFixed(3)));
+  // House art needs its own material calibration. Keep the approved statue
+  // resolver byte-for-byte equivalent to the previous time/weather grade.
+  const houseTime = HOUSE_TIME_LIGHTING[time];
+  const houseSky = HOUSE_WEATHER_LIGHTING[weather];
   return {
-    house: grade(day.houseBrightness * sky.brightness, saturation, day.sepia, hue, day.contrast, rgb),
+    house: grade(day.houseBrightness * sky.brightness,
+      houseTime.saturation * houseSky.saturation, houseTime.sepia,
+      houseTime.hueRotateDeg, day.contrast,
+      houseTime.rgb.map((channel, index) => Number((channel * houseSky.rgb[index]).toFixed(3)))),
     statue: grade(day.statueBrightness * sky.brightness, saturation, day.sepia, hue, day.contrast, rgb),
   };
 }
+
+const HOUSE_TIME_LIGHTING = {
+  morning: { saturation: .96, sepia: .015, hueRotateDeg: 0, rgb: [.98, 1, 1.035] },
+  day: { saturation: 1, sepia: 0, hueRotateDeg: 0, rgb: [1, 1, 1] },
+  // Remove the former yellow sepia/blue suppression; a small red shift puts
+  // timber in sunset while keeping the roof green.
+  evening: { saturation: .82, sepia: 0, hueRotateDeg: -12, rgb: [1.08, .94, .97] },
+  // Cool the yellow-green daylight paint without recoloring warm windows.
+  night: { saturation: .78, sepia: 0, hueRotateDeg: 14, rgb: [.70, .88, 1.16] },
+} satisfies Record<MoneyLevelTimeOfDay, { saturation: number; sepia: number; hueRotateDeg: number; rgb: number[] }>;
+
+export const HOUSE_WEATHER_LIGHTING = {
+  sunny: { saturation: 1, rgb: [1, 1, 1] },
+  cloudy: { saturation: .80, rgb: [.98, 1, 1.015] },
+  rain: { saturation: .85, rgb: [.95, .99, 1.035] },
+  thunderstorm: { saturation: .76, rgb: [.91, .97, 1.045] },
+} satisfies Record<MoneyLevelWeather, { saturation: number; rgb: number[] }>;

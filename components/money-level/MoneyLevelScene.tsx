@@ -67,6 +67,7 @@ export default function MoneyLevelScene({
   weather,
   timeOfDay,
   ambientEnabled,
+  previewOverridesEnabled,
   leftStatue,
   rightStatue,
   phrase,
@@ -80,6 +81,7 @@ export default function MoneyLevelScene({
   weather: MoneyLevelWeather;
   timeOfDay: MoneyLevelTimeOfDay;
   ambientEnabled: boolean;
+  previewOverridesEnabled: boolean;
   leftStatue: MoneyLevelStatue;
   rightStatue: MoneyLevelStatue;
   phrase: string;
@@ -255,12 +257,48 @@ export default function MoneyLevelScene({
       grabOffset: ScenePoint;
       active: boolean;
       timer: number;
+      startedAt: number;
       target: HTMLElement;
     };
     let dragSession: DragSession | null = null;
     let panSession: { pointerId: number; startX: number; startY: number; cameraX: number; intent: GestureIntent } | null = null;
     let edgeFrame = 0;
     let edgeLastTime = 0;
+    const debugEnabled = previewOverridesEnabled && new URLSearchParams(window.location.search).get("interactionDebug") === "1";
+    const debugPanel = debugEnabled ? document.createElement("output") : null;
+    if (debugPanel) debugPanel.className = "interaction-debug";
+    let pointerCancelCount = 0;
+    let lastPointerType = "none";
+    let movementDistance = 0;
+    let pagePointerId: number | null = null;
+    const eventLog: string[] = [];
+    const renderInteractionDebug = () => {
+      const owner = dragSession?.active ? "CHARACTER_DRAG" : panSession?.intent === "horizontal" ? "FOREST_PAN" : pagePointerId !== null || panSession?.intent === "vertical" ? "PAGE" : "NONE";
+      scene.dataset.pointerOwner = owner;
+      scene.dataset.longPressTimer = dragSession && !dragSession.active ? "pending" : "off";
+      if (!debugPanel) return;
+      const elapsed = dragSession ? Math.round(performance.now() - dragSession.startedAt) : 0;
+      const captured = dragSession?.target.hasPointerCapture(dragSession.pointerId) ?? false;
+      debugPanel.textContent = `owner: ${owner}\nlongPressTimer: ${scene.dataset.longPressTimer} (${elapsed}ms / ${BEHAVIOR_CONFIG.longPressMs}ms)\npointerType: ${lastPointerType}\nmovement: ${movementDistance.toFixed(1)}px / ${TOUCH_SLOP_PX}px\npointercancel: ${pointerCancelCount}\ncapture: ${captured}\ncameraX: ${cameraRef.current.x.toFixed(1)}\ngrabbed: ${dragSession?.active ? dragSession.id : "none"}\n${eventLog.join("\n")}`;
+    };
+    if (debugPanel) {
+      scene.append(debugPanel);
+      const trace = (event: Event) => {
+        if (event instanceof PointerEvent) {
+          lastPointerType = event.pointerType;
+          if (event.type === "pointercancel") pointerCancelCount += 1;
+        }
+        const target = event.target instanceof HTMLElement ? event.target.id || event.target.className : "unknown";
+        eventLog.push(`${Math.round(performance.now())} ${event.type} ${target} cancelable=${event.cancelable}`);
+        if (eventLog.length > 6) eventLog.shift();
+        queueMicrotask(renderInteractionDebug);
+      };
+      for (const type of ["pointerdown", "pointermove", "pointerup", "pointercancel", "gotpointercapture", "lostpointercapture", "touchstart", "touchmove", "touchend", "touchcancel"]) {
+        scene.addEventListener(type, trace, { capture: true, passive: true });
+        cleanupListeners.push(() => scene.removeEventListener(type, trace, true));
+      }
+      cleanupListeners.push(() => debugPanel.remove());
+    }
     const toScenePoint = (event: { clientX: number; clientY: number }): ScenePoint => {
       const bounds = scene.getBoundingClientRect();
       return screenToWorld({ x: event.clientX - bounds.left - scene.clientLeft, y: event.clientY - bounds.top - scene.clientTop }, cameraRef.current);
@@ -274,6 +312,7 @@ export default function MoneyLevelScene({
       camera.x = clampCameraX(camera, x);
       scene.style.setProperty("--forest-camera-translation", `${cameraTranslation(camera)}px`);
       scene.dataset.cameraX = String(camera.x);
+      renderInteractionDebug();
     };
     const autoPan = (now: number) => {
       if (!dragSession?.active) return;
@@ -291,6 +330,8 @@ export default function MoneyLevelScene({
     const activateDrag = () => {
       if (!dragSession || dragSession.active) return;
       dragSession.active = true;
+      window.clearTimeout(dragSession.timer);
+      pagePointerId = null;
       panSession = null;
       const point = toScenePoint(dragSession);
       dragSession.grabOffset = { x: positions[dragSession.id].x - point.x, y: positions[dragSession.id].y - point.y };
@@ -301,6 +342,7 @@ export default function MoneyLevelScene({
       controllers[dragSession.id].beginDrag();
       edgeLastTime = performance.now();
       edgeFrame = window.requestAnimationFrame(autoPan);
+      renderInteractionDebug();
     };
     const finishDrag = (event: PointerEvent) => {
       if (!dragSession || event.pointerId !== dragSession.pointerId) return;
@@ -318,6 +360,7 @@ export default function MoneyLevelScene({
       const finished = dragSession;
       dragSession = null;
       if (finished.target.hasPointerCapture(finished.pointerId)) finished.target.releasePointerCapture(finished.pointerId);
+      renderInteractionDebug();
     };
 
     for (const id of ["gorani", "daramji"] as const) {
@@ -325,27 +368,52 @@ export default function MoneyLevelScene({
       if (!target) continue;
       const contextMenu = (event: Event) => event.preventDefault();
       const pointerDown = (event: PointerEvent) => {
-        if (dragSession || (event.pointerType === "mouse" && event.button !== 0)) return;
-        dragSession = { id, pointerId: event.pointerId, pointerType: event.pointerType, startX: event.clientX, startY: event.clientY, clientX: event.clientX, clientY: event.clientY, grabOffset: { x: 0, y: 0 }, active: false, timer: 0, target };
+        if (!event.isPrimary || dragSession || panSession || (event.pointerType === "mouse" && event.button !== 0)) return;
+        event.stopPropagation();
+        pagePointerId = null;
+        lastPointerType = event.pointerType;
+        movementDistance = 0;
+        dragSession = { id, pointerId: event.pointerId, pointerType: event.pointerType, startX: event.clientX, startY: event.clientY, clientX: event.clientX, clientY: event.clientY, grabOffset: { x: 0, y: 0 }, active: false, timer: 0, startedAt: performance.now(), target };
+        // Capture the press, not just the eventual drag. Moving sprites and
+        // finger jitter must not change the target while the timer is pending.
+        try { target.setPointerCapture(event.pointerId); } catch { /* Untrusted QA pointer. */ }
         if (event.pointerType === "touch") dragSession.timer = window.setTimeout(activateDrag, BEHAVIOR_CONFIG.longPressMs);
         else activateDrag();
+        renderInteractionDebug();
       };
       const pointerMove = (event: PointerEvent) => {
         if (!dragSession || event.pointerId !== dragSession.pointerId) return;
         dragSession.clientX = event.clientX;
         dragSession.clientY = event.clientY;
         const distance = Math.hypot(event.clientX - dragSession.startX, event.clientY - dragSession.startY);
+        movementDistance = distance;
         if (!dragSession.active && dragSession.pointerType !== "touch" && distance >= BEHAVIOR_CONFIG.dragMoveThresholdPx) activateDrag();
-        if (!dragSession.active && dragSession.pointerType === "touch" && distance >= TOUCH_SLOP_PX) {
-          window.clearTimeout(dragSession.timer);
+        if (!dragSession.active && dragSession.pointerType === "touch" && distance > TOUCH_SLOP_PX) {
+          const pending = dragSession;
+          window.clearTimeout(pending.timer);
+          const intent = resolveGestureIntent(event.clientX - pending.startX, event.clientY - pending.startY);
           dragSession = null;
+          if (intent === "horizontal") panSession = { pointerId: event.pointerId, startX: pending.startX, startY: pending.startY, cameraX: cameraRef.current.x, intent };
+          else pagePointerId = event.pointerId;
+          if (pending.target.hasPointerCapture(event.pointerId)) pending.target.releasePointerCapture(event.pointerId);
+          renderInteractionDebug();
           return;
         }
         if (!dragSession?.active) return;
         event.preventDefault();
         controllers[dragSession.id].updateDrag(dragPoint(event));
+        renderInteractionDebug();
       };
+      // Pointer capture cannot veto browser scrolling. Use a target-scoped,
+      // explicitly non-passive touch listener while the press/drag owns input.
+      // Early intentional movement is released by pointerMove before touchMove.
+      const touchMove = (event: TouchEvent) => {
+        if (dragSession?.target === target && event.touches.length === 1 && event.cancelable) event.preventDefault();
+      };
+      const suppressClick = (event: MouseEvent) => { if (event.detail !== 0) event.preventDefault(); };
       target.addEventListener("contextmenu", contextMenu);
+      target.addEventListener("click", suppressClick);
+      target.addEventListener("touchmove", touchMove, { passive: false });
       target.addEventListener("pointerdown", pointerDown);
       window.addEventListener("pointermove", pointerMove, { passive: false });
       window.addEventListener("pointerup", finishDrag);
@@ -353,6 +421,8 @@ export default function MoneyLevelScene({
       target.addEventListener("lostpointercapture", finishDrag);
       cleanupListeners.push(() => {
         target.removeEventListener("contextmenu", contextMenu);
+        target.removeEventListener("click", suppressClick);
+        target.removeEventListener("touchmove", touchMove);
         target.removeEventListener("pointerdown", pointerDown);
         window.removeEventListener("pointermove", pointerMove);
         window.removeEventListener("pointerup", finishDrag);
@@ -362,23 +432,30 @@ export default function MoneyLevelScene({
     }
 
     const panDown = (event: PointerEvent) => {
-      if (dragSession || panSession || (event.pointerType === "mouse" && event.button !== 0)) return;
+      if (!event.isPrimary || dragSession || panSession || (event.pointerType === "mouse" && event.button !== 0)) return;
+      pagePointerId = null;
+      lastPointerType = event.pointerType;
       panSession = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, cameraX: cameraRef.current.x, intent: "pending" };
     };
     const panMove = (event: PointerEvent) => {
       if (!panSession || panSession.pointerId !== event.pointerId || dragSession?.active) return;
       const dx = event.clientX - panSession.startX, dy = event.clientY - panSession.startY;
+      movementDistance = Math.hypot(dx, dy);
       panSession.intent = resolveGestureIntent(dx, dy, panSession.intent);
       scene.dataset.gestureIntent = panSession.intent;
+      renderInteractionDebug();
       if (panSession.intent !== "horizontal") return;
       event.preventDefault();
       try { scene.setPointerCapture(event.pointerId); } catch { /* Untrusted QA pointer. */ }
       setCameraX(panSession.cameraX - dx);
     };
     const panEnd = (event: PointerEvent) => {
+      if (pagePointerId === event.pointerId) pagePointerId = null;
+      renderInteractionDebug();
       if (panSession?.pointerId !== event.pointerId) return;
       panSession = null;
       if (scene.hasPointerCapture(event.pointerId)) scene.releasePointerCapture(event.pointerId);
+      renderInteractionDebug();
     };
     scene.addEventListener("pointerdown", panDown);
     window.addEventListener("pointermove", panMove, { passive: false });
@@ -392,6 +469,7 @@ export default function MoneyLevelScene({
       window.removeEventListener("pointercancel", panEnd);
       scene.removeEventListener("lostpointercapture", panEnd);
     });
+    renderInteractionDebug();
 
     void SpineStage.create({
       container: stageElement,
@@ -469,7 +547,7 @@ export default function MoneyLevelScene({
         delete window.__MONEY_LEVEL_DEBUG__;
       }
     };
-  }, [ambientEnabled, runtimeVersion, weather]);
+  }, [ambientEnabled, previewOverridesEnabled, runtimeVersion, weather]);
 
   const statuePlacements = {
     left: statueSlotPlacement("left", sceneSize, sceneSize.mobile),
@@ -478,13 +556,16 @@ export default function MoneyLevelScene({
   const objectLighting = getWorldObjectLighting(timeOfDay, weather);
   const worldObjectStyle = {
     "--money-level-house-lighting": `${objectLighting.house.filter} url(#${lightingFilterId})`,
-    "--money-level-statue-lighting": `${objectLighting.statue.filter} url(#${lightingFilterId})`,
+    "--money-level-statue-lighting": `${objectLighting.statue.filter} url(#${lightingFilterId}-statue)`,
   } as CSSProperties;
 
   return (
     <section ref={sceneRef} className="forest-scene" data-ambient={ambientEnabled ? "on" : "off"} aria-label="고라니와 다람쥐가 사는 숲">
       <svg width="0" height="0" aria-hidden="true" style={{ position: "absolute" }}>
-        <defs><filter id={lightingFilterId} colorInterpolationFilters="sRGB"><feColorMatrix type="matrix" values={objectLighting.house.colorMatrix} /></filter></defs>
+        <defs>
+          <filter id={lightingFilterId} colorInterpolationFilters="sRGB"><feColorMatrix type="matrix" values={objectLighting.house.colorMatrix} /></filter>
+          <filter id={`${lightingFilterId}-statue`} colorInterpolationFilters="sRGB"><feColorMatrix type="matrix" values={objectLighting.statue.colorMatrix} /></filter>
+        </defs>
       </svg>
       <div className="scene-world" style={worldObjectStyle}>
         <WeatherBackground timeOfDay={timeOfDay} weather={weather} />

@@ -67,7 +67,7 @@ async function setup(width, touch) {
     await start(x, y);
     await page.waitForTimeout(120);
     if (jitter) await move(x + 6, y + 2);
-    assert.notEqual((await state())[id].phase, "dragging", "no early drag before 320ms");
+    assert.notEqual((await state())[id].phase, "dragging", "no early drag at 100ms");
     await page.waitForTimeout(245);
     assert.equal((await state())[id].phase, "dragging", `${id} trusted touch long press`);
     const held = (await state())[id].position;
@@ -281,7 +281,7 @@ try {
     await desktop.context.close();
   }
   assert.deepEqual(errors, [], "no browser runtime errors");
-  console.log(JSON.stringify({ results, screenshots: output, input: "Chrome CDP Input.dispatchTouchEvent: isTrusted=true, pointerType=touch; Android UA; 390px; 320ms timing" }, null, 2));
+  console.log(JSON.stringify({ results, screenshots: output, input: "Chrome CDP Input.dispatchTouchEvent: isTrusted=true, pointerType=touch; Android UA; 390px; held 345ms (280ms threshold); REAL DEVICE NOT RUN" }, null, 2));
 } finally {
   await browser.close();
 }
