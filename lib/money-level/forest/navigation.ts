@@ -1,6 +1,8 @@
 import type { CharacterId } from "./character-types";
 import { WAYPOINTS, type Waypoint } from "./forest-character-config";
-import { DOCK_ACCESS_POLYGON, DOCK_MAIN_POLYGON, DOCK_WAYPOINTS, projectForestPoint } from "./landmarks";
+import { BENCH_EXIT_MASTER, DOCK_ACCESS_POLYGON, DOCK_MAIN_POLYGON, DOCK_WAYPOINTS, FOREST_MASTER_SIZE, projectForestPoint } from "./landmarks";
+import { createForestCamera } from "./camera";
+import { STATUE_VIEW_GRASS } from "./statue-view";
 
 export type SceneLayout = "desktop" | "mobile";
 
@@ -14,6 +16,20 @@ let sceneViewport: { width: number; height: number } | null = null;
 /** Runtime projection for fixed art landmarks; null retains pure legacy unit-test coordinates. */
 export function setForestSceneViewport(viewport: { width: number; height: number } | null): void {
   sceneViewport = viewport;
+}
+
+export function clampWorldPoint(point: ScenePoint, layout: SceneLayout): ScenePoint {
+  if (!sceneViewport) return { x: Math.max(0, Math.min(100, point.x)), y: Math.max(0, Math.min(100, point.y)) };
+  const camera = createForestCamera(sceneViewport.width, sceneViewport.height, layout === "mobile");
+  return { x: Math.max(-camera.cropX / camera.width * 100, Math.min((camera.worldWidth - camera.cropX) / camera.width * 100, point.x)),
+    y: Math.max(0, Math.min(100, point.y)) };
+}
+
+/** Master-image point in normalized scene coordinates, including cover crop. */
+export function imagePointToScene(point: ScenePoint, layout: SceneLayout, offsetPx: ScenePoint = { x: 0, y: 0 }): ScenePoint {
+  if (!sceneViewport) return { x: (point.x + offsetPx.x) / FOREST_MASTER_SIZE.width * 100, y: (point.y + offsetPx.y) / FOREST_MASTER_SIZE.height * 100 };
+  const projected = projectForestPoint(point, sceneViewport, layout === "mobile");
+  return { x: (projected.x + offsetPx.x) / sceneViewport.width * 100, y: (projected.y + offsetPx.y) / sceneViewport.height * 100 };
 }
 
 function projectedDockPolygon(layout: SceneLayout, mainOnly = false): readonly ScenePoint[] | null {
@@ -101,6 +117,7 @@ export const NAVIGATION_GRAPH: Readonly<Record<string, readonly string[]>> = {
 };
 
 export function waypointPoint(waypoint: Waypoint, layout: SceneLayout): ScenePoint {
+  if (waypoint.id === "bench_exit") return imagePointToScene(BENCH_EXIT_MASTER, layout);
   if (sceneViewport && waypoint.id in DOCK_WAYPOINTS) {
     const source = DOCK_WAYPOINTS[waypoint.id as keyof typeof DOCK_WAYPOINTS][layout];
     const projected = projectForestPoint(source, sceneViewport, layout === "mobile");
@@ -111,6 +128,9 @@ export function waypointPoint(waypoint: Waypoint, layout: SceneLayout): ScenePoi
 }
 
 export function getWaypoint(id: string): Waypoint {
+  // Local post-bench idle anchor, not an unsafe shortcut through the house/fence
+  // into the roaming graph. A later drag can carry the character back to a path.
+  if (id === "bench_exit") return { ...getWaypoint("bench"), id, weight: 0 };
   const waypoint = WAYPOINTS.find((candidate) => candidate.id === id);
   if (!waypoint) throw new Error(`알 수 없는 waypoint: ${id}`);
   return waypoint;
@@ -123,10 +143,18 @@ export function perspectiveScale(y: number): number {
 }
 
 export function isPointSafe(point: ScenePoint, layout: SceneLayout, character: CharacterId): boolean {
+  // These curated master-local grass patches remain ordinary ground with no statue.
+  // Legacy percentage exclusions do not describe these crop-dependent landmarks.
+  if (sceneViewport && Object.values(STATUE_VIEW_GRASS).some((grass) => pointInPolygon(point, grass.map((p) => imagePointToScene(p, layout))))) return true;
   const regions = WALKABLE_REGIONS.filter((region) => pointInPolygon(point, region[layout].points));
   const projectedDock = projectedDockPolygon(layout);
   const inProjectedDock = Boolean(projectedDock && pointInPolygon(point, projectedDock));
-  if (regions.length === 0 && !inProjectedDock) return false;
+  // The baked left bench is outside the old roaming polygons. This narrow grass
+  // corridor lets an occupant step away before rejoining the existing path.
+  const benchGrass = [{ x: 332, y: 642 }, { x: 396, y: 642 }, { x: 396, y: 674 }, { x: 332, y: 674 }]
+    .map((source) => imagePointToScene(source, layout));
+  const inBenchAccess = sceneViewport !== null && pointInPolygon(point, benchGrass);
+  if (regions.length === 0 && !inProjectedDock && !inBenchAccess) return false;
   const allowedKinds = new Set(regions.flatMap((region) => region.allows ?? []));
   if (inProjectedDock) {
     allowedKinds.add("water");
@@ -135,7 +163,12 @@ export function isPointSafe(point: ScenePoint, layout: SceneLayout, character: C
     allowedKinds.add("label");
   }
   const clearance = CHARACTER_CLEARANCE[character];
-  return !EXCLUSION_ZONES.some((zone) => !allowedKinds.has(zone.kind) && pointIntersectsExpandedRect(point, zone[layout], clearance));
+  return !EXCLUSION_ZONES.some((zone) => {
+    // The legacy percentage fence box includes clear grass above the baked
+    // fence under wide vertical crops. This master-local patch is above it.
+    if (inBenchAccess && zone.id === "left-foreground-fence") return false;
+    return !allowedKinds.has(zone.kind) && pointIntersectsExpandedRect(point, zone[layout], clearance);
+  });
 }
 
 export function isPointInWalkableRegion(point: ScenePoint, layout: SceneLayout, regionId: string): boolean {

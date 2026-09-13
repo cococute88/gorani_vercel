@@ -14,7 +14,10 @@ export interface ActorPlacement {
   x: number;
   y: number;
   scale: number;
+  scaleY?: number;
   flipX?: boolean;
+  visualRotationDeg?: number;
+  rotationPivotBone?: string;
 }
 
 export interface BoneScreenPoint {

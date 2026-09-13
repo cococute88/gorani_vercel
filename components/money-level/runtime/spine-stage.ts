@@ -35,6 +35,7 @@ interface Actor {
   appliedLoop: boolean;
   setupHeadAngle: number;
   setupFaceAngle: number;
+  visualRootRotation: number;
 }
 
 export interface StageActorDefinition {
@@ -173,6 +174,7 @@ export class SpineStage {
         appliedLoop: definition.state.loop,
         setupHeadAngle: head.getWorldRotationX(),
         setupFaceAngle: face.getWorldRotationX(),
+        visualRootRotation: 0,
       };
     });
 
@@ -331,14 +333,37 @@ export class SpineStage {
       actor.animationState.update(delta * state.speed);
       actor.skeleton.update(delta * state.speed);
     }
+    const root = actor.skeleton.getRootBone();
+    if (!root) throw new Error(`${actor.id}: skeleton root missing`);
+    root.rotation -= actor.visualRootRotation;
+    actor.visualRootRotation = 0;
     actor.animationState.apply(actor.skeleton);
 
     const placement = definition.placement();
+    if (placement.scaleY && placement.scaleY < 1) {
+      // Neither shipped Spine rig contains a sit animation. Bend the two upper
+      // legs from the existing idle_front pose without adding a new asset.
+      const left = actor.skeleton.findBone("leg_L1");
+      const right = actor.skeleton.findBone("leg_R1");
+      if (left) left.rotation -= 48;
+      if (right) right.rotation += 48;
+    }
     actor.skeleton.x = placement.x;
     actor.skeleton.y = placement.y;
     actor.skeleton.scaleX = placement.scale * (placement.flipX ? -1 : 1);
-    actor.skeleton.scaleY = placement.scale;
+    actor.skeleton.scaleY = placement.scale * (placement.scaleY ?? 1);
     actor.skeleton.updateWorldTransform(Physics.update);
+    if (placement.visualRotationDeg) {
+      const pivot = actor.skeleton.findBone(placement.rotationPivotBone ?? "root") ?? root;
+      const before = { x: pivot.worldX, y: pivot.worldY };
+      // Screen degrees are clockwise; Spine is Y-up and mirroring reverses rotation.
+      actor.visualRootRotation = -placement.visualRotationDeg * (placement.flipX ? -1 : 1);
+      root.rotation += actor.visualRootRotation;
+      actor.skeleton.updateWorldTransform(Physics.update);
+      actor.skeleton.x += before.x - pivot.worldX;
+      actor.skeleton.y += before.y - pivot.worldY;
+      actor.skeleton.updateWorldTransform(Physics.update);
+    }
 
     const headSlot = actor.catalog.slots.find((slot) => slot.bone === actor.catalog.headBone);
     const faceSlot = actor.catalog.slots.find((slot) => slot.bone === actor.catalog.faceBone);

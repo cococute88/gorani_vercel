@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- approved art renditions intentionally keep the existing scene loading path */
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
 import type { MoneyLevelHouseStage } from "@/lib/money-level/house-stages";
 import type { MoneyLevelStatue, MoneyLevelTimeOfDay, MoneyLevelWeather } from "@/lib/money-level/types";
 import {
@@ -14,10 +14,13 @@ import {
   type ActorPosition,
   type CharacterPhase,
 } from "@/lib/money-level/forest/behavior";
-import { FISHING_VISUAL_CONFIG, type SemanticActivityZone } from "@/lib/money-level/forest/activity-zones";
+import { CharacterActivityCoordinator } from "@/lib/money-level/forest/activity-coordinator";
+import { GORANI_BENCH_POSE } from "@/lib/money-level/forest/character-pose";
+import { cameraTranslation, clampCameraX, createForestCamera, edgePanSpeed, resolveGestureIntent, screenToWorld, TOUCH_SLOP_PX, type ForestCamera, type GestureIntent } from "@/lib/money-level/forest/camera";
+import { FISHING_VISUAL_CONFIG, fishingRodGeometry, GORANI_BENCH_VISUAL_OFFSET_Y_PX, type SemanticActivityZone } from "@/lib/money-level/forest/activity-zones";
 import { brokerageLabelPoint, FISHING_BOBBER, fishingLineAngleDeg, projectForestPoint, statueSlotPlacement } from "@/lib/money-level/forest/landmarks";
 import { perspectiveScale, setForestSceneViewport, type ScenePoint } from "@/lib/money-level/forest/navigation";
-import { FOREST_SCENE, HOUSE_ART_FAMILY, resolveForestBackground } from "@/lib/money-level/forest/scene-config";
+import { FOREST_SCENE, HOUSE_ART_FAMILY, resolveForestBackground, TAX_HOUSE_OFFSET_Y_PX } from "@/lib/money-level/forest/scene-config";
 import { getWorldObjectLighting } from "@/lib/money-level/forest/world-object-lighting";
 import type { CharacterId, CharacterState } from "@/lib/money-level/forest/character-types";
 import { resolveMoneyLevelWindIntensity } from "@/lib/money-level/weather";
@@ -26,6 +29,9 @@ import { SpineStage, type BoneScreenPoint } from "./runtime/spine-stage";
 const MOBILE_BREAKPOINT = 560;
 const BACKGROUND_CROSSFADE_MS = 800;
 let activeRuntimeCount = 0;
+
+const benchVisualOffsetYPx = (id: CharacterId, phase: CharacterPhase | undefined) =>
+  id === "gorani" && phase === "bench-sit" ? GORANI_BENCH_VISUAL_OFFSET_Y_PX : 0;
 
 type DebugCharacterState = {
   animation: string;
@@ -40,8 +46,11 @@ declare global {
   interface Window {
     __MONEY_LEVEL_DEBUG__?: {
       activeRuntimeCount: () => number;
+      camera: () => ForestCamera;
       state: () => Record<CharacterId, DebugCharacterState>;
       startFishing: () => boolean;
+      startFishingAs: (id: CharacterId) => boolean;
+      startBenchSitting: (id: CharacterId) => boolean;
       startPondWatch: () => boolean;
       triggerMove: () => void;
     };
@@ -76,7 +85,13 @@ export default function MoneyLevelScene({
   phrase: string;
 }) {
   const sceneRef = useRef<HTMLElement>(null);
+  const lightingFilterId = `world-object-lighting-${useId().replace(/:/g, "")}`;
   const stageRef = useRef<HTMLDivElement>(null);
+  const cameraRef = useRef(createForestCamera(1320, 520, false));
+  const statuesRef = useRef({ left: leftStatue, right: rightStatue });
+  statuesRef.current = { left: leftStatue, right: rightStatue };
+  const refreshStatuesRef = useRef<(() => void) | null>(null);
+  useEffect(() => { refreshStatuesRef.current?.(); }, [leftStatue, rightStatue]);
   const [runtimeVersion, setRuntimeVersion] = useState(0);
   const [characterError, setCharacterError] = useState(false);
   const [sceneSize, setSceneSize] = useState({ width: 1320, height: 520, mobile: false });
@@ -86,6 +101,15 @@ export default function MoneyLevelScene({
     if (!scene) return;
     const measure = () => {
       const size = { width: scene.clientWidth, height: scene.clientHeight, mobile: window.innerWidth <= MOBILE_BREAKPOINT };
+      const previous = cameraRef.current;
+      const camera = createForestCamera(size.width, size.height, size.mobile);
+      camera.x = clampCameraX(camera, camera.cropX + (previous.x - previous.cropX) * camera.scale / previous.scale);
+      cameraRef.current = camera;
+      scene.style.setProperty("--forest-camera-translation", `${cameraTranslation(camera)}px`);
+      scene.style.setProperty("--forest-world-width", `${camera.worldWidth}px`);
+      scene.style.setProperty("--forest-world-left", `${-camera.cropX}px`);
+      scene.dataset.cameraX = String(camera.x);
+      scene.dataset.cameraMaxX = String(camera.maxX);
       setSceneSize(size);
       setForestSceneViewport(size);
     };
@@ -118,6 +142,7 @@ export default function MoneyLevelScene({
     };
     const renderScaleMultiplier: Record<CharacterId, number> = { gorani: 1, daramji: 1 };
     const controllers = {} as Record<CharacterId, ForestBehaviorController>;
+    const activities = new CharacterActivityCoordinator((id, activity) => controllers[id].leaveOccupiedSlot(activity));
     activeRuntimeCount += 1;
     stageElement.dataset.activeRuntimeCount = String(activeRuntimeCount);
     setCharacterError(false);
@@ -142,24 +167,31 @@ export default function MoneyLevelScene({
       const viewportWidth = viewportHeight * (Math.max(scene.clientWidth, 1) / Math.max(scene.clientHeight, 1));
       const bottom = 103 - viewportHeight / 2;
       const position = positions[id];
+      const goraniBench = id === "gorani" && controllers[id]?.getPhase() === "bench-sit";
       return {
-        x: (position.x / 100 - 0.5) * viewportWidth,
-        y: bottom + (1 - position.y / 100) * viewportHeight,
+        x: (position.x / 100 - 0.5 + (cameraTranslation(cameraRef.current) + (goraniBench ? GORANI_BENCH_POSE.offsetXPx : 0)) / Math.max(scene.clientWidth, 1)) * viewportWidth,
+        y: bottom + (1 - position.y / 100) * viewportHeight
+          - benchVisualOffsetYPx(id, controllers[id]?.getPhase()) / Math.max(scene.clientHeight, 1) * viewportHeight,
         scale: CHARACTER_CONFIG[id].scale * (mobile() ? 0.72 : 1) * perspectiveScale(position.y) * renderScaleMultiplier[id],
+        scaleY: id === "daramji" && controllers[id]?.getPhase() === "bench-sit" ? 0.84 : 1,
+        visualRotationDeg: goraniBench ? GORANI_BENCH_POSE.rotationDeg : 0,
+        rotationPivotBone: goraniBench ? GORANI_BENCH_POSE.pivotBone : undefined,
         flipX: position.facing === "right",
       };
     };
 
     const updateCharacterDom = (id: CharacterId, position: ActorPosition, phase: CharacterPhase) => {
       for (const anchor of Array.from(scene.querySelectorAll<HTMLElement>(`[data-character-anchor="${id}"]`))) {
-        anchor.style.left = `${position.x}%`;
-        anchor.style.top = `${position.y}%`;
+        anchor.style.left = `${position.x + (id === "gorani" && phase === "bench-sit" ? GORANI_BENCH_POSE.offsetXPx / Math.max(scene.clientWidth, 1) * 100 : 0)}%`;
+        anchor.style.top = `${position.y + benchVisualOffsetYPx(id, phase) / Math.max(scene.clientHeight, 1) * 100}%`;
         anchor.style.setProperty("--perspective-scale", String(perspectiveScale(position.y)));
         anchor.dataset.phase = phase;
       }
-      if (id === "gorani") {
-        const activity = scene.querySelector<HTMLElement>(".fishing-activity");
-        if (activity) activity.hidden = phase !== "fishing";
+      const activity = scene.querySelector<HTMLElement>(".fishing-activity");
+      if (activity && (phase === "fishing" || activity.dataset.character === id)) {
+        activity.hidden = phase !== "fishing";
+        if (phase === "fishing") activity.dataset.character = id;
+        else delete activity.dataset.attached;
       }
       stageElement.dataset[`${id}Phase`] = phase;
       stageElement.dataset[`${id}Animation`] = states[id].animation;
@@ -173,6 +205,8 @@ export default function MoneyLevelScene({
         state: states[id],
         weather: () => weather,
         mobile,
+        activities,
+        statues: () => statuesRef.current,
         onChange: (position, phase) => {
           positions[id] = { ...position };
           updateCharacterDom(id, position, phase);
@@ -180,30 +214,24 @@ export default function MoneyLevelScene({
       });
     }
 
-    const updateFishingVisual = (hand: BoneScreenPoint) => {
+    refreshStatuesRef.current = () => { controllers.gorani.refreshStatueAvailability(); controllers.daramji.refreshStatueAvailability(); };
+
+    const updateFishingVisual = (id: CharacterId, hand: BoneScreenPoint) => {
       const activity = scene.querySelector<HTMLElement>(".fishing-activity");
       const rod = scene.querySelector<HTMLImageElement>(".fishing-rod");
       const line = scene.querySelector<HTMLElement>(".fishing-line");
       const bobber = scene.querySelector<HTMLElement>(".fishing-bobber");
-      if (!activity || !rod || !line || !bobber || activity.hidden || controllers.gorani.getPhase() !== "fishing") return;
+      if (!activity || !rod || !line || !bobber || activity.hidden || activity.dataset.character !== id || controllers[id].getPhase() !== "fishing") return;
       const layout = mobile() ? "mobile" : "desktop";
-      const size = FISHING_VISUAL_CONFIG.rodSizePx[layout];
-      const direction = hand.flipped ? 1 : -1;
-      const angle = direction * 2;
-      const radians = angle * Math.PI / 180;
-      const handle = { x: size * 0.16, y: size * 0.84 };
-      const localTip = { x: direction * (size * FISHING_VISUAL_CONFIG.rodTip.x - handle.x), y: size * FISHING_VISUAL_CONFIG.rodTip.y - handle.y };
-      const tip = {
-        x: hand.x + localTip.x * Math.cos(radians) - localTip.y * Math.sin(radians),
-        y: hand.y + localTip.x * Math.sin(radians) + localTip.y * Math.cos(radians),
-      };
+      const worldHand = { ...hand, x: hand.x - cameraTranslation(cameraRef.current) };
+      const { size, direction, angle, handle, left, top, tip } = fishingRodGeometry(id, worldHand, layout);
       const target = projectForestPoint(FISHING_BOBBER[layout], { width: scene.clientWidth, height: scene.clientHeight }, layout === "mobile");
       const lineDx = target.x - tip.x;
       const lineDy = target.y - tip.y;
-      activity.dataset.handBone = FISHING_VISUAL_CONFIG.handBone;
+      activity.dataset.handBone = FISHING_VISUAL_CONFIG[id].handBone;
       activity.dataset.attached = "true";
-      rod.style.left = `${hand.x - handle.x}px`;
-      rod.style.top = `${hand.y - handle.y}px`;
+      rod.style.left = `${left}px`;
+      rod.style.top = `${top}px`;
       rod.style.width = `${size}px`;
       rod.style.height = `${size}px`;
       rod.style.transformOrigin = `${handle.x}px ${handle.y}px`;
@@ -222,40 +250,74 @@ export default function MoneyLevelScene({
       pointerType: string;
       startX: number;
       startY: number;
+      clientX: number;
+      clientY: number;
+      grabOffset: ScenePoint;
       active: boolean;
       timer: number;
       target: HTMLElement;
     };
     let dragSession: DragSession | null = null;
-    const toScenePoint = (event: PointerEvent): ScenePoint => {
+    let panSession: { pointerId: number; startX: number; startY: number; cameraX: number; intent: GestureIntent } | null = null;
+    let edgeFrame = 0;
+    let edgeLastTime = 0;
+    const toScenePoint = (event: { clientX: number; clientY: number }): ScenePoint => {
       const bounds = scene.getBoundingClientRect();
-      return {
-        x: ((event.clientX - bounds.left) / bounds.width) * 100,
-        y: ((event.clientY - bounds.top) / bounds.height) * 100,
-      };
+      return screenToWorld({ x: event.clientX - bounds.left - scene.clientLeft, y: event.clientY - bounds.top - scene.clientTop }, cameraRef.current);
+    };
+    const dragPoint = (event: { clientX: number; clientY: number }): ScenePoint => {
+      const point = toScenePoint(event);
+      return { x: point.x + (dragSession?.grabOffset.x ?? 0), y: point.y + (dragSession?.grabOffset.y ?? 0) };
+    };
+    const setCameraX = (x: number) => {
+      const camera = cameraRef.current;
+      camera.x = clampCameraX(camera, x);
+      scene.style.setProperty("--forest-camera-translation", `${cameraTranslation(camera)}px`);
+      scene.dataset.cameraX = String(camera.x);
+    };
+    const autoPan = (now: number) => {
+      if (!dragSession?.active) return;
+      const bounds = scene.getBoundingClientRect();
+      const seconds = Math.min(0.032, (now - edgeLastTime) / 1000);
+      edgeLastTime = now;
+      if (!document.hidden) {
+        const fingerX = dragSession.clientX - bounds.left;
+        const fingerY = dragSession.clientY - bounds.top;
+        if (fingerY >= 0 && fingerY <= bounds.height) setCameraX(cameraRef.current.x + edgePanSpeed(fingerX, scene.clientWidth) * seconds);
+        controllers[dragSession.id].updateDrag(dragPoint(dragSession));
+      }
+      edgeFrame = window.requestAnimationFrame(autoPan);
     };
     const activateDrag = () => {
       if (!dragSession || dragSession.active) return;
       dragSession.active = true;
+      panSession = null;
+      const point = toScenePoint(dragSession);
+      dragSession.grabOffset = { x: positions[dragSession.id].x - point.x, y: positions[dragSession.id].y - point.y };
       try { dragSession.target.setPointerCapture(dragSession.pointerId); } catch { /* Synthetic QA pointers do not own capture. */ }
       dragSession.target.closest<HTMLElement>(".character-anchor")?.classList.add("is-grabbed");
       scene.classList.add("is-character-dragging");
       renderScaleMultiplier[dragSession.id] = 1.03;
       controllers[dragSession.id].beginDrag();
+      edgeLastTime = performance.now();
+      edgeFrame = window.requestAnimationFrame(autoPan);
     };
     const finishDrag = (event: PointerEvent) => {
       if (!dragSession || event.pointerId !== dragSession.pointerId) return;
       window.clearTimeout(dragSession.timer);
       if (dragSession.active) {
-        const result = controllers[dragSession.id].endDrag(toScenePoint(event));
+        window.cancelAnimationFrame(edgeFrame);
+        // Cancellation/lost capture is not a drop at an arbitrary browser coordinate.
+        const result = controllers[dragSession.id].endDrag(event.type === "pointercancel" || event.type === "lostpointercapture" ? positions[dragSession.id] : dragPoint(event));
         stageElement.dataset[`${dragSession.id}LastDrop`] = result.activity ? "activity" : result.snapped ? "snapped" : "valid";
         stageElement.dataset[`${dragSession.id}LastActivity`] = result.activityZoneId ?? "none";
         renderScaleMultiplier[dragSession.id] = 1;
         dragSession.target.closest<HTMLElement>(".character-anchor")?.classList.remove("is-grabbed");
-        if (dragSession.target.hasPointerCapture(dragSession.pointerId)) dragSession.target.releasePointerCapture(dragSession.pointerId);
         scene.classList.remove("is-character-dragging");
       }
+      const finished = dragSession;
       dragSession = null;
+      if (finished.target.hasPointerCapture(finished.pointerId)) finished.target.releasePointerCapture(finished.pointerId);
     };
 
     for (const id of ["gorani", "daramji"] as const) {
@@ -264,42 +326,78 @@ export default function MoneyLevelScene({
       const contextMenu = (event: Event) => event.preventDefault();
       const pointerDown = (event: PointerEvent) => {
         if (dragSession || (event.pointerType === "mouse" && event.button !== 0)) return;
-        dragSession = { id, pointerId: event.pointerId, pointerType: event.pointerType, startX: event.clientX, startY: event.clientY, active: false, timer: 0, target };
+        dragSession = { id, pointerId: event.pointerId, pointerType: event.pointerType, startX: event.clientX, startY: event.clientY, clientX: event.clientX, clientY: event.clientY, grabOffset: { x: 0, y: 0 }, active: false, timer: 0, target };
         if (event.pointerType === "touch") dragSession.timer = window.setTimeout(activateDrag, BEHAVIOR_CONFIG.longPressMs);
         else activateDrag();
       };
       const pointerMove = (event: PointerEvent) => {
         if (!dragSession || event.pointerId !== dragSession.pointerId) return;
+        dragSession.clientX = event.clientX;
+        dragSession.clientY = event.clientY;
         const distance = Math.hypot(event.clientX - dragSession.startX, event.clientY - dragSession.startY);
         if (!dragSession.active && dragSession.pointerType !== "touch" && distance >= BEHAVIOR_CONFIG.dragMoveThresholdPx) activateDrag();
-        if (!dragSession.active && dragSession.pointerType === "touch" && distance >= BEHAVIOR_CONFIG.dragMoveThresholdPx) {
+        if (!dragSession.active && dragSession.pointerType === "touch" && distance >= TOUCH_SLOP_PX) {
           window.clearTimeout(dragSession.timer);
           dragSession = null;
           return;
         }
         if (!dragSession?.active) return;
         event.preventDefault();
-        controllers[dragSession.id].updateDrag(toScenePoint(event));
+        controllers[dragSession.id].updateDrag(dragPoint(event));
       };
       target.addEventListener("contextmenu", contextMenu);
       target.addEventListener("pointerdown", pointerDown);
-      target.addEventListener("pointermove", pointerMove);
-      target.addEventListener("pointerup", finishDrag);
-      target.addEventListener("pointercancel", finishDrag);
+      window.addEventListener("pointermove", pointerMove, { passive: false });
+      window.addEventListener("pointerup", finishDrag);
+      window.addEventListener("pointercancel", finishDrag);
+      target.addEventListener("lostpointercapture", finishDrag);
       cleanupListeners.push(() => {
         target.removeEventListener("contextmenu", contextMenu);
         target.removeEventListener("pointerdown", pointerDown);
-        target.removeEventListener("pointermove", pointerMove);
-        target.removeEventListener("pointerup", finishDrag);
-        target.removeEventListener("pointercancel", finishDrag);
+        window.removeEventListener("pointermove", pointerMove);
+        window.removeEventListener("pointerup", finishDrag);
+        window.removeEventListener("pointercancel", finishDrag);
+        target.removeEventListener("lostpointercapture", finishDrag);
       });
     }
+
+    const panDown = (event: PointerEvent) => {
+      if (dragSession || panSession || (event.pointerType === "mouse" && event.button !== 0)) return;
+      panSession = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, cameraX: cameraRef.current.x, intent: "pending" };
+    };
+    const panMove = (event: PointerEvent) => {
+      if (!panSession || panSession.pointerId !== event.pointerId || dragSession?.active) return;
+      const dx = event.clientX - panSession.startX, dy = event.clientY - panSession.startY;
+      panSession.intent = resolveGestureIntent(dx, dy, panSession.intent);
+      scene.dataset.gestureIntent = panSession.intent;
+      if (panSession.intent !== "horizontal") return;
+      event.preventDefault();
+      try { scene.setPointerCapture(event.pointerId); } catch { /* Untrusted QA pointer. */ }
+      setCameraX(panSession.cameraX - dx);
+    };
+    const panEnd = (event: PointerEvent) => {
+      if (panSession?.pointerId !== event.pointerId) return;
+      panSession = null;
+      if (scene.hasPointerCapture(event.pointerId)) scene.releasePointerCapture(event.pointerId);
+    };
+    scene.addEventListener("pointerdown", panDown);
+    window.addEventListener("pointermove", panMove, { passive: false });
+    window.addEventListener("pointerup", panEnd);
+    window.addEventListener("pointercancel", panEnd);
+    scene.addEventListener("lostpointercapture", panEnd);
+    cleanupListeners.push(() => {
+      scene.removeEventListener("pointerdown", panDown);
+      window.removeEventListener("pointermove", panMove);
+      window.removeEventListener("pointerup", panEnd);
+      window.removeEventListener("pointercancel", panEnd);
+      scene.removeEventListener("lostpointercapture", panEnd);
+    });
 
     void SpineStage.create({
       container: stageElement,
       mode: "pair",
       actors: (["gorani", "daramji"] as const).map((id) => ({ id, state: states[id], placement: () => worldPlacement(id) })),
-      boneObservers: [{ actorId: "gorani", boneName: FISHING_VISUAL_CONFIG.handBone, point: FISHING_VISUAL_CONFIG.handPoint, onUpdate: updateFishingVisual }],
+      boneObservers: (["gorani", "daramji"] as const).map((id) => ({ actorId: id, boneName: FISHING_VISUAL_CONFIG[id].handBone, point: FISHING_VISUAL_CONFIG[id].handPoint, onUpdate: (hand: BoneScreenPoint) => updateFishingVisual(id, hand) })),
       onError: () => setCharacterError(true),
       onContextRestored: () => setRuntimeVersion((version) => version + 1),
       signal: initialization.signal,
@@ -331,7 +429,10 @@ export default function MoneyLevelScene({
     if (process.env.NODE_ENV !== "production") {
       window.__MONEY_LEVEL_DEBUG__ = {
         activeRuntimeCount: () => activeRuntimeCount,
+        camera: () => ({ ...cameraRef.current }),
         startFishing: () => controllers.gorani.startActivityAtZone("fishing_dock"),
+        startFishingAs: (id) => controllers[id].startActivityAtZone("fishing_dock"),
+        startBenchSitting: (id) => controllers[id].startActivityAtZone("bench_slot"),
         startPondWatch: () => controllers.daramji.startActivityAtZone("pond_watch"),
         triggerMove: () => { controllers.gorani.triggerMove(); controllers.daramji.triggerMove(); },
         state: () => ({
@@ -343,13 +444,21 @@ export default function MoneyLevelScene({
 
     return () => {
       cancelled = true;
+      refreshStatuesRef.current = null;
       initialization.abort();
       window.clearInterval(interactionTimer);
       window.clearTimeout(lightningTimer);
       window.clearTimeout(lightningResetTimer);
       lightning?.classList.remove("is-flashing");
       if (dragSession) window.clearTimeout(dragSession.timer);
+      window.cancelAnimationFrame(edgeFrame);
+      scene.classList.remove("is-character-dragging");
       cleanupListeners.forEach((cleanup) => cleanup());
+      if (dragSession) {
+        dragSession.target.closest<HTMLElement>(".character-anchor")?.classList.remove("is-grabbed");
+        if (dragSession.target.hasPointerCapture(dragSession.pointerId)) dragSession.target.releasePointerCapture(dragSession.pointerId);
+      }
+      if (panSession && scene.hasPointerCapture(panSession.pointerId)) scene.releasePointerCapture(panSession.pointerId);
       controllers.gorani.stop();
       controllers.daramji.stop();
       stage?.dispose();
@@ -368,17 +477,20 @@ export default function MoneyLevelScene({
   };
   const objectLighting = getWorldObjectLighting(timeOfDay, weather);
   const worldObjectStyle = {
-    "--money-level-house-lighting": objectLighting.house.filter,
-    "--money-level-statue-lighting": objectLighting.statue.filter,
+    "--money-level-house-lighting": `${objectLighting.house.filter} url(#${lightingFilterId})`,
+    "--money-level-statue-lighting": `${objectLighting.statue.filter} url(#${lightingFilterId})`,
   } as CSSProperties;
 
   return (
     <section ref={sceneRef} className="forest-scene" data-ambient={ambientEnabled ? "on" : "off"} aria-label="고라니와 다람쥐가 사는 숲">
+      <svg width="0" height="0" aria-hidden="true" style={{ position: "absolute" }}>
+        <defs><filter id={lightingFilterId} colorInterpolationFilters="sRGB"><feColorMatrix type="matrix" values={objectLighting.house.colorMatrix} /></filter></defs>
+      </svg>
       <div className="scene-world" style={worldObjectStyle}>
         <WeatherBackground timeOfDay={timeOfDay} weather={weather} />
         {ambientEnabled ? <div className="pond-shimmer-layer ambient-motion-layer" aria-hidden="true" /> : null}
         <div className="house-place brokerage-house"><HouseVisual kind="brokerage" stage={brokerageStage} /></div>
-        <div className="house-place tax-house"><HouseVisual kind="tax" stage={taxStage} /></div>
+        <div className="house-place tax-house" style={{ translate: `0 ${TAX_HOUSE_OFFSET_Y_PX}px` }}><HouseVisual kind="tax" stage={taxStage} /></div>
         {(["left", "right"] as const).map((slot) => {
           const statue = slot === "left" ? leftStatue : rightStatue;
           if (statue === "none") return null;
@@ -388,13 +500,14 @@ export default function MoneyLevelScene({
         <div className="character-ground-layer" aria-hidden="true">
           <CharacterAnchor id="gorani" layer="shadow" /><CharacterAnchor id="daramji" layer="shadow" />
         </div>
-        <div ref={stageRef} className="spine-forest-stage" data-runtime-version={runtimeVersion} />
-        <div className="scene-activity-layer" aria-hidden="true">
-          <span className="pond-activity fishing-activity" hidden>
-            <img className="fishing-rod" src="/money-level/art/props/fishing-rod.webp" alt="" draggable={false} />
-            <i className="fishing-line" /><b className="fishing-bobber" />
-          </span>
-        </div>
+      </div>
+      {/* Render only the camera viewport, not a translated/clipped full-world canvas. */}
+      <div ref={stageRef} className="spine-forest-stage" data-runtime-version={runtimeVersion} />
+      <div className="scene-activity-layer" aria-hidden="true">
+        <span className="pond-activity fishing-activity" hidden>
+          <img className="fishing-rod" src="/money-level/art/props/fishing-rod.webp" alt="" draggable={false} />
+          <i className="fishing-line" /><b className="fishing-bobber" />
+        </span>
       </div>
       <div className="practical-lighting-layer" aria-hidden="true" />
       {ambientEnabled ? <div className="sky-drift-layer ambient-motion-layer" aria-hidden="true" /> : null}
