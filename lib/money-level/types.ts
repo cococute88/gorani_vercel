@@ -15,6 +15,7 @@ export interface MoneyLevelSettings {
   brokerageTaxRate: number;
   isaWithdrawalRate: number;
   pensionWithdrawalRate: number;
+  leftStatue: "none" | "stone-bear";
 }
 
 export interface HeartBreakdown {

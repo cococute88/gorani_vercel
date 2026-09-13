@@ -19,3 +19,4 @@ docs/fixtures/**/private/
 docs/fixtures/**/private/**
 private/
 private/**
+__pycache__/

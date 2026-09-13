@@ -6,6 +6,7 @@ export const DEFAULT_MONEY_LEVEL_SETTINGS: Readonly<MoneyLevelSettings> = {
   brokerageTaxRate: 0.154,
   isaWithdrawalRate: 0.033,
   pensionWithdrawalRate: 0.033,
+  leftStatue: "none",
 };
 
 export function isValidMoneyLevelDate(value: unknown): value is string {
@@ -31,7 +32,8 @@ export function isValidMoneyLevelSettings(value: unknown): value is MoneyLevelSe
     && isValidRate(settings.brokerageYield)
     && isValidRate(settings.brokerageTaxRate)
     && isValidRate(settings.isaWithdrawalRate)
-    && isValidRate(settings.pensionWithdrawalRate);
+    && isValidRate(settings.pensionWithdrawalRate)
+    && (settings.leftStatue === "none" || settings.leftStatue === "stone-bear");
 }
 
 export function normalizeMoneyLevelSettings(
@@ -48,5 +50,6 @@ export function normalizeMoneyLevelSettings(
       value?.pensionWithdrawalRate,
       DEFAULT_MONEY_LEVEL_SETTINGS.pensionWithdrawalRate,
     ),
+    leftStatue: value?.leftStatue === "stone-bear" ? "stone-bear" : "none",
   };
 }

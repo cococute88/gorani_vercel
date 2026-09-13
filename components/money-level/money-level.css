@@ -25,7 +25,7 @@
 .moneyLevelRoot .icon-button:hover{ background: #fff5d8; transform: rotate(10deg) translateY(-1px); }
 .moneyLevelRoot .icon-button-back{ width: 42px; height: 42px; color: #6a5639; font-size: 1.25rem; text-decoration: none; }
 .moneyLevelRoot .icon-button-back:hover{ transform: translateX(-2px) translateY(-1px); }
-.moneyLevelRoot .icon-button:focus-visible, .moneyLevelRoot .sync-button:focus-visible, .moneyLevelRoot .settings-dialog button:focus-visible, .moneyLevelRoot .settings-dialog input:focus-visible{ outline: 3px solid rgba(91,137,92,.42); outline-offset: 2px; }
+.moneyLevelRoot .icon-button:focus-visible, .moneyLevelRoot .sync-button:focus-visible, .moneyLevelRoot .settings-dialog button:focus-visible, .moneyLevelRoot .settings-dialog input:focus-visible, .moneyLevelRoot .settings-dialog select:focus-visible{ outline: 3px solid rgba(91,137,92,.42); outline-offset: 2px; }
 
 .moneyLevelRoot .money-hud{ display: grid; grid-template-columns: minmax(230px,.75fr) minmax(0,1.4fr) minmax(0,1fr); gap: 12px; padding: 10px 18px 12px; background: linear-gradient(rgba(255,250,232,.94),rgba(255,248,224,.94)), repeating-linear-gradient(90deg,transparent 0 19px,rgba(160,130,85,.04) 19px 20px); }
 .moneyLevelRoot .retirement-card, .moneyLevelRoot .heart-row{ position: relative; min-width: 0; border: 2px solid #9f8361; border-radius: 17px 20px 16px 19px; background: linear-gradient(145deg,rgba(255,254,244,.96),rgba(250,240,210,.96)); box-shadow: inset 0 0 0 3px rgba(255,255,255,.45), 0 4px 0 rgba(112,82,49,.13); }
@@ -67,6 +67,7 @@
 .moneyLevelRoot .house-art-image{ display: block; width: 100%; height: auto; user-select: none; filter: var(--money-level-time-ambient) var(--money-level-weather-ambient) var(--house-material-match,brightness(1)) drop-shadow(0 7px 6px rgba(43,54,44,.13)); transition: filter .5s ease; }
 .moneyLevelRoot .house-composite-masked .house-art-image{ -webkit-mask-image: radial-gradient(ellipse 49% 47% at 50% 55%,#000 67%,transparent 100%); mask-image: radial-gradient(ellipse 49% 47% at 50% 55%,#000 67%,transparent 100%); }
 .moneyLevelRoot .house-composite-masked.house-family-camp .house-art-image{ -webkit-mask-image: radial-gradient(ellipse 39% 35% at 50% 61%,#000 58%,transparent 100%); mask-image: radial-gradient(ellipse 39% 35% at 50% 61%,#000 58%,transparent 100%); }
+.moneyLevelRoot .stone-bear-statue{ position: absolute; z-index: 3; display: block; width: 76px; height: auto; pointer-events: none; user-select: none; transform: translate(-50%,-100%); filter: var(--money-level-time-ambient) var(--money-level-weather-ambient) drop-shadow(0 3px 2px rgba(35,42,31,.28)); }
 .moneyLevelRoot .scene-label-layer{ position: absolute; inset: 0; z-index: 11; pointer-events: none; }
 .moneyLevelRoot .house-label{ position: absolute; top: var(--label-y); left: var(--label-x); display: flex; align-items: center; gap: 7px; min-width: 155px; padding: 7px 10px; border: 2px solid #876b4c; border-radius: 8px 10px 7px 9px; color: #55422c; background: linear-gradient(145deg,#fff8dc,#eed39d); box-shadow: inset 0 0 0 2px rgba(255,255,255,.5),0 4px 0 rgba(92,66,39,.2); transform: translate(-50%,-50%); text-align: left; }
 .moneyLevelRoot .house-leaf{ color: #678d48; font-size: 1.1rem; }
@@ -226,6 +227,11 @@
 .moneyLevelRoot .settings-grid input{ width: 100%; min-height: 44px; padding: 9px 12px; border: 1px solid #cbb997; border-radius: 11px; color: #51432f; background: #fffdf5; font-size: .9rem; }
 .moneyLevelRoot .settings-grid label > div input{ padding-right: 34px; }
 .moneyLevelRoot .settings-grid em{ position: absolute; top: 50%; right: 12px; color: #8b7b61; transform: translateY(-50%); font-size: .8rem; font-style: normal; }
+.moneyLevelRoot .object-settings{ margin: 17px 0 0; padding: 11px 13px 12px; border: 1px solid #d3bf9a; border-radius: 12px; }
+.moneyLevelRoot .object-settings legend{ padding: 0 5px; color: #6c764d; font-size: .8rem; font-weight: 850; }
+.moneyLevelRoot .object-settings label{ display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: .77rem; font-weight: 750; }
+.moneyLevelRoot .object-settings select{ min-height: 36px; padding: 5px 9px; border: 1px solid #cbb997; border-radius: 8px; color: #51432f; background: #fffdf5; }
+.moneyLevelRoot .object-settings p{ margin: 8px 0 0; color: #81765e; font-size: .68rem; }
 .moneyLevelRoot .dialog-actions{ display: grid; grid-template-columns: auto 1fr auto auto; gap: 9px; margin-top: 22px; }
 .moneyLevelRoot .dialog-actions button{ min-height: 42px; padding: 9px 15px; border-radius: 11px; cursor: pointer; font-weight: 800; }
 .moneyLevelRoot .text-button{ border: 0; color: #77684f; background: transparent; }
@@ -264,6 +270,7 @@
   .moneyLevelRoot .pond-ripple-layer{ clip-path: polygon(61% 61%,100% 57%,100% 100%,58% 100%,55% 80%); }
   .moneyLevelRoot .pond-ripple-layer i{ top: var(--ripple-mobile-y); left: var(--ripple-mobile-x); }
   .moneyLevelRoot .house-card{ top: var(--house-mobile-y); left: var(--house-mobile-x); width: var(--house-mobile-width); }
+  .moneyLevelRoot .stone-bear-statue{ width: 70px; }
   .moneyLevelRoot .house-label{ top: var(--label-mobile-y); left: var(--label-mobile-x); min-width: 130px; padding: 5px 7px; }
   .moneyLevelRoot .house-label strong{ max-width: 112px; font-size: .52rem; }
   .moneyLevelRoot .house-label b{ font-size: .67rem; }

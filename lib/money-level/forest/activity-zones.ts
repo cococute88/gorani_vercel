@@ -37,10 +37,7 @@ export interface SemanticActivityZone {
 export const FISHING_VISUAL_CONFIG = {
   handBone: "arm_R2",
   handPoint: "end" as const,
-  bobber: {
-    desktop: { x: 80.8, y: 98.1 },
-    mobile: { x: 82, y: 86 },
-  },
+  rodTip: { x: 0.94, y: 0.10 },
   rodSizePx: { desktop: 50, mobile: 42 },
 } as const;
 
@@ -61,13 +58,11 @@ export const ACTIVITY_ZONES: readonly SemanticActivityZone[] = [
     activity: "fishing",
     allowedCharacters: ["gorani"],
     activation: {
-      desktop: [{ x: 72, y: 90, radius: 8 }],
-      mobile: [{ x: 89, y: 86.5, radius: 8 }],
+      desktop: [],
+      mobile: [],
     },
-    activationPolygons: dockActivityPolygons,
-    walkableRegionIds: ["dock-connector", "wooden-dock"],
+    walkableRegionIds: ["wooden-dock"],
     anchorWaypointIds: { gorani: ["dock_end"] },
-    anchorPoints: { dock_end: { desktop: { x: 74.7, y: 94.1 }, mobile: { x: 91.5, y: 82.7 } } },
     durationMs: { min: 20_000, max: 45_000 },
     manualDurationMs: { min: 30_000, max: 60_000 },
     preferredFacing: "right",
@@ -85,18 +80,13 @@ export const ACTIVITY_ZONES: readonly SemanticActivityZone[] = [
         { x: 62, y: 86, radius: 6 },
       ],
       mobile: [
-        { x: 53, y: 78, radius: 7 },
-        { x: 58, y: 84, radius: 5.5 },
+        { x: 59, y: 72, radius: 7 },
+        { x: 73, y: 76, radius: 5.5 },
       ],
     },
     activationPolygons: dockActivityPolygons,
     walkableRegionIds: ["dock-connector", "wooden-dock"],
     anchorWaypointIds: { daramji: ["pond_edge", "dock_connector", "dock_mid"] },
-    anchorPoints: {
-      pond_edge: { desktop: { x: 55, y: 77 }, mobile: { x: 53, y: 78 } },
-      dock_connector: { desktop: { x: 61.5, y: 84.1 }, mobile: { x: 74, y: 81 } },
-      dock_mid: { desktop: { x: 70.2, y: 90 }, mobile: { x: 84.5, y: 86 } },
-    },
     durationMs: { min: 15_000, max: 35_000 },
     preferredFacing: "right",
   },
@@ -129,8 +119,7 @@ export function resolveManualActivityIntent(
     if (!candidate.allowedCharacters.includes(character)) return false;
     const rawMatch = isPointSafe(rawPoint, layout, character) && matchesZone(rawPoint, candidate, layout);
     const resolvedMatch = isPointSafe(resolvedDrop.point, layout, character) && matchesZone(resolvedDrop.point, candidate, layout);
-    const waypointMatch = (candidate.anchorWaypointIds[character] ?? []).includes(resolvedDrop.waypoint.id);
-    return candidate.activity === "fishing" ? rawMatch || resolvedMatch || waypointMatch : rawMatch;
+    return candidate.activity === "fishing" ? rawMatch || (resolvedMatch && isPointSafe(rawPoint, layout, character)) : rawMatch;
   });
   return zone ? resolveZoneAnchor(zone, resolvedDrop.point, layout, character) : null;
 }

@@ -15,7 +15,8 @@ import {
   type CharacterPhase,
 } from "@/lib/money-level/forest/behavior";
 import { FISHING_VISUAL_CONFIG, type SemanticActivityZone } from "@/lib/money-level/forest/activity-zones";
-import { perspectiveScale, type ScenePoint } from "@/lib/money-level/forest/navigation";
+import { FISHING_BOBBER, fishingLineAngleDeg, projectForestPoint, STATUE_SLOTS } from "@/lib/money-level/forest/landmarks";
+import { perspectiveScale, setForestSceneViewport, type ScenePoint } from "@/lib/money-level/forest/navigation";
 import { FOREST_SCENE, HOUSE_ART_FAMILY, resolveForestBackground } from "@/lib/money-level/forest/scene-config";
 import type { CharacterId, CharacterState } from "@/lib/money-level/forest/character-types";
 import { resolveMoneyLevelWindIntensity } from "@/lib/money-level/weather";
@@ -56,6 +57,7 @@ export default function MoneyLevelScene({
   weather,
   timeOfDay,
   ambientEnabled,
+  leftStatue,
   phrase,
 }: {
   brokerageStage: MoneyLevelHouseStage;
@@ -67,12 +69,28 @@ export default function MoneyLevelScene({
   weather: MoneyLevelWeather;
   timeOfDay: MoneyLevelTimeOfDay;
   ambientEnabled: boolean;
+  leftStatue: "none" | "stone-bear";
   phrase: string;
 }) {
   const sceneRef = useRef<HTMLElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const [runtimeVersion, setRuntimeVersion] = useState(0);
   const [characterError, setCharacterError] = useState(false);
+  const [sceneSize, setSceneSize] = useState({ width: 1320, height: 520, mobile: false });
+
+  useEffect(() => {
+    const scene = sceneRef.current;
+    if (!scene) return;
+    const measure = () => {
+      const size = { width: scene.clientWidth, height: scene.clientHeight, mobile: window.innerWidth <= MOBILE_BREAKPOINT };
+      setSceneSize(size);
+      setForestSceneViewport(size);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(scene);
+    return () => { observer.disconnect(); setForestSceneViewport(null); };
+  }, []);
 
   useEffect(() => {
     const scene = sceneRef.current;
@@ -171,13 +189,12 @@ export default function MoneyLevelScene({
       const angle = direction * 2;
       const radians = angle * Math.PI / 180;
       const handle = { x: size * 0.16, y: size * 0.84 };
-      const localTip = { x: direction * (size * 0.92 - handle.x), y: size * 0.11 - handle.y };
+      const localTip = { x: direction * (size * FISHING_VISUAL_CONFIG.rodTip.x - handle.x), y: size * FISHING_VISUAL_CONFIG.rodTip.y - handle.y };
       const tip = {
         x: hand.x + localTip.x * Math.cos(radians) - localTip.y * Math.sin(radians),
         y: hand.y + localTip.x * Math.sin(radians) + localTip.y * Math.cos(radians),
       };
-      const bobberPoint = FISHING_VISUAL_CONFIG.bobber[layout];
-      const target = { x: scene.clientWidth * bobberPoint.x / 100, y: scene.clientHeight * bobberPoint.y / 100 };
+      const target = projectForestPoint(FISHING_BOBBER[layout], { width: scene.clientWidth, height: scene.clientHeight }, layout === "mobile");
       const lineDx = target.x - tip.x;
       const lineDy = target.y - tip.y;
       activity.dataset.handBone = FISHING_VISUAL_CONFIG.handBone;
@@ -191,7 +208,7 @@ export default function MoneyLevelScene({
       line.style.left = `${tip.x}px`;
       line.style.top = `${tip.y}px`;
       line.style.height = `${Math.hypot(lineDx, lineDy)}px`;
-      line.style.transform = `rotate(${Math.atan2(lineDx, lineDy) * 180 / Math.PI}deg)`;
+      line.style.transform = `rotate(${fishingLineAngleDeg(tip, target)}deg)`;
       bobber.style.left = `${target.x}px`;
       bobber.style.top = `${target.y}px`;
     };
@@ -342,6 +359,8 @@ export default function MoneyLevelScene({
     };
   }, [ambientEnabled, runtimeVersion, weather]);
 
+  const statuePoint = projectForestPoint(STATUE_SLOTS.left, sceneSize, sceneSize.mobile);
+
   return (
     <section ref={sceneRef} className="forest-scene" data-ambient={ambientEnabled ? "on" : "off"} aria-label="고라니와 다람쥐가 사는 숲">
       <div className="scene-world">
@@ -349,6 +368,7 @@ export default function MoneyLevelScene({
         {ambientEnabled ? <div className="pond-shimmer-layer ambient-motion-layer" aria-hidden="true" /> : null}
         <div className="house-place brokerage-house"><HouseVisual kind="brokerage" stage={brokerageStage} /></div>
         <div className="house-place tax-house"><HouseVisual kind="tax" stage={taxStage} /></div>
+        {leftStatue === "stone-bear" ? <img className="stone-bear-statue" src="/money-level/art/statues/stone-bear.png" alt="왼쪽 받침대의 돌곰 조각상" style={{ left: statuePoint.x, top: statuePoint.y }} draggable={false} /> : null}
         <div className="character-ground-layer" aria-hidden="true">
           <CharacterAnchor id="gorani" layer="shadow" /><CharacterAnchor id="daramji" layer="shadow" />
         </div>
