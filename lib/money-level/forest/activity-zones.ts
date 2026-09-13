@@ -68,6 +68,8 @@ export function fishingRodGeometry(
 
 /** Seat center in the immutable 1683 × 935 background, not a DOM object. */
 export const BENCH_SLOT = BENCH_SEAT_MASTER;
+/** Screen-space pose calibration only; never changes the shared seat/drop geometry. */
+export const GORANI_BENCH_VISUAL_OFFSET_Y_PX = 12;
 export const FISHING_SLOT = "dock_end";
 export const BENCH_EXIT_WAYPOINT = "bench";
 export const POND_WATCH_ANCHOR = "pond_edge";

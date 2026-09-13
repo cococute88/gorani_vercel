@@ -16,7 +16,7 @@ import {
 } from "@/lib/money-level/forest/behavior";
 import { CharacterActivityCoordinator } from "@/lib/money-level/forest/activity-coordinator";
 import { cameraTranslation, clampCameraX, createForestCamera, edgePanSpeed, resolveGestureIntent, screenToWorld, TOUCH_SLOP_PX, type ForestCamera, type GestureIntent } from "@/lib/money-level/forest/camera";
-import { FISHING_VISUAL_CONFIG, fishingRodGeometry, type SemanticActivityZone } from "@/lib/money-level/forest/activity-zones";
+import { FISHING_VISUAL_CONFIG, fishingRodGeometry, GORANI_BENCH_VISUAL_OFFSET_Y_PX, type SemanticActivityZone } from "@/lib/money-level/forest/activity-zones";
 import { brokerageLabelPoint, FISHING_BOBBER, fishingLineAngleDeg, projectForestPoint, statueSlotPlacement } from "@/lib/money-level/forest/landmarks";
 import { perspectiveScale, setForestSceneViewport, type ScenePoint } from "@/lib/money-level/forest/navigation";
 import { FOREST_SCENE, HOUSE_ART_FAMILY, resolveForestBackground } from "@/lib/money-level/forest/scene-config";
@@ -28,6 +28,9 @@ import { SpineStage, type BoneScreenPoint } from "./runtime/spine-stage";
 const MOBILE_BREAKPOINT = 560;
 const BACKGROUND_CROSSFADE_MS = 800;
 let activeRuntimeCount = 0;
+
+const benchVisualOffsetYPx = (id: CharacterId, phase: CharacterPhase | undefined) =>
+  id === "gorani" && phase === "bench-sit" ? GORANI_BENCH_VISUAL_OFFSET_Y_PX : 0;
 
 type DebugCharacterState = {
   animation: string;
@@ -160,7 +163,8 @@ export default function MoneyLevelScene({
       const position = positions[id];
       return {
         x: (position.x / 100 - 0.5 + cameraTranslation(cameraRef.current) / Math.max(scene.clientWidth, 1)) * viewportWidth,
-        y: bottom + (1 - position.y / 100) * viewportHeight,
+        y: bottom + (1 - position.y / 100) * viewportHeight
+          - benchVisualOffsetYPx(id, controllers[id]?.getPhase()) / Math.max(scene.clientHeight, 1) * viewportHeight,
         scale: CHARACTER_CONFIG[id].scale * (mobile() ? 0.72 : 1) * perspectiveScale(position.y) * renderScaleMultiplier[id],
         scaleY: controllers[id]?.getPhase() === "bench-sit" ? 0.84 : 1,
         flipX: position.facing === "right",
@@ -170,7 +174,7 @@ export default function MoneyLevelScene({
     const updateCharacterDom = (id: CharacterId, position: ActorPosition, phase: CharacterPhase) => {
       for (const anchor of Array.from(scene.querySelectorAll<HTMLElement>(`[data-character-anchor="${id}"]`))) {
         anchor.style.left = `${position.x}%`;
-        anchor.style.top = `${position.y}%`;
+        anchor.style.top = `${position.y + benchVisualOffsetYPx(id, phase) / Math.max(scene.clientHeight, 1) * 100}%`;
         anchor.style.setProperty("--perspective-scale", String(perspectiveScale(position.y)));
         anchor.dataset.phase = phase;
       }

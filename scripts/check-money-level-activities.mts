@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { CharacterActivityCoordinator } from "../lib/money-level/forest/activity-coordinator";
-import { BENCH_SLOT, FISHING_VISUAL_CONFIG, fishingRodGeometry, getActivityZone, resolveManualActivityIntent, resolveZoneAnchor } from "../lib/money-level/forest/activity-zones";
+import { BENCH_SLOT, FISHING_VISUAL_CONFIG, fishingRodGeometry, GORANI_BENCH_VISUAL_OFFSET_Y_PX, getActivityZone, resolveManualActivityIntent, resolveZoneAnchor } from "../lib/money-level/forest/activity-zones";
 import { FISHING_BOBBER, fishingLineAngleDeg, projectForestPoint } from "../lib/money-level/forest/landmarks";
 import { getWaypoint, imagePointToScene, isPointSafe, resolveDrop, setForestSceneViewport, waypointPoint } from "../lib/money-level/forest/navigation";
 import type { CharacterId } from "../lib/money-level/forest/character-types";
+
+assert.deepEqual(BENCH_SLOT, { x: 302, y: 616 }, "visual calibration must not move the shared seat");
+assert.ok(GORANI_BENCH_VISUAL_OFFSET_Y_PX >= 8 && GORANI_BENCH_VISUAL_OFFSET_Y_PX <= 16, "Gorani downward screen-pixel calibration");
 
 for (const id of ["gorani", "daramji"] as const) {
   const spine = JSON.parse(readFileSync(`public/money-level/spine/${id}/character_${id}.json`, "utf8")) as { animations: Record<string, unknown>; bones: { name: string }[] };
