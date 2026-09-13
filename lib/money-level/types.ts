@@ -9,13 +9,16 @@ export interface MoneyLevelPortfolioSource {
   getSnapshot(): Promise<MoneyLevelPortfolioSnapshot>;
 }
 
+export type MoneyLevelStatue = "none" | "stone-bear" | "marble-bear" | "wood-bear" | "gold-bear" | "whitegold-bear" | "crystal-bear";
+
 export interface MoneyLevelSettings {
   retirementDate: string;
   brokerageYield: number;
   brokerageTaxRate: number;
   isaWithdrawalRate: number;
   pensionWithdrawalRate: number;
-  leftStatue: "none" | "stone-bear";
+  leftStatue: MoneyLevelStatue;
+  rightStatue: MoneyLevelStatue;
 }
 
 export interface HeartBreakdown {

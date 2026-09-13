@@ -4,8 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import {
   DEFAULT_MONEY_LEVEL_SETTINGS,
   normalizeMoneyLevelSettings,
+  STATUE_OPTIONS,
 } from "@/lib/money-level/settings";
-import type { MoneyLevelSettings } from "@/lib/money-level/types";
+import type { MoneyLevelSettings, MoneyLevelStatue } from "@/lib/money-level/types";
 
 type SettingsDraft = {
   retirementDate: string;
@@ -13,7 +14,8 @@ type SettingsDraft = {
   brokerageTaxRate: string;
   isaWithdrawalRate: string;
   pensionWithdrawalRate: string;
-  leftStatue: "none" | "stone-bear";
+  leftStatue: MoneyLevelStatue;
+  rightStatue: MoneyLevelStatue;
 };
 
 function toDraft(settings: MoneyLevelSettings): SettingsDraft {
@@ -25,6 +27,7 @@ function toDraft(settings: MoneyLevelSettings): SettingsDraft {
     isaWithdrawalRate: percent(settings.isaWithdrawalRate),
     pensionWithdrawalRate: percent(settings.pensionWithdrawalRate),
     leftStatue: settings.leftStatue,
+    rightStatue: settings.rightStatue,
   };
 }
 
@@ -78,6 +81,7 @@ export default function MoneyLevelSettingsDialog({
             isaWithdrawalRate: Number(draft.isaWithdrawalRate) / 100,
             pensionWithdrawalRate: Number(draft.pensionWithdrawalRate) / 100,
             leftStatue: draft.leftStatue,
+            rightStatue: draft.rightStatue,
           } as Partial<MoneyLevelSettings>));
           onClose();
         }}
@@ -101,8 +105,8 @@ export default function MoneyLevelSettingsDialog({
         </div>
         <fieldset className="object-settings">
           <legend>오브젝트 설정</legend>
-          <label><span>좌측 조각상</span><select value={draft.leftStatue} onChange={(event) => setField("leftStatue", event.target.value)}><option value="none">없음</option><option value="stone-bear">돌곰</option></select></label>
-          <p>우측 조각상은 아직 비어 있습니다.</p>
+          <label><span>좌측 조각상</span><select value={draft.leftStatue} onChange={(event) => setField("leftStatue", event.target.value)}>{STATUE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+          <label><span>우측 조각상</span><select value={draft.rightStatue} onChange={(event) => setField("rightStatue", event.target.value)}>{STATUE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
         </fieldset>
         <div className="dialog-actions">
           <button type="button" className="text-button" onClick={() => setDraft(toDraft(DEFAULT_MONEY_LEVEL_SETTINGS))}>기본값 복원</button>

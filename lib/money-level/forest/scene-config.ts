@@ -101,7 +101,6 @@ export const FOREST_SCENE = {
     },
   },
   labelPlacements: {
-    brokerage: { x: 30.5, y: 72.5, mobile: { x: 28, y: 54.5 } },
     tax: { x: 71.8, y: 69.5, mobile: { x: 73, y: 57 } },
   },
   stageAssets: {

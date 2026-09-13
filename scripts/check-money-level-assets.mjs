@@ -36,7 +36,8 @@ const timeBackgrounds = ["morning", "day", "evening", "night"]
   .flatMap((time) => ["sunny", "cloudy", "rain", "storm"]
     .map((weather) => `art/background/forest-${time}-${weather}.webp`));
 const dockedBackgrounds = timeBackgrounds.map((file) => file.replace(/\.webp$/, "-docked.webp"));
-const statueAssets = ["art/statues/stone-bear.png"];
+const statueMaterials = ["stone", "marble", "wood", "gold", "whitegold", "crystal"];
+const statueAssets = statueMaterials.map((material) => `art/statues/${material}-bear.png`);
 assert.equal(timeBackgrounds.length, 16, "Production must contain the complete 4x4 illustrated background matrix");
 assert.equal(dockedBackgrounds.length, 16, "Each illustrated scene needs its baked connector rendition");
 const required = [...pngMasters, ...webpRenditions, ...timeBackgrounds, ...dockedBackgrounds, ...statueAssets];
@@ -66,8 +67,10 @@ for (const file of dockedBackgrounds) {
   }
 }
 const sceneComponent = await readFile(path.join(root, "components", "money-level", "MoneyLevelScene.tsx"), "utf8");
+const settingsComponent = await readFile(path.join(root, "lib", "money-level", "settings.ts"), "utf8");
+assert(sceneComponent.includes('/money-level/art/statues/${statue}.png'), "Statue object URL must resolve the selected material");
 for (const file of statueAssets) {
-  assert(sceneComponent.includes(`/money-level/${file}`), `Statue runtime object is not reachable: ${file}`);
+  assert(settingsComponent.includes(`"${path.basename(file, ".png")}"`), `Statue option is not selectable: ${file}`);
   const header = (await readFile(path.join(assetRoot, file))).subarray(0, 26);
   assert.equal(header.subarray(0, 8).toString("hex"), "89504e470d0a1a0a", `Expected transparent PNG: ${file}`);
   assert.equal(header[25], 6, `Statue must remain RGBA: ${file}`);

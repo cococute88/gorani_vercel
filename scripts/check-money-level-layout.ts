@@ -3,11 +3,11 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { FISHING_BOBBER, fishingLineAngleDeg, projectForestPoint, STATUE_SLOTS, DOCK_WAYPOINTS } from "../lib/money-level/forest/landmarks";
+import { brokerageLabelPoint, FISHING_BOBBER, fishingLineAngleDeg, projectForestPoint, STATUE_SLOTS, DOCK_WAYPOINTS } from "../lib/money-level/forest/landmarks";
 import { auditNavigation, getWaypoint, isPointInWalkableRegion, setForestSceneViewport, waypointPoint } from "../lib/money-level/forest/navigation";
 import { getActivityZone } from "../lib/money-level/forest/activity-zones";
 import { resolveForestBackground } from "../lib/money-level/forest/scene-config";
-import { DEFAULT_MONEY_LEVEL_SETTINGS, normalizeMoneyLevelSettings } from "../lib/money-level/settings";
+import { DEFAULT_MONEY_LEVEL_SETTINGS, isValidMoneyLevelSettings, normalizeMoneyLevelSettings, STATUE_OPTIONS } from "../lib/money-level/settings";
 import type { MoneyLevelTimeOfDay, MoneyLevelWeather } from "../lib/money-level/types";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -57,18 +57,40 @@ for (const [name, width, height, layout] of [
   const bobber = projectForestPoint(FISHING_BOBBER[layout], { width, height }, layout === "mobile");
   assert.ok(bobber.x >= 0 && bobber.x <= width && bobber.y >= 0 && bobber.y <= height, `${name} bobber visible`);
   assert.equal(isPointInWalkableRegion({ x: bobber.x / width * 100, y: bobber.y / height * 100 }, layout, "wooden-dock"), false, `${name} bobber in pond`);
+  const card = brokerageLabelPoint({ width, height }, layout === "mobile");
+  const left = projectForestPoint(STATUE_SLOTS.left, { width, height }, layout === "mobile");
+  const right = projectForestPoint(STATUE_SLOTS.right, { width, height }, layout === "mobile");
+  const halfCard = layout === "mobile" ? 78 : 87;
+  assert.ok(card.x >= halfCard && card.x <= width - halfCard, `${name} brokerage card in frame`);
+  assert.ok(card.y > 40 && card.y < height - 150, `${name} brokerage card above pedestal`);
+  assert.ok(Math.abs(card.x - left.x) > halfCard + 38 || Math.abs(card.y - (left.y - 40)) > 80, `${name} card/statue separated`);
+  assert.ok(right.x > left.x, `${name} distinct statue slots preserve forest order`);
+  if (layout === "mobile") assert.ok(right.x > width, "right pedestal is intentionally outside the mobile cover crop");
 }
 setForestSceneViewport(null);
 assert.deepEqual(getActivityZone("fishing_dock").walkableRegionIds, ["wooden-dock"]);
 
 assert.ok(STATUE_SLOTS.left.x > 530 && STATUE_SLOTS.left.x < 655 && STATUE_SLOTS.left.y >= 690 && STATUE_SLOTS.left.y < 760);
 assert.ok(STATUE_SLOTS.right.x > 1412 && STATUE_SLOTS.right.x < 1545);
-const stone = readFileSync(path.join(root, "public/money-level/art/statues/stone-bear.png"));
-assert.equal(stone.toString("hex", 0, 8), "89504e470d0a1a0a");
-assert.equal(stone[25], 6, "Stone bear must have an alpha channel");
+assert.equal(STATUE_SLOTS.left.y, 735);
+assert.equal(STATUE_OPTIONS.length, 7);
+for (const option of STATUE_OPTIONS.filter((item) => item.value !== "none")) {
+  const png = readFileSync(path.join(root, `public/money-level/art/statues/${option.value}.png`));
+  assert.equal(png.toString("hex", 0, 8), "89504e470d0a1a0a");
+  assert.equal(png.readUInt32BE(16), 1219);
+  assert.equal(png.readUInt32BE(20), 1290);
+  assert.equal(png[25], 6, `${option.value} must have alpha`);
+}
 assert.equal(normalizeMoneyLevelSettings(undefined).leftStatue, "none");
 assert.equal(normalizeMoneyLevelSettings({ ...DEFAULT_MONEY_LEVEL_SETTINGS, leftStatue: "stone-bear" }).leftStatue, "stone-bear");
 assert.equal(normalizeMoneyLevelSettings({ ...DEFAULT_MONEY_LEVEL_SETTINGS, leftStatue: "bad" as "none" }).leftStatue, "none");
+assert.equal(normalizeMoneyLevelSettings({ leftStatue: "stone-bear" }).rightStatue, "none", "legacy v1 settings migration");
+assert.equal(isValidMoneyLevelSettings({ ...DEFAULT_MONEY_LEVEL_SETTINGS, rightStatue: "crystal-bear" }), true);
+assert.equal(isValidMoneyLevelSettings({ ...DEFAULT_MONEY_LEVEL_SETTINGS, rightStatue: "unknown" }), false);
+for (const option of STATUE_OPTIONS) {
+  assert.equal(normalizeMoneyLevelSettings({ leftStatue: option.value, rightStatue: option.value }).leftStatue, option.value);
+  assert.equal(normalizeMoneyLevelSettings({ leftStatue: option.value, rightStatue: option.value }).rightStatue, option.value);
+}
 const tip = { x: 12, y: 10 }, bobber = { x: 48, y: 75 };
 const angle = fishingLineAngleDeg(tip, bobber) * Math.PI / 180;
 const length = Math.hypot(bobber.x - tip.x, bobber.y - tip.y);

@@ -1,4 +1,18 @@
-import type { MoneyLevelSettings } from "./types";
+import type { MoneyLevelSettings, MoneyLevelStatue } from "./types";
+
+export const STATUE_OPTIONS: ReadonlyArray<{ value: MoneyLevelStatue; label: string }> = [
+  { value: "none", label: "없음" },
+  { value: "stone-bear", label: "돌곰" },
+  { value: "marble-bear", label: "대리석곰" },
+  { value: "wood-bear", label: "나무곰" },
+  { value: "gold-bear", label: "황금곰" },
+  { value: "whitegold-bear", label: "백금곰" },
+  { value: "crystal-bear", label: "크리스탈곰" },
+] as const;
+
+function isStatue(value: unknown): value is MoneyLevelStatue {
+  return STATUE_OPTIONS.some((option) => option.value === value);
+}
 
 export const DEFAULT_MONEY_LEVEL_SETTINGS: Readonly<MoneyLevelSettings> = {
   retirementDate: "2030-02-28",
@@ -7,6 +21,7 @@ export const DEFAULT_MONEY_LEVEL_SETTINGS: Readonly<MoneyLevelSettings> = {
   isaWithdrawalRate: 0.033,
   pensionWithdrawalRate: 0.033,
   leftStatue: "none",
+  rightStatue: "none",
 };
 
 export function isValidMoneyLevelDate(value: unknown): value is string {
@@ -33,7 +48,8 @@ export function isValidMoneyLevelSettings(value: unknown): value is MoneyLevelSe
     && isValidRate(settings.brokerageTaxRate)
     && isValidRate(settings.isaWithdrawalRate)
     && isValidRate(settings.pensionWithdrawalRate)
-    && (settings.leftStatue === "none" || settings.leftStatue === "stone-bear");
+    && isStatue(settings.leftStatue)
+    && isStatue(settings.rightStatue);
 }
 
 export function normalizeMoneyLevelSettings(
@@ -50,6 +66,7 @@ export function normalizeMoneyLevelSettings(
       value?.pensionWithdrawalRate,
       DEFAULT_MONEY_LEVEL_SETTINGS.pensionWithdrawalRate,
     ),
-    leftStatue: value?.leftStatue === "stone-bear" ? "stone-bear" : "none",
+    leftStatue: isStatue(value?.leftStatue) ? value.leftStatue : "none",
+    rightStatue: isStatue(value?.rightStatue) ? value.rightStatue : "none",
   };
 }

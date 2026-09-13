@@ -2,9 +2,22 @@
 export const FOREST_MASTER_SIZE = { width: 1683, height: 935 } as const;
 
 export const STATUE_SLOTS = {
-  left: { x: 590, y: 712 },
-  right: { x: 1470, y: 550 },
+  /** Image bottom is transparent-padded; visible throne bottom touches the pedestal top at y≈732. */
+  left: { x: 590, y: 735, width: 76, mobileWidth: 70 },
+  right: { x: 1470, y: 568, width: 62, mobileWidth: 58 },
 } as const;
+
+/** Brokerage card follows forest landmarks, with a mobile-specific crop-safe position. */
+export const BROKERAGE_LABEL = {
+  desktop: { x: 300, y: 375 },
+  mobile: { x: 650, y: 310 },
+} as const;
+
+export function brokerageLabelPoint(scene: { width: number; height: number }, mobile: boolean) {
+  const point = projectForestPoint(BROKERAGE_LABEL[mobile ? "mobile" : "desktop"], scene, mobile);
+  const halfCard = mobile ? 78 : 87;
+  return { x: Math.max(halfCard, Math.min(scene.width - halfCard, point.x)), y: point.y };
+}
 
 export const FISHING_BOBBER = {
   desktop: { x: 1390, y: 788 },

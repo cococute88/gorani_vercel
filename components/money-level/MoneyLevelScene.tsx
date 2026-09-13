@@ -3,7 +3,7 @@
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import type { MoneyLevelHouseStage } from "@/lib/money-level/house-stages";
-import type { MoneyLevelTimeOfDay, MoneyLevelWeather } from "@/lib/money-level/types";
+import type { MoneyLevelStatue, MoneyLevelTimeOfDay, MoneyLevelWeather } from "@/lib/money-level/types";
 import {
   BEHAVIOR_CONFIG,
   CHARACTER_CONFIG,
@@ -15,7 +15,7 @@ import {
   type CharacterPhase,
 } from "@/lib/money-level/forest/behavior";
 import { FISHING_VISUAL_CONFIG, type SemanticActivityZone } from "@/lib/money-level/forest/activity-zones";
-import { FISHING_BOBBER, fishingLineAngleDeg, projectForestPoint, STATUE_SLOTS } from "@/lib/money-level/forest/landmarks";
+import { brokerageLabelPoint, FISHING_BOBBER, fishingLineAngleDeg, projectForestPoint, STATUE_SLOTS } from "@/lib/money-level/forest/landmarks";
 import { perspectiveScale, setForestSceneViewport, type ScenePoint } from "@/lib/money-level/forest/navigation";
 import { FOREST_SCENE, HOUSE_ART_FAMILY, resolveForestBackground } from "@/lib/money-level/forest/scene-config";
 import type { CharacterId, CharacterState } from "@/lib/money-level/forest/character-types";
@@ -58,6 +58,7 @@ export default function MoneyLevelScene({
   timeOfDay,
   ambientEnabled,
   leftStatue,
+  rightStatue,
   phrase,
 }: {
   brokerageStage: MoneyLevelHouseStage;
@@ -69,7 +70,8 @@ export default function MoneyLevelScene({
   weather: MoneyLevelWeather;
   timeOfDay: MoneyLevelTimeOfDay;
   ambientEnabled: boolean;
-  leftStatue: "none" | "stone-bear";
+  leftStatue: MoneyLevelStatue;
+  rightStatue: MoneyLevelStatue;
   phrase: string;
 }) {
   const sceneRef = useRef<HTMLElement>(null);
@@ -359,7 +361,10 @@ export default function MoneyLevelScene({
     };
   }, [ambientEnabled, runtimeVersion, weather]);
 
-  const statuePoint = projectForestPoint(STATUE_SLOTS.left, sceneSize, sceneSize.mobile);
+  const statuePoints = {
+    left: projectForestPoint(STATUE_SLOTS.left, sceneSize, sceneSize.mobile),
+    right: projectForestPoint(STATUE_SLOTS.right, sceneSize, sceneSize.mobile),
+  };
 
   return (
     <section ref={sceneRef} className="forest-scene" data-ambient={ambientEnabled ? "on" : "off"} aria-label="고라니와 다람쥐가 사는 숲">
@@ -368,7 +373,12 @@ export default function MoneyLevelScene({
         {ambientEnabled ? <div className="pond-shimmer-layer ambient-motion-layer" aria-hidden="true" /> : null}
         <div className="house-place brokerage-house"><HouseVisual kind="brokerage" stage={brokerageStage} /></div>
         <div className="house-place tax-house"><HouseVisual kind="tax" stage={taxStage} /></div>
-        {leftStatue === "stone-bear" ? <img className="stone-bear-statue" src="/money-level/art/statues/stone-bear.png" alt="왼쪽 받침대의 돌곰 조각상" style={{ left: statuePoint.x, top: statuePoint.y }} draggable={false} /> : null}
+        {(["left", "right"] as const).map((slot) => {
+          const statue = slot === "left" ? leftStatue : rightStatue;
+          if (statue === "none") return null;
+          const config = STATUE_SLOTS[slot];
+          return <img key={slot} className="forest-statue" data-statue-slot={slot} src={`/money-level/art/statues/${statue}.png`} alt={`${slot === "left" ? "왼쪽" : "오른쪽"} 받침대의 곰 조각상`} style={{ left: statuePoints[slot].x, top: statuePoints[slot].y, "--statue-width": `${sceneSize.mobile ? config.mobileWidth : config.width}px` } as CSSProperties} draggable={false} />;
+        })}
         <div className="character-ground-layer" aria-hidden="true">
           <CharacterAnchor id="gorani" layer="shadow" /><CharacterAnchor id="daramji" layer="shadow" />
         </div>
@@ -395,8 +405,8 @@ export default function MoneyLevelScene({
         <div className="lightning-layer ambient-motion-layer" aria-hidden="true" />
       </> : null}
       <div className="scene-label-layer">
-        <HouseLabel kind="brokerage" stage={brokerageStage} value={brokerageValue} displayLevel={brokerageLevel} />
-        <HouseLabel kind="tax" stage={taxStage} value={taxValue} displayLevel={taxLevel} />
+        <HouseLabel kind="brokerage" stage={brokerageStage} value={brokerageValue} displayLevel={brokerageLevel} sceneSize={sceneSize} />
+        <HouseLabel kind="tax" stage={taxStage} value={taxValue} displayLevel={taxLevel} sceneSize={sceneSize} />
       </div>
       <div className="scene-weather"><span>{weatherIcon(weather)}</span><b>{weatherLabel(weather)}</b><small>{timeLabel(timeOfDay)}</small></div>
       <p className="forest-phrase">{phrase}</p>
@@ -502,10 +512,13 @@ function HouseVisual({ kind, stage }: { kind: "brokerage" | "tax"; stage: MoneyL
   );
 }
 
-function HouseLabel({ kind, stage, value, displayLevel }: { kind: "brokerage" | "tax"; stage: MoneyLevelHouseStage; value: number; displayLevel: number }) {
-  const placement = FOREST_SCENE.labelPlacements[kind];
+function HouseLabel({ kind, stage, value, displayLevel, sceneSize }: { kind: "brokerage" | "tax"; stage: MoneyLevelHouseStage; value: number; displayLevel: number; sceneSize: { width: number; height: number; mobile: boolean } }) {
   const title = kind === "brokerage" ? "위탁 집" : "절세 집";
-  const style = { "--label-x": `${placement.x}%`, "--label-y": `${placement.y}%`, "--label-mobile-x": `${placement.mobile.x}%`, "--label-mobile-y": `${placement.mobile.y}%` } as CSSProperties;
+  const placement = FOREST_SCENE.labelPlacements.tax;
+  const point = kind === "brokerage" ? brokerageLabelPoint(sceneSize, sceneSize.mobile) : null;
+  const style = point
+    ? { left: point.x, top: point.y }
+    : { "--label-x": `${placement.x}%`, "--label-y": `${placement.y}%`, "--label-mobile-x": `${placement.mobile.x}%`, "--label-mobile-y": `${placement.mobile.y}%` } as CSSProperties;
   return <div className={`house-label house-label-${kind}`} style={style} data-house-label={kind} aria-label={`${title} 정보`}><span className="house-leaf" aria-hidden="true">♧</span><div><p>{title} <small title="월 현금흐름 하트 기준 레벨">Lv.{displayLevel}</small></p><strong>{stage.label}</strong><b>{(value / 100_000_000).toFixed(1)}억원</b></div></div>;
 }
 
