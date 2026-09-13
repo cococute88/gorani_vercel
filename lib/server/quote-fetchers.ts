@@ -37,6 +37,10 @@ type YahooChartPayload = {
         longName?: string;
         exchangeName?: string;
         fullExchangeName?: string;
+        exchangeTimezoneName?: string;
+        currentTradingPeriod?: {
+          regular?: { start?: number; end?: number };
+        };
       };
       timestamp?: number[];
       indicators?: {

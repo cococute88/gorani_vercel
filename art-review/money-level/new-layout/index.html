@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Money Level · New Layout Review</title>
+  <style>
+    :root { color-scheme: dark; font: 14px/1.45 system-ui, sans-serif; background: #101512; color: #f1f4ea; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    header, main { max-width: 1600px; margin: auto; padding: 18px; }
+    header { position: sticky; top: 0; z-index: 5; background: #101512ed; border-bottom: 1px solid #48574b; }
+    h1 { margin: 0; font-size: clamp(20px, 3vw, 32px); }
+    h2 { margin: 26px 0 10px; font-size: 19px; }
+    p { margin: 6px 0; }
+    .warning { color: #ffd08b; }
+    .matrix { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+    button, select { border: 1px solid #667969; border-radius: 8px; padding: 7px 10px; color: inherit; background: #29352c; cursor: pointer; }
+    button[aria-pressed="true"] { border-color: #e5f5a1; outline: 2px solid #e5f5a1; }
+    .card { padding: 0; text-align: left; overflow: hidden; }
+    .card img { width: 100%; display: block; aspect-ratio: 1683/935; object-fit: fill; }
+    .card span { display: block; padding: 5px 8px; }
+    .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 10px 0; }
+    .compare { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    figure { margin: 0; min-width: 0; }
+    figcaption { margin-bottom: 5px; color: #c8d8c2; }
+    .image-wrap { position: relative; width: 100%; aspect-ratio: 1683/935; overflow: hidden; background: #243027; }
+    .image-wrap img { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: fill; }
+    .overlay { opacity: .5; }
+    .landmark-grid::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, transparent 24.9%, #ffffff8a 25%, transparent 25.1%, transparent 49.9%, #ffffff8a 50%, transparent 50.1%, transparent 74.9%, #ffffff8a 75%, transparent 75.1%), linear-gradient(transparent 24.9%, #ffffff8a 25%, transparent 25.1%, transparent 49.9%, #ffffff8a 50%, transparent 50.1%, transparent 74.9%, #ffffff8a 75%, transparent 75.1%); }
+    .crop-row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+    .crop { aspect-ratio: 1.5; overflow: hidden; position: relative; border: 1px solid #667969; }
+    .crop img { position: absolute; width: 400%; max-width: none; height: auto; }
+    .crop[data-name="dock"] img { left: -218%; top: -195%; }
+    .crop[data-name="bench"] img { left: -45%; top: -175%; }
+    .crop[data-name="base-1"] img { left: -120%; top: -235%; }
+    .crop[data-name="base-2"] img { left: -332%; top: -165%; }
+    .crop[data-name="shore"] img { left: -275%; top: -185%; }
+    .stage-viewport { position: relative; width: min(100%, 1320px); height: 520px; overflow: hidden; border: 2px solid #a2ac8b; background: #618a6f; }
+    .stage-viewport img.background { position: absolute; width: 100%; height: 100%; object-fit: cover; object-position: center; }
+    .stage-viewport img.house { position: absolute; height: auto; transform: translate(-50%, -50%); mask-image: radial-gradient(ellipse 49% 47% at 50% 55%, #000 67%, transparent 100%); }
+    .stage-viewport img.house.alpha { mask-image: none; }
+    .stage-viewport img.house.tax { mask-image: radial-gradient(ellipse 39% 35% at 50% 61%, #000 58%, transparent 100%); }
+    .stage-viewport img.stone-bear { position: absolute; width: 76px; height: auto; transform: translate(-50%, -100%); filter: drop-shadow(0 3px 2px #27311a55); }
+    .stage-viewport[data-size="mobile"] { width: 390px; max-width: 100%; height: 512px; }
+    .stage-viewport[data-size="tablet"] { width: 768px; }
+    .stage-viewport[data-size="narrow"] { width: 980px; }
+    .stage-viewport[data-size="mobile"] .background { object-position: 51% 50%; }
+    .stage-viewport .brokerage { left: 33.5%; top: 45%; width: 37%; }
+    .stage-viewport .tax { left: 71.8%; top: 48.5%; width: 31%; }
+    .stage-viewport[data-size="mobile"] .brokerage { left: 28%; top: 43%; width: 55%; }
+    .stage-viewport[data-size="mobile"] .tax { left: 73%; top: 48%; width: 46%; }
+    .stage-viewport[data-size="mobile"] .stone-bear { width: 70px; }
+    @media(max-width: 800px) { .matrix { grid-template-columns: repeat(2, minmax(0, 1fr)); } .compare { grid-template-columns: 1fr; } .crop-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Money Level · NEW_LAYOUT_REFERENCE review</h1>
+    <p class="warning">Hybrid 16: geometry and exact-size audits passed, including published WebP files. Browser runtime QA remains blocked by the URL safety gate.</p>
+    <p>Old 16 = time/weather look. User reference = geometry. Click a cell, compare Old/New, then switch the right pane to 50% master overlay.</p>
+  </header>
+  <main>
+    <h2>Representative gate · inspect these four first</h2>
+    <div class="toolbar" id="representatives"></div>
+    <h2>Full 4 × 4 matrix</h2>
+    <section id="matrix" class="matrix" aria-label="4 by 4 time and weather candidates"></section>
+    <h2 id="selected-title">Selection</h2>
+    <div class="toolbar">
+      <label>Right pane <select id="mode"><option value="new">New</option><option value="old-overlay">Old/New 50%</option><option value="master-overlay">Master/New 50% geometry</option></select></label>
+      <label><input type="checkbox" id="grid"> Landmark grid</label>
+      <a href="../../../reference/new_reference.png" target="_blank" rel="noopener">Open geometry master</a>
+    </div>
+    <div class="compare">
+      <figure><figcaption>OLD · existing production/review look (1672×941)</figcaption><div class="image-wrap"><img id="old" alt="Old scene"></div></figure>
+      <figure><figcaption id="right-caption">NEW candidate (1683×935 target)</figcaption><div id="right" class="image-wrap"><img id="new" alt="New candidate"><img id="comparison" class="overlay" alt="Comparison overlay" hidden></div></figure>
+    </div>
+    <h2>Five critical close-ups · new candidate</h2>
+    <div class="crop-row" id="crops"></div>
+    <h2>House stage compatibility preview · current runtime placements</h2>
+    <p>This is a visual preview, not a runtime behavior test. RGB stage art uses the current CSS feather mask; the expanded cabin has alpha.</p>
+    <div class="toolbar">
+      <label>Brokerage <select id="brokerage"></select></label>
+      <label>Tax <select id="tax"></select></label>
+      <label>Viewport <select id="size"><option value="wide">Desktop wide 1320</option><option value="narrow">Desktop narrow 980</option><option value="tablet">Tablet 768</option><option value="mobile">Mobile 390</option></select></label>
+      <label><input type="checkbox" id="bear"> Stone Bear LEFT preview</label>
+    </div>
+    <div id="stage" class="stage-viewport" data-size="wide"><img id="stage-background" class="background" alt="New forest scene"><img id="stage-brokerage" class="house brokerage" alt="Brokerage house"><img id="stage-tax" class="house tax" alt="Tax house or camp"><img id="stage-bear" class="stone-bear" src="stone-bear-transparent.png" alt="Stone bear on left pedestal" hidden></div>
+  </main>
+  <script>
+    const times = ['morning','day','evening','night'];
+    const weathers = ['sunny','cloudy','rain','storm'];
+    const master = '../../../reference/new_reference.png';
+    const oldPath = name => `../weather-time/docked/forest-${name}-docked.png`;
+    const newPath = name => `hybrid/forest-${name}.png`;
+    const byId = id => document.getElementById(id);
+    const brokerage = [['none','Empty lot'],['brokerage-stage-35-40-small-cabin.webp','Small cabin'],['brokerage-stage-40-45-expanded-cabin-alpha.webp','Expanded cabin'],['brokerage-stage-45-50-proper-house.webp','Proper house']];
+    const tax = [['none','Empty lot'],['tax-stage-10-15-camp-plus.webp','Camp plus'],['tax-stage-15-20-small-white-tent.webp','Small tent'],['tax-stage-20-25-large-white-tent.webp','Large tent'],['tax-stage-25-30-colored-tent.webp','Colored tent']];
+    for(const [id, stages] of [['brokerage',brokerage],['tax',tax]]) byId(id).innerHTML=stages.map(([file,label])=>`<option value="${file}">${label}</option>`).join('');
+    byId('brokerage').value=brokerage.at(-1)[0]; byId('tax').value=tax.at(-1)[0];
+    let selected='day-sunny';
+    const matrix=byId('matrix');
+    for(const name of ['day-sunny','evening-sunny','day-rain','night-storm']) {
+      const button=document.createElement('button'); button.textContent=name; button.onclick=()=>select(name); byId('representatives').append(button);
+    }
+    for(const time of times) for(const weather of weathers) {
+      const name=`${time}-${weather}`; const card=document.createElement('button');
+      card.className='card'; card.dataset.name=name; card.innerHTML=`<img loading="lazy" src="${newPath(name)}" alt=""><span>${time} / ${weather}</span>`;
+      card.onclick=()=>select(name); matrix.append(card);
+    }
+    for(const [name,label] of [['dock','Grass → one dock'],['bench','Bench'],['base-1','Circular base'],['base-2','Rectangular base'],['shore','Pond shore']]) {
+      const figure=document.createElement('figure'); figure.innerHTML=`<figcaption>${label}</figcaption><div class="crop" data-name="${name}"><img alt="${label}"></div>`; byId('crops').append(figure);
+    }
+    function stageChange() {
+      byId('stage-background').src=newPath(selected);
+      for(const [kind,id] of [['brokerage','stage-brokerage'],['tax','stage-tax']]) {
+        const filename=byId(kind).value, img=byId(id); img.hidden=filename==='none';
+        if(!img.hidden) img.src=`../../../public/money-level/art/houses/${filename}`;
+        img.classList.toggle('alpha',filename.includes('-alpha.'));
+      }
+      byId('stage').dataset.size=byId('size').value;
+      byId('stage-bear').hidden=!byId('bear').checked;
+      requestAnimationFrame(() => {
+        const stage=byId('stage'), mobile=stage.dataset.size==='mobile';
+        const scale=Math.max(stage.clientWidth/1683,stage.clientHeight/935);
+        const cropX=(1683*scale-stage.clientWidth)*(mobile?.51:.5);
+        const cropY=(935*scale-stage.clientHeight)*.5;
+        byId('stage-bear').style.left=`${590*scale-cropX}px`;
+        byId('stage-bear').style.top=`${712*scale-cropY}px`;
+      });
+    }
+    function compareChange() {
+      const mode=byId('mode').value, overlay=byId('comparison');
+      overlay.hidden=mode==='new'; overlay.src=mode==='old-overlay'?oldPath(selected):master;
+      byId('right-caption').textContent=mode==='new'?'NEW candidate':mode==='old-overlay'?'NEW + OLD 50% (look/layout comparison)':'NEW + GEOMETRY MASTER 50% (double edges indicate drift)';
+      byId('right').classList.toggle('landmark-grid',byId('grid').checked);
+    }
+    function select(name) {
+      selected=name; byId('selected-title').textContent=`${name.toUpperCase()} · Old vs new`;
+      byId('old').src=oldPath(name); byId('new').src=newPath(name);
+      for(const img of byId('crops').querySelectorAll('img')) img.src=newPath(name);
+      for(const card of matrix.children) card.setAttribute('aria-pressed',String(card.dataset.name===name));
+      compareChange(); stageChange();
+    }
+    for(const id of ['mode','grid']) byId(id).onchange=compareChange;
+    for(const id of ['brokerage','tax','size','bear']) byId(id).onchange=stageChange;
+    select(selected);
+  </script>
+</body>
+</html>

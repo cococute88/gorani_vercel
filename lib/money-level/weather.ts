@@ -1,4 +1,4 @@
-import type { MoneyLevelTimeOfDay, MoneyLevelWeather } from "./types";
+import type { MoneyLevelTimeOfDay, MoneyLevelWeather, MoneyLevelWindIntensity } from "./types";
 
 export function hashMoneyLevelDate(dateKey: string): number {
   let hash = 2166136261;
@@ -9,18 +9,27 @@ export function hashMoneyLevelDate(dateKey: string): number {
   return hash >>> 0;
 }
 
-export function resolveMoneyLevelWeather(date: Date): MoneyLevelWeather {
+export function resolveMoneyLevelSeededWeather(date: Date): MoneyLevelWeather {
   const key = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
   const roll = hashMoneyLevelDate(key) / 0x1_0000_0000;
-  if (roll < 0.6) return "clear";
+  if (roll < 0.6) return "sunny";
   if (roll < 0.85) return "cloudy";
   return "rain";
 }
 
+/** Backwards-compatible name for the deterministic market-data fallback. */
+export const resolveMoneyLevelWeather = resolveMoneyLevelSeededWeather;
+
 export function resolveMoneyLevelTimeOfDay(date: Date): MoneyLevelTimeOfDay {
   const hour = date.getHours();
-  if (hour >= 6 && hour < 10) return "morning";
-  if (hour >= 10 && hour < 17) return "day";
-  if (hour >= 17 && hour < 20) return "evening";
+  if (hour >= 5 && hour < 9) return "morning";
+  if (hour >= 9 && hour < 16) return "day";
+  if (hour >= 16 && hour < 19) return "evening";
   return "night";
+}
+
+export function resolveMoneyLevelWindIntensity(weather: MoneyLevelWeather): MoneyLevelWindIntensity {
+  if (weather === "thunderstorm") return "strong";
+  if (weather === "cloudy" || weather === "rain") return "breeze";
+  return "none";
 }

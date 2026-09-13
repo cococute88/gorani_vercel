@@ -1,5 +1,6 @@
 import type { CharacterId } from "./character-types";
 import { WAYPOINTS, type Waypoint } from "./forest-character-config";
+import { DOCK_ACCESS_POLYGON, DOCK_MAIN_POLYGON, DOCK_WAYPOINTS, projectForestPoint } from "./landmarks";
 
 export type SceneLayout = "desktop" | "mobile";
 
@@ -7,6 +8,22 @@ export interface ScenePoint { x: number; y: number; }
 export interface SceneRect { x: number; y: number; width: number; height: number; }
 export interface ScenePolygon { points: readonly ScenePoint[]; }
 export interface ResolvedDrop { point: ScenePoint; waypoint: Waypoint; snapped: boolean; }
+
+let sceneViewport: { width: number; height: number } | null = null;
+
+/** Runtime projection for fixed art landmarks; null retains pure legacy unit-test coordinates. */
+export function setForestSceneViewport(viewport: { width: number; height: number } | null): void {
+  sceneViewport = viewport;
+}
+
+function projectedDockPolygon(layout: SceneLayout, mainOnly = false): readonly ScenePoint[] | null {
+  if (!sceneViewport) return null;
+  const viewport = sceneViewport;
+  return (mainOnly ? DOCK_MAIN_POLYGON : DOCK_ACCESS_POLYGON).map((point) => {
+    const projected = projectForestPoint(point, viewport, layout === "mobile");
+    return { x: projected.x / viewport.width * 100, y: projected.y / viewport.height * 100 };
+  });
+}
 
 export interface WalkableRegion {
   id: string;
@@ -55,6 +72,8 @@ export const EXCLUSION_ZONES: readonly ExclusionZone[] = [
   { id: "pond-water", kind: "water", desktop: { x: 58.5, y: 69, width: 41.5, height: 31 }, mobile: { x: 57, y: 69, width: 43, height: 31 } },
   { id: "left-foreground-fence", kind: "prop", desktop: { x: 11, y: 79, width: 17, height: 12 }, mobile: { x: 0, y: 80, width: 25, height: 11 } },
   { id: "foreground-rocks", kind: "prop", desktop: { x: 29, y: 84, width: 13, height: 16 }, mobile: { x: 4, y: 82, width: 22, height: 18 } },
+  { id: "statue-base-left", kind: "prop", desktop: { x: 31.4, y: 84.5, width: 7.5, height: 8.5 }, mobile: { x: 5, y: 74, width: 18, height: 7 } },
+  { id: "statue-base-right", kind: "prop", desktop: { x: 84, y: 59, width: 8, height: 11 }, mobile: { x: 110, y: 57, width: 18, height: 10 } },
 ] as const;
 
 export const NAVIGATION_GRAPH: Readonly<Record<string, readonly string[]>> = {
@@ -66,14 +85,14 @@ export const NAVIGATION_GRAPH: Readonly<Record<string, readonly string[]>> = {
   campfire: ["daramji_home", "tax_clearing", "meadow", "flower_patch"],
   tax_clearing: ["campfire"],
   meadow: ["garden", "campfire", "flower_patch", "path_mid"],
-  flower_patch: ["campfire", "meadow", "pond_edge", "path_center"],
+  flower_patch: ["campfire", "meadow", "path_center"],
   path_front: ["brokerage_yard", "bench", "path_center"],
   path_center: ["garden", "flower_patch", "path_front", "path_mid", "pond_edge"],
   path_mid: ["meadow", "path_center", "path_back_lower"],
   path_back_lower: ["path_mid", "path_back_mid"],
   path_back_mid: ["path_back_lower", "path_back_upper"],
   path_back_upper: ["path_back_mid"],
-  pond_edge: ["garden", "flower_patch", "path_center", "pond_land"],
+  pond_edge: ["garden", "path_center", "pond_land"],
   pond_land: ["pond_edge", "dock_connector"],
   dock_connector: ["pond_land", "dock_start"],
   dock_start: ["dock_connector", "dock_mid"],
@@ -82,6 +101,11 @@ export const NAVIGATION_GRAPH: Readonly<Record<string, readonly string[]>> = {
 };
 
 export function waypointPoint(waypoint: Waypoint, layout: SceneLayout): ScenePoint {
+  if (sceneViewport && waypoint.id in DOCK_WAYPOINTS) {
+    const source = DOCK_WAYPOINTS[waypoint.id as keyof typeof DOCK_WAYPOINTS][layout];
+    const projected = projectForestPoint(source, sceneViewport, layout === "mobile");
+    return { x: projected.x / sceneViewport.width * 100, y: projected.y / sceneViewport.height * 100 };
+  }
   const source = layout === "mobile" && waypoint.mobile ? waypoint.mobile : waypoint;
   return { x: source.x, y: source.y };
 }
@@ -100,13 +124,25 @@ export function perspectiveScale(y: number): number {
 
 export function isPointSafe(point: ScenePoint, layout: SceneLayout, character: CharacterId): boolean {
   const regions = WALKABLE_REGIONS.filter((region) => pointInPolygon(point, region[layout].points));
-  if (regions.length === 0) return false;
+  const projectedDock = projectedDockPolygon(layout);
+  const inProjectedDock = Boolean(projectedDock && pointInPolygon(point, projectedDock));
+  if (regions.length === 0 && !inProjectedDock) return false;
   const allowedKinds = new Set(regions.flatMap((region) => region.allows ?? []));
+  if (inProjectedDock) {
+    allowedKinds.add("water");
+    // At tablet cover crops the baked dock rises under the fixed tax-label
+    // clearance rectangle; that broad rectangle must not invalidate wood.
+    allowedKinds.add("label");
+  }
   const clearance = CHARACTER_CLEARANCE[character];
   return !EXCLUSION_ZONES.some((zone) => !allowedKinds.has(zone.kind) && pointIntersectsExpandedRect(point, zone[layout], clearance));
 }
 
 export function isPointInWalkableRegion(point: ScenePoint, layout: SceneLayout, regionId: string): boolean {
+  if (regionId === "dock-connector" || regionId === "wooden-dock") {
+    const projected = projectedDockPolygon(layout, regionId === "wooden-dock");
+    if (projected) return pointInPolygon(point, projected);
+  }
   const region = WALKABLE_REGIONS.find(({ id }) => id === regionId);
   return Boolean(region && pointInPolygon(point, region[layout].points));
 }

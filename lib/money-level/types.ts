@@ -9,12 +9,16 @@ export interface MoneyLevelPortfolioSource {
   getSnapshot(): Promise<MoneyLevelPortfolioSnapshot>;
 }
 
+export type MoneyLevelStatue = "none" | "stone-bear" | "marble-bear" | "wood-bear" | "gold-bear" | "whitegold-bear" | "crystal-bear";
+
 export interface MoneyLevelSettings {
   retirementDate: string;
   brokerageYield: number;
   brokerageTaxRate: number;
   isaWithdrawalRate: number;
   pensionWithdrawalRate: number;
+  leftStatue: MoneyLevelStatue;
+  rightStatue: MoneyLevelStatue;
 }
 
 export interface HeartBreakdown {
@@ -27,5 +31,6 @@ export interface HpHeartBreakdown extends HeartBreakdown {
   special: number;
 }
 
-export type MoneyLevelWeather = "clear" | "cloudy" | "rain";
+export type MoneyLevelWeather = "sunny" | "cloudy" | "rain" | "thunderstorm";
 export type MoneyLevelTimeOfDay = "morning" | "day" | "evening" | "night";
+export type MoneyLevelWindIntensity = "none" | "breeze" | "strong";

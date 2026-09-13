@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { access, readdir, readFile } from "node:fs/promises";
+import { access, readdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
 
 const root = process.cwd();
@@ -32,7 +32,15 @@ const webpRenditions = pngMasters
   .filter((file) => file.startsWith("art/"))
   .map((file) => file.replace(/\.png$/, ".webp"));
 assert.equal(webpRenditions.length, 10, "Every environmental art PNG must have a WebP rendition");
-const required = [...pngMasters, ...webpRenditions];
+const timeBackgrounds = ["morning", "day", "evening", "night"]
+  .flatMap((time) => ["sunny", "cloudy", "rain", "storm"]
+    .map((weather) => `art/background/forest-${time}-${weather}.webp`));
+const dockedBackgrounds = timeBackgrounds.map((file) => file.replace(/\.webp$/, "-docked.webp"));
+const statueMaterials = ["stone", "marble", "wood", "gold", "whitegold", "crystal"];
+const statueAssets = statueMaterials.map((material) => `art/statues/${material}-bear.png`);
+assert.equal(timeBackgrounds.length, 16, "Production must contain the complete 4x4 illustrated background matrix");
+assert.equal(dockedBackgrounds.length, 16, "Each illustrated scene needs its baked connector rendition");
+const required = [...pngMasters, ...webpRenditions, ...timeBackgrounds, ...dockedBackgrounds, ...statueAssets];
 
 async function assertExactCase(relativePath) {
   let current = assetRoot;
@@ -45,6 +53,28 @@ async function assertExactCase(relativePath) {
 }
 
 for (const file of required) await assertExactCase(file);
+for (const file of dockedBackgrounds) {
+  const info = await stat(path.join(assetRoot, file));
+  assert(info.size > 100_000, `Illustrated background rendition is unexpectedly small: ${file}`);
+  const name = path.basename(file).replace(/-docked\.webp$/, "");
+  const reviewPng = path.join(root, "art-review", "money-level", "weather-time", "docked", `${name}-docked.png`);
+  const patchPng = path.join(root, "art-review", "money-level", "weather-time", "connector-patches", `${name}.png`);
+  for (const [pngPath, width, height] of [[reviewPng, 1672, 941], [patchPng, 280, 170]]) {
+    const header = (await readFile(pngPath)).subarray(0, 24);
+    assert.equal(header.subarray(0, 8).toString("hex"), "89504e470d0a1a0a", `Expected PNG: ${pngPath}`);
+    assert.equal(header.readUInt32BE(16), width, `Wrong width: ${pngPath}`);
+    assert.equal(header.readUInt32BE(20), height, `Wrong height: ${pngPath}`);
+  }
+}
+const sceneComponent = await readFile(path.join(root, "components", "money-level", "MoneyLevelScene.tsx"), "utf8");
+const settingsComponent = await readFile(path.join(root, "lib", "money-level", "settings.ts"), "utf8");
+assert(sceneComponent.includes('/money-level/art/statues/${statue}.png'), "Statue object URL must resolve the selected material");
+for (const file of statueAssets) {
+  assert(settingsComponent.includes(`"${path.basename(file, ".png")}"`), `Statue option is not selectable: ${file}`);
+  const header = (await readFile(path.join(assetRoot, file))).subarray(0, 26);
+  assert.equal(header.subarray(0, 8).toString("hex"), "89504e470d0a1a0a", `Expected transparent PNG: ${file}`);
+  assert.equal(header[25], 6, `Statue must remain RGBA: ${file}`);
+}
 
 async function listFiles(directory, prefix = "") {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -75,7 +105,15 @@ for (const file of pngMasters) {
 }
 for (const file of webpRenditions) {
   const publicUrl = `/money-level/${file}`;
-  assert(scene.includes(publicUrl) || (file.endsWith("fishing-rod.webp") && (await readFile(path.join(root, "components", "money-level", "MoneyLevelScene.tsx"), "utf8")).includes(publicUrl)), `WebP rendition is not used at runtime: ${publicUrl}`);
+  // The former connector rendition is retained as a source artifact, never as a visual layer.
+  if (file.endsWith("dock-connector.webp")) continue;
+  const fishingRodUsed = file.endsWith("fishing-rod.webp")
+    && (await readFile(path.join(root, "components", "money-level", "MoneyLevelScene.tsx"), "utf8")).includes(publicUrl);
+  assert(scene.includes(publicUrl) || fishingRodUsed, `WebP rendition is not used at runtime: ${publicUrl}`);
+}
+for (const file of dockedBackgrounds) {
+  const publicUrl = `/money-level/${file}`;
+  assert(scene.includes(publicUrl), `Time background is not mapped at runtime: ${publicUrl}`);
 }
 assert(!`${catalog}\n${scene}`.match(/\/money-level\/art\/[^"']+\.png/), "Runtime scene config must not load environmental PNG masters");
 assert(!`${catalog}\n${scene}`.includes("curation"), "Production config must not import curation assets");

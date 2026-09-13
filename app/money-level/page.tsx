@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import MoneyLevelForest from "@/components/money-level/MoneyLevelForest";
+import { moneyLevelPreviewOverridesEnabled } from "@/lib/money-level/preview";
 
 export const metadata: Metadata = {
   title: "곰라니 머니레벨",
@@ -7,5 +8,9 @@ export const metadata: Metadata = {
 };
 
 export default function MoneyLevelPage() {
-  return <MoneyLevelForest />;
+  const previewOverridesEnabled = moneyLevelPreviewOverridesEnabled({
+    nodeEnv: process.env.NODE_ENV,
+    vercelEnv: process.env.VERCEL_ENV,
+  });
+  return <MoneyLevelForest previewOverridesEnabled={previewOverridesEnabled} />;
 }

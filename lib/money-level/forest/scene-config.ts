@@ -1,4 +1,5 @@
 import type { MoneyLevelHouseArt } from "../house-stages";
+import type { MoneyLevelTimeOfDay, MoneyLevelWeather } from "../types";
 
 export interface SceneAsset {
   src: string;
@@ -11,6 +12,39 @@ export interface ScenePlacement {
   y: number;
   width: number;
   mobile: { x: number; y: number; width: number };
+}
+
+export const FOREST_BACKGROUND_FALLBACK = "/money-level/art/background/forest-day-sunny-docked.webp";
+
+export const FOREST_WEATHER_BACKGROUNDS: Record<MoneyLevelTimeOfDay, Record<MoneyLevelWeather, string>> = {
+  morning: {
+    sunny: "/money-level/art/background/forest-morning-sunny-docked.webp",
+    cloudy: "/money-level/art/background/forest-morning-cloudy-docked.webp",
+    rain: "/money-level/art/background/forest-morning-rain-docked.webp",
+    thunderstorm: "/money-level/art/background/forest-morning-storm-docked.webp",
+  },
+  day: {
+    sunny: "/money-level/art/background/forest-day-sunny-docked.webp",
+    cloudy: "/money-level/art/background/forest-day-cloudy-docked.webp",
+    rain: "/money-level/art/background/forest-day-rain-docked.webp",
+    thunderstorm: "/money-level/art/background/forest-day-storm-docked.webp",
+  },
+  evening: {
+    sunny: "/money-level/art/background/forest-evening-sunny-docked.webp",
+    cloudy: "/money-level/art/background/forest-evening-cloudy-docked.webp",
+    rain: "/money-level/art/background/forest-evening-rain-docked.webp",
+    thunderstorm: "/money-level/art/background/forest-evening-storm-docked.webp",
+  },
+  night: {
+    sunny: "/money-level/art/background/forest-night-sunny-docked.webp",
+    cloudy: "/money-level/art/background/forest-night-cloudy-docked.webp",
+    rain: "/money-level/art/background/forest-night-rain-docked.webp",
+    thunderstorm: "/money-level/art/background/forest-night-storm-docked.webp",
+  },
+};
+
+export function resolveForestBackground(time: MoneyLevelTimeOfDay, weather: MoneyLevelWeather): string {
+  return FOREST_WEATHER_BACKGROUNDS[time]?.[weather] ?? FOREST_BACKGROUND_FALLBACK;
 }
 
 const TAX_CAMP_PLUS: SceneAsset = {
@@ -60,27 +94,14 @@ export const FOREST_SCENE = {
   },
   housePlacements: {
     brokerage: {
-      x: 30.5, y: 45, width: 39, mobile: { x: 28, y: 43, width: 55 },
+      x: 33.5, y: 45, width: 37, mobile: { x: 28, y: 43, width: 55 },
     },
     tax: {
-      x: 71.8, y: 48.5, width: 31, mobile: { x: 73, y: 48, width: 46 },
+      x: 74.8, y: 48.5, width: 31, mobile: { x: 76, y: 48, width: 46 },
     },
   },
   labelPlacements: {
-    brokerage: { x: 30.5, y: 72.5, mobile: { x: 28, y: 54.5 } },
     tax: { x: 71.8, y: 69.5, mobile: { x: 73, y: 57 } },
-  },
-  props: {
-    dockConnector: {
-      asset: {
-        src: "/money-level/art/props/dock-connector.webp",
-        alt: "육지와 연못 데크를 잇는 짧은 목재 연결부",
-        composite: "alpha",
-      },
-      placement: {
-        x: 61.8, y: 81.8, width: 10.5, mobile: { x: 76.2, y: 80.5, width: 16.5 },
-      },
-    },
   },
   stageAssets: {
     brokerage: {

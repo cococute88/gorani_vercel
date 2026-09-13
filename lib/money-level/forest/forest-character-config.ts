@@ -76,12 +76,12 @@ export const WAYPOINTS: readonly Waypoint[] = [
   { id: "path_back_lower", x: 52, y: 49, mobile: { x: 52, y: 54 }, facing: "right", supportedActions: ["idle", "look"], weight: 0.62 },
   { id: "path_back_mid", x: 55, y: 41, mobile: { x: 52, y: 43 }, facing: "left", supportedActions: ["idle", "look"], weight: 0.48 },
   { id: "path_back_upper", x: 57, y: 33, mobile: { x: 55, y: 33 }, facing: "right", supportedActions: ["idle", "look"], weight: 0.38 },
-  { id: "pond_edge", x: 55, y: 77, mobile: { x: 53, y: 78 }, facing: "right", supportedActions: ["idle", "look", "pond-watch"], weight: 0.64 },
-  { id: "pond_land", x: 58.5, y: 79, mobile: { x: 68, y: 78.5 }, facing: "right", supportedActions: ["idle", "look", "pond-watch"], weight: 0.42 },
-  { id: "dock_connector", x: 61.5, y: 84.1, mobile: { x: 74, y: 81 }, facing: "right", supportedActions: ["idle", "look", "pond-watch"], weight: 0.3 },
-  { id: "dock_start", x: 66, y: 86.6, mobile: { x: 82, y: 83.5 }, facing: "right", supportedActions: ["idle", "look", "pond-watch"], weight: 0.5 },
-  { id: "dock_mid", x: 70.2, y: 90, mobile: { x: 84.5, y: 86 }, facing: "right", supportedActions: ["idle", "look", "pond-watch"], weight: 0.34 },
-  { id: "dock_end", x: 74.7, y: 94.1, mobile: { x: 91.5, y: 82.7 }, facing: "right", supportedActions: ["idle", "fishing"], weight: 0.42 },
+  { id: "pond_edge", x: 55, y: 77, mobile: { x: 59, y: 72 }, facing: "right", supportedActions: ["idle", "look", "pond-watch"], weight: 0.64 },
+  { id: "pond_land", x: 58.5, y: 79, mobile: { x: 65, y: 73 }, facing: "right", supportedActions: ["idle", "look", "pond-watch"], weight: 0.42 },
+  { id: "dock_connector", x: 61.5, y: 84.1, mobile: { x: 73, y: 76 }, facing: "right", supportedActions: ["idle", "look", "pond-watch"], weight: 0.3 },
+  { id: "dock_start", x: 66, y: 86.6, mobile: { x: 80, y: 79.5 }, facing: "right", supportedActions: ["idle", "look", "pond-watch"], weight: 0.5 },
+  { id: "dock_mid", x: 70.2, y: 90, mobile: { x: 87, y: 81.5 }, facing: "right", supportedActions: ["idle", "look", "pond-watch"], weight: 0.34 },
+  { id: "dock_end", x: 74.7, y: 97, mobile: { x: 92, y: 83.5 }, facing: "right", supportedActions: ["idle", "fishing"], weight: 0.42 },
 ];
 
 export const CHARACTER_CONFIG: Record<CharacterId, CharacterForestConfig> = {
