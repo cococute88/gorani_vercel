@@ -18,6 +18,7 @@ import { FISHING_VISUAL_CONFIG, type SemanticActivityZone } from "@/lib/money-le
 import { brokerageLabelPoint, FISHING_BOBBER, fishingLineAngleDeg, projectForestPoint, statueSlotPlacement } from "@/lib/money-level/forest/landmarks";
 import { perspectiveScale, setForestSceneViewport, type ScenePoint } from "@/lib/money-level/forest/navigation";
 import { FOREST_SCENE, HOUSE_ART_FAMILY, resolveForestBackground } from "@/lib/money-level/forest/scene-config";
+import { getWorldObjectLighting } from "@/lib/money-level/forest/world-object-lighting";
 import type { CharacterId, CharacterState } from "@/lib/money-level/forest/character-types";
 import { resolveMoneyLevelWindIntensity } from "@/lib/money-level/weather";
 import { SpineStage, type BoneScreenPoint } from "./runtime/spine-stage";
@@ -365,10 +366,15 @@ export default function MoneyLevelScene({
     left: statueSlotPlacement("left", sceneSize, sceneSize.mobile),
     right: statueSlotPlacement("right", sceneSize, sceneSize.mobile),
   };
+  const objectLighting = getWorldObjectLighting(timeOfDay, weather);
+  const worldObjectStyle = {
+    "--money-level-house-lighting": objectLighting.house.filter,
+    "--money-level-statue-lighting": objectLighting.statue.filter,
+  } as CSSProperties;
 
   return (
     <section ref={sceneRef} className="forest-scene" data-ambient={ambientEnabled ? "on" : "off"} aria-label="고라니와 다람쥐가 사는 숲">
-      <div className="scene-world">
+      <div className="scene-world" style={worldObjectStyle}>
         <WeatherBackground timeOfDay={timeOfDay} weather={weather} />
         {ambientEnabled ? <div className="pond-shimmer-layer ambient-motion-layer" aria-hidden="true" /> : null}
         <div className="house-place brokerage-house"><HouseVisual kind="brokerage" stage={brokerageStage} /></div>

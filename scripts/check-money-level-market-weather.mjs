@@ -175,12 +175,12 @@ for (const time of ["morning", "day", "evening", "night"]) {
 }
 assert.ok(!css.includes("--money-level-time-filter") && !css.includes("--money-level-weather-filter") && !css.includes("weather-atmosphere"), "runtime must not double-grade completed backgrounds");
 assert.ok(scene.includes("BACKGROUND_CROSSFADE_MS = 800") && scene.includes("new Image()"), "backgrounds must crossfade after loading only the requested asset");
-assert.ok(css.includes("--money-level-time-ambient") && css.includes("--money-level-character-time-ambient"), "foreground objects and characters must share restrained scene lighting");
+assert.ok(scene.includes("getWorldObjectLighting(timeOfDay, weather)") && css.includes("--money-level-house-lighting") && css.includes("--money-level-statue-lighting") && css.includes("--money-level-character-time-ambient"), "houses and statues use one world ambient resolver without changing character lighting");
 assert.ok(css.includes(".wind-breeze") && css.includes(".wind-strong"), "weather visuals must share one intensity-based wind system");
 assert.ok(css.includes("money-level-leaf-breeze") && css.includes("translate3d(28vw,-14px") && css.includes("translate3d(56vw,22px"), "breeze leaves must follow a curved fluttering trajectory");
 assert.ok(scene.includes("rain-depth-") && scene.includes("Array.from({ length: 72 }") && css.includes("nth-child(n+61)") && css.includes("nth-child(n+49)") && css.includes("--rain-angle"), "rain must retain multi-depth motion with visible desktop and reduced mobile density");
 assert.ok(css.includes(".weather-cloudy .wind-breeze i{") && css.includes("--leaf-peak: .8") && css.includes("money-level-leaf-strong"), "cloudy leaves must be occasional but visible with the natural storm trajectory");
-assert.ok(css.includes(".time-night.weather-thunderstorm .house-tax") && !scene.includes("SceneProp") && !css.includes("dock-connector-art") && !sceneConfig.includes("dockConnector"), "night foreground stays integrated while the fixed connector is baked into the background");
+assert.ok(!css.includes("--house-material-match") && !scene.includes("SceneProp") && !css.includes("dock-connector-art") && !sceneConfig.includes("dockConnector"), "foreground no longer stacks house-specific grades while the fixed dock remains baked into the background");
 const navigation = fs.readFileSync(path.join(rootDir, "lib/money-level/forest/navigation.ts"), "utf8");
 const activityZones = fs.readFileSync(path.join(rootDir, "lib/money-level/forest/activity-zones.ts"), "utf8");
 assert.ok(navigation.includes("dock_connector") && navigation.includes("dock-connector") && activityZones.includes("dock_end"), "baking the decorative connector must not remove independent walking/fishing anchors");

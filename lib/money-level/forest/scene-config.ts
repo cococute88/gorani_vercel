@@ -97,7 +97,7 @@ export const FOREST_SCENE = {
       x: 33.5, y: 45, width: 37, mobile: { x: 28, y: 43, width: 55 },
     },
     tax: {
-      x: 71.8, y: 48.5, width: 31, mobile: { x: 73, y: 48, width: 46 },
+      x: 74.8, y: 48.5, width: 31, mobile: { x: 76, y: 48, width: 46 },
     },
   },
   labelPlacements: {

@@ -3,8 +3,8 @@ export const FOREST_MASTER_SIZE = { width: 1683, height: 935 } as const;
 
 export const STATUE_SLOTS = {
   /** Image bottom is transparent-padded; visible throne bottom touches the pedestal top at y≈732. */
-  left: { x: 590, y: 735, baseWidth: 76, mobileBaseWidth: 70, scale: 1.5, bottomLiftPx: 2 },
-  right: { x: 1470, y: 568, baseWidth: 62, mobileBaseWidth: 58, scale: 1.3, bottomLiftPx: 3 },
+  left: { x: 590, y: 735, baseWidth: 76, mobileBaseWidth: 70, scale: 1.5, bottomLiftPx: 2, screenOffsetXPx: 0 },
+  right: { x: 1470, y: 568, baseWidth: 62, mobileBaseWidth: 58, scale: 1.43, bottomLiftPx: 3, screenOffsetXPx: 1 },
 } as const;
 
 /** All six normalized PNGs have 52 transparent source pixels below the visible base. */
@@ -22,7 +22,7 @@ export function statueSlotPlacement(
   // Compensate for transparent PNG padding as width changes, so the *visible*
   // statue bottom—not the CSS image box—moves upward by exactly bottomLiftPx.
   return {
-    x: source.x,
+    x: source.x + config.screenOffsetXPx,
     y: source.y + (width - baseWidth) * STATUE_BOTTOM_PADDING_PER_WIDTH - config.bottomLiftPx,
     width,
     visibleBottomY: source.y - baseWidth * STATUE_BOTTOM_PADDING_PER_WIDTH - config.bottomLiftPx,
