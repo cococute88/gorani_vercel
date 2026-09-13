@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { brokerageLabelPoint, FISHING_BOBBER, fishingLineAngleDeg, projectForestPoint, STATUE_SLOTS, DOCK_WAYPOINTS } from "../lib/money-level/forest/landmarks";
+import { BROKERAGE_LABEL, brokerageLabelPoint, FISHING_BOBBER, fishingLineAngleDeg, projectForestPoint, STATUE_SLOTS, statueSlotPlacement, DOCK_WAYPOINTS } from "../lib/money-level/forest/landmarks";
 import { auditNavigation, getWaypoint, isPointInWalkableRegion, setForestSceneViewport, waypointPoint } from "../lib/money-level/forest/navigation";
 import { getActivityZone } from "../lib/money-level/forest/activity-zones";
 import { resolveForestBackground } from "../lib/money-level/forest/scene-config";
@@ -60,7 +60,16 @@ for (const [name, width, height, layout] of [
   const card = brokerageLabelPoint({ width, height }, layout === "mobile");
   const left = projectForestPoint(STATUE_SLOTS.left, { width, height }, layout === "mobile");
   const right = projectForestPoint(STATUE_SLOTS.right, { width, height }, layout === "mobile");
-  const halfCard = layout === "mobile" ? 78 : 87;
+  for (const slot of ["left", "right"] as const) {
+    const config = STATUE_SLOTS[slot];
+    const originalWidth = layout === "mobile" ? config.mobileBaseWidth : config.baseWidth;
+    const originalPoint = projectForestPoint(config, { width, height }, layout === "mobile");
+    const placement = statueSlotPlacement(slot, { width, height }, layout === "mobile");
+    assert.equal(placement.width, originalWidth * config.scale, `${name} ${slot} scale`);
+    assert.ok(Math.abs(placement.visibleBottomY - (originalPoint.y - originalWidth * 52 / 1219 - config.bottomLiftPx)) < 1e-8, `${name} ${slot} screen-space lift`);
+    assert.ok(Math.abs(placement.y - placement.width * 52 / 1219 - placement.visibleBottomY) < 1e-8, `${name} ${slot} visible baseline`);
+  }
+  const halfCard = layout === "mobile" ? 67 : 80;
   assert.ok(card.x >= halfCard && card.x <= width - halfCard, `${name} brokerage card in frame`);
   assert.ok(card.y > 40 && card.y < height - 150, `${name} brokerage card above pedestal`);
   assert.ok(Math.abs(card.x - left.x) > halfCard + 38 || Math.abs(card.y - (left.y - 40)) > 80, `${name} card/statue separated`);
@@ -73,6 +82,13 @@ assert.deepEqual(getActivityZone("fishing_dock").walkableRegionIds, ["wooden-doc
 assert.ok(STATUE_SLOTS.left.x > 530 && STATUE_SLOTS.left.x < 655 && STATUE_SLOTS.left.y >= 690 && STATUE_SLOTS.left.y < 760);
 assert.ok(STATUE_SLOTS.right.x > 1412 && STATUE_SLOTS.right.x < 1545);
 assert.equal(STATUE_SLOTS.left.y, 735);
+assert.equal(STATUE_SLOTS.left.scale, 1.5);
+assert.equal(STATUE_SLOTS.left.bottomLiftPx, 2);
+assert.equal(STATUE_SLOTS.right.scale, 1.3);
+assert.equal(STATUE_SLOTS.right.bottomLiftPx, 3);
+assert.equal(BROKERAGE_LABEL.desktop.x, 200);
+const wideCardRight = brokerageLabelPoint({ width: 1320, height: 520 }, false).x + 155 / 2;
+assert.ok(245 - wideCardRight >= 6 && 245 - wideCardRight <= 12, "wide card must leave 6–12px to the measured house silhouette");
 assert.equal(STATUE_OPTIONS.length, 7);
 for (const option of STATUE_OPTIONS.filter((item) => item.value !== "none")) {
   const png = readFileSync(path.join(root, `public/money-level/art/statues/${option.value}.png`));

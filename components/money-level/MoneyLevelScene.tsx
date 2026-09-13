@@ -15,7 +15,7 @@ import {
   type CharacterPhase,
 } from "@/lib/money-level/forest/behavior";
 import { FISHING_VISUAL_CONFIG, type SemanticActivityZone } from "@/lib/money-level/forest/activity-zones";
-import { brokerageLabelPoint, FISHING_BOBBER, fishingLineAngleDeg, projectForestPoint, STATUE_SLOTS } from "@/lib/money-level/forest/landmarks";
+import { brokerageLabelPoint, FISHING_BOBBER, fishingLineAngleDeg, projectForestPoint, statueSlotPlacement } from "@/lib/money-level/forest/landmarks";
 import { perspectiveScale, setForestSceneViewport, type ScenePoint } from "@/lib/money-level/forest/navigation";
 import { FOREST_SCENE, HOUSE_ART_FAMILY, resolveForestBackground } from "@/lib/money-level/forest/scene-config";
 import type { CharacterId, CharacterState } from "@/lib/money-level/forest/character-types";
@@ -361,9 +361,9 @@ export default function MoneyLevelScene({
     };
   }, [ambientEnabled, runtimeVersion, weather]);
 
-  const statuePoints = {
-    left: projectForestPoint(STATUE_SLOTS.left, sceneSize, sceneSize.mobile),
-    right: projectForestPoint(STATUE_SLOTS.right, sceneSize, sceneSize.mobile),
+  const statuePlacements = {
+    left: statueSlotPlacement("left", sceneSize, sceneSize.mobile),
+    right: statueSlotPlacement("right", sceneSize, sceneSize.mobile),
   };
 
   return (
@@ -376,8 +376,8 @@ export default function MoneyLevelScene({
         {(["left", "right"] as const).map((slot) => {
           const statue = slot === "left" ? leftStatue : rightStatue;
           if (statue === "none") return null;
-          const config = STATUE_SLOTS[slot];
-          return <img key={slot} className="forest-statue" data-statue-slot={slot} src={`/money-level/art/statues/${statue}.png`} alt={`${slot === "left" ? "왼쪽" : "오른쪽"} 받침대의 곰 조각상`} style={{ left: statuePoints[slot].x, top: statuePoints[slot].y, "--statue-width": `${sceneSize.mobile ? config.mobileWidth : config.width}px` } as CSSProperties} draggable={false} />;
+          const placement = statuePlacements[slot];
+          return <img key={slot} className="forest-statue" data-statue-slot={slot} src={`/money-level/art/statues/${statue}.png`} alt={`${slot === "left" ? "왼쪽" : "오른쪽"} 받침대의 곰 조각상`} style={{ left: placement.x, top: placement.y, "--statue-width": `${placement.width}px` } as CSSProperties} draggable={false} />;
         })}
         <div className="character-ground-layer" aria-hidden="true">
           <CharacterAnchor id="gorani" layer="shadow" /><CharacterAnchor id="daramji" layer="shadow" />

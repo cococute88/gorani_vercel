@@ -3,19 +3,45 @@ export const FOREST_MASTER_SIZE = { width: 1683, height: 935 } as const;
 
 export const STATUE_SLOTS = {
   /** Image bottom is transparent-padded; visible throne bottom touches the pedestal top at y≈732. */
-  left: { x: 590, y: 735, width: 76, mobileWidth: 70 },
-  right: { x: 1470, y: 568, width: 62, mobileWidth: 58 },
+  left: { x: 590, y: 735, baseWidth: 76, mobileBaseWidth: 70, scale: 1.5, bottomLiftPx: 2 },
+  right: { x: 1470, y: 568, baseWidth: 62, mobileBaseWidth: 58, scale: 1.3, bottomLiftPx: 3 },
 } as const;
+
+/** All six normalized PNGs have 52 transparent source pixels below the visible base. */
+const STATUE_BOTTOM_PADDING_PER_WIDTH = 52 / 1219;
+
+export function statueSlotPlacement(
+  slot: keyof typeof STATUE_SLOTS,
+  scene: { width: number; height: number },
+  mobile: boolean,
+) {
+  const config = STATUE_SLOTS[slot];
+  const source = projectForestPoint(config, scene, mobile);
+  const baseWidth = mobile ? config.mobileBaseWidth : config.baseWidth;
+  const width = baseWidth * config.scale;
+  // Compensate for transparent PNG padding as width changes, so the *visible*
+  // statue bottom—not the CSS image box—moves upward by exactly bottomLiftPx.
+  return {
+    x: source.x,
+    y: source.y + (width - baseWidth) * STATUE_BOTTOM_PADDING_PER_WIDTH - config.bottomLiftPx,
+    width,
+    visibleBottomY: source.y - baseWidth * STATUE_BOTTOM_PADDING_PER_WIDTH - config.bottomLiftPx,
+  };
+}
 
 /** Brokerage card follows forest landmarks, with a mobile-specific crop-safe position. */
 export const BROKERAGE_LABEL = {
-  desktop: { x: 300, y: 375 },
-  mobile: { x: 650, y: 310 },
+  // At 1320×520, the house silhouette starts near x=245 at card-bottom level.
+  // This places the card right edge near x=235: a 10px visual gap.
+  desktop: { x: 200, y: 375 },
+  mobile: { x: 590, y: 310 },
 } as const;
 
 export function brokerageLabelPoint(scene: { width: number; height: number }, mobile: boolean) {
   const point = projectForestPoint(BROKERAGE_LABEL[mobile ? "mobile" : "desktop"], scene, mobile);
-  const halfCard = mobile ? 78 : 87;
+  // The rendered card is 130px on mobile and 155px otherwise; keep 2px of
+  // breathing room while allowing the tight crops to move fully left.
+  const halfCard = mobile ? 67 : 80;
   return { x: Math.max(halfCard, Math.min(scene.width - halfCard, point.x)), y: point.y };
 }
 
