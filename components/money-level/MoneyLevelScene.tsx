@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- approved art renditions intentionally keep the existing scene loading path */
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
 import type { MoneyLevelHouseStage } from "@/lib/money-level/house-stages";
 import type { MoneyLevelStatue, MoneyLevelTimeOfDay, MoneyLevelWeather } from "@/lib/money-level/types";
 import {
@@ -15,11 +15,12 @@ import {
   type CharacterPhase,
 } from "@/lib/money-level/forest/behavior";
 import { CharacterActivityCoordinator } from "@/lib/money-level/forest/activity-coordinator";
+import { GORANI_BENCH_POSE } from "@/lib/money-level/forest/character-pose";
 import { cameraTranslation, clampCameraX, createForestCamera, edgePanSpeed, resolveGestureIntent, screenToWorld, TOUCH_SLOP_PX, type ForestCamera, type GestureIntent } from "@/lib/money-level/forest/camera";
 import { FISHING_VISUAL_CONFIG, fishingRodGeometry, GORANI_BENCH_VISUAL_OFFSET_Y_PX, type SemanticActivityZone } from "@/lib/money-level/forest/activity-zones";
 import { brokerageLabelPoint, FISHING_BOBBER, fishingLineAngleDeg, projectForestPoint, statueSlotPlacement } from "@/lib/money-level/forest/landmarks";
 import { perspectiveScale, setForestSceneViewport, type ScenePoint } from "@/lib/money-level/forest/navigation";
-import { FOREST_SCENE, HOUSE_ART_FAMILY, resolveForestBackground } from "@/lib/money-level/forest/scene-config";
+import { FOREST_SCENE, HOUSE_ART_FAMILY, resolveForestBackground, TAX_HOUSE_OFFSET_Y_PX } from "@/lib/money-level/forest/scene-config";
 import { getWorldObjectLighting } from "@/lib/money-level/forest/world-object-lighting";
 import type { CharacterId, CharacterState } from "@/lib/money-level/forest/character-types";
 import { resolveMoneyLevelWindIntensity } from "@/lib/money-level/weather";
@@ -84,8 +85,13 @@ export default function MoneyLevelScene({
   phrase: string;
 }) {
   const sceneRef = useRef<HTMLElement>(null);
+  const lightingFilterId = `world-object-lighting-${useId().replace(/:/g, "")}`;
   const stageRef = useRef<HTMLDivElement>(null);
   const cameraRef = useRef(createForestCamera(1320, 520, false));
+  const statuesRef = useRef({ left: leftStatue, right: rightStatue });
+  statuesRef.current = { left: leftStatue, right: rightStatue };
+  const refreshStatuesRef = useRef<(() => void) | null>(null);
+  useEffect(() => { refreshStatuesRef.current?.(); }, [leftStatue, rightStatue]);
   const [runtimeVersion, setRuntimeVersion] = useState(0);
   const [characterError, setCharacterError] = useState(false);
   const [sceneSize, setSceneSize] = useState({ width: 1320, height: 520, mobile: false });
@@ -161,19 +167,22 @@ export default function MoneyLevelScene({
       const viewportWidth = viewportHeight * (Math.max(scene.clientWidth, 1) / Math.max(scene.clientHeight, 1));
       const bottom = 103 - viewportHeight / 2;
       const position = positions[id];
+      const goraniBench = id === "gorani" && controllers[id]?.getPhase() === "bench-sit";
       return {
-        x: (position.x / 100 - 0.5 + cameraTranslation(cameraRef.current) / Math.max(scene.clientWidth, 1)) * viewportWidth,
+        x: (position.x / 100 - 0.5 + (cameraTranslation(cameraRef.current) + (goraniBench ? GORANI_BENCH_POSE.offsetXPx : 0)) / Math.max(scene.clientWidth, 1)) * viewportWidth,
         y: bottom + (1 - position.y / 100) * viewportHeight
           - benchVisualOffsetYPx(id, controllers[id]?.getPhase()) / Math.max(scene.clientHeight, 1) * viewportHeight,
         scale: CHARACTER_CONFIG[id].scale * (mobile() ? 0.72 : 1) * perspectiveScale(position.y) * renderScaleMultiplier[id],
-        scaleY: controllers[id]?.getPhase() === "bench-sit" ? 0.84 : 1,
+        scaleY: id === "daramji" && controllers[id]?.getPhase() === "bench-sit" ? 0.84 : 1,
+        visualRotationDeg: goraniBench ? GORANI_BENCH_POSE.rotationDeg : 0,
+        rotationPivotBone: goraniBench ? GORANI_BENCH_POSE.pivotBone : undefined,
         flipX: position.facing === "right",
       };
     };
 
     const updateCharacterDom = (id: CharacterId, position: ActorPosition, phase: CharacterPhase) => {
       for (const anchor of Array.from(scene.querySelectorAll<HTMLElement>(`[data-character-anchor="${id}"]`))) {
-        anchor.style.left = `${position.x}%`;
+        anchor.style.left = `${position.x + (id === "gorani" && phase === "bench-sit" ? GORANI_BENCH_POSE.offsetXPx / Math.max(scene.clientWidth, 1) * 100 : 0)}%`;
         anchor.style.top = `${position.y + benchVisualOffsetYPx(id, phase) / Math.max(scene.clientHeight, 1) * 100}%`;
         anchor.style.setProperty("--perspective-scale", String(perspectiveScale(position.y)));
         anchor.dataset.phase = phase;
@@ -197,12 +206,15 @@ export default function MoneyLevelScene({
         weather: () => weather,
         mobile,
         activities,
+        statues: () => statuesRef.current,
         onChange: (position, phase) => {
           positions[id] = { ...position };
           updateCharacterDom(id, position, phase);
         },
       });
     }
+
+    refreshStatuesRef.current = () => { controllers.gorani.refreshStatueAvailability(); controllers.daramji.refreshStatueAvailability(); };
 
     const updateFishingVisual = (id: CharacterId, hand: BoneScreenPoint) => {
       const activity = scene.querySelector<HTMLElement>(".fishing-activity");
@@ -432,6 +444,7 @@ export default function MoneyLevelScene({
 
     return () => {
       cancelled = true;
+      refreshStatuesRef.current = null;
       initialization.abort();
       window.clearInterval(interactionTimer);
       window.clearTimeout(lightningTimer);
@@ -464,17 +477,20 @@ export default function MoneyLevelScene({
   };
   const objectLighting = getWorldObjectLighting(timeOfDay, weather);
   const worldObjectStyle = {
-    "--money-level-house-lighting": objectLighting.house.filter,
-    "--money-level-statue-lighting": objectLighting.statue.filter,
+    "--money-level-house-lighting": `${objectLighting.house.filter} url(#${lightingFilterId})`,
+    "--money-level-statue-lighting": `${objectLighting.statue.filter} url(#${lightingFilterId})`,
   } as CSSProperties;
 
   return (
     <section ref={sceneRef} className="forest-scene" data-ambient={ambientEnabled ? "on" : "off"} aria-label="고라니와 다람쥐가 사는 숲">
+      <svg width="0" height="0" aria-hidden="true" style={{ position: "absolute" }}>
+        <defs><filter id={lightingFilterId} colorInterpolationFilters="sRGB"><feColorMatrix type="matrix" values={objectLighting.house.colorMatrix} /></filter></defs>
+      </svg>
       <div className="scene-world" style={worldObjectStyle}>
         <WeatherBackground timeOfDay={timeOfDay} weather={weather} />
         {ambientEnabled ? <div className="pond-shimmer-layer ambient-motion-layer" aria-hidden="true" /> : null}
         <div className="house-place brokerage-house"><HouseVisual kind="brokerage" stage={brokerageStage} /></div>
-        <div className="house-place tax-house"><HouseVisual kind="tax" stage={taxStage} /></div>
+        <div className="house-place tax-house" style={{ translate: `0 ${TAX_HOUSE_OFFSET_Y_PX}px` }}><HouseVisual kind="tax" stage={taxStage} /></div>
         {(["left", "right"] as const).map((slot) => {
           const statue = slot === "left" ? leftStatue : rightStatue;
           if (statue === "none") return null;

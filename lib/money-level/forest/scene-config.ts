@@ -15,6 +15,8 @@ export interface ScenePlacement {
 }
 
 export const FOREST_BACKGROUND_FALLBACK = "/money-level/art/background/forest-day-sunny-docked.webp";
+/** Every Tax stage shares this minimal screen-space lift, with unchanged X. */
+export const TAX_HOUSE_OFFSET_Y_PX = -6;
 
 export const FOREST_WEATHER_BACKGROUNDS: Record<MoneyLevelTimeOfDay, Record<MoneyLevelWeather, string>> = {
   morning: {

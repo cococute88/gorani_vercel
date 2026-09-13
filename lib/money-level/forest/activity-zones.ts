@@ -1,4 +1,6 @@
 import type { CharacterId } from "./character-types";
+import { GORANI_BENCH_POSE } from "./character-pose";
+import { NO_STATUES, STATUE_VIEW_ANCHORS, STATUE_VIEW_RADIUS_MASTER, STATUE_CEREMONY_OFFSET_Y_PX, type StatueSelection } from "./statue-view";
 import { BENCH_SEAT_MASTER } from "./landmarks";
 import {
   getWaypoint,
@@ -13,14 +15,15 @@ import {
 } from "./navigation";
 import type { Waypoint } from "./forest-character-config";
 
-export type SemanticActivity = "fishing" | "bench-sit" | "pond-watch";
+export type SemanticActivity = "fishing" | "bench-sit" | "pond-watch" | "statue-appreciation";
 
 export interface ActivityActivationCircle extends ScenePoint {
   radius: number;
 }
 
 export interface SemanticActivityZone {
-  id: "fishing_dock" | "bench_slot" | "pond_watch";
+  id: "fishing_dock" | "bench_slot" | "pond_watch" | "STATUE_VIEW_LEFT" | "STATUE_VIEW_RIGHT";
+  statueSlot?: "left" | "right";
   activity: SemanticActivity;
   allowedCharacters: readonly CharacterId[];
   activation: Record<SceneLayout, readonly ActivityActivationCircle[]>;
@@ -69,7 +72,7 @@ export function fishingRodGeometry(
 /** Seat center in the immutable 1683 × 935 background, not a DOM object. */
 export const BENCH_SLOT = BENCH_SEAT_MASTER;
 /** Screen-space pose calibration only; never changes the shared seat/drop geometry. */
-export const GORANI_BENCH_VISUAL_OFFSET_Y_PX = 12;
+export const GORANI_BENCH_VISUAL_OFFSET_Y_PX = GORANI_BENCH_POSE.offsetYPx;
 export const FISHING_SLOT = "dock_end";
 export const BENCH_EXIT_WAYPOINT = "bench";
 export const POND_WATCH_ANCHOR = "pond_edge";
@@ -113,7 +116,7 @@ export const ACTIVITY_ZONES: readonly SemanticActivityZone[] = [
     durationMs: { min: 20_000, max: 45_000 },
     manualDurationMs: { min: 30_000, max: 60_000 },
     preferredFacing: "right",
-    animationByCharacter: { gorani: "idle_front", daramji: "idle_front" },
+    animationByCharacter: { gorani: GORANI_BENCH_POSE.animation, daramji: "idle_front" },
   },
   {
     id: "pond_watch",
@@ -135,7 +138,23 @@ export const ACTIVITY_ZONES: readonly SemanticActivityZone[] = [
     durationMs: { min: 15_000, max: 35_000 },
     preferredFacing: "right",
   },
+  ...(["left", "right"] as const).map((slot): SemanticActivityZone => ({
+    id: slot === "left" ? "STATUE_VIEW_LEFT" : "STATUE_VIEW_RIGHT",
+    statueSlot: slot,
+    activity: "statue-appreciation",
+    allowedCharacters: ["gorani", "daramji"],
+    activation: { desktop: [], mobile: [] },
+    walkableRegionIds: [],
+    anchorWaypointIds: { gorani: [slot === "left" ? "path_front" : "daramji_home"], daramji: [slot === "left" ? "path_front" : "daramji_home"] },
+    durationMs: { min: 30_000, max: 60_000 },
+    preferredFacing: slot === "left" ? "right" : "left",
+    animationByCharacter: { gorani: "ceremony_valentinesday", daramji: "ceremony_valentinesday" },
+    animationSpeed: .5,
+  })),
 ] as const;
+
+export const isActivityAvailable = (zone: SemanticActivityZone, statues: StatueSelection) =>
+  !zone.statueSlot || statues[zone.statueSlot] !== "none";
 
 export function getActivityZone(id: SemanticActivityZone["id"]): SemanticActivityZone {
   const zone = ACTIVITY_ZONES.find((candidate) => candidate.id === id);
@@ -147,9 +166,10 @@ export function resolveActivityDrop(
   point: ScenePoint,
   layout: SceneLayout,
   character: CharacterId,
+  statues: StatueSelection = NO_STATUES,
 ): ResolvedActivityDrop | null {
   if (!isPointSafe(point, layout, character) && !matchesBench(point, layout)) return null;
-  const zone = ACTIVITY_ZONES.find((candidate) => candidate.allowedCharacters.includes(character) && matchesZone(point, candidate, layout));
+  const zone = ACTIVITY_ZONES.find((candidate) => isActivityAvailable(candidate, statues) && candidate.allowedCharacters.includes(character) && matchesZone(point, candidate, layout));
   if (!zone) return null;
   return resolveZoneAnchor(zone, point, layout, character);
 }
@@ -159,9 +179,10 @@ export function resolveManualActivityIntent(
   resolvedDrop: ResolvedDrop,
   layout: SceneLayout,
   character: CharacterId,
+  statues: StatueSelection = NO_STATUES,
 ): ResolvedActivityDrop | null {
   const zone = ACTIVITY_ZONES.find((candidate) => {
-    if (!candidate.allowedCharacters.includes(character)) return false;
+    if (!candidate.allowedCharacters.includes(character) || !isActivityAvailable(candidate, statues)) return false;
     const rawMatch = (isPointSafe(rawPoint, layout, character) || candidate.activity === "bench-sit" && matchesBench(rawPoint, layout)) && matchesZone(rawPoint, candidate, layout);
     const resolvedMatch = isPointSafe(resolvedDrop.point, layout, character) && matchesZone(resolvedDrop.point, candidate, layout);
     return candidate.activity === "fishing" ? rawMatch || (resolvedMatch && isPointSafe(rawPoint, layout, character)) : rawMatch;
@@ -183,7 +204,7 @@ export function resolveZoneAnchor(
   const waypoint = candidates[0];
   if (!waypoint) return null;
   const configuredPoint = zone.anchorPoints?.[waypoint.id]?.[layout];
-  const anchorPoint = zone.activity === "bench-sit" ? imagePointToScene(BENCH_SLOT, layout) : configuredPoint && isPointSafe(configuredPoint, layout, character)
+  const anchorPoint = zone.statueSlot ? imagePointToScene(STATUE_VIEW_ANCHORS[zone.statueSlot], layout, { x: 0, y: STATUE_CEREMONY_OFFSET_Y_PX[zone.statueSlot] }) : zone.activity === "bench-sit" ? imagePointToScene(BENCH_SLOT, layout) : configuredPoint && isPointSafe(configuredPoint, layout, character)
     ? configuredPoint
     : waypointPoint(waypoint, layout);
   return { zone, waypoint, point: anchorPoint };
@@ -194,6 +215,11 @@ function distance(left: ScenePoint, right: ScenePoint): number {
 }
 
 function matchesZone(point: ScenePoint, zone: SemanticActivityZone, layout: SceneLayout): boolean {
+  if (zone.statueSlot) {
+    const anchor = imagePointToScene(STATUE_VIEW_ANCHORS[zone.statueSlot], layout);
+    const edge = imagePointToScene({ x: STATUE_VIEW_ANCHORS[zone.statueSlot].x + STATUE_VIEW_RADIUS_MASTER, y: STATUE_VIEW_ANCHORS[zone.statueSlot].y + STATUE_VIEW_RADIUS_MASTER }, layout);
+    return Math.hypot((point.x - anchor.x) / (edge.x - anchor.x), (point.y - anchor.y) / (edge.y - anchor.y)) <= 1;
+  }
   if (zone.activity === "bench-sit") return matchesBench(point, layout);
   return zone.activation[layout].some((circle) => distance(point, circle) <= circle.radius)
     || Boolean(zone.activationPolygons?.[layout]?.some((polygon) => pointInPolygon(point, polygon)))

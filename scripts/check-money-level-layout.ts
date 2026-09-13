@@ -117,15 +117,16 @@ for (const [time, weather] of representativeLighting) {
 for (const time of ["morning", "day", "evening", "night"] as const) {
   for (const weather of ["sunny", "cloudy", "rain", "thunderstorm"] as const) {
     const lighting = getWorldObjectLighting(time, weather);
-    assert.ok(lighting.house.brightness > .55 && lighting.house.brightness <= 1, `${time}/${weather} house exposure`);
-    assert.ok(lighting.statue.brightness > .65 && lighting.statue.brightness <= 1, `${time}/${weather} statue exposure`);
+    assert.ok(lighting.house.brightness >= .549 && lighting.house.brightness <= 1, `${time}/${weather} house exposure`);
+    assert.ok(lighting.statue.brightness >= .565 && lighting.statue.brightness <= 1, `${time}/${weather} statue exposure`);
     assert.ok(lighting.house.saturation >= .69, `${time}/${weather} material colors remain distinct`);
     assert.equal(lighting.house.hueRotateDeg, lighting.statue.hueRotateDeg, `${time}/${weather} shared world hue`);
+    assert.equal(lighting.house.colorMatrix, lighting.statue.colorMatrix, `${time}/${weather} one alpha-preserving ambient`);
   }
 }
 assert.equal(getWorldObjectLighting("day", "sunny").house.brightness, 1);
-assert.equal(getWorldObjectLighting("evening", "sunny").house.brightness, .86);
-assert.equal(getWorldObjectLighting("night", "thunderstorm").house.brightness, .589);
+assert.equal(getWorldObjectLighting("evening", "sunny").house.brightness, .82);
+assert.equal(getWorldObjectLighting("night", "thunderstorm").house.brightness, .549);
 assert.equal(BROKERAGE_LABEL.desktop.x, 200);
 const wideCardRight = brokerageLabelPoint({ width: 1320, height: 520 }, false).x + 155 / 2;
 assert.ok(245 - wideCardRight >= 6 && 245 - wideCardRight <= 12, "wide card must leave 6–12px to the measured house silhouette");

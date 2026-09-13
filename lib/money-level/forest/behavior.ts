@@ -18,9 +18,12 @@ import {
 } from "./navigation";
 import type { MoneyLevelWeather as Weather } from "../types";
 import { BENCH_EXIT_MASTER } from "./landmarks";
+import { normalGroundFacing } from "./character-pose";
+import { NO_STATUES, STATUE_VIEW_EXITS, type StatueSelection } from "./statue-view";
 import { CharacterActivityCoordinator, type CharacterActivity } from "./activity-coordinator";
 import {
   getActivityZone,
+  isActivityAvailable,
   resolveManualActivityIntent,
   resolveZoneAnchor,
   type ResolvedActivityDrop,
@@ -41,9 +44,10 @@ interface ControllerOptions {
   mobile: () => boolean;
   onChange: (position: ActorPosition, phase: CharacterPhase) => void;
   activities: CharacterActivityCoordinator;
+  statues?: () => StatueSelection;
 }
 
-export type CharacterPhase = "moving" | "daily" | "event" | "fishing" | "bench-sit" | "pond-watch" | "dragging" | "post-drag";
+export type CharacterPhase = "moving" | "daily" | "event" | "fishing" | "bench-sit" | "pond-watch" | "statue-appreciation" | "dragging" | "post-drag";
 
 export interface DragDropResult {
   snapped: boolean;
@@ -66,6 +70,8 @@ export class ForestBehaviorController {
   private readonly mobile: () => boolean;
   private readonly onChange: ControllerOptions["onChange"];
   private readonly activities: CharacterActivityCoordinator;
+  private readonly statues: () => StatueSelection;
+  private dragDirection = 0;
   private waypoint: Waypoint;
   private timer = 0;
   private animationFrame = 0;
@@ -87,6 +93,7 @@ export class ForestBehaviorController {
     this.mobile = options.mobile;
     this.onChange = options.onChange;
     this.activities = options.activities;
+    this.statues = options.statues ?? (() => NO_STATUES);
     this.waypoint = WAYPOINTS.find(({ id }) => id === CHARACTER_CONFIG[this.id].homeWaypoint) ?? WAYPOINTS[0];
     this.position = { ...waypointPoint(this.waypoint, this.layout()), facing: this.waypoint.facing };
     this.onChange(this.position, this.phase);
@@ -161,6 +168,7 @@ export class ForestBehaviorController {
   }
 
   beginDrag(): void {
+    this.dragDirection = 0;
     this.activityRequest += 1;
     this.finishExit();
     void this.activities.setCharacterActivity(this.id, "roaming");
@@ -180,6 +188,8 @@ export class ForestBehaviorController {
   updateDrag(point: ScenePoint): void {
     if (this.phase !== "dragging") return;
     const bounded = clampWorldPoint(point, this.layout());
+    const dx = bounded.x - this.position.x;
+    if (Math.abs(dx) >= .1) this.dragDirection = dx;
     this.position.x = bounded.x;
     this.position.y = bounded.y;
     this.onChange(this.position, this.phase);
@@ -187,7 +197,7 @@ export class ForestBehaviorController {
 
   endDrag(point: ScenePoint): DragDropResult {
     const resolved = resolveDrop(point, this.layout(), this.id);
-    const activityDrop = resolveManualActivityIntent(point, resolved, this.layout(), this.id);
+    const activityDrop = resolveManualActivityIntent(point, resolved, this.layout(), this.id, this.statues());
     if (activityDrop) {
       this.enterActivityFromManualDrop(activityDrop);
       return {
@@ -203,6 +213,7 @@ export class ForestBehaviorController {
     this.state.speed = CHARACTER_CONFIG[this.id].animationSpeeds.idle;
     this.state.loop = true;
     this.phase = "post-drag";
+    this.position.facing = normalGroundFacing(this.position.facing, this.dragDirection === 0 ? 0 : Math.sign(this.dragDirection));
     this.activityZoneId = null;
     if (resolved.snapped) this.snapTo(resolved.point);
     else {
@@ -233,14 +244,25 @@ export class ForestBehaviorController {
   startActivityAtZone(id: SemanticActivityZone["id"]): boolean {
     if (this.stopped) return false;
     const zone = getActivityZone(id);
+    if (!isActivityAvailable(zone, this.statues())) return false;
     const resolved = resolveZoneAnchor(zone, this.position, this.layout(), this.id);
     if (!resolved) return false;
     this.requestActivity(resolved, false);
     return true;
   }
 
+  refreshStatueAvailability(): void {
+    if (this.activityZoneId && !isActivityAvailable(getActivityZone(this.activityZoneId), this.statues())) {
+      this.activityRequest += 1;
+      window.clearTimeout(this.timer);
+      cancelAnimationFrame(this.animationFrame);
+      this.enterPostActivityIdle(this.waypoint);
+    }
+  }
+
   /** Called by the shared coordinator before a replacement can use the slot. */
-  leaveOccupiedSlot(activity: "fishing" | "bench-sit"): Promise<void> {
+  leaveOccupiedSlot(activity: "fishing" | "bench-sit" | "statue-ceremony"): Promise<void> {
+    const statueSlot = this.activityZoneId ? getActivityZone(this.activityZoneId).statueSlot : undefined;
     this.activityRequest += 1;
     this.finishExit();
     window.clearTimeout(this.timer);
@@ -249,7 +271,7 @@ export class ForestBehaviorController {
     this.pendingActivity = null;
     this.activityZoneId = null;
     this.reservedDrop = null;
-    const exit = activity === "fishing" ? getWaypoint("pond_edge") : getWaypoint("bench_exit");
+    const exit = getWaypoint(activity === "fishing" ? "pond_edge" : activity === "bench-sit" ? "bench_exit" : statueSlot === "left" ? "path_front" : "daramji_home");
     if (activity === "fishing") void this.activities.setCharacterActivity(this.id, "pond-watch");
     const promise = new Promise<void>((resolve) => { this.exitResolve = resolve; });
     this.state.animation = "run";
@@ -262,7 +284,8 @@ export class ForestBehaviorController {
       this.chooseNext(true, exit);
     } else {
       this.waypoint = exit;
-      this.snapTo(imagePointToScene(BENCH_EXIT_MASTER, this.layout()), () => {
+      const source = activity === "statue-ceremony" && statueSlot ? STATUE_VIEW_EXITS[statueSlot] : BENCH_EXIT_MASTER;
+      this.snapTo(imagePointToScene(source, this.layout()), () => {
         this.finishExit();
         this.enterPostActivityIdle(exit);
       }, 900);
@@ -285,7 +308,7 @@ export class ForestBehaviorController {
     this.pendingActivity = null;
     this.targetWaypointId = null;
     this.activityZoneId = drop.zone.id;
-    const activity = drop.zone.activity as CharacterActivity;
+    const activity: CharacterActivity = drop.zone.statueSlot ? "statue-ceremony" : drop.zone.activity as CharacterActivity;
     const departure = this.activities.setCharacterActivity(this.id, activity);
     this.phase = manual ? "post-drag" : "moving";
     this.state.animation = "idle";
@@ -434,7 +457,7 @@ export class ForestBehaviorController {
         ? sample(config.everydayAccessories)
         : "";
     if (accessory) this.state[accessoryCategory(accessory)] = accessory;
-    this.position.facing = waypoint.facing;
+    this.position.facing = normalGroundFacing(this.position.facing);
     this.onChange(this.position, this.phase);
     this.timer = window.setTimeout(() => this.chooseNext(), randomBetween(BEHAVIOR_CONFIG.minStayMs, BEHAVIOR_CONFIG.maxStayMs));
   }
@@ -488,6 +511,7 @@ export class ForestBehaviorController {
     this.activityZoneId = zone.id;
     this.position.facing = zone.preferredFacingByLayout?.[this.layout()] ?? zone.preferredFacing;
     this.onChange(this.position, this.phase);
+    if (zone.activity === "statue-appreciation") return;
     this.timer = window.setTimeout(() => {
       if (zone.activity === "bench-sit") {
         void this.activities.setCharacterActivity(this.id, "roaming");

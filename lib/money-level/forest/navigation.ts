@@ -2,6 +2,7 @@ import type { CharacterId } from "./character-types";
 import { WAYPOINTS, type Waypoint } from "./forest-character-config";
 import { BENCH_EXIT_MASTER, DOCK_ACCESS_POLYGON, DOCK_MAIN_POLYGON, DOCK_WAYPOINTS, FOREST_MASTER_SIZE, projectForestPoint } from "./landmarks";
 import { createForestCamera } from "./camera";
+import { STATUE_VIEW_GRASS } from "./statue-view";
 
 export type SceneLayout = "desktop" | "mobile";
 
@@ -25,10 +26,10 @@ export function clampWorldPoint(point: ScenePoint, layout: SceneLayout): ScenePo
 }
 
 /** Master-image point in normalized scene coordinates, including cover crop. */
-export function imagePointToScene(point: ScenePoint, layout: SceneLayout): ScenePoint {
-  if (!sceneViewport) return { x: point.x / FOREST_MASTER_SIZE.width * 100, y: point.y / FOREST_MASTER_SIZE.height * 100 };
+export function imagePointToScene(point: ScenePoint, layout: SceneLayout, offsetPx: ScenePoint = { x: 0, y: 0 }): ScenePoint {
+  if (!sceneViewport) return { x: (point.x + offsetPx.x) / FOREST_MASTER_SIZE.width * 100, y: (point.y + offsetPx.y) / FOREST_MASTER_SIZE.height * 100 };
   const projected = projectForestPoint(point, sceneViewport, layout === "mobile");
-  return { x: projected.x / sceneViewport.width * 100, y: projected.y / sceneViewport.height * 100 };
+  return { x: (projected.x + offsetPx.x) / sceneViewport.width * 100, y: (projected.y + offsetPx.y) / sceneViewport.height * 100 };
 }
 
 function projectedDockPolygon(layout: SceneLayout, mainOnly = false): readonly ScenePoint[] | null {
@@ -142,6 +143,9 @@ export function perspectiveScale(y: number): number {
 }
 
 export function isPointSafe(point: ScenePoint, layout: SceneLayout, character: CharacterId): boolean {
+  // These curated master-local grass patches remain ordinary ground with no statue.
+  // Legacy percentage exclusions do not describe these crop-dependent landmarks.
+  if (sceneViewport && Object.values(STATUE_VIEW_GRASS).some((grass) => pointInPolygon(point, grass.map((p) => imagePointToScene(p, layout))))) return true;
   const regions = WALKABLE_REGIONS.filter((region) => pointInPolygon(point, region[layout].points));
   const projectedDock = projectedDockPolygon(layout);
   const inProjectedDock = Boolean(projectedDock && pointInPolygon(point, projectedDock));

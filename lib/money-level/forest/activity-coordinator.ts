@@ -1,15 +1,15 @@
 import type { CharacterId } from "./character-types";
 
-export type CharacterActivity = "roaming" | "fishing" | "bench-sit" | "pond-watch";
-type OccupiedActivity = "fishing" | "bench-sit";
+export type CharacterActivity = "roaming" | "fishing" | "bench-sit" | "pond-watch" | "statue-ceremony";
+export type OccupiedActivity = "fishing" | "bench-sit" | "statue-ceremony";
 
 const occupied = (activity: CharacterActivity): activity is OccupiedActivity =>
-  activity === "fishing" || activity === "bench-sit";
+  activity === "fishing" || activity === "bench-sit" || activity === "statue-ceremony";
 
-/** One authority for the two shared slots and each character's exclusive activity. */
+/** One authority for fishing, bench and the Forest-wide ceremony slot. */
 export class CharacterActivityCoordinator {
   private readonly activities: Record<CharacterId, CharacterActivity> = { gorani: "roaming", daramji: "roaming" };
-  private readonly owners: Record<OccupiedActivity, CharacterId | null> = { fishing: null, "bench-sit": null };
+  private readonly owners: Record<OccupiedActivity, CharacterId | null> = { fishing: null, "bench-sit": null, "statue-ceremony": null };
 
   constructor(private readonly onDisplaced: (id: CharacterId, activity: OccupiedActivity) => Promise<void>) {}
 
