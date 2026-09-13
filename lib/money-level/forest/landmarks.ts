@@ -50,6 +50,10 @@ export const FISHING_BOBBER = {
   mobile: { x: 1080, y: 804 },
 } as const;
 
+/** Baked left bench seat and the nearby clear grass used when yielding it. */
+export const BENCH_SEAT_MASTER = { x: 302, y: 616 } as const;
+export const BENCH_EXIT_MASTER = { x: 355, y: 662 } as const;
+
 export const DOCK_WAYPOINTS = {
   pond_edge: { desktop: { x: 926, y: 646 }, mobile: { x: 916, y: 674 } },
   pond_land: { desktop: { x: 985, y: 660 }, mobile: { x: 961, y: 682 } },

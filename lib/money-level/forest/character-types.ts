@@ -14,6 +14,7 @@ export interface ActorPlacement {
   x: number;
   y: number;
   scale: number;
+  scaleY?: number;
   flipX?: boolean;
 }
 
