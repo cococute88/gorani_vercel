@@ -347,7 +347,6 @@ export default function MoneyLevelScene({
       <div className="scene-world">
         <WeatherBackground timeOfDay={timeOfDay} weather={weather} />
         {ambientEnabled ? <div className="pond-shimmer-layer ambient-motion-layer" aria-hidden="true" /> : null}
-        <div className="scene-prop-layer"><SceneProp /></div>
         <div className="house-place brokerage-house"><HouseVisual kind="brokerage" stage={brokerageStage} /></div>
         <div className="house-place tax-house"><HouseVisual kind="tax" stage={taxStage} /></div>
         <div className="character-ground-layer" aria-hidden="true">
@@ -464,15 +463,6 @@ function rippleStyle(ripple: (typeof POND_RIPPLES)[number], index: number): CSSP
     "--ripple-speed": `${speed.toFixed(1)}s`,
     "--storm-ripple-speed": `${(speed * 0.7).toFixed(1)}s`,
   } as CSSProperties;
-}
-
-function SceneProp() {
-  const { asset, placement } = FOREST_SCENE.props.dockConnector;
-  const style = {
-    "--prop-x": `${placement.x}%`, "--prop-y": `${placement.y}%`, "--prop-width": `${placement.width}%`,
-    "--prop-mobile-x": `${placement.mobile.x}%`, "--prop-mobile-y": `${placement.mobile.y}%`, "--prop-mobile-width": `${placement.mobile.width}%`,
-  } as CSSProperties;
-  return <div className="scene-prop dock-connector-art" style={style} aria-hidden="true"><img src={asset.src} alt="" draggable={false} /></div>;
 }
 
 function HouseVisual({ kind, stage }: { kind: "brokerage" | "tax"; stage: MoneyLevelHouseStage }) {

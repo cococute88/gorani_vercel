@@ -149,7 +149,7 @@ assert.deepEqual(
 for (const time of ["morning", "day", "evening", "night"]) {
   for (const weather of ["sunny", "cloudy", "rain", "thunderstorm"]) {
     const suffix = weather === "thunderstorm" ? "storm" : weather;
-    const expected = `/money-level/art/background/forest-${time}-${suffix}.webp`;
+    const expected = `/money-level/art/background/forest-${time}-${suffix}-docked.webp`;
     assert.equal(FOREST_WEATHER_BACKGROUNDS[time][weather], expected, `${time}/${weather} must map explicitly`);
     assert.equal(resolveForestBackground(time, weather), expected, `${time}/${weather} resolver mismatch`);
   }
@@ -170,7 +170,7 @@ assert.ok(hook.includes("parseMoneyLevelPreviewOverrides(window.location.search,
 assert.ok(!hook.includes("hostname"), "client must not guess Preview from its hostname");
 for (const time of ["morning", "day", "evening", "night"]) {
   for (const weather of ["sunny", "cloudy", "rain", "storm"]) {
-    assert.ok(sceneConfig.includes(`forest-${time}-${weather}.webp`), `${time}/${weather} must have a pre-rendered background`);
+    assert.ok(sceneConfig.includes(`forest-${time}-${weather}-docked.webp`), `${time}/${weather} must have a pre-rendered background`);
   }
 }
 assert.ok(!css.includes("--money-level-time-filter") && !css.includes("--money-level-weather-filter") && !css.includes("weather-atmosphere"), "runtime must not double-grade completed backgrounds");
@@ -180,7 +180,7 @@ assert.ok(css.includes(".wind-breeze") && css.includes(".wind-strong"), "weather
 assert.ok(css.includes("money-level-leaf-breeze") && css.includes("translate3d(28vw,-14px") && css.includes("translate3d(56vw,22px"), "breeze leaves must follow a curved fluttering trajectory");
 assert.ok(scene.includes("rain-depth-") && scene.includes("Array.from({ length: 72 }") && css.includes("nth-child(n+61)") && css.includes("nth-child(n+49)") && css.includes("--rain-angle"), "rain must retain multi-depth motion with visible desktop and reduced mobile density");
 assert.ok(css.includes(".weather-cloudy .wind-breeze i{") && css.includes("--leaf-peak: .8") && css.includes("money-level-leaf-strong"), "cloudy leaves must be occasional but visible with the natural storm trajectory");
-assert.ok(css.includes(".time-night.weather-thunderstorm .house-tax") && css.includes(".time-night .dock-connector-art img"), "night foreground and connector must be integrated with the illustrated scene");
+assert.ok(css.includes(".time-night.weather-thunderstorm .house-tax") && !scene.includes("SceneProp") && !css.includes("dock-connector-art") && !sceneConfig.includes("dockConnector"), "night foreground stays integrated while the fixed connector is baked into the background");
 assert.ok(css.includes("money-level-lightning-flash 1.05s") && scene.includes("1_050"), "diffuse two-pulse lightning timing must stay in sync with cleanup");
 assert.ok(scene.includes("pond-shimmer-layer") && scene.includes("pond-ripple-layer") && css.includes("@keyframes money-level-pond-shimmer") && css.includes("money-level-pond-ripple"), "pond motion must include subtle shimmer and weather ripples");
 assert.ok(scene.includes("sky-drift-layer") && css.includes("@keyframes money-level-sky-drift"), "cloudy weather must include a slow sky-only atmosphere drift");

@@ -35,8 +35,10 @@ assert.equal(webpRenditions.length, 10, "Every environmental art PNG must have a
 const timeBackgrounds = ["morning", "day", "evening", "night"]
   .flatMap((time) => ["sunny", "cloudy", "rain", "storm"]
     .map((weather) => `art/background/forest-${time}-${weather}.webp`));
+const dockedBackgrounds = timeBackgrounds.map((file) => file.replace(/\.webp$/, "-docked.webp"));
 assert.equal(timeBackgrounds.length, 16, "Production must contain the complete 4x4 illustrated background matrix");
-const required = [...pngMasters, ...webpRenditions, ...timeBackgrounds];
+assert.equal(dockedBackgrounds.length, 16, "Each illustrated scene needs its baked connector rendition");
+const required = [...pngMasters, ...webpRenditions, ...timeBackgrounds, ...dockedBackgrounds];
 
 async function assertExactCase(relativePath) {
   let current = assetRoot;
@@ -49,7 +51,7 @@ async function assertExactCase(relativePath) {
 }
 
 for (const file of required) await assertExactCase(file);
-for (const file of timeBackgrounds) {
+for (const file of dockedBackgrounds) {
   const info = await stat(path.join(assetRoot, file));
   assert(info.size > 100_000, `Illustrated background rendition is unexpectedly small: ${file}`);
 }
@@ -83,9 +85,13 @@ for (const file of pngMasters) {
 }
 for (const file of webpRenditions) {
   const publicUrl = `/money-level/${file}`;
-  assert(scene.includes(publicUrl) || (file.endsWith("fishing-rod.webp") && (await readFile(path.join(root, "components", "money-level", "MoneyLevelScene.tsx"), "utf8")).includes(publicUrl)), `WebP rendition is not used at runtime: ${publicUrl}`);
+  // The former connector rendition is retained as a source artifact, never as a visual layer.
+  if (file.endsWith("dock-connector.webp")) continue;
+  const fishingRodUsed = file.endsWith("fishing-rod.webp")
+    && (await readFile(path.join(root, "components", "money-level", "MoneyLevelScene.tsx"), "utf8")).includes(publicUrl);
+  assert(scene.includes(publicUrl) || fishingRodUsed, `WebP rendition is not used at runtime: ${publicUrl}`);
 }
-for (const file of timeBackgrounds) {
+for (const file of dockedBackgrounds) {
   const publicUrl = `/money-level/${file}`;
   assert(scene.includes(publicUrl), `Time background is not mapped at runtime: ${publicUrl}`);
 }

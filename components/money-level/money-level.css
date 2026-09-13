@@ -62,10 +62,6 @@
 .moneyLevelRoot .weather-cloudy .sky-drift-layer::before{ opacity: .12; }
 .moneyLevelRoot .weather-rain .sky-drift-layer::before{ opacity: .09; animation-duration: 55s; }
 .moneyLevelRoot .weather-thunderstorm .sky-drift-layer::before{ opacity: .11; animation-duration: 40s; }
-.moneyLevelRoot .scene-prop-layer{ position: absolute; inset: 0; z-index: 2; pointer-events: none; }
-.moneyLevelRoot .scene-prop{ position: absolute; top: var(--prop-y); left: var(--prop-x); width: var(--prop-width); transform: translate(-50%,-50%); }
-.moneyLevelRoot .scene-prop img{ display: block; width: 100%; height: auto; user-select: none; filter: var(--money-level-time-ambient) var(--money-level-weather-ambient); transition: filter .5s ease; }
-.moneyLevelRoot .dock-connector-art img{ filter: var(--money-level-time-ambient) var(--money-level-weather-ambient) brightness(1.23) saturate(.45) hue-rotate(8deg) drop-shadow(0 2px 2px rgba(43,51,47,.15)); }
 .moneyLevelRoot .house-place{ position: absolute; inset: 0; z-index: 2; pointer-events: none; }
 .moneyLevelRoot .house-card{ position: absolute; top: var(--house-y); left: var(--house-x); width: var(--house-width); transform: translate(-50%,-50%); }
 .moneyLevelRoot .house-art-image{ display: block; width: 100%; height: auto; user-select: none; filter: var(--money-level-time-ambient) var(--money-level-weather-ambient) var(--house-material-match,brightness(1)) drop-shadow(0 7px 6px rgba(43,54,44,.13)); transition: filter .5s ease; }
@@ -189,7 +185,6 @@
 .moneyLevelRoot .weather-cloudy{ --money-level-weather-ambient: brightness(.98) saturate(.98); --money-level-character-weather-ambient: brightness(.99) saturate(.99); }
 .moneyLevelRoot .weather-rain{ --money-level-weather-ambient: brightness(.96) saturate(.97) hue-rotate(1deg); --money-level-character-weather-ambient: brightness(.98) saturate(.98); }
 .moneyLevelRoot .weather-thunderstorm{ --money-level-weather-ambient: brightness(.9) saturate(.91) hue-rotate(3deg); --money-level-character-weather-ambient: brightness(.96) saturate(.97); }
-.moneyLevelRoot .weather-rain .dock-connector-art img, .moneyLevelRoot .weather-thunderstorm .dock-connector-art img{ filter: var(--money-level-time-ambient) var(--money-level-weather-ambient) brightness(1.16) saturate(.43) hue-rotate(8deg) drop-shadow(0 2px 2px rgba(43,51,47,.15)); }
 .moneyLevelRoot .time-night .house-brokerage{ --house-material-match: brightness(.9) saturate(.89); }
 .moneyLevelRoot .weather-rain .house-brokerage{ --house-material-match: brightness(.91) saturate(.86); }
 .moneyLevelRoot .weather-thunderstorm .house-brokerage{ --house-material-match: brightness(.86) saturate(.8); }
@@ -197,8 +192,6 @@
 .moneyLevelRoot .time-night .house-tax{ --house-material-match: brightness(.83) saturate(.75); }
 .moneyLevelRoot .weather-rain .house-tax, .moneyLevelRoot .weather-thunderstorm .house-tax{ --house-material-match: brightness(.9) saturate(.68); }
 .moneyLevelRoot .time-night.weather-thunderstorm .house-tax{ --house-material-match: brightness(.78) saturate(.68); }
-.moneyLevelRoot .time-evening .dock-connector-art img{ filter: var(--money-level-time-ambient) var(--money-level-weather-ambient) brightness(1.12) saturate(.72) sepia(.08) drop-shadow(0 2px 2px rgba(43,51,47,.15)); }
-.moneyLevelRoot .time-night .dock-connector-art img{ filter: var(--money-level-time-ambient) var(--money-level-weather-ambient) brightness(1.02) saturate(.3) hue-rotate(12deg) drop-shadow(0 2px 2px rgba(34,44,52,.12)); }
 .moneyLevelRoot .time-morning .practical-lighting-layer{ background: radial-gradient(circle at 29% 50%,rgba(255,188,104,.035),transparent 8%),radial-gradient(circle at 72% 56%,rgba(255,173,77,.03),transparent 10%); mix-blend-mode: screen; }
 .moneyLevelRoot .time-evening .practical-lighting-layer{ background: radial-gradient(circle at 29% 50%,rgba(255,151,58,.08),transparent 8%),radial-gradient(circle at 72% 56%,rgba(255,139,42,.07),transparent 10%); mix-blend-mode: screen; }
 .moneyLevelRoot .time-night .practical-lighting-layer{ background: radial-gradient(circle at 29% 50%,rgba(255,160,65,.09),transparent 6%),radial-gradient(circle at 72% 56%,rgba(255,144,45,.07),transparent 7%); mix-blend-mode: screen; }
@@ -271,7 +264,6 @@
   .moneyLevelRoot .pond-ripple-layer{ clip-path: polygon(61% 61%,100% 57%,100% 100%,58% 100%,55% 80%); }
   .moneyLevelRoot .pond-ripple-layer i{ top: var(--ripple-mobile-y); left: var(--ripple-mobile-x); }
   .moneyLevelRoot .house-card{ top: var(--house-mobile-y); left: var(--house-mobile-x); width: var(--house-mobile-width); }
-  .moneyLevelRoot .scene-prop{ top: var(--prop-mobile-y); left: var(--prop-mobile-x); width: var(--prop-mobile-width); }
   .moneyLevelRoot .house-label{ top: var(--label-mobile-y); left: var(--label-mobile-x); min-width: 130px; padding: 5px 7px; }
   .moneyLevelRoot .house-label strong{ max-width: 112px; font-size: .52rem; }
   .moneyLevelRoot .house-label b{ font-size: .67rem; }

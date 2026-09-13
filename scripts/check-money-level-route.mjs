@@ -24,7 +24,7 @@ assert(!forest.includes("/api/portfolio/latest-snapshot"), "Money Level UI must 
 assert(forest.includes("href=\"/portfolio\"") && forest.includes("포트폴리오로 돌아가기"), "Money Level route must provide a stable Portfolio back link");
 for (const time of ["morning", "day", "evening", "night"]) {
   for (const weather of ["sunny", "cloudy", "rain", "storm"]) {
-    assert(sceneConfig.includes(`forest-${time}-${weather}.webp`), `${time}/${weather} must map to one pre-rendered WebP background`);
+    assert(sceneConfig.includes(`forest-${time}-${weather}-docked.webp`), `${time}/${weather} must map to one pre-rendered WebP background`);
   }
 }
 assert(scene.includes("WeatherBackground") && scene.includes("resolveForestBackground") && scene.includes("fishing-rod.webp"), "Forest environmental art must resolve the time/weather WebP at runtime");

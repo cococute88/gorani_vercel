@@ -14,32 +14,32 @@ export interface ScenePlacement {
   mobile: { x: number; y: number; width: number };
 }
 
-export const FOREST_BACKGROUND_FALLBACK = "/money-level/art/background/forest-day-sunny.webp";
+export const FOREST_BACKGROUND_FALLBACK = "/money-level/art/background/forest-day-sunny-docked.webp";
 
 export const FOREST_WEATHER_BACKGROUNDS: Record<MoneyLevelTimeOfDay, Record<MoneyLevelWeather, string>> = {
   morning: {
-    sunny: "/money-level/art/background/forest-morning-sunny.webp",
-    cloudy: "/money-level/art/background/forest-morning-cloudy.webp",
-    rain: "/money-level/art/background/forest-morning-rain.webp",
-    thunderstorm: "/money-level/art/background/forest-morning-storm.webp",
+    sunny: "/money-level/art/background/forest-morning-sunny-docked.webp",
+    cloudy: "/money-level/art/background/forest-morning-cloudy-docked.webp",
+    rain: "/money-level/art/background/forest-morning-rain-docked.webp",
+    thunderstorm: "/money-level/art/background/forest-morning-storm-docked.webp",
   },
   day: {
-    sunny: "/money-level/art/background/forest-day-sunny.webp",
-    cloudy: "/money-level/art/background/forest-day-cloudy.webp",
-    rain: "/money-level/art/background/forest-day-rain.webp",
-    thunderstorm: "/money-level/art/background/forest-day-storm.webp",
+    sunny: "/money-level/art/background/forest-day-sunny-docked.webp",
+    cloudy: "/money-level/art/background/forest-day-cloudy-docked.webp",
+    rain: "/money-level/art/background/forest-day-rain-docked.webp",
+    thunderstorm: "/money-level/art/background/forest-day-storm-docked.webp",
   },
   evening: {
-    sunny: "/money-level/art/background/forest-evening-sunny.webp",
-    cloudy: "/money-level/art/background/forest-evening-cloudy.webp",
-    rain: "/money-level/art/background/forest-evening-rain.webp",
-    thunderstorm: "/money-level/art/background/forest-evening-storm.webp",
+    sunny: "/money-level/art/background/forest-evening-sunny-docked.webp",
+    cloudy: "/money-level/art/background/forest-evening-cloudy-docked.webp",
+    rain: "/money-level/art/background/forest-evening-rain-docked.webp",
+    thunderstorm: "/money-level/art/background/forest-evening-storm-docked.webp",
   },
   night: {
-    sunny: "/money-level/art/background/forest-night-sunny.webp",
-    cloudy: "/money-level/art/background/forest-night-cloudy.webp",
-    rain: "/money-level/art/background/forest-night-rain.webp",
-    thunderstorm: "/money-level/art/background/forest-night-storm.webp",
+    sunny: "/money-level/art/background/forest-night-sunny-docked.webp",
+    cloudy: "/money-level/art/background/forest-night-cloudy-docked.webp",
+    rain: "/money-level/art/background/forest-night-rain-docked.webp",
+    thunderstorm: "/money-level/art/background/forest-night-storm-docked.webp",
   },
 };
 
@@ -103,18 +103,6 @@ export const FOREST_SCENE = {
   labelPlacements: {
     brokerage: { x: 30.5, y: 72.5, mobile: { x: 28, y: 54.5 } },
     tax: { x: 71.8, y: 69.5, mobile: { x: 73, y: 57 } },
-  },
-  props: {
-    dockConnector: {
-      asset: {
-        src: "/money-level/art/props/dock-connector.webp",
-        alt: "육지와 연못 데크를 잇는 짧은 목재 연결부",
-        composite: "alpha",
-      },
-      placement: {
-        x: 61.8, y: 81.8, width: 10.5, mobile: { x: 76.2, y: 80.5, width: 16.5 },
-      },
-    },
   },
   stageAssets: {
     brokerage: {
