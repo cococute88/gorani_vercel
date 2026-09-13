@@ -181,6 +181,9 @@ assert.ok(css.includes("money-level-leaf-breeze") && css.includes("translate3d(2
 assert.ok(scene.includes("rain-depth-") && scene.includes("Array.from({ length: 72 }") && css.includes("nth-child(n+61)") && css.includes("nth-child(n+49)") && css.includes("--rain-angle"), "rain must retain multi-depth motion with visible desktop and reduced mobile density");
 assert.ok(css.includes(".weather-cloudy .wind-breeze i{") && css.includes("--leaf-peak: .8") && css.includes("money-level-leaf-strong"), "cloudy leaves must be occasional but visible with the natural storm trajectory");
 assert.ok(css.includes(".time-night.weather-thunderstorm .house-tax") && !scene.includes("SceneProp") && !css.includes("dock-connector-art") && !sceneConfig.includes("dockConnector"), "night foreground stays integrated while the fixed connector is baked into the background");
+const navigation = fs.readFileSync(path.join(rootDir, "lib/money-level/forest/navigation.ts"), "utf8");
+const activityZones = fs.readFileSync(path.join(rootDir, "lib/money-level/forest/activity-zones.ts"), "utf8");
+assert.ok(navigation.includes("dock_connector") && navigation.includes("dock-connector") && activityZones.includes("dock_end"), "baking the decorative connector must not remove independent walking/fishing anchors");
 assert.ok(css.includes("money-level-lightning-flash 1.05s") && scene.includes("1_050"), "diffuse two-pulse lightning timing must stay in sync with cleanup");
 assert.ok(scene.includes("pond-shimmer-layer") && scene.includes("pond-ripple-layer") && css.includes("@keyframes money-level-pond-shimmer") && css.includes("money-level-pond-ripple"), "pond motion must include subtle shimmer and weather ripples");
 assert.ok(scene.includes("sky-drift-layer") && css.includes("@keyframes money-level-sky-drift"), "cloudy weather must include a slow sky-only atmosphere drift");

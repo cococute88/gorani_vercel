@@ -54,6 +54,15 @@ for (const file of required) await assertExactCase(file);
 for (const file of dockedBackgrounds) {
   const info = await stat(path.join(assetRoot, file));
   assert(info.size > 100_000, `Illustrated background rendition is unexpectedly small: ${file}`);
+  const name = path.basename(file).replace(/-docked\.webp$/, "");
+  const reviewPng = path.join(root, "art-review", "money-level", "weather-time", "docked", `${name}-docked.png`);
+  const patchPng = path.join(root, "art-review", "money-level", "weather-time", "connector-patches", `${name}.png`);
+  for (const [pngPath, width, height] of [[reviewPng, 1672, 941], [patchPng, 280, 170]]) {
+    const header = (await readFile(pngPath)).subarray(0, 24);
+    assert.equal(header.subarray(0, 8).toString("hex"), "89504e470d0a1a0a", `Expected PNG: ${pngPath}`);
+    assert.equal(header.readUInt32BE(16), width, `Wrong width: ${pngPath}`);
+    assert.equal(header.readUInt32BE(20), height, `Wrong height: ${pngPath}`);
+  }
 }
 
 async function listFiles(directory, prefix = "") {
