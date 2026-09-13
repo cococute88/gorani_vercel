@@ -111,7 +111,7 @@ export default function MoneyLevelScene({
         lightningResetTimer = window.setTimeout(() => {
           lightning.classList.remove("is-flashing");
           scheduleLightning();
-        }, 480);
+        }, 1_050);
       }, 18_000 + Math.random() * 20_000);
     };
     scheduleLightning();
@@ -371,7 +371,7 @@ export default function MoneyLevelScene({
         <div className={`wind-layer wind-${resolveMoneyLevelWindIntensity(weather)} ambient-motion-layer`} aria-hidden="true">
           {Array.from({ length: 8 }, (_, index) => <i key={index} style={{ "--i": index } as CSSProperties} />)}
         </div>
-        <div className="rain-layer ambient-motion-layer" aria-hidden="true">{Array.from({ length: 48 }, (_, index) => <i key={index} className={`rain-depth-${index % 3}`} style={rainDropStyle(index)} />)}</div>
+        <div className="rain-layer ambient-motion-layer" aria-hidden="true">{Array.from({ length: 72 }, (_, index) => <i key={index} className={`rain-depth-${index % 3}`} style={rainDropStyle(index)} />)}</div>
         <div className="pond-ripple-layer ambient-motion-layer" aria-hidden="true">{POND_RIPPLES.map((ripple, index) => <i key={index} style={rippleStyle(ripple, index)} />)}</div>
         <div className="lightning-layer ambient-motion-layer" aria-hidden="true" />
       </> : null}
