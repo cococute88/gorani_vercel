@@ -6,6 +6,9 @@ It reports offsets; a good score alone is not a substitute for visual approval.
 """
 
 import argparse
+import io
+import subprocess
+import importlib.util
 from pathlib import Path
 
 import numpy as np
@@ -14,7 +17,7 @@ from scipy.ndimage import binary_dilation, gaussian_filter, sobel
 
 
 ROOT = Path(__file__).resolve().parents[1]
-MASTER = ROOT / "reference/new_reference.png"
+MASTER = ROOT / "reference/new_reference-clean-edges.png"
 DEFAULT_INPUT = ROOT / "art-review/money-level/new-layout/hybrid"
 TIMES = ("morning", "day", "evening", "night")
 WEATHERS = ("sunny", "cloudy", "rain", "storm")
@@ -26,6 +29,10 @@ LANDMARKS = {
     "dock": (960, 640, 1300, 850),
     "shoreline": (1190, 580, 1510, 680),
     "path": (720, 440, 1130, 665),
+    "right-statue-zone": (1390, 515, 1540, 620),
+    "tax-right-fence": (1370, 400, 1520, 550),
+    "right-pond-shoreline": (1510, 580, 1683, 815),
+    "lower-right-lily-zone": (1370, 670, 1580, 790),
 }
 
 
@@ -39,7 +46,11 @@ def landmark_mask(master: Image.Image, box: tuple[int, int, int, int], name: str
                   reference: np.ndarray) -> np.ndarray:
     rgb = np.asarray(master.crop(box).convert("RGB"), dtype=np.float32) / 255
     red, green, blue = np.moveaxis(rgb, -1, 0)
-    if name in ("dock", "bench"):
+    if name in ("tax-right-fence", "right-pond-shoreline", "lower-right-lily-zone"):
+        # Geometry contours (fence/reeds/lily pads) matter; weather-dependent
+        # water ripple texture is excluded using master material classification.
+        material = (green > blue * .95) | ((red > green * 1.07) & (green > blue * 1.08))
+    elif name in ("dock", "bench"):
         material = (red > green * 1.07) & (green > blue * 1.08) & (red > .20)
     elif name.endswith("base"):
         material = (np.abs(red - green) < .15) & (np.abs(green - blue) < .15) & (red > .27)
@@ -87,9 +98,19 @@ def main() -> None:
         reference = {name: edges(master, box) for name, box in LANDMARKS.items()}
         masks = {name: landmark_mask(master, box, name, reference[name])
                  for name, box in LANDMARKS.items()}
+    spec = importlib.util.spec_from_file_location("edge_repairs", ROOT / "scripts/clean-money-level-background-edges.py")
+    repairs = importlib.util.module_from_spec(spec); spec.loader.exec_module(repairs)
+    repair_mask = repairs.repair_mask(size)
     print(f"Master {size[0]}x{size[1]}: {MASTER}")
     failed = False
     for variant in names:
+        hybrid = DEFAULT_INPUT / f"forest-{variant}.png"
+        relative = hybrid.relative_to(ROOT).as_posix()
+        baseline = subprocess.check_output(["git", "show", f"{repairs.APPROVED_APPEARANCE_COMMIT}:{relative}"], cwd=ROOT)
+        before = np.asarray(Image.open(io.BytesIO(baseline)).convert("RGB"))
+        after = np.asarray(Image.open(hybrid).convert("RGB"))
+        if np.any(before[repair_mask == 0] != after[repair_mask == 0]):
+            raise SystemExit(f"FAIL {variant}: approved atmosphere changed outside the repair polygons")
         path = (ROOT / "public/money-level/art/background" / f"forest-{variant}-docked.webp"
                 if args.production else args.input / f"forest-{variant}.png")
         with Image.open(path) as image:

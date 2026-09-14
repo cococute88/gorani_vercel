@@ -1,0 +1,9 @@
+# Background edge repair source and prompts
+
+Built-in `image_gen` tool, two local edits. No CLI/API fallback used. Candidate stored as `edited-geometry-candidate.png`; reviewed clean derivative is `../../../reference/new_reference-clean-edges.png` (repository path `reference/new_reference-clean-edges.png`). Original approved master retained. Only the shared polygon in `repair-mask.png` enters production; full-image donor changes outside it are discarded.
+
+First prompt: preserve the exact forest camera/layout, crisp painted lines, daytime atmosphere and all landmark coordinates. Repair the rectangular pasted/cut aquatic vegetation and clipped lily/flower on the right pond shoreline around x1490–1650/y690–800; restore continuous blue water, complete reeds and rocks, retaining intact central/lower lily pads. Remove orphan cut wood at the far-right cherry-tree margin if present; preserve the complete stump x1400/y510, fence, plinth x1470/y568, tree, bench and dock. No houses, tents, statues, characters or text; no atmosphere redesign.
+
+Targeted second prompt: preserve the first candidate and all existing repairs. Remove only the disconnected flat brown wood/log fragment around x1530–1565/y625–680, between two reed clumps above the pond right shore and below the Tax/statue area. Replace it with continuous green bank vegetation/reeds. Keep the complete stump, fence, plinth, rocks, tree, water, lighting and framing unchanged. No new objects.
+
+Final composition uses the second candidate as a local geometry donor and the approved 16 PNGs at c8b825382b33d9e9bbbdfc2746dd7f2a82bacc22 as appearance source. Final candidate and master both measure 1683×935; neither is resized in the final patch. `audit.json` records source polygon, dimensions and zero changed pixels outside the repair for every variant. Four-by-four full and enlarged sheets support visual review.
