@@ -109,6 +109,9 @@ def main() -> None:
     fence_mask = ROOT / "art-review/money-level/world-settings-v2/RIGHT_CORRIDOR_FENCE_MASK.png"
     if fence_mask.exists():
         repair_mask = np.maximum(repair_mask, np.asarray(Image.open(fence_mask)) / 255)
+    tax_mask = ROOT / "art-review/money-level/tax-safe-frame-v2/TAX_PLOT_ROCK_REMOVAL_MASK.png"
+    if tax_mask.exists():
+        repair_mask = np.maximum(repair_mask, np.asarray(Image.open(tax_mask)) / 255)
     print(f"Master {size[0]}x{size[1]}: {MASTER}")
     failed = False
     for variant in names:

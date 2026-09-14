@@ -1,5 +1,9 @@
 # Money Level World Expansion / Persistent Settings / House Banner v2
 
+Follow-up Tax silhouette/rock review: [MONEY_LEVEL_TAX_SAFE_FRAME_QA.md](MONEY_LEVEL_TAX_SAFE_FRAME_QA.md).
+The two-mask audit below describes the completed `372425e` phase; the follow-up
+adds a third disjoint Tax mask and independently proves zero changes outside it.
+
 This work resumes the tracked and untracked WIP on the existing branch. No reset,
 revert, replacement branch, or import of another WIP was performed. Two supplied
 screenshots were opened directly; the second contains both the left removal X

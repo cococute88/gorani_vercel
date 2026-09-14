@@ -1,0 +1,359 @@
+{
+  "baseline": "372425e43ca49ce50651ebbed4563180621fdc77",
+  "polygon": [
+    [
+      1049,
+      485
+    ],
+    [
+      1057,
+      476
+    ],
+    [
+      1071,
+      474
+    ],
+    [
+      1087,
+      475
+    ],
+    [
+      1100,
+      484
+    ],
+    [
+      1105,
+      495
+    ],
+    [
+      1103,
+      511
+    ],
+    [
+      1097,
+      520
+    ],
+    [
+      1074,
+      517
+    ],
+    [
+      1059,
+      516
+    ],
+    [
+      1043,
+      511
+    ],
+    [
+      1041,
+      499
+    ]
+  ],
+  "bounds": [
+    1041,
+    474,
+    1106,
+    521
+  ],
+  "files": [
+    {
+      "path": "reference/new_reference-clean-edges.png",
+      "size": [
+        1683,
+        935
+      ],
+      "outsideMaskDiff": 0,
+      "outsideSHA256": "77ee63e856064bb79106813a58b69f42600b20952ed0bf0c5b6ff70d382d16f6"
+    },
+    {
+      "path": "art-review/money-level/new-layout/hybrid/forest-morning-sunny.png",
+      "size": [
+        1683,
+        935
+      ],
+      "outsideMaskDiff": 0,
+      "outsideSHA256": "187cc3f45da02184f586ead30d8cf9b9be77878711cff0faddbc7f5274ab0b20"
+    },
+    {
+      "path": "art-review/money-level/new-layout/hybrid/forest-morning-cloudy.png",
+      "size": [
+        1683,
+        935
+      ],
+      "outsideMaskDiff": 0,
+      "outsideSHA256": "24b2cbfee74a33a21cdcf248df4ab7744c10f2ca85cfda9b68c0e41c42c39b2b"
+    },
+    {
+      "path": "art-review/money-level/new-layout/hybrid/forest-morning-rain.png",
+      "size": [
+        1683,
+        935
+      ],
+      "outsideMaskDiff": 0,
+      "outsideSHA256": "c288ea59be7eb153e312ace89b1eb3a15638e2e355d87041428f278fe62832f4"
+    },
+    {
+      "path": "art-review/money-level/new-layout/hybrid/forest-morning-storm.png",
+      "size": [
+        1683,
+        935
+      ],
+      "outsideMaskDiff": 0,
+      "outsideSHA256": "e07d759d13bd39c32806f868ae2a8d8d45777f7c1ee6466d527004110e705511"
+    },
+    {
+      "path": "art-review/money-level/new-layout/hybrid/forest-day-sunny.png",
+      "size": [
+        1683,
+        935
+      ],
+      "outsideMaskDiff": 0,
+      "outsideSHA256": "071270c847283d03310d1af9137c2a90d39a4350514bc21026eebfeeb5646efb"
+    },
+    {
+      "path": "art-review/money-level/new-layout/hybrid/forest-day-cloudy.png",
+      "size": [
+        1683,
+        935
+      ],
+      "outsideMaskDiff": 0,
+      "outsideSHA256": "1517fb128b03e03c643030730b77d7824dd746c6502aac230a04addb73687867"
+    },
+    {
+      "path": "art-review/money-level/new-layout/hybrid/forest-day-rain.png",
+      "size": [
+        1683,
+        935
+      ],
+      "outsideMaskDiff": 0,
+      "outsideSHA256": "e9989bfe1fa80fd953ccdea6836ba072686afdd25ea6c81ef8f3aaf5c43fa428"
+    },
+    {
+      "path": "art-review/money-level/new-layout/hybrid/forest-day-storm.png",
+      "size": [
+        1683,
+        935
+      ],
+      "outsideMaskDiff": 0,
+      "outsideSHA256": "3aaf5b38f52f02b7e9ff5df07255cb62057b8beeae90ba63e655292e54653dc6"
+    },
+    {
+      "path": "art-review/money-level/new-layout/hybrid/forest-evening-sunny.png",
+      "size": [
+        1683,
+        935
+      ],
+      "outsideMaskDiff": 0,
+      "outsideSHA256": "e2c55ad6cd72f3593f71a43141a3dcfc873d6b09262ddb0915021e0e6e1b36b8"
+    },
+    {
+      "path": "art-review/money-level/new-layout/hybrid/forest-evening-cloudy.png",
+      "size": [
+        1683,
+        935
+      ],
+      "outsideMaskDiff": 0,
+      "outsideSHA256": "33406f1dc74a01fc1cbc00233d1ab9a37cf7d2f443b6710ad576ccd74062f5cf"
+    },
+    {
+      "path": "art-review/money-level/new-layout/hybrid/forest-evening-rain.png",
+      "size": [
+        1683,
+        935
+      ],
+      "outsideMaskDiff": 0,
+      "outsideSHA256": "8bfaa1851e11058f563434d8bc166d4f0843bf3a61b786aef1a1506d75f4d8b4"
+    },
+    {
+      "path": "art-review/money-level/new-layout/hybrid/forest-evening-storm.png",
+      "size": [
+        1683,
+        935
+      ],
+      "outsideMaskDiff": 0,
+      "outsideSHA256": "eab53e0e0538a10147c3c533494fc2d3b2783fabc84d322b4bab000aecd80964"
+    },
+    {
+      "path": "art-review/money-level/new-layout/hybrid/forest-night-sunny.png",
+      "size": [
+        1683,
+        935
+      ],
+      "outsideMaskDiff": 0,
+      "outsideSHA256": "b80d9879406e937e1238bcd1f99652d05bbdcfc1d6c5e97d69574c855e3cc8f9"
+    },
+    {
+      "path": "art-review/money-level/new-layout/hybrid/forest-night-cloudy.png",
+      "size": [
+        1683,
+        935
+      ],
+      "outsideMaskDiff": 0,
+      "outsideSHA256": "38f7f5b82df9e88275df6939e9ae1bacb908078fb3926a8357b6b2d8e296dde8"
+    },
+    {
+      "path": "art-review/money-level/new-layout/hybrid/forest-night-rain.png",
+      "size": [
+        1683,
+        935
+      ],
+      "outsideMaskDiff": 0,
+      "outsideSHA256": "2f59f19ff5091aaebae039539153cdea236eea08f25cea2ed8979e8df9912191"
+    },
+    {
+      "path": "art-review/money-level/new-layout/hybrid/forest-night-storm.png",
+      "size": [
+        1683,
+        935
+      ],
+      "outsideMaskDiff": 0,
+      "outsideSHA256": "9a22ddead155ac7d1f285624b2f4dfdea4aa14992f2d4a2f896a8dca2511128f"
+    },
+    {
+      "path": "public/money-level/art/background/forest-morning-sunny-docked.webp",
+      "size": [
+        1683,
+        935
+      ],
+      "outsideMaskDiff": 0,
+      "outsideSHA256": "93ba6ffd02db4ff02e8ade30b567f09be51872356db5bbb4c33d10a246e8626d"
+    },
+    {
+      "path": "public/money-level/art/background/forest-morning-cloudy-docked.webp",
+      "size": [
+        1683,
+        935
+      ],
+      "outsideMaskDiff": 0,
+      "outsideSHA256": "2041035af079731c63137dbd1bc3a97ef4adddc8b425ef19d612ef3c6e98a999"
+    },
+    {
+      "path": "public/money-level/art/background/forest-morning-rain-docked.webp",
+      "size": [
+        1683,
+        935
+      ],
+      "outsideMaskDiff": 0,
+      "outsideSHA256": "0980fa9c0201a2fc80b04e604f9da31b6962b715ee5d830fcc68cefaeba1e971"
+    },
+    {
+      "path": "public/money-level/art/background/forest-morning-storm-docked.webp",
+      "size": [
+        1683,
+        935
+      ],
+      "outsideMaskDiff": 0,
+      "outsideSHA256": "28545414cc7269932c8adc7e02f29370d9c367c06b3c364c36c7e376ed377ba0"
+    },
+    {
+      "path": "public/money-level/art/background/forest-day-sunny-docked.webp",
+      "size": [
+        1683,
+        935
+      ],
+      "outsideMaskDiff": 0,
+      "outsideSHA256": "85716b389939e66c177f36948cc0f49fefc03e1007c05bf86995120b2372bb16"
+    },
+    {
+      "path": "public/money-level/art/background/forest-day-cloudy-docked.webp",
+      "size": [
+        1683,
+        935
+      ],
+      "outsideMaskDiff": 0,
+      "outsideSHA256": "76fda06462897a0d1869bca653a693a56a3ca3ac84d6c559817f5c9b9ea4bc66"
+    },
+    {
+      "path": "public/money-level/art/background/forest-day-rain-docked.webp",
+      "size": [
+        1683,
+        935
+      ],
+      "outsideMaskDiff": 0,
+      "outsideSHA256": "08856b3020305e48bf9cea99ad18ea32ebf56fd5f60703b294fea446cf3a1a3b"
+    },
+    {
+      "path": "public/money-level/art/background/forest-day-storm-docked.webp",
+      "size": [
+        1683,
+        935
+      ],
+      "outsideMaskDiff": 0,
+      "outsideSHA256": "1afab514801c984d795cca92e62bcf58406c984de4f70ab44987d45179b96f69"
+    },
+    {
+      "path": "public/money-level/art/background/forest-evening-sunny-docked.webp",
+      "size": [
+        1683,
+        935
+      ],
+      "outsideMaskDiff": 0,
+      "outsideSHA256": "39ad97b681cd7fd8e3680c5def10d63f23e01d60cdf88f4faa1c525806a27509"
+    },
+    {
+      "path": "public/money-level/art/background/forest-evening-cloudy-docked.webp",
+      "size": [
+        1683,
+        935
+      ],
+      "outsideMaskDiff": 0,
+      "outsideSHA256": "378652e11cc4b89f1cfebd6f1cc29f5b514dcdbeed04f88c320c73db72025839"
+    },
+    {
+      "path": "public/money-level/art/background/forest-evening-rain-docked.webp",
+      "size": [
+        1683,
+        935
+      ],
+      "outsideMaskDiff": 0,
+      "outsideSHA256": "e8174b1a825d6f93ddb8295defe3ea1d34f49cd74ec7e7fca59c0e37fd3a9b71"
+    },
+    {
+      "path": "public/money-level/art/background/forest-evening-storm-docked.webp",
+      "size": [
+        1683,
+        935
+      ],
+      "outsideMaskDiff": 0,
+      "outsideSHA256": "b37528967bb8bc9b2525f926e99600759683f65d28e59698295c05318440bf37"
+    },
+    {
+      "path": "public/money-level/art/background/forest-night-sunny-docked.webp",
+      "size": [
+        1683,
+        935
+      ],
+      "outsideMaskDiff": 0,
+      "outsideSHA256": "5ec3dff4bee05775ed498ec275c90107b94d8c560af187410ad8857b70793811"
+    },
+    {
+      "path": "public/money-level/art/background/forest-night-cloudy-docked.webp",
+      "size": [
+        1683,
+        935
+      ],
+      "outsideMaskDiff": 0,
+      "outsideSHA256": "e98039d2df474151ba4a6e86c3b2c234972371c8c74cc466b4b0e2bbdf803475"
+    },
+    {
+      "path": "public/money-level/art/background/forest-night-rain-docked.webp",
+      "size": [
+        1683,
+        935
+      ],
+      "outsideMaskDiff": 0,
+      "outsideSHA256": "46e5ab2546152101eb54a6caed8663772dd2ccf763fa8da199ba48cbf6146660"
+    },
+    {
+      "path": "public/money-level/art/background/forest-night-storm-docked.webp",
+      "size": [
+        1683,
+        935
+      ],
+      "outsideMaskDiff": 0,
+      "outsideSHA256": "fdc88d96516294d2e9f6b6c8265bc324bde72dc74a3235bae9f66f80095f1ee8"
+    }
+  ],
+  "leftRightMasksPreserved": true
+}

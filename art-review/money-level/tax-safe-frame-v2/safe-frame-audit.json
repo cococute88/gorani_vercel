@@ -1,0 +1,198 @@
+[
+  {
+    "name": "tax-stage-10-15-camp-plus",
+    "sourceMode": "RGB",
+    "oldCanvas": [
+      1536,
+      1024
+    ],
+    "newCanvas": [
+      1536,
+      1024
+    ],
+    "sourceAlphaBounds": [
+      0,
+      0,
+      1536,
+      1024
+    ],
+    "objectCoreBounds": [
+      233,
+      394,
+      1223,
+      894
+    ],
+    "visibleAlphaBounds": [
+      149,
+      337,
+      1309,
+      967
+    ],
+    "margins": {
+      "top": 337,
+      "bottom": 57,
+      "left": 149,
+      "right": 227
+    },
+    "ground": [
+      768,
+      900
+    ],
+    "groundCorrection": [
+      0,
+      0
+    ],
+    "visibleRgbDiff": 0,
+    "oldCampMaskCorePixelsAtZeroAlpha": 242,
+    "oldCampMaskCorePixelsBelowFullAlpha": 63649,
+    "oldCottageMaskCorePixelsAtZeroAlpha": 0,
+    "oldCottageMaskCorePixelsBelowFullAlpha": 21151
+  },
+  {
+    "name": "tax-stage-15-20-small-white-tent",
+    "sourceMode": "RGB",
+    "oldCanvas": [
+      1536,
+      1024
+    ],
+    "newCanvas": [
+      1536,
+      1024
+    ],
+    "sourceAlphaBounds": [
+      0,
+      0,
+      1536,
+      1024
+    ],
+    "objectCoreBounds": [
+      228,
+      226,
+      1161,
+      929
+    ],
+    "visibleAlphaBounds": [
+      150,
+      224,
+      1262,
+      977
+    ],
+    "margins": {
+      "top": 224,
+      "bottom": 47,
+      "left": 150,
+      "right": 274
+    },
+    "ground": [
+      768,
+      900
+    ],
+    "groundCorrection": [
+      0,
+      0
+    ],
+    "visibleRgbDiff": 0,
+    "oldCampMaskCorePixelsAtZeroAlpha": 4430,
+    "oldCampMaskCorePixelsBelowFullAlpha": 107767,
+    "oldCottageMaskCorePixelsAtZeroAlpha": 0,
+    "oldCottageMaskCorePixelsBelowFullAlpha": 35032
+  },
+  {
+    "name": "tax-stage-20-25-large-white-tent",
+    "sourceMode": "RGB",
+    "oldCanvas": [
+      1536,
+      1024
+    ],
+    "newCanvas": [
+      1536,
+      1024
+    ],
+    "sourceAlphaBounds": [
+      0,
+      0,
+      1536,
+      1024
+    ],
+    "objectCoreBounds": [
+      230,
+      72,
+      1333,
+      927
+    ],
+    "visibleAlphaBounds": [
+      149,
+      70,
+      1428,
+      975
+    ],
+    "margins": {
+      "top": 70,
+      "bottom": 49,
+      "left": 149,
+      "right": 108
+    },
+    "ground": [
+      768,
+      900
+    ],
+    "groundCorrection": [
+      0,
+      0
+    ],
+    "visibleRgbDiff": 0,
+    "oldCampMaskCorePixelsAtZeroAlpha": 49530,
+    "oldCampMaskCorePixelsBelowFullAlpha": 273672,
+    "oldCottageMaskCorePixelsAtZeroAlpha": 1099,
+    "oldCottageMaskCorePixelsBelowFullAlpha": 76479
+  },
+  {
+    "name": "tax-stage-25-30-colored-tent",
+    "sourceMode": "RGB",
+    "oldCanvas": [
+      1536,
+      1024
+    ],
+    "newCanvas": [
+      1536,
+      1024
+    ],
+    "sourceAlphaBounds": [
+      0,
+      0,
+      1536,
+      1024
+    ],
+    "objectCoreBounds": [
+      95,
+      73,
+      1429,
+      928
+    ],
+    "visibleAlphaBounds": [
+      49,
+      71,
+      1491,
+      977
+    ],
+    "margins": {
+      "top": 71,
+      "bottom": 47,
+      "left": 49,
+      "right": 45
+    },
+    "ground": [
+      768,
+      900
+    ],
+    "groundCorrection": [
+      0,
+      0
+    ],
+    "visibleRgbDiff": 0,
+    "oldCampMaskCorePixelsAtZeroAlpha": 82661,
+    "oldCampMaskCorePixelsBelowFullAlpha": 359689,
+    "oldCottageMaskCorePixelsAtZeroAlpha": 1047,
+    "oldCottageMaskCorePixelsBelowFullAlpha": 128167
+  }
+]

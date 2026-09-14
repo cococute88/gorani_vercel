@@ -22,6 +22,8 @@ import { FISHING_BOBBER, fishingLineAngleDeg, projectForestPoint, statueSlotPlac
 import { perspectiveScale, setForestSceneViewport, imagePointToScene, type ScenePoint } from "@/lib/money-level/forest/navigation";
 import { FOREST_SCENE, HOUSE_ART_FAMILY, resolveForestBackground } from "@/lib/money-level/forest/scene-config";
 import { brokerageHouseLabelPoint, houseWorldToViewport, taxHouseLabelPoint, TAX_LABEL_WORLD } from "@/lib/money-level/forest/house-geometry";
+import { resolveHouseVisualFrame, type HouseVisualFrame } from "@/lib/money-level/forest/tax-artwork";
+import type { SceneAsset } from "@/lib/money-level/forest/scene-config";
 import { getWorldObjectLighting, getHouseAmbientLighting } from "@/lib/money-level/forest/world-object-lighting";
 import type { CharacterId, CharacterState } from "@/lib/money-level/forest/character-types";
 import { resolveMoneyLevelWindIntensity } from "@/lib/money-level/weather";
@@ -662,7 +664,7 @@ export default function MoneyLevelScene({
       </> : null}
       <div className="scene-label-layer">
         <HouseLabel kind="brokerage" text={brokerageText} value={brokerageValue} displayLevel={brokerageLevel} sceneSize={sceneSize} />
-        <HouseLabel kind="tax" text={taxText} value={taxValue} displayLevel={taxLevel} sceneSize={sceneSize} />
+        <HouseLabel kind="tax" text={taxText} value={taxValue} displayLevel={taxLevel} sceneSize={sceneSize} visualFrame={((FOREST_SCENE.stageAssets.tax as Partial<Record<MoneyLevelHouseStage["art"], SceneAsset>>)[taxStage.art] ?? FOREST_SCENE.familyFallbackAssets.tax[HOUSE_ART_FAMILY[taxStage.art]]).visualFrame} />
       </div>
       <div className="scene-weather"><span>{weatherIcon(weather)}</span><b>{weatherLabel(weather)}</b><small>{timeLabel(timeOfDay)}</small></div>
       <p className="forest-phrase">{phrase}</p>
@@ -752,10 +754,10 @@ function rippleStyle(ripple: (typeof POND_RIPPLES)[number], index: number): CSSP
 }
 
 function HouseVisual({ kind, stage, sceneSize }: { kind: "brokerage" | "tax"; stage: MoneyLevelHouseStage; sceneSize: { width: number; height: number; mobile: boolean } }) {
-  const placement = houseWorldToViewport(kind, sceneSize, sceneSize.mobile);
   const family = HOUSE_ART_FAMILY[stage.art];
-  const accountAssets = FOREST_SCENE.stageAssets[kind] as Partial<Record<MoneyLevelHouseStage["art"], { src: string; alt: string; composite?: "masked" | "alpha" }>>;
+  const accountAssets = FOREST_SCENE.stageAssets[kind] as Partial<Record<MoneyLevelHouseStage["art"], SceneAsset>>;
   const asset = accountAssets[stage.art] ?? FOREST_SCENE.familyFallbackAssets[kind][family];
+  const placement = resolveHouseVisualFrame(houseWorldToViewport(kind, sceneSize, sceneSize.mobile), asset.visualFrame);
   const composite = asset.composite ?? "masked";
   const style = {
     "--house-x": `${placement.x}px`, "--house-y": `${placement.y}px`, "--house-width": `${placement.width}px`,
@@ -767,9 +769,9 @@ function HouseVisual({ kind, stage, sceneSize }: { kind: "brokerage" | "tax"; st
   );
 }
 
-function HouseLabel({ kind, text, value, displayLevel, sceneSize }: { kind: "brokerage" | "tax"; text: string; value: number; displayLevel: number; sceneSize: { width: number; height: number; mobile: boolean } }) {
+function HouseLabel({ kind, text, value, displayLevel, sceneSize, visualFrame }: { kind: "brokerage" | "tax"; text: string; value: number; displayLevel: number; sceneSize: { width: number; height: number; mobile: boolean }; visualFrame?: HouseVisualFrame }) {
   const title = kind === "brokerage" ? "위탁 집" : "절세 집";
-  const point = kind === "brokerage" ? brokerageHouseLabelPoint(sceneSize, sceneSize.mobile) : taxHouseLabelPoint(sceneSize, sceneSize.mobile);
+  const point = kind === "brokerage" ? brokerageHouseLabelPoint(sceneSize, sceneSize.mobile) : taxHouseLabelPoint(sceneSize, sceneSize.mobile, 0, visualFrame);
   const half = sceneSize.mobile ? 91 : 102;
   const rawX = projectForestPoint(TAX_LABEL_WORLD, sceneSize, sceneSize.mobile).x;
   // Clamp AFTER camera translation, then compensate the parent's transform.

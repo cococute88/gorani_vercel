@@ -1,4 +1,5 @@
 import { brokerageLabelPoint, FOREST_MASTER_SIZE, projectForestPoint } from "./landmarks";
+import type { HouseVisualFrame } from "./tax-artwork";
 
 export type HouseKind = "brokerage" | "tax";
 // Image-box centers/widths in the immutable 1683×935 background. Calibrated
@@ -13,11 +14,15 @@ export const HOUSE_WORLD_GEOMETRY = {
 export const TAX_LABEL_WORLD = { x: 1550, y: 363 } as const;
 
 /** Card UI clamps separately from immutable house geometry. */
-export function taxHouseLabelPoint(scene: { width: number; height: number }, mobile: boolean, cameraTranslation = 0) {
+export function taxHouseLabelPoint(scene: { width: number; height: number }, mobile: boolean, cameraTranslation = 0, frame?: HouseVisualFrame) {
   const point = projectForestPoint(TAX_LABEL_WORLD, scene, mobile);
   const halfWidth = mobile ? 91 : 102;
+  const house = houseWorldToViewport("tax", scene, mobile);
+  // The HUD may clamp horizontally over the object during camera pan. Keep its
+  // bottom above the restored silhouette, using art pixels rather than ratios.
+  const visualTop = frame ? house.y + (frame.visibleBounds[1] - frame.reference.height / 2) * house.width / frame.reference.width : Infinity;
   return { x: Math.max(halfWidth, Math.min(scene.width - halfWidth, point.x + cameraTranslation)) - cameraTranslation,
-    y: Math.max(32, Math.min(scene.height - 32, point.y)) };
+    y: Math.max(32, Math.min(scene.height - 32, point.y, visualTop - 40)) };
 }
 export const HOUSE_BACKGROUND_LANDMARKS = {
   brokerage: { x: 435, y: 602 }, // stump beside the baked bench

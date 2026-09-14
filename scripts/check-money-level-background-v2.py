@@ -13,6 +13,9 @@ assert left.shape == right.shape == (935, 1683)
 assert not np.any(left & right), 'Removal masks must be independent'
 union = left | right
 assert np.array_equal(union, np.asarray(Image.open(OUT / 'combined-removal-mask.png')) > 0)
+tax = np.asarray(Image.open(ROOT / 'art-review/money-level/tax-safe-frame-v2/TAX_PLOT_ROCK_REMOVAL_MASK.png')) > 0
+assert not np.any(tax & union), 'Tax patch must preserve completed LEFT/RIGHT patches'
+union |= tax
 assert right[550, 1205] and right[465, 1500], 'Both blocking fence sections must be removed'
 assert not right[560, 1470], 'Right pedestal must remain outside mask'
 records = json.loads((OUT / 'right-fence-audit.json').read_text())['variants']
@@ -25,4 +28,4 @@ for record in records:
     assert before.shape == after.shape == (935, 1683, 3), path
     assert np.array_equal(before[~union], after[~union]), f'Outside-mask mutation: {path}'
     assert np.any(before[right] != after[right]), f'Fence removal missing: {path}'
-print('PASS: 16 production + 16 hybrid + master; independent masks; outside BOTH masks diff = 0')
+print('PASS: 16 production + 16 hybrid + master; three independent masks; outside all masks diff = 0')

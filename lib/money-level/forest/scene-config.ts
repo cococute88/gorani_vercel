@@ -1,10 +1,12 @@
 import type { MoneyLevelHouseArt } from "../house-stages";
 import type { MoneyLevelTimeOfDay, MoneyLevelWeather } from "../types";
+import { TAX_VISUAL_FRAMES, type HouseVisualFrame } from "./tax-artwork";
 
 export interface SceneAsset {
   src: string;
   alt: string;
   composite?: "masked" | "alpha";
+  visualFrame?: HouseVisualFrame;
 }
 
 export const FOREST_BACKGROUND_FALLBACK = "/money-level/art/background/forest-day-sunny-docked.webp";
@@ -65,6 +67,13 @@ const BROKERAGE_SMALL_CABIN: SceneAsset = {
   alt: "꽃과 초록 지붕이 있는 작은 오두막",
 };
 
+// Tax only; Brokerage's shared early-camp fallback retains approved art.
+function taxAlphaAsset(asset: SceneAsset): SceneAsset {
+  const name = asset.src.split("/").pop()!.replace(".webp", "");
+  return { ...asset, src: asset.src.replace(".webp", "-alpha-v2.webp"),
+    composite: "alpha", visualFrame: TAX_VISUAL_FRAMES[name] };
+}
+
 const BROKERAGE_EXPANDED_CABIN: SceneAsset = {
   src: "/money-level/art/houses/brokerage-stage-40-45-expanded-cabin-alpha.webp",
   alt: "꽃과 초록 지붕이 있는 확장 오두막",
@@ -92,15 +101,15 @@ export const FOREST_SCENE = {
       house: BROKERAGE_PROPER_HOUSE,
     },
     tax: {
-      "camp-plus": TAX_CAMP_PLUS,
-      "tent-small": TAX_SMALL_WHITE_TENT,
-      "tent-large": TAX_LARGE_WHITE_TENT,
-      "tent-color": TAX_COLORED_TENT,
+      "camp-plus": taxAlphaAsset(TAX_CAMP_PLUS),
+      "tent-small": taxAlphaAsset(TAX_SMALL_WHITE_TENT),
+      "tent-large": taxAlphaAsset(TAX_LARGE_WHITE_TENT),
+      "tent-color": taxAlphaAsset(TAX_COLORED_TENT),
     },
   } satisfies Record<"brokerage" | "tax", Partial<Record<MoneyLevelHouseArt, SceneAsset>>>,
   familyFallbackAssets: {
     brokerage: { camp: TAX_CAMP_PLUS, cottage: BROKERAGE_EXPANDED_CABIN },
-    tax: { camp: TAX_CAMP_PLUS, cottage: TAX_COLORED_TENT },
+    tax: { camp: taxAlphaAsset(TAX_CAMP_PLUS), cottage: taxAlphaAsset(TAX_COLORED_TENT) },
   } satisfies Record<"brokerage" | "tax", Record<"camp" | "cottage", SceneAsset>>,
 } as const;
 

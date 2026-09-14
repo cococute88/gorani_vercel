@@ -66,6 +66,7 @@
 .moneyLevelRoot .weather-thunderstorm .sky-drift-layer::before{ opacity: .11; animation-duration: 40s; }
 .moneyLevelRoot .house-place{ position: absolute; inset: 0; z-index: 2; pointer-events: none; }
 .moneyLevelRoot .house-card{ position: absolute; top: var(--house-y); left: var(--house-x); width: var(--house-width); transform: translate(-50%,-50%); }
+.moneyLevelRoot .house-tax{ overflow: visible; }
 .moneyLevelRoot .house-art-image{ display: block; width: 100%; height: auto; user-select: none; filter: var(--money-level-house-lighting) drop-shadow(0 7px 6px rgba(43,54,44,.13)); transition: filter .5s ease; }
 .moneyLevelRoot .house-composite-masked .house-art-image{ -webkit-mask-image: radial-gradient(ellipse 49% 47% at 50% 55%,#000 67%,transparent 100%); mask-image: radial-gradient(ellipse 49% 47% at 50% 55%,#000 67%,transparent 100%); }
 .moneyLevelRoot .house-composite-masked.house-family-camp .house-art-image{ -webkit-mask-image: radial-gradient(ellipse 39% 35% at 50% 61%,#000 58%,transparent 100%); mask-image: radial-gradient(ellipse 39% 35% at 50% 61%,#000 58%,transparent 100%); }
