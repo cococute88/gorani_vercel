@@ -42,6 +42,9 @@ def main():
             x,y=pts([slot['anchor']])[0];d.ellipse((x-7,y-7,x+7,y+7),fill=(255,255,255,255));d.text((x-65,y+14),name,fill='white')
             x,y=pts([slot['exit']])[0];d.rectangle((x-5,y-5,x+5,y+5),fill=(50,250,80,255))
         Image.alpha_composite(bg,overlay).save(OUT/f'{mode}-overlay.png')
+    # Refresh the earlier LEFT-phase right-stump crop with the FINAL fence
+    # removal, so every AFTER frame in the assembled review is current.
+    bg.convert('RGB').crop((1325,460,1505,610)).resize((540,450)).save(OUT/'tax-obstacle-after.png')
     sheet('background-before-after.jpg',[(f'{area} {label}',OUT/f'{area}-{label}.png') for area in ['left-grass','tax-obstacle'] for label in ['before','after']],2,(645,490))
     sheet('tax-old-up-final.jpg',[(f'{asset} {mode}',OUT/f'tax-{asset}-{mode}.png') for asset in [0,2,3] for mode in ['old','up-35','final']],3,(555,418))
     sheet('tax-all-stages.jpg',[(f'Tax stage {stage}',OUT/f'tax-stage-{stage}.png') for stage in range(20)],4,(480,285))

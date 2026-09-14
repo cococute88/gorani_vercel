@@ -120,14 +120,17 @@ and the right banner/corridor arrow. A third separate attachment was not present
 30. **Typecheck/lint/build:** **all PASS**, with no lint warnings/errors.
     `validation.json` and `production-build.log` accompany the art review.
     No live Cloud PASS is inferred from compilation.
-31. **Commits:** world/background/navigation; Ceremony ownership and behavior;
-    Cloud settings/custom banners with final QA and review artifacts. Final SHAs
-    are provided in the handoff.
-32. **Draft PR:** continue on this branch. No Draft PR existed at resume, so the
-    first Draft PR will be created for this branch after push. No automatic merge
-    is enabled and no merge will be performed.
-33. **Preview URL:** use the deployment URL reported for the final pushed commit;
-    provide the verified URL in the handoff, or explicitly report unavailability.
+31. **Commits:** `f935479` world/background/navigation; `7662d93` Ceremony;
+    `e5cdeb1` Cloud settings/custom banners; a final documentation/review refresh.
+    The final review commit SHA is provided in the handoff.
+32. **Draft PR:** [#233](https://github.com/cococute88/gorani_vercel/pull/233).
+    No Draft PR existed at resume, so the first Draft PR was created on the same
+    branch after push. Verified Draft/open and `autoMergeRequest:null`.
+    No merge was performed.
+33. **Preview URL:** [Money Level Preview](https://gorani-vercel-git-codex-money-leve-cfcb33-cococute88-s-projects.vercel.app/money-level).
+    The runtime implementation deployment passed the Vercel check; the final
+    documentation-only refresh uses the same branch alias. Live Firebase login
+    and cross-session user settings were not verified by deployment success.
 
 ## Added RIGHT-fence blocker evidence
 
