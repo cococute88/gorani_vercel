@@ -1,0 +1,1485 @@
+{
+  "followUp": {
+    "results": [
+      "gorani: 0px jitter, delayed move, vertical drag, release",
+      "gorani: 5px jitter, delayed move, vertical drag, release",
+      "gorani: 10px jitter, delayed move, vertical drag, release",
+      "gorani: 15px jitter, delayed move, vertical drag, release",
+      "daramji: 0px jitter, delayed move, vertical drag, release",
+      "daramji: 5px jitter, delayed move, vertical drag, release",
+      "daramji: 10px jitter, delayed move, vertical drag, release",
+      "daramji: 15px jitter, delayed move, vertical drag, release",
+      "early horizontal character swipe \u2192 Forest Pan, no orphaned session",
+      "early vertical character swipe \u2192 native page scroll + pointercancel",
+      "5px jitter then early vertical intent \u2192 native page scroll",
+      "touch cancellation before acquisition cleans timer/capture/feedback",
+      "touch cancellation after acquisition cleans timer/capture/feedback",
+      "visual captured: morning/sunny, both houses at source scene size",
+      "visual captured: day/sunny, both houses at source scene size",
+      "visual captured: evening/sunny, both houses at source scene size",
+      "visual captured: evening/cloudy, both houses at source scene size",
+      "visual captured: evening/rain, both houses at source scene size",
+      "visual captured: night/sunny, both houses at source scene size",
+      "visual captured: night/cloudy, both houses at source scene size",
+      "visual captured: night/thunderstorm, both houses at source scene size"
+    ],
+    "realDevice": "NOT RUN"
+  },
+  "ceremony": {
+    "results": [
+      {
+        "id": "gorani",
+        "slot": "left",
+        "drop": {
+          "x": 475,
+          "y": 684
+        },
+        "anchor": {
+          "x": 470,
+          "y": 751.6,
+          "offset": 0
+        },
+        "state": {
+          "x": -3.0989,
+          "y": 80.385,
+          "phase": "statue-appreciation",
+          "animation": "ceremony_valentinesday"
+        }
+      },
+      {
+        "id": "daramji",
+        "slot": "left",
+        "drop": {
+          "x": 470,
+          "y": 794
+        },
+        "anchor": {
+          "x": 694,
+          "y": 736,
+          "offset": 0
+        },
+        "state": {
+          "x": 28.1069,
+          "y": 78.7166,
+          "phase": "statue-appreciation",
+          "animation": "ceremony_valentinesday"
+        }
+      },
+      {
+        "id": "gorani",
+        "slot": "right",
+        "drop": {
+          "x": 1360,
+          "y": 562
+        },
+        "anchor": {
+          "x": 1370,
+          "y": 593,
+          "offset": 0
+        },
+        "state": {
+          "x": 122.282,
+          "y": 63.4225,
+          "phase": "statue-appreciation",
+          "animation": "ceremony_valentinesday"
+        }
+      },
+      {
+        "id": "daramji",
+        "slot": "right",
+        "drop": {
+          "x": 1365,
+          "y": 602
+        },
+        "anchor": {
+          "x": 694,
+          "y": 736,
+          "offset": 0
+        },
+        "state": {
+          "x": 28.1069,
+          "y": 78.7166,
+          "phase": "statue-appreciation",
+          "animation": "ceremony_valentinesday"
+        }
+      }
+    ],
+    "status": "SIMULATED TOUCH PASS; REAL DEVICE REGRESSION NOT RUN"
+  },
+  "houseWorld": [
+    {
+      "viewport": "1440\u00d7760",
+      "geometry": [
+        {
+          "kind": "brokerage",
+          "x": 599.7925531914893,
+          "y": 390.3478462196049,
+          "width": 622.6924154635259,
+          "sceneWidth": 1316,
+          "sceneHeight": 516
+        },
+        {
+          "kind": "tax",
+          "x": 1246.883513012918,
+          "y": 414.88626757218844,
+          "width": 495.62415700987845,
+          "sceneWidth": 1316,
+          "sceneHeight": 516
+        }
+      ]
+    },
+    {
+      "viewport": "1440\u00d71100",
+      "geometry": [
+        {
+          "kind": "brokerage",
+          "x": 599.7925531914893,
+          "y": 390.3478462196049,
+          "width": 622.6924154635259,
+          "sceneWidth": 1316,
+          "sceneHeight": 606
+        },
+        {
+          "kind": "tax",
+          "x": 1246.883513012918,
+          "y": 414.88626757218844,
+          "width": 495.62415700987845,
+          "sceneWidth": 1316,
+          "sceneHeight": 606
+        }
+      ]
+    },
+    {
+      "viewport": "1320\u00d7760",
+      "geometry": [
+        {
+          "kind": "brokerage",
+          "x": 599.7947387695312,
+          "y": 390.33510742187497,
+          "width": 622.7017822265625,
+          "sceneWidth": 1280,
+          "sceneHeight": 516
+        },
+        {
+          "kind": "tax",
+          "x": 1246.882763671875,
+          "y": 414.8857055664062,
+          "width": 495.63446044921875,
+          "sceneWidth": 1280,
+          "sceneHeight": 516
+        }
+      ]
+    },
+    {
+      "viewport": "1320\u00d71100",
+      "geometry": [
+        {
+          "kind": "brokerage",
+          "x": 599.7947387695312,
+          "y": 390.33510742187497,
+          "width": 622.7017822265625,
+          "sceneWidth": 1280,
+          "sceneHeight": 606
+        },
+        {
+          "kind": "tax",
+          "x": 1246.882763671875,
+          "y": 414.8857055664062,
+          "width": 495.63446044921875,
+          "sceneWidth": 1280,
+          "sceneHeight": 606
+        }
+      ]
+    },
+    {
+      "viewport": "1100\u00d7760",
+      "geometry": [
+        {
+          "kind": "brokerage",
+          "x": 599.7920253537736,
+          "y": 390.3459610849057,
+          "width": 622.6901533018868,
+          "sceneWidth": 1060,
+          "sceneHeight": 516
+        },
+        {
+          "kind": "tax",
+          "x": 1246.8688089622642,
+          "y": 414.8814416273585,
+          "width": 495.62166863207545,
+          "sceneWidth": 1060,
+          "sceneHeight": 516
+        }
+      ]
+    },
+    {
+      "viewport": "1100\u00d71100",
+      "geometry": [
+        {
+          "kind": "brokerage",
+          "x": 599.7799350247525,
+          "y": 390.33067759900996,
+          "width": 622.7065284653465,
+          "sceneWidth": 1060,
+          "sceneHeight": 606
+        },
+        {
+          "kind": "tax",
+          "x": 1246.8595297029703,
+          "y": 414.89660684818483,
+          "width": 495.6338954207921,
+          "sceneWidth": 1060,
+          "sceneHeight": 606
+        }
+      ]
+    },
+    {
+      "viewport": "980\u00d7760",
+      "geometry": [
+        {
+          "kind": "brokerage",
+          "x": 599.7925531914893,
+          "y": 390.3438497340426,
+          "width": 622.7044049202127,
+          "sceneWidth": 940,
+          "sceneHeight": 516
+        },
+        {
+          "kind": "tax",
+          "x": 1246.8635305851062,
+          "y": 414.8782746010639,
+          "width": 495.64014295212763,
+          "sceneWidth": 940,
+          "sceneHeight": 516
+        }
+      ]
+    },
+    {
+      "viewport": "980\u00d71100",
+      "geometry": [
+        {
+          "kind": "brokerage",
+          "x": 599.7799350247525,
+          "y": 390.33067759900996,
+          "width": 622.7065284653465,
+          "sceneWidth": 940,
+          "sceneHeight": 606
+        },
+        {
+          "kind": "tax",
+          "x": 1246.8595297029703,
+          "y": 414.89660684818483,
+          "width": 495.6338954207921,
+          "sceneWidth": 940,
+          "sceneHeight": 606
+        }
+      ]
+    },
+    {
+      "viewport": "768\u00d7760",
+      "geometry": [
+        {
+          "kind": "brokerage",
+          "x": 599.7726506294964,
+          "y": 390.3278158723022,
+          "width": 622.6851955935252,
+          "sceneWidth": 744,
+          "sceneHeight": 556
+        },
+        {
+          "kind": "tax",
+          "x": 1246.8681148830935,
+          "y": 414.8957396582734,
+          "width": 495.64143997302165,
+          "sceneWidth": 744,
+          "sceneHeight": 556
+        }
+      ]
+    },
+    {
+      "viewport": "768\u00d71100",
+      "geometry": [
+        {
+          "kind": "brokerage",
+          "x": 599.7726506294964,
+          "y": 390.3278158723022,
+          "width": 622.6851955935252,
+          "sceneWidth": 744,
+          "sceneHeight": 556
+        },
+        {
+          "kind": "tax",
+          "x": 1246.8681148830935,
+          "y": 414.8957396582734,
+          "width": 495.64143997302165,
+          "sceneWidth": 744,
+          "sceneHeight": 556
+        }
+      ]
+    },
+    {
+      "stages": "current",
+      "time": "day",
+      "weather": "sunny",
+      "mode": "off",
+      "assets": [
+        {
+          "level": "8",
+          "art": "cabin-expanded",
+          "src": "/money-level/art/houses/brokerage-stage-40-45-expanded-cabin-alpha.webp"
+        },
+        {
+          "level": "2",
+          "art": "camp-plus",
+          "src": "/money-level/art/houses/tax-stage-10-15-camp-plus.webp"
+        }
+      ]
+    },
+    {
+      "stages": "current",
+      "time": "day",
+      "weather": "sunny",
+      "mode": "on",
+      "assets": [
+        {
+          "level": "8",
+          "art": "cabin-expanded",
+          "src": "/money-level/art/houses/brokerage-stage-40-45-expanded-cabin-alpha.webp"
+        },
+        {
+          "level": "2",
+          "art": "camp-plus",
+          "src": "/money-level/art/houses/tax-stage-10-15-camp-plus.webp"
+        }
+      ]
+    },
+    {
+      "stages": "current",
+      "time": "morning",
+      "weather": "sunny",
+      "mode": "off",
+      "assets": [
+        {
+          "level": "8",
+          "art": "cabin-expanded",
+          "src": "/money-level/art/houses/brokerage-stage-40-45-expanded-cabin-alpha.webp"
+        },
+        {
+          "level": "2",
+          "art": "camp-plus",
+          "src": "/money-level/art/houses/tax-stage-10-15-camp-plus.webp"
+        }
+      ]
+    },
+    {
+      "stages": "current",
+      "time": "morning",
+      "weather": "sunny",
+      "mode": "on",
+      "assets": [
+        {
+          "level": "8",
+          "art": "cabin-expanded",
+          "src": "/money-level/art/houses/brokerage-stage-40-45-expanded-cabin-alpha.webp"
+        },
+        {
+          "level": "2",
+          "art": "camp-plus",
+          "src": "/money-level/art/houses/tax-stage-10-15-camp-plus.webp"
+        }
+      ]
+    },
+    {
+      "stages": "current",
+      "time": "evening",
+      "weather": "sunny",
+      "mode": "off",
+      "assets": [
+        {
+          "level": "8",
+          "art": "cabin-expanded",
+          "src": "/money-level/art/houses/brokerage-stage-40-45-expanded-cabin-alpha.webp"
+        },
+        {
+          "level": "2",
+          "art": "camp-plus",
+          "src": "/money-level/art/houses/tax-stage-10-15-camp-plus.webp"
+        }
+      ]
+    },
+    {
+      "stages": "current",
+      "time": "evening",
+      "weather": "sunny",
+      "mode": "on",
+      "assets": [
+        {
+          "level": "8",
+          "art": "cabin-expanded",
+          "src": "/money-level/art/houses/brokerage-stage-40-45-expanded-cabin-alpha.webp"
+        },
+        {
+          "level": "2",
+          "art": "camp-plus",
+          "src": "/money-level/art/houses/tax-stage-10-15-camp-plus.webp"
+        }
+      ]
+    },
+    {
+      "stages": "current",
+      "time": "evening",
+      "weather": "cloudy",
+      "mode": "off",
+      "assets": [
+        {
+          "level": "8",
+          "art": "cabin-expanded",
+          "src": "/money-level/art/houses/brokerage-stage-40-45-expanded-cabin-alpha.webp"
+        },
+        {
+          "level": "2",
+          "art": "camp-plus",
+          "src": "/money-level/art/houses/tax-stage-10-15-camp-plus.webp"
+        }
+      ]
+    },
+    {
+      "stages": "current",
+      "time": "evening",
+      "weather": "cloudy",
+      "mode": "on",
+      "assets": [
+        {
+          "level": "8",
+          "art": "cabin-expanded",
+          "src": "/money-level/art/houses/brokerage-stage-40-45-expanded-cabin-alpha.webp"
+        },
+        {
+          "level": "2",
+          "art": "camp-plus",
+          "src": "/money-level/art/houses/tax-stage-10-15-camp-plus.webp"
+        }
+      ]
+    },
+    {
+      "stages": "current",
+      "time": "evening",
+      "weather": "rain",
+      "mode": "off",
+      "assets": [
+        {
+          "level": "8",
+          "art": "cabin-expanded",
+          "src": "/money-level/art/houses/brokerage-stage-40-45-expanded-cabin-alpha.webp"
+        },
+        {
+          "level": "2",
+          "art": "camp-plus",
+          "src": "/money-level/art/houses/tax-stage-10-15-camp-plus.webp"
+        }
+      ]
+    },
+    {
+      "stages": "current",
+      "time": "evening",
+      "weather": "rain",
+      "mode": "on",
+      "assets": [
+        {
+          "level": "8",
+          "art": "cabin-expanded",
+          "src": "/money-level/art/houses/brokerage-stage-40-45-expanded-cabin-alpha.webp"
+        },
+        {
+          "level": "2",
+          "art": "camp-plus",
+          "src": "/money-level/art/houses/tax-stage-10-15-camp-plus.webp"
+        }
+      ]
+    },
+    {
+      "stages": "current",
+      "time": "night",
+      "weather": "sunny",
+      "mode": "off",
+      "assets": [
+        {
+          "level": "8",
+          "art": "cabin-expanded",
+          "src": "/money-level/art/houses/brokerage-stage-40-45-expanded-cabin-alpha.webp"
+        },
+        {
+          "level": "2",
+          "art": "camp-plus",
+          "src": "/money-level/art/houses/tax-stage-10-15-camp-plus.webp"
+        }
+      ]
+    },
+    {
+      "stages": "current",
+      "time": "night",
+      "weather": "sunny",
+      "mode": "on",
+      "assets": [
+        {
+          "level": "8",
+          "art": "cabin-expanded",
+          "src": "/money-level/art/houses/brokerage-stage-40-45-expanded-cabin-alpha.webp"
+        },
+        {
+          "level": "2",
+          "art": "camp-plus",
+          "src": "/money-level/art/houses/tax-stage-10-15-camp-plus.webp"
+        }
+      ]
+    },
+    {
+      "stages": "current",
+      "time": "night",
+      "weather": "cloudy",
+      "mode": "off",
+      "assets": [
+        {
+          "level": "8",
+          "art": "cabin-expanded",
+          "src": "/money-level/art/houses/brokerage-stage-40-45-expanded-cabin-alpha.webp"
+        },
+        {
+          "level": "2",
+          "art": "camp-plus",
+          "src": "/money-level/art/houses/tax-stage-10-15-camp-plus.webp"
+        }
+      ]
+    },
+    {
+      "stages": "current",
+      "time": "night",
+      "weather": "cloudy",
+      "mode": "on",
+      "assets": [
+        {
+          "level": "8",
+          "art": "cabin-expanded",
+          "src": "/money-level/art/houses/brokerage-stage-40-45-expanded-cabin-alpha.webp"
+        },
+        {
+          "level": "2",
+          "art": "camp-plus",
+          "src": "/money-level/art/houses/tax-stage-10-15-camp-plus.webp"
+        }
+      ]
+    },
+    {
+      "stages": "current",
+      "time": "night",
+      "weather": "thunderstorm",
+      "mode": "off",
+      "assets": [
+        {
+          "level": "8",
+          "art": "cabin-expanded",
+          "src": "/money-level/art/houses/brokerage-stage-40-45-expanded-cabin-alpha.webp"
+        },
+        {
+          "level": "2",
+          "art": "camp-plus",
+          "src": "/money-level/art/houses/tax-stage-10-15-camp-plus.webp"
+        }
+      ]
+    },
+    {
+      "stages": "current",
+      "time": "night",
+      "weather": "thunderstorm",
+      "mode": "on",
+      "assets": [
+        {
+          "level": "8",
+          "art": "cabin-expanded",
+          "src": "/money-level/art/houses/brokerage-stage-40-45-expanded-cabin-alpha.webp"
+        },
+        {
+          "level": "2",
+          "art": "camp-plus",
+          "src": "/money-level/art/houses/tax-stage-10-15-camp-plus.webp"
+        }
+      ]
+    },
+    {
+      "stages": "current",
+      "alpha": {
+        "alphaDelta": 0,
+        "transparentTint": 0,
+        "rgbDelta": 104,
+        "blackLift": 0
+      }
+    },
+    {
+      "stages": "max",
+      "time": "day",
+      "weather": "sunny",
+      "mode": "off",
+      "assets": [
+        {
+          "level": "19",
+          "art": "grand-mansion-annex",
+          "src": "/money-level/art/houses/brokerage-stage-40-45-expanded-cabin-alpha.webp"
+        },
+        {
+          "level": "19",
+          "art": "grand-mansion-annex",
+          "src": "/money-level/art/houses/tax-stage-25-30-colored-tent.webp"
+        }
+      ]
+    },
+    {
+      "stages": "max",
+      "time": "day",
+      "weather": "sunny",
+      "mode": "on",
+      "assets": [
+        {
+          "level": "19",
+          "art": "grand-mansion-annex",
+          "src": "/money-level/art/houses/brokerage-stage-40-45-expanded-cabin-alpha.webp"
+        },
+        {
+          "level": "19",
+          "art": "grand-mansion-annex",
+          "src": "/money-level/art/houses/tax-stage-25-30-colored-tent.webp"
+        }
+      ]
+    },
+    {
+      "stages": "max",
+      "time": "morning",
+      "weather": "sunny",
+      "mode": "off",
+      "assets": [
+        {
+          "level": "19",
+          "art": "grand-mansion-annex",
+          "src": "/money-level/art/houses/brokerage-stage-40-45-expanded-cabin-alpha.webp"
+        },
+        {
+          "level": "19",
+          "art": "grand-mansion-annex",
+          "src": "/money-level/art/houses/tax-stage-25-30-colored-tent.webp"
+        }
+      ]
+    },
+    {
+      "stages": "max",
+      "time": "morning",
+      "weather": "sunny",
+      "mode": "on",
+      "assets": [
+        {
+          "level": "19",
+          "art": "grand-mansion-annex",
+          "src": "/money-level/art/houses/brokerage-stage-40-45-expanded-cabin-alpha.webp"
+        },
+        {
+          "level": "19",
+          "art": "grand-mansion-annex",
+          "src": "/money-level/art/houses/tax-stage-25-30-colored-tent.webp"
+        }
+      ]
+    },
+    {
+      "stages": "max",
+      "time": "evening",
+      "weather": "sunny",
+      "mode": "off",
+      "assets": [
+        {
+          "level": "19",
+          "art": "grand-mansion-annex",
+          "src": "/money-level/art/houses/brokerage-stage-40-45-expanded-cabin-alpha.webp"
+        },
+        {
+          "level": "19",
+          "art": "grand-mansion-annex",
+          "src": "/money-level/art/houses/tax-stage-25-30-colored-tent.webp"
+        }
+      ]
+    },
+    {
+      "stages": "max",
+      "time": "evening",
+      "weather": "sunny",
+      "mode": "on",
+      "assets": [
+        {
+          "level": "19",
+          "art": "grand-mansion-annex",
+          "src": "/money-level/art/houses/brokerage-stage-40-45-expanded-cabin-alpha.webp"
+        },
+        {
+          "level": "19",
+          "art": "grand-mansion-annex",
+          "src": "/money-level/art/houses/tax-stage-25-30-colored-tent.webp"
+        }
+      ]
+    },
+    {
+      "stages": "max",
+      "time": "evening",
+      "weather": "cloudy",
+      "mode": "off",
+      "assets": [
+        {
+          "level": "19",
+          "art": "grand-mansion-annex",
+          "src": "/money-level/art/houses/brokerage-stage-40-45-expanded-cabin-alpha.webp"
+        },
+        {
+          "level": "19",
+          "art": "grand-mansion-annex",
+          "src": "/money-level/art/houses/tax-stage-25-30-colored-tent.webp"
+        }
+      ]
+    },
+    {
+      "stages": "max",
+      "time": "evening",
+      "weather": "cloudy",
+      "mode": "on",
+      "assets": [
+        {
+          "level": "19",
+          "art": "grand-mansion-annex",
+          "src": "/money-level/art/houses/brokerage-stage-40-45-expanded-cabin-alpha.webp"
+        },
+        {
+          "level": "19",
+          "art": "grand-mansion-annex",
+          "src": "/money-level/art/houses/tax-stage-25-30-colored-tent.webp"
+        }
+      ]
+    },
+    {
+      "stages": "max",
+      "time": "evening",
+      "weather": "rain",
+      "mode": "off",
+      "assets": [
+        {
+          "level": "19",
+          "art": "grand-mansion-annex",
+          "src": "/money-level/art/houses/brokerage-stage-40-45-expanded-cabin-alpha.webp"
+        },
+        {
+          "level": "19",
+          "art": "grand-mansion-annex",
+          "src": "/money-level/art/houses/tax-stage-25-30-colored-tent.webp"
+        }
+      ]
+    },
+    {
+      "stages": "max",
+      "time": "evening",
+      "weather": "rain",
+      "mode": "on",
+      "assets": [
+        {
+          "level": "19",
+          "art": "grand-mansion-annex",
+          "src": "/money-level/art/houses/brokerage-stage-40-45-expanded-cabin-alpha.webp"
+        },
+        {
+          "level": "19",
+          "art": "grand-mansion-annex",
+          "src": "/money-level/art/houses/tax-stage-25-30-colored-tent.webp"
+        }
+      ]
+    },
+    {
+      "stages": "max",
+      "time": "night",
+      "weather": "sunny",
+      "mode": "off",
+      "assets": [
+        {
+          "level": "19",
+          "art": "grand-mansion-annex",
+          "src": "/money-level/art/houses/brokerage-stage-40-45-expanded-cabin-alpha.webp"
+        },
+        {
+          "level": "19",
+          "art": "grand-mansion-annex",
+          "src": "/money-level/art/houses/tax-stage-25-30-colored-tent.webp"
+        }
+      ]
+    },
+    {
+      "stages": "max",
+      "time": "night",
+      "weather": "sunny",
+      "mode": "on",
+      "assets": [
+        {
+          "level": "19",
+          "art": "grand-mansion-annex",
+          "src": "/money-level/art/houses/brokerage-stage-40-45-expanded-cabin-alpha.webp"
+        },
+        {
+          "level": "19",
+          "art": "grand-mansion-annex",
+          "src": "/money-level/art/houses/tax-stage-25-30-colored-tent.webp"
+        }
+      ]
+    },
+    {
+      "stages": "max",
+      "time": "night",
+      "weather": "cloudy",
+      "mode": "off",
+      "assets": [
+        {
+          "level": "19",
+          "art": "grand-mansion-annex",
+          "src": "/money-level/art/houses/brokerage-stage-40-45-expanded-cabin-alpha.webp"
+        },
+        {
+          "level": "19",
+          "art": "grand-mansion-annex",
+          "src": "/money-level/art/houses/tax-stage-25-30-colored-tent.webp"
+        }
+      ]
+    },
+    {
+      "stages": "max",
+      "time": "night",
+      "weather": "cloudy",
+      "mode": "on",
+      "assets": [
+        {
+          "level": "19",
+          "art": "grand-mansion-annex",
+          "src": "/money-level/art/houses/brokerage-stage-40-45-expanded-cabin-alpha.webp"
+        },
+        {
+          "level": "19",
+          "art": "grand-mansion-annex",
+          "src": "/money-level/art/houses/tax-stage-25-30-colored-tent.webp"
+        }
+      ]
+    },
+    {
+      "stages": "max",
+      "time": "night",
+      "weather": "thunderstorm",
+      "mode": "off",
+      "assets": [
+        {
+          "level": "19",
+          "art": "grand-mansion-annex",
+          "src": "/money-level/art/houses/brokerage-stage-40-45-expanded-cabin-alpha.webp"
+        },
+        {
+          "level": "19",
+          "art": "grand-mansion-annex",
+          "src": "/money-level/art/houses/tax-stage-25-30-colored-tent.webp"
+        }
+      ]
+    },
+    {
+      "stages": "max",
+      "time": "night",
+      "weather": "thunderstorm",
+      "mode": "on",
+      "assets": [
+        {
+          "level": "19",
+          "art": "grand-mansion-annex",
+          "src": "/money-level/art/houses/brokerage-stage-40-45-expanded-cabin-alpha.webp"
+        },
+        {
+          "level": "19",
+          "art": "grand-mansion-annex",
+          "src": "/money-level/art/houses/tax-stage-25-30-colored-tent.webp"
+        }
+      ]
+    },
+    {
+      "stages": "max",
+      "alpha": {
+        "alphaDelta": 0,
+        "transparentTint": 0,
+        "rgbDelta": 104,
+        "blackLift": 0
+      }
+    }
+  ],
+  "nightFinal": [
+    {
+      "stage": "current",
+      "weather": "sunny",
+      "mode": "new-tuned"
+    },
+    {
+      "stage": "current",
+      "weather": "sunny",
+      "mode": "old-crisp"
+    },
+    {
+      "stage": "current",
+      "weather": "sunny",
+      "mode": "off"
+    },
+    {
+      "stage": "current",
+      "weather": "sunny",
+      "alpha": {
+        "alphaDelta": 0,
+        "transparentTint": 0,
+        "blackLift": 0,
+        "warmRedGain": 47,
+        "warmBlueGain": -3
+      }
+    },
+    {
+      "stage": "current",
+      "weather": "cloudy",
+      "mode": "new-tuned"
+    },
+    {
+      "stage": "current",
+      "weather": "cloudy",
+      "mode": "old-crisp"
+    },
+    {
+      "stage": "current",
+      "weather": "cloudy",
+      "mode": "off"
+    },
+    {
+      "stage": "current",
+      "weather": "cloudy",
+      "alpha": {
+        "alphaDelta": 0,
+        "transparentTint": 0,
+        "blackLift": 0,
+        "warmRedGain": 47,
+        "warmBlueGain": -1
+      }
+    },
+    {
+      "stage": "current",
+      "weather": "rain",
+      "mode": "new-tuned"
+    },
+    {
+      "stage": "current",
+      "weather": "rain",
+      "mode": "old-crisp"
+    },
+    {
+      "stage": "current",
+      "weather": "rain",
+      "mode": "off"
+    },
+    {
+      "stage": "current",
+      "weather": "rain",
+      "alpha": {
+        "alphaDelta": 0,
+        "transparentTint": 0,
+        "blackLift": 0,
+        "warmRedGain": 51,
+        "warmBlueGain": -1
+      }
+    },
+    {
+      "stage": "current",
+      "weather": "thunderstorm",
+      "mode": "new-tuned"
+    },
+    {
+      "stage": "current",
+      "weather": "thunderstorm",
+      "mode": "old-crisp"
+    },
+    {
+      "stage": "current",
+      "weather": "thunderstorm",
+      "mode": "off"
+    },
+    {
+      "stage": "current",
+      "weather": "thunderstorm",
+      "alpha": {
+        "alphaDelta": 0,
+        "transparentTint": 0,
+        "blackLift": 0,
+        "warmRedGain": 54,
+        "warmBlueGain": 0
+      }
+    },
+    {
+      "stage": "max",
+      "weather": "sunny",
+      "mode": "new-tuned"
+    },
+    {
+      "stage": "max",
+      "weather": "sunny",
+      "mode": "old-crisp"
+    },
+    {
+      "stage": "max",
+      "weather": "sunny",
+      "mode": "off"
+    },
+    {
+      "stage": "max",
+      "weather": "sunny",
+      "alpha": {
+        "alphaDelta": 0,
+        "transparentTint": 0,
+        "blackLift": 0,
+        "warmRedGain": 47,
+        "warmBlueGain": -3
+      }
+    },
+    {
+      "stage": "max",
+      "weather": "cloudy",
+      "mode": "new-tuned"
+    },
+    {
+      "stage": "max",
+      "weather": "cloudy",
+      "mode": "old-crisp"
+    },
+    {
+      "stage": "max",
+      "weather": "cloudy",
+      "mode": "off"
+    },
+    {
+      "stage": "max",
+      "weather": "cloudy",
+      "alpha": {
+        "alphaDelta": 0,
+        "transparentTint": 0,
+        "blackLift": 0,
+        "warmRedGain": 47,
+        "warmBlueGain": -1
+      }
+    },
+    {
+      "stage": "max",
+      "weather": "rain",
+      "mode": "new-tuned"
+    },
+    {
+      "stage": "max",
+      "weather": "rain",
+      "mode": "old-crisp"
+    },
+    {
+      "stage": "max",
+      "weather": "rain",
+      "mode": "off"
+    },
+    {
+      "stage": "max",
+      "weather": "rain",
+      "alpha": {
+        "alphaDelta": 0,
+        "transparentTint": 0,
+        "blackLift": 0,
+        "warmRedGain": 51,
+        "warmBlueGain": -1
+      }
+    },
+    {
+      "stage": "max",
+      "weather": "thunderstorm",
+      "mode": "new-tuned"
+    },
+    {
+      "stage": "max",
+      "weather": "thunderstorm",
+      "mode": "old-crisp"
+    },
+    {
+      "stage": "max",
+      "weather": "thunderstorm",
+      "mode": "off"
+    },
+    {
+      "stage": "max",
+      "weather": "thunderstorm",
+      "alpha": {
+        "alphaDelta": 0,
+        "transparentTint": 0,
+        "blackLift": 0,
+        "warmRedGain": 54,
+        "warmBlueGain": 0
+      }
+    },
+    {
+      "allStage": {
+        "level": 0,
+        "art": "clearing",
+        "composite": "masked",
+        "src": "/money-level/art/houses/tax-stage-10-15-camp-plus.webp"
+      }
+    },
+    {
+      "allStage": {
+        "level": 1,
+        "art": "camp",
+        "composite": "masked",
+        "src": "/money-level/art/houses/tax-stage-10-15-camp-plus.webp"
+      }
+    },
+    {
+      "allStage": {
+        "level": 2,
+        "art": "camp-plus",
+        "composite": "masked",
+        "src": "/money-level/art/houses/tax-stage-10-15-camp-plus.webp"
+      }
+    },
+    {
+      "allStage": {
+        "level": 3,
+        "art": "tent-small",
+        "composite": "masked",
+        "src": "/money-level/art/houses/tax-stage-10-15-camp-plus.webp"
+      }
+    },
+    {
+      "allStage": {
+        "level": 4,
+        "art": "tent-large",
+        "composite": "masked",
+        "src": "/money-level/art/houses/tax-stage-10-15-camp-plus.webp"
+      }
+    },
+    {
+      "allStage": {
+        "level": 5,
+        "art": "tent-color",
+        "composite": "masked",
+        "src": "/money-level/art/houses/tax-stage-10-15-camp-plus.webp"
+      }
+    },
+    {
+      "allStage": {
+        "level": 6,
+        "art": "micro-house",
+        "composite": "alpha",
+        "src": "/money-level/art/houses/brokerage-stage-40-45-expanded-cabin-alpha.webp"
+      }
+    },
+    {
+      "allStage": {
+        "level": 7,
+        "art": "cabin",
+        "composite": "masked",
+        "src": "/money-level/art/houses/brokerage-stage-35-40-small-cabin.webp"
+      }
+    },
+    {
+      "allStage": {
+        "level": 8,
+        "art": "cabin-expanded",
+        "composite": "alpha",
+        "src": "/money-level/art/houses/brokerage-stage-40-45-expanded-cabin-alpha.webp"
+      }
+    },
+    {
+      "allStage": {
+        "level": 9,
+        "art": "house",
+        "composite": "masked",
+        "src": "/money-level/art/houses/brokerage-stage-45-50-proper-house.webp"
+      }
+    },
+    {
+      "allStage": {
+        "level": 10,
+        "art": "workshop-house",
+        "composite": "alpha",
+        "src": "/money-level/art/houses/brokerage-stage-40-45-expanded-cabin-alpha.webp"
+      }
+    },
+    {
+      "allStage": {
+        "level": 11,
+        "art": "two-story",
+        "composite": "alpha",
+        "src": "/money-level/art/houses/brokerage-stage-40-45-expanded-cabin-alpha.webp"
+      }
+    },
+    {
+      "allStage": {
+        "level": 12,
+        "art": "two-story-garden",
+        "composite": "alpha",
+        "src": "/money-level/art/houses/brokerage-stage-40-45-expanded-cabin-alpha.webp"
+      }
+    },
+    {
+      "allStage": {
+        "level": 13,
+        "art": "two-story-veranda",
+        "composite": "alpha",
+        "src": "/money-level/art/houses/brokerage-stage-40-45-expanded-cabin-alpha.webp"
+      }
+    },
+    {
+      "allStage": {
+        "level": 14,
+        "art": "two-story-large",
+        "composite": "alpha",
+        "src": "/money-level/art/houses/brokerage-stage-40-45-expanded-cabin-alpha.webp"
+      }
+    },
+    {
+      "allStage": {
+        "level": 15,
+        "art": "two-story-annex",
+        "composite": "alpha",
+        "src": "/money-level/art/houses/brokerage-stage-40-45-expanded-cabin-alpha.webp"
+      }
+    },
+    {
+      "allStage": {
+        "level": 16,
+        "art": "mansion",
+        "composite": "alpha",
+        "src": "/money-level/art/houses/brokerage-stage-40-45-expanded-cabin-alpha.webp"
+      }
+    },
+    {
+      "allStage": {
+        "level": 17,
+        "art": "mansion-garden",
+        "composite": "alpha",
+        "src": "/money-level/art/houses/brokerage-stage-40-45-expanded-cabin-alpha.webp"
+      }
+    },
+    {
+      "allStage": {
+        "level": 18,
+        "art": "grand-mansion",
+        "composite": "alpha",
+        "src": "/money-level/art/houses/brokerage-stage-40-45-expanded-cabin-alpha.webp"
+      }
+    },
+    {
+      "allStage": {
+        "level": 19,
+        "art": "grand-mansion-annex",
+        "composite": "alpha",
+        "src": "/money-level/art/houses/brokerage-stage-40-45-expanded-cabin-alpha.webp"
+      }
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 760
+      },
+      "geometry": [
+        {
+          "kind": "brokerage",
+          "x": 599.7925531914893,
+          "y": 390.3478462196049,
+          "width": 622.6924154635259
+        },
+        {
+          "kind": "tax",
+          "x": 1246.883513012918,
+          "y": 414.88626757218844,
+          "width": 495.62415700987845
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      },
+      "geometry": [
+        {
+          "kind": "brokerage",
+          "x": 599.7925531914893,
+          "y": 390.3478462196049,
+          "width": 622.6924154635259
+        },
+        {
+          "kind": "tax",
+          "x": 1246.883513012918,
+          "y": 414.88626757218844,
+          "width": 495.62415700987845
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "width": 1320,
+        "height": 760
+      },
+      "geometry": [
+        {
+          "kind": "brokerage",
+          "x": 599.7947387695312,
+          "y": 390.33510742187497,
+          "width": 622.7017822265625
+        },
+        {
+          "kind": "tax",
+          "x": 1246.882763671875,
+          "y": 414.8857055664062,
+          "width": 495.63446044921875
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "width": 1320,
+        "height": 1100
+      },
+      "geometry": [
+        {
+          "kind": "brokerage",
+          "x": 599.7947387695312,
+          "y": 390.33510742187497,
+          "width": 622.7017822265625
+        },
+        {
+          "kind": "tax",
+          "x": 1246.882763671875,
+          "y": 414.8857055664062,
+          "width": 495.63446044921875
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "width": 1100,
+        "height": 760
+      },
+      "geometry": [
+        {
+          "kind": "brokerage",
+          "x": 599.7920253537736,
+          "y": 390.3459610849057,
+          "width": 622.6901533018868
+        },
+        {
+          "kind": "tax",
+          "x": 1246.8688089622642,
+          "y": 414.8814416273585,
+          "width": 495.62166863207545
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "width": 1100,
+        "height": 1100
+      },
+      "geometry": [
+        {
+          "kind": "brokerage",
+          "x": 599.7799350247525,
+          "y": 390.33067759900996,
+          "width": 622.7065284653465
+        },
+        {
+          "kind": "tax",
+          "x": 1246.8595297029703,
+          "y": 414.89660684818483,
+          "width": 495.6338954207921
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "width": 980,
+        "height": 760
+      },
+      "geometry": [
+        {
+          "kind": "brokerage",
+          "x": 599.7925531914893,
+          "y": 390.3438497340426,
+          "width": 622.7044049202127
+        },
+        {
+          "kind": "tax",
+          "x": 1246.8635305851062,
+          "y": 414.8782746010639,
+          "width": 495.64014295212763
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "width": 980,
+        "height": 1100
+      },
+      "geometry": [
+        {
+          "kind": "brokerage",
+          "x": 599.7799350247525,
+          "y": 390.33067759900996,
+          "width": 622.7065284653465
+        },
+        {
+          "kind": "tax",
+          "x": 1246.8595297029703,
+          "y": 414.89660684818483,
+          "width": 495.6338954207921
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "width": 768,
+        "height": 760
+      },
+      "geometry": [
+        {
+          "kind": "brokerage",
+          "x": 599.7726506294964,
+          "y": 390.3278158723022,
+          "width": 622.6851955935252
+        },
+        {
+          "kind": "tax",
+          "x": 1246.8681148830935,
+          "y": 414.8957396582734,
+          "width": 495.64143997302165
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "width": 768,
+        "height": 1100
+      },
+      "geometry": [
+        {
+          "kind": "brokerage",
+          "x": 599.7726506294964,
+          "y": 390.3278158723022,
+          "width": 622.6851955935252
+        },
+        {
+          "kind": "tax",
+          "x": 1246.8681148830935,
+          "y": 414.8957396582734,
+          "width": 495.64143997302165
+        }
+      ]
+    }
+  ]
+}

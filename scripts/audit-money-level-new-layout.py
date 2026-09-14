@@ -101,6 +101,14 @@ def main() -> None:
     spec = importlib.util.spec_from_file_location("edge_repairs", ROOT / "scripts/clean-money-level-background-edges.py")
     repairs = importlib.util.module_from_spec(spec); spec.loader.exec_module(repairs)
     repair_mask = repairs.repair_mask(size)
+    # Cumulative approved local repairs. Landmark alignment still uses the
+    # latest clean master; atmosphere equality excludes only explicit masks.
+    world_mask = ROOT / "art-review/money-level/world-settings-v2/grass-mask.png"
+    if world_mask.exists():
+        repair_mask = np.maximum(repair_mask, np.asarray(Image.open(world_mask)) / 255)
+    fence_mask = ROOT / "art-review/money-level/world-settings-v2/RIGHT_CORRIDOR_FENCE_MASK.png"
+    if fence_mask.exists():
+        repair_mask = np.maximum(repair_mask, np.asarray(Image.open(fence_mask)) / 255)
     print(f"Master {size[0]}x{size[1]}: {MASTER}")
     failed = False
     for variant in names:

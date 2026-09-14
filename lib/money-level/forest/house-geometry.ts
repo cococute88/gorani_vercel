@@ -8,9 +8,17 @@ export const HOUSE_WORLD_GEOMETRY = {
   // +36/-44 master pixels clears the complete baked stump for every resolved
   // Brokerage artwork, including the larger masked cabin/proper-house fence.
   brokerage: { x: 599.805, y: 390.35, width: 622.71 },
-  tax: { x: 1258.884, y: 449.905, width: 521.73 },
+  tax: { x: 1246.884, y: 414.905, width: 495.6435 },
 } as const;
-export const TAX_LABEL_WORLD = { x: 1208.394, y: 596.785 } as const;
+export const TAX_LABEL_WORLD = { x: 1550, y: 363 } as const;
+
+/** Card UI clamps separately from immutable house geometry. */
+export function taxHouseLabelPoint(scene: { width: number; height: number }, mobile: boolean, cameraTranslation = 0) {
+  const point = projectForestPoint(TAX_LABEL_WORLD, scene, mobile);
+  const halfWidth = mobile ? 91 : 102;
+  return { x: Math.max(halfWidth, Math.min(scene.width - halfWidth, point.x + cameraTranslation)) - cameraTranslation,
+    y: Math.max(32, Math.min(scene.height - 32, point.y)) };
+}
 export const HOUSE_BACKGROUND_LANDMARKS = {
   brokerage: { x: 435, y: 602 }, // stump beside the baked bench
   tax: { x: 1415, y: 520 }, // right-lot fence/stump corner
@@ -28,7 +36,7 @@ export function houseWorldToViewport(kind: HouseKind, scene: { width: number; he
 export function brokerageHouseLabelPoint(scene: { width: number; height: number }, mobile: boolean) {
   const point = brokerageLabelPoint(scene, mobile);
   const house = houseWorldToViewport("brokerage", scene, mobile);
-  const halfWidth = mobile ? 67 : 80;
+  const halfWidth = mobile ? 91 : 102;
   // Shared 1536×1024 art frame, with transparent/feathered side margins.
   const top = house.y - house.width / 3;
   if (point.x + halfWidth > house.x - house.width * .35

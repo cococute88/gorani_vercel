@@ -1,0 +1,61 @@
+
+> gorani-finance@1.0.0 build
+> next build
+
+  ▲ Next.js 14.2.5
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully
+   Linting and checking validity of types ...
+   Collecting page data ...
+   Generating static pages (0/18) ...
+   Generating static pages (4/18)
+   Generating static pages (8/18)
+   Generating static pages (13/18)
+ ✓ Generating static pages (18/18)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                   Size     First Load JS
+┌ ○ /                                         155 B          87.7 kB
+├ ○ /_not-found                               879 B          88.4 kB
+├ ƒ /api/asset-simulator/portfolio-metrics    0 B                0 B
+├ ƒ /api/calculator/dividend-capture-data     0 B                0 B
+├ ƒ /api/calculator/portfolio-compare-series  0 B                0 B
+├ ƒ /api/calendar/dividend-events             0 B                0 B
+├ ƒ /api/calendar/dividend-events/status      0 B                0 B
+├ ƒ /api/market                               0 B                0 B
+├ ƒ /api/market/index-quote                   0 B                0 B
+├ ƒ /api/market/long-series                   0 B                0 B
+├ ƒ /api/money-level/weather                  0 B                0 B
+├ ƒ /api/portfolio/latest-snapshot            0 B                0 B
+├ ƒ /api/portfolio/refresh-pipeline           0 B                0 B
+├ ƒ /api/quote/dividends                      0 B                0 B
+├ ƒ /api/quote/dividends-precise              0 B                0 B
+├ ƒ /api/quote/fx                             0 B                0 B
+├ ƒ /api/quote/fx-history                     0 B                0 B
+├ ƒ /api/quote/history                        0 B                0 B
+├ ƒ /api/quote/korean-stock-search            0 B                0 B
+├ ƒ /api/quote/last                           0 B                0 B
+├ ○ /asset-map                                155 B          87.7 kB
+├ ○ /asset-simulator                          54.2 kB         420 kB
+├ ○ /calculator                               50.8 kB         423 kB
+├ ○ /calendar                                 31.4 kB         290 kB
+├ ○ /dev/calendar-import                      3.54 kB         262 kB
+├ ○ /dividends                                22.2 kB         408 kB
+├ ○ /manifest.webmanifest                     0 B                0 B
+├ ○ /market                                   11.3 kB         374 kB
+├ ○ /money-level                              84.1 kB         357 kB
+├ ○ /performance                              8.59 kB         395 kB
+├ ○ /portfolio                                8.48 kB         397 kB
+├ ○ /portfolio-manager                        147 kB          540 kB
+├ ○ /qld-dashboard                            155 B          87.7 kB
+└ ○ /watchlist                                155 B          87.7 kB
++ First Load JS shared by all                 87.6 kB
+  ├ chunks/7023-9bab22b53a6bb319.js           31.7 kB
+  ├ chunks/fd9d1056-5a8f63696529816d.js       53.6 kB
+  └ other shared chunks (total)               2.24 kB
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand

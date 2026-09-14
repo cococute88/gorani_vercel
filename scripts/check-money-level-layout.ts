@@ -102,7 +102,7 @@ assert.equal(STATUE_SLOTS.left.bottomLiftPx, 2);
 assert.ok(Math.abs(STATUE_SLOTS.right.scale - 1.3 * 1.1) < 1e-12);
 assert.equal(STATUE_SLOTS.right.bottomLiftPx, 3);
 assert.equal(STATUE_SLOTS.right.screenOffsetXPx, 1);
-assert.equal(HOUSE_WORLD_GEOMETRY.tax.x, 1258.884);
+assert.equal(HOUSE_WORLD_GEOMETRY.tax.x, 1246.884);
 for (const stage of MONEY_LEVEL_HOUSE_STAGES) {
   const explicit = FOREST_SCENE.stageAssets.tax as Record<string, { src: string } | undefined>;
   const fallback = FOREST_SCENE.familyFallbackAssets.tax[HOUSE_ART_FAMILY[stage.art]];

@@ -39,9 +39,9 @@ export const BROKERAGE_LABEL = {
 
 export function brokerageLabelPoint(scene: { width: number; height: number }, mobile: boolean) {
   const point = projectForestPoint(BROKERAGE_LABEL[mobile ? "mobile" : "desktop"], scene, mobile);
-  // The rendered card is 130px on mobile and 155px otherwise; keep 2px of
-  // breathing room while allowing the tight crops to move fully left.
-  const halfCard = mobile ? 67 : 80;
+  // Match the 182px mobile / 204px desktop banner while allowing tight crops
+  // to move fully left.
+  const halfCard = mobile ? 91 : 102;
   return { x: Math.max(halfCard, Math.min(scene.width - halfCard, point.x)), y: point.y };
 }
 

@@ -3,6 +3,7 @@ import { WAYPOINTS, type Waypoint } from "./forest-character-config";
 import { BENCH_EXIT_MASTER, DOCK_ACCESS_POLYGON, DOCK_MAIN_POLYGON, DOCK_WAYPOINTS, FOREST_MASTER_SIZE, projectForestPoint } from "./landmarks";
 import { createForestCamera } from "./camera";
 import { STATUE_VIEW_GRASS } from "./statue-view";
+import { OPENED_WORLD_REGIONS, WORLD_WAYPOINTS, WORLD_OBSTACLES, POND_WORLD_POLYGON } from "./world-navigation";
 
 export type SceneLayout = "desktop" | "mobile";
 
@@ -12,6 +13,22 @@ export interface ScenePolygon { points: readonly ScenePoint[]; }
 export interface ResolvedDrop { point: ScenePoint; waypoint: Waypoint; snapped: boolean; }
 
 let sceneViewport: { width: number; height: number } | null = null;
+
+export const OPENED_WAYPOINTS: Record<string, Waypoint> = Object.fromEntries(
+  ["left_grass", "left_access", "ceremony_left_a", "ceremony_left_b", "tax_front", "tax_corridor", "fence_opening", "right_grass", "ceremony_right"]
+    .map(id => [id, { id, ...WORLD_WAYPOINTS[id], facing: "right" as const, supportedActions: ["idle", "look"] as const, weight: .45 }]),
+);
+
+export function legacyPolygonToWorld(points: readonly ScenePoint[]): ScenePoint[] {
+  return points.map(p => ({ x: p.x * 16.83, y: p.y * 6.63 + 136 }));
+}
+
+export function scenePointToImage(point: ScenePoint, layout: SceneLayout): ScenePoint {
+  if (!sceneViewport) return { x: point.x * 16.83, y: point.y * 9.35 };
+  const camera = createForestCamera(sceneViewport.width, sceneViewport.height, layout === "mobile");
+  return { x: (point.x * sceneViewport.width / 100 + camera.cropX) / camera.scale,
+    y: (point.y * sceneViewport.height / 100 + camera.cropY) / camera.scale };
+}
 
 /** Runtime projection for fixed art landmarks; null retains pure legacy unit-test coordinates. */
 export function setForestSceneViewport(viewport: { width: number; height: number } | null): void {
@@ -47,6 +64,7 @@ export interface WalkableRegion {
   desktop: ScenePolygon;
   mobile: ScenePolygon;
   allows?: readonly ExclusionZone["kind"][];
+  master?: readonly ScenePoint[];
 }
 
 export interface ExclusionZone {
@@ -76,11 +94,15 @@ export const WALKABLE_REGIONS: readonly WalkableRegion[] = [
   { id: "pond-side-grass", kind: "pond-side", desktop: polygon(41, 63, 66, 61, 66, 78, 61, 83, 42, 88), mobile: polygon(45, 67, 72, 65, 72, 80, 66, 83, 56, 88, 43, 85), allows: ["water"] },
   { id: "dock-connector", kind: "dock", desktop: polygon(57.2, 79.2, 60.3, 77.2, 68.3, 84.2, 67.1, 91.1, 62.1, 88.8, 58, 84.7), mobile: polygon(67.2, 77.2, 71.8, 75.3, 87, 82.3, 84.5, 89.1, 76.1, 86.2, 69, 82.1), allows: ["water"] },
   { id: "wooden-dock", kind: "dock", desktop: polygon(64.1, 82.4, 67.8, 81.7, 79.7, 92.3, 80, 99.4, 72.8, 98.1, 64, 87.7), mobile: polygon(80, 79.3, 85, 79.1, 100, 86, 100, 95.2, 88, 94.2, 80, 86.2), allows: ["water"] },
+  ...Object.entries(OPENED_WORLD_REGIONS).map(([id, master]): WalkableRegion => ({
+    id, kind: "meadow", master,
+    desktop: { points: master.map(p => ({ x: p.x / 16.83, y: p.y / 9.35 })) },
+    mobile: { points: master.map(p => ({ x: p.x / 16.83, y: p.y / 9.35 })) },
+  })),
 ] as const;
 
 export const EXCLUSION_ZONES: readonly ExclusionZone[] = [
   { id: "brokerage-house-info", kind: "label", desktop: { x: 24.2, y: 66.5, width: 13.2, height: 12.4 }, mobile: { x: 11, y: 47, width: 34, height: 15 } },
-  { id: "tax-house-info", kind: "label", desktop: { x: 65.2, y: 64, width: 13.4, height: 13 }, mobile: { x: 55, y: 49, width: 36, height: 15 } },
   { id: "bottom-phrase", kind: "label", desktop: { x: 42.5, y: 90.2, width: 15, height: 7.8 }, mobile: { x: 27, y: 91.5, width: 46, height: 7.5 } },
   { id: "scene-weather", kind: "hud", desktop: { x: 90.6, y: 2.5, width: 8.2, height: 8.5 }, mobile: { x: 75, y: 1.4, width: 22.5, height: 8.5 } },
   { id: "brokerage-cottage", kind: "building", desktop: { x: 16, y: 16, width: 27, height: 47 }, mobile: { x: 0, y: 27, width: 47, height: 23 } },
@@ -97,18 +119,27 @@ export const NAVIGATION_GRAPH: Readonly<Record<string, readonly string[]>> = {
   brokerage_yard: ["gorani_home", "bench", "garden", "path_front"],
   bench: ["brokerage_yard", "path_front"],
   garden: ["gorani_home", "brokerage_yard", "meadow", "pond_edge", "path_center"],
-  daramji_home: ["campfire"],
+  daramji_home: ["campfire", "tax_front"],
   campfire: ["daramji_home", "tax_clearing", "meadow", "flower_patch"],
   tax_clearing: ["campfire"],
   meadow: ["garden", "campfire", "flower_patch", "path_mid"],
   flower_patch: ["campfire", "meadow", "path_center"],
-  path_front: ["brokerage_yard", "bench", "path_center"],
+  path_front: ["brokerage_yard", "bench", "path_center", "left_access", "ceremony_left_b"],
+  left_access: ["path_front", "left_grass", "ceremony_left_b"],
+  left_grass: ["left_access", "ceremony_left_a"],
+  ceremony_left_a: ["left_grass"],
+  ceremony_left_b: ["left_access", "path_front"],
+  tax_front: ["daramji_home", "pond_edge", "tax_corridor"],
+  tax_corridor: ["tax_front", "fence_opening"],
+  fence_opening: ["tax_corridor", "right_grass"],
+  right_grass: ["fence_opening", "ceremony_right"],
+  ceremony_right: ["right_grass"],
   path_center: ["garden", "flower_patch", "path_front", "path_mid", "pond_edge"],
   path_mid: ["meadow", "path_center", "path_back_lower"],
   path_back_lower: ["path_mid", "path_back_mid"],
   path_back_mid: ["path_back_lower", "path_back_upper"],
   path_back_upper: ["path_back_mid"],
-  pond_edge: ["garden", "path_center", "pond_land"],
+  pond_edge: ["garden", "path_center", "pond_land", "tax_front"],
   pond_land: ["pond_edge", "dock_connector"],
   dock_connector: ["pond_land", "dock_start"],
   dock_start: ["dock_connector", "dock_mid"],
@@ -117,6 +148,7 @@ export const NAVIGATION_GRAPH: Readonly<Record<string, readonly string[]>> = {
 };
 
 export function waypointPoint(waypoint: Waypoint, layout: SceneLayout): ScenePoint {
+  if (waypoint.id in WORLD_WAYPOINTS && (sceneViewport || waypoint.id.startsWith("ceremony_") || waypoint.id in OPENED_WAYPOINTS)) return imagePointToScene(WORLD_WAYPOINTS[waypoint.id], layout);
   if (waypoint.id === "bench_exit") return imagePointToScene(BENCH_EXIT_MASTER, layout);
   if (sceneViewport && waypoint.id in DOCK_WAYPOINTS) {
     const source = DOCK_WAYPOINTS[waypoint.id as keyof typeof DOCK_WAYPOINTS][layout];
@@ -128,6 +160,7 @@ export function waypointPoint(waypoint: Waypoint, layout: SceneLayout): ScenePoi
 }
 
 export function getWaypoint(id: string): Waypoint {
+  if (id in OPENED_WAYPOINTS) return OPENED_WAYPOINTS[id];
   // Local post-bench idle anchor, not an unsafe shortcut through the house/fence
   // into the roaming graph. A later drag can carry the character back to a path.
   if (id === "bench_exit") return { ...getWaypoint("bench"), id, weight: 0 };
@@ -143,6 +176,20 @@ export function perspectiveScale(y: number): number {
 }
 
 export function isPointSafe(point: ScenePoint, layout: SceneLayout, character: CharacterId): boolean {
+  if (sceneViewport) {
+    const project = (polygon: readonly ScenePoint[]) => polygon.map(p => imagePointToScene(p, layout));
+    const dock = projectedDockPolygon(layout);
+    if (dock && pointInPolygon(point, dock)) return true;
+    const world = scenePointToImage(point, layout);
+    const inOpened = Object.values(OPENED_WORLD_REGIONS).some(polygon => pointInPolygon(world, polygon));
+    const inLegacy = WALKABLE_REGIONS.some(region => pointInPolygon(point, project(region.master ?? legacyPolygonToWorld(region.desktop.points))));
+    const inStatueGrass = Object.values(STATUE_VIEW_GRASS).some(polygon => pointInPolygon(world, polygon));
+    if (!inOpened && !inLegacy && !inStatueGrass) return false;
+    if (pointInPolygon(world, POND_WORLD_POLYGON)) return false;
+    const margin = character === "gorani" ? 8 : 6;
+    return !WORLD_OBSTACLES.some(rect => world.x >= rect.x - margin && world.x <= rect.x + rect.width + margin
+      && world.y >= rect.y - 3 && world.y <= rect.y + rect.height + 3);
+  }
   // These curated master-local grass patches remain ordinary ground with no statue.
   // Legacy percentage exclusions do not describe these crop-dependent landmarks.
   if (sceneViewport && Object.values(STATUE_VIEW_GRASS).some((grass) => pointInPolygon(point, grass.map((p) => imagePointToScene(p, layout))))) return true;
@@ -172,6 +219,11 @@ export function isPointSafe(point: ScenePoint, layout: SceneLayout, character: C
 }
 
 export function isPointInWalkableRegion(point: ScenePoint, layout: SceneLayout, regionId: string): boolean {
+  if (regionId in OPENED_WORLD_REGIONS) return pointInPolygon(point, OPENED_WORLD_REGIONS[regionId as keyof typeof OPENED_WORLD_REGIONS].map(p => imagePointToScene(p, layout)));
+  if (sceneViewport && regionId !== "dock-connector" && regionId !== "wooden-dock") {
+    const region = WALKABLE_REGIONS.find(({ id }) => id === regionId);
+    return Boolean(region && pointInPolygon(point, (region.master ?? legacyPolygonToWorld(region.desktop.points)).map(p => imagePointToScene(p, layout))));
+  }
   if (regionId === "dock-connector" || regionId === "wooden-dock") {
     const projected = projectedDockPolygon(layout, regionId === "wooden-dock");
     if (projected) return pointInPolygon(point, projected);
@@ -209,7 +261,7 @@ export function routeWaypoints(fromId: string, toId: string, layout: SceneLayout
 }
 
 export function nearestSafeWaypoint(point: ScenePoint, layout: SceneLayout, character: CharacterId, requireReachableSegment = false): Waypoint {
-  const candidates = WAYPOINTS
+  const candidates = [...WAYPOINTS, ...Object.values(OPENED_WAYPOINTS)]
     .filter((waypoint) => {
       const target = waypointPoint(waypoint, layout);
       return isPointSafe(target, layout, character) && (!requireReachableSegment || isSegmentSafe(point, target, layout, character));
