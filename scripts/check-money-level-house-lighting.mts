@@ -21,7 +21,7 @@ for (const time of Object.keys(times) as Array<keyof typeof times>) {
     const channels = rgb.map((n, i) => round(n * skyRgb[i]));
     assert.equal(statue.colorMatrix, `${channels[0]} 0 0 0 0 0 ${channels[1]} 0 0 0 0 0 ${channels[2]} 0 0 0 0 0 1 0`, "approved statue matrix unchanged");
     assert.equal(house.saturation, round(sunny.saturation * HOUSE_WEATHER_LIGHTING[weather].saturation));
-    if (weather === "cloudy" || weather === "thunderstorm") assert.ok(house.saturation <= sunny.saturation * .8 + .0005, "weather reduces time result by at least 20%");
+    if (weather !== "sunny") assert.ok(house.saturation < sunny.saturation && house.saturation >= sunny.saturation * .78 - .0005, "weather stays desaturated without stacking into gray");
     assert.ok(house.colorMatrix.endsWith("0 0 0 1 0"), "alpha preserved");
   }
 }
@@ -33,4 +33,4 @@ const scene = readFileSync("components/money-level/MoneyLevelScene.tsx", "utf8")
 assert.ok(scene.includes('objectLighting.statue.colorMatrix'));
 assert.ok(scene.includes('url(#${lightingFilterId}-statue)'));
 assert.ok(scene.includes('className="house-art-image"'), "house and camp share HouseVisual source of truth");
-console.log("House time + weather calibration, >=20% weather desaturation, alpha, Day/Morning and all 16 approved statue grades PASS");
+console.log("House time + weather calibration, crisp weather desaturation, alpha, Day/Morning and all 16 approved statue grades PASS");

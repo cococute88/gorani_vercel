@@ -7,16 +7,7 @@ export interface SceneAsset {
   composite?: "masked" | "alpha";
 }
 
-export interface ScenePlacement {
-  x: number;
-  y: number;
-  width: number;
-  mobile: { x: number; y: number; width: number };
-}
-
 export const FOREST_BACKGROUND_FALLBACK = "/money-level/art/background/forest-day-sunny-docked.webp";
-/** Every Tax stage shares this minimal screen-space lift, with unchanged X. */
-export const TAX_HOUSE_OFFSET_Y_PX = -6;
 
 export const FOREST_WEATHER_BACKGROUNDS: Record<MoneyLevelTimeOfDay, Record<MoneyLevelWeather, string>> = {
   morning: {
@@ -93,17 +84,6 @@ export const FOREST_SCENE = {
   backgroundPosition: {
     desktop: "50% 50%",
     mobile: "51% 50%",
-  },
-  housePlacements: {
-    brokerage: {
-      x: 33.5, y: 45, width: 37, mobile: { x: 28, y: 43, width: 55 },
-    },
-    tax: {
-      x: 74.8, y: 48.5, width: 31, mobile: { x: 76, y: 48, width: 46 },
-    },
-  },
-  labelPlacements: {
-    tax: { x: 71.8, y: 69.5, mobile: { x: 73, y: 57 } },
   },
   stageAssets: {
     brokerage: {

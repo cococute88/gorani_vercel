@@ -264,7 +264,6 @@
   .moneyLevelRoot .scene-illustration img{ object-position: 51% 50%; }
   .moneyLevelRoot .pond-ripple-layer{ clip-path: polygon(61% 61%,100% 57%,100% 100%,58% 100%,55% 80%); }
   .moneyLevelRoot .pond-ripple-layer i{ top: var(--ripple-mobile-y); left: var(--ripple-mobile-x); }
-  .moneyLevelRoot .house-card{ top: var(--house-mobile-y); left: var(--house-mobile-x); width: var(--house-mobile-width); }
   .moneyLevelRoot .forest-statue{ width: var(--statue-width); }
   .moneyLevelRoot .house-label{ top: var(--label-mobile-y); left: var(--label-mobile-x); min-width: 130px; padding: 5px 7px; }
   .moneyLevelRoot .house-label strong{ max-width: 112px; font-size: .52rem; }

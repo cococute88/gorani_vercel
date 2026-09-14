@@ -1,0 +1,81 @@
+{
+  "results": [
+    {
+      "id": "gorani",
+      "slot": "left",
+      "drop": {
+        "x": 475,
+        "y": 684
+      },
+      "anchor": {
+        "x": 470,
+        "y": 772,
+        "offset": -16
+      },
+      "state": {
+        "x": -3.0989,
+        "y": 79.4172,
+        "phase": "statue-appreciation",
+        "animation": "ceremony_valentinesday"
+      }
+    },
+    {
+      "id": "daramji",
+      "slot": "left",
+      "drop": {
+        "x": 470,
+        "y": 794
+      },
+      "anchor": {
+        "x": 470,
+        "y": 772,
+        "offset": -16
+      },
+      "state": {
+        "x": -3.0989,
+        "y": 79.4172,
+        "phase": "statue-appreciation",
+        "animation": "ceremony_valentinesday"
+      }
+    },
+    {
+      "id": "gorani",
+      "slot": "right",
+      "drop": {
+        "x": 1560,
+        "y": 562
+      },
+      "anchor": {
+        "x": 1550,
+        "y": 621,
+        "offset": 0
+      },
+      "state": {
+        "x": 147.358,
+        "y": 66.4171,
+        "phase": "statue-appreciation",
+        "animation": "ceremony_valentinesday"
+      }
+    },
+    {
+      "id": "daramji",
+      "slot": "right",
+      "drop": {
+        "x": 1555,
+        "y": 640
+      },
+      "anchor": {
+        "x": 1550,
+        "y": 621,
+        "offset": 0
+      },
+      "state": {
+        "x": 147.358,
+        "y": 66.4171,
+        "phase": "statue-appreciation",
+        "animation": "ceremony_valentinesday"
+      }
+    }
+  ],
+  "status": "SIMULATED TOUCH PASS; REAL DEVICE REGRESSION NOT RUN"
+}

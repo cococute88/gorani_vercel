@@ -18,10 +18,11 @@ import { CharacterActivityCoordinator } from "@/lib/money-level/forest/activity-
 import { GORANI_BENCH_POSE } from "@/lib/money-level/forest/character-pose";
 import { cameraTranslation, clampCameraX, createForestCamera, edgePanSpeed, resolveGestureIntent, screenToWorld, TOUCH_SLOP_PX, type ForestCamera, type GestureIntent } from "@/lib/money-level/forest/camera";
 import { FISHING_VISUAL_CONFIG, fishingRodGeometry, GORANI_BENCH_VISUAL_OFFSET_Y_PX, type SemanticActivityZone } from "@/lib/money-level/forest/activity-zones";
-import { brokerageLabelPoint, FISHING_BOBBER, fishingLineAngleDeg, projectForestPoint, statueSlotPlacement } from "@/lib/money-level/forest/landmarks";
+import { FISHING_BOBBER, fishingLineAngleDeg, projectForestPoint, statueSlotPlacement } from "@/lib/money-level/forest/landmarks";
 import { perspectiveScale, setForestSceneViewport, type ScenePoint } from "@/lib/money-level/forest/navigation";
-import { FOREST_SCENE, HOUSE_ART_FAMILY, resolveForestBackground, TAX_HOUSE_OFFSET_Y_PX } from "@/lib/money-level/forest/scene-config";
-import { getWorldObjectLighting } from "@/lib/money-level/forest/world-object-lighting";
+import { FOREST_SCENE, HOUSE_ART_FAMILY, resolveForestBackground } from "@/lib/money-level/forest/scene-config";
+import { brokerageHouseLabelPoint, houseWorldToViewport, TAX_LABEL_WORLD } from "@/lib/money-level/forest/house-geometry";
+import { getWorldObjectLighting, getHouseAmbientLighting } from "@/lib/money-level/forest/world-object-lighting";
 import type { CharacterId, CharacterState } from "@/lib/money-level/forest/character-types";
 import { resolveMoneyLevelWindIntensity } from "@/lib/money-level/weather";
 import { SpineStage, type BoneScreenPoint } from "./runtime/spine-stage";
@@ -97,6 +98,10 @@ export default function MoneyLevelScene({
   const [runtimeVersion, setRuntimeVersion] = useState(0);
   const [characterError, setCharacterError] = useState(false);
   const [sceneSize, setSceneSize] = useState({ width: 1320, height: 520, mobile: false });
+  const [houseAmbientEnabled, setHouseAmbientEnabled] = useState(true);
+  useEffect(() => {
+    setHouseAmbientEnabled(!previewOverridesEnabled || new URLSearchParams(window.location.search).get("houseAmbient") !== "off");
+  }, [previewOverridesEnabled]);
 
   useEffect(() => {
     const scene = sceneRef.current;
@@ -554,6 +559,8 @@ export default function MoneyLevelScene({
     right: statueSlotPlacement("right", sceneSize, sceneSize.mobile),
   };
   const objectLighting = getWorldObjectLighting(timeOfDay, weather);
+  const houseAmbient = getHouseAmbientLighting(timeOfDay, weather);
+  const ambientOpacity = houseAmbientEnabled ? houseAmbient.opacity : 0;
   const worldObjectStyle = {
     "--money-level-house-lighting": `${objectLighting.house.filter} url(#${lightingFilterId})`,
     "--money-level-statue-lighting": `${objectLighting.statue.filter} url(#${lightingFilterId}-statue)`,
@@ -563,15 +570,23 @@ export default function MoneyLevelScene({
     <section ref={sceneRef} className="forest-scene" data-ambient={ambientEnabled ? "on" : "off"} aria-label="고라니와 다람쥐가 사는 숲">
       <svg width="0" height="0" aria-hidden="true" style={{ position: "absolute" }}>
         <defs>
-          <filter id={lightingFilterId} colorInterpolationFilters="sRGB"><feColorMatrix type="matrix" values={objectLighting.house.colorMatrix} /></filter>
+          <filter id={lightingFilterId} colorInterpolationFilters="sRGB" x="0%" y="0%" width="100%" height="100%">
+            <feColorMatrix type="matrix" values={objectLighting.house.colorMatrix} result="houseBase" />
+            <feFlood floodColor={houseAmbient.color} result="ambientColor" />
+            {/* Multiply premultiplied source by opaque illumination: alpha A×1
+                stays A, transparent RGB stays zero, and black ink cannot lift.
+                Interpolate two equal-alpha surfaces, avoiding source-over halos. */}
+            <feComposite in="houseBase" in2="ambientColor" operator="arithmetic" k1="1" k2="0" k3="0" k4="0" result="ambientSurface" />
+            <feComposite in="houseBase" in2="ambientSurface" operator="arithmetic" k1="0" k2={1 - ambientOpacity} k3={ambientOpacity} k4="0" />
+          </filter>
           <filter id={`${lightingFilterId}-statue`} colorInterpolationFilters="sRGB"><feColorMatrix type="matrix" values={objectLighting.statue.colorMatrix} /></filter>
         </defs>
       </svg>
       <div className="scene-world" style={worldObjectStyle}>
         <WeatherBackground timeOfDay={timeOfDay} weather={weather} />
         {ambientEnabled ? <div className="pond-shimmer-layer ambient-motion-layer" aria-hidden="true" /> : null}
-        <div className="house-place brokerage-house"><HouseVisual kind="brokerage" stage={brokerageStage} /></div>
-        <div className="house-place tax-house" style={{ translate: `0 ${TAX_HOUSE_OFFSET_Y_PX}px` }}><HouseVisual kind="tax" stage={taxStage} /></div>
+        <div className="house-place brokerage-house"><HouseVisual kind="brokerage" stage={brokerageStage} sceneSize={sceneSize} /></div>
+        <div className="house-place tax-house"><HouseVisual kind="tax" stage={taxStage} sceneSize={sceneSize} /></div>
         {(["left", "right"] as const).map((slot) => {
           const statue = slot === "left" ? leftStatue : rightStatue;
           if (statue === "none") return null;
@@ -695,15 +710,14 @@ function rippleStyle(ripple: (typeof POND_RIPPLES)[number], index: number): CSSP
   } as CSSProperties;
 }
 
-function HouseVisual({ kind, stage }: { kind: "brokerage" | "tax"; stage: MoneyLevelHouseStage }) {
-  const placement = FOREST_SCENE.housePlacements[kind];
+function HouseVisual({ kind, stage, sceneSize }: { kind: "brokerage" | "tax"; stage: MoneyLevelHouseStage; sceneSize: { width: number; height: number; mobile: boolean } }) {
+  const placement = houseWorldToViewport(kind, sceneSize, sceneSize.mobile);
   const family = HOUSE_ART_FAMILY[stage.art];
   const accountAssets = FOREST_SCENE.stageAssets[kind] as Partial<Record<MoneyLevelHouseStage["art"], { src: string; alt: string; composite?: "masked" | "alpha" }>>;
   const asset = accountAssets[stage.art] ?? FOREST_SCENE.familyFallbackAssets[kind][family];
   const composite = asset.composite ?? "masked";
   const style = {
-    "--house-x": `${placement.x}%`, "--house-y": `${placement.y}%`, "--house-width": `${placement.width}%`,
-    "--house-mobile-x": `${placement.mobile.x}%`, "--house-mobile-y": `${placement.mobile.y}%`, "--house-mobile-width": `${placement.mobile.width}%`,
+    "--house-x": `${placement.x}px`, "--house-y": `${placement.y}px`, "--house-width": `${placement.width}px`,
   } as CSSProperties;
   return (
     <article className={`house-card house-${kind} house-family-${family} house-composite-${composite}`} style={style} data-level={stage.level} data-art={stage.art} data-composite={composite} aria-label={`${kind === "brokerage" ? "위탁" : "절세"} 집, ${stage.label}`}>
@@ -714,11 +728,8 @@ function HouseVisual({ kind, stage }: { kind: "brokerage" | "tax"; stage: MoneyL
 
 function HouseLabel({ kind, stage, value, displayLevel, sceneSize }: { kind: "brokerage" | "tax"; stage: MoneyLevelHouseStage; value: number; displayLevel: number; sceneSize: { width: number; height: number; mobile: boolean } }) {
   const title = kind === "brokerage" ? "위탁 집" : "절세 집";
-  const placement = FOREST_SCENE.labelPlacements.tax;
-  const point = kind === "brokerage" ? brokerageLabelPoint(sceneSize, sceneSize.mobile) : null;
-  const style = point
-    ? { left: point.x, top: point.y }
-    : { "--label-x": `${placement.x}%`, "--label-y": `${placement.y}%`, "--label-mobile-x": `${placement.mobile.x}%`, "--label-mobile-y": `${placement.mobile.y}%` } as CSSProperties;
+  const point = kind === "brokerage" ? brokerageHouseLabelPoint(sceneSize, sceneSize.mobile) : projectForestPoint(TAX_LABEL_WORLD, sceneSize, sceneSize.mobile);
+  const style = { left: point.x, top: point.y };
   return <div className={`house-label house-label-${kind}`} style={style} data-house-label={kind} aria-label={`${title} 정보`}><span className="house-leaf" aria-hidden="true">♧</span><div><p>{title} <small title="월 현금흐름 하트 기준 레벨">Lv.{displayLevel}</small></p><strong>{stage.label}</strong><b>{(value / 100_000_000).toFixed(1)}억원</b></div></div>;
 }
 
