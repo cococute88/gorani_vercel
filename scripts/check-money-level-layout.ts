@@ -22,6 +22,14 @@ function webpSize(file: string): { width: number; height: number } {
   const data = readFileSync(file);
   assert.equal(data.toString("ascii", 0, 4), "RIFF");
   assert.equal(data.toString("ascii", 8, 12), "WEBP");
+  if (data.toString("ascii", 12, 16) === "VP8L") {
+    // Night dock color patches use lossless WebP so outside-mask decoded pixels
+    // remain exact. Validate its signature and packed canvas dimensions too.
+    assert.equal(data[20], 0x2f);
+    const bits = data.readUInt32LE(21);
+    assert.equal(bits >>> 29, 0, "supported lossless WebP version");
+    return { width: (bits & 0x3fff) + 1, height: ((bits >>> 14) & 0x3fff) + 1 };
+  }
   assert.equal(data.toString("ascii", 12, 16), "VP8 ");
   assert.equal(data.toString("hex", 23, 26), "9d012a");
   return { width: data.readUInt16LE(26) & 0x3fff, height: data.readUInt16LE(28) & 0x3fff };
