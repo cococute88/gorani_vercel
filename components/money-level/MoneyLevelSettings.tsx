@@ -16,6 +16,10 @@ type SettingsDraft = {
   pensionWithdrawalRate: string;
   leftStatue: MoneyLevelStatue;
   rightStatue: MoneyLevelStatue;
+  brokerageTextMode: MoneyLevelSettings["brokerageTextMode"];
+  brokerageCustomText: string;
+  taxTextMode: MoneyLevelSettings["taxTextMode"];
+  taxCustomText: string;
 };
 
 function toDraft(settings: MoneyLevelSettings): SettingsDraft {
@@ -28,6 +32,10 @@ function toDraft(settings: MoneyLevelSettings): SettingsDraft {
     pensionWithdrawalRate: percent(settings.pensionWithdrawalRate),
     leftStatue: settings.leftStatue,
     rightStatue: settings.rightStatue,
+    brokerageTextMode: settings.brokerageTextMode,
+    brokerageCustomText: settings.brokerageCustomText,
+    taxTextMode: settings.taxTextMode,
+    taxCustomText: settings.taxCustomText,
   };
 }
 
@@ -75,6 +83,7 @@ export default function MoneyLevelSettingsDialog({
         onSubmit={(event) => {
           event.preventDefault();
           onSave(normalizeMoneyLevelSettings({
+            ...settings,
             retirementDate: draft.retirementDate,
             brokerageYield: Number(draft.brokerageYield) / 100,
             brokerageTaxRate: Number(draft.brokerageTaxRate) / 100,
@@ -82,6 +91,10 @@ export default function MoneyLevelSettingsDialog({
             pensionWithdrawalRate: Number(draft.pensionWithdrawalRate) / 100,
             leftStatue: draft.leftStatue,
             rightStatue: draft.rightStatue,
+            brokerageTextMode: draft.brokerageTextMode,
+            brokerageCustomText: draft.brokerageCustomText,
+            taxTextMode: draft.taxTextMode,
+            taxCustomText: draft.taxCustomText,
           } as Partial<MoneyLevelSettings>));
           onClose();
         }}
@@ -108,6 +121,12 @@ export default function MoneyLevelSettingsDialog({
           <label><span>좌측 조각상</span><select value={draft.leftStatue} onChange={(event) => setField("leftStatue", event.target.value)}>{STATUE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
           <label><span>우측 조각상</span><select value={draft.rightStatue} onChange={(event) => setField("rightStatue", event.target.value)}>{STATUE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
         </fieldset>
+        {(["brokerage", "tax"] as const).map(kind => <fieldset className="object-settings house-text-settings" key={kind}>
+          <legend>{kind === "brokerage" ? "위탁집 문구" : "절세집 문구"}</legend>
+          <label><span>표시 방식</span><select value={draft[`${kind}TextMode`]} onChange={event => setField(`${kind}TextMode`, event.target.value)}><option value="DEFAULT">기본</option><option value="CUSTOM">커스텀</option></select></label>
+          <label><span>문구</span><textarea rows={kind === "brokerage" ? 2 : 1} disabled={draft[`${kind}TextMode`] !== "CUSTOM"} value={draft[`${kind}CustomText`]} onChange={event => setField(`${kind}CustomText`, event.target.value)} aria-label={kind === "brokerage" ? "위탁집 커스텀 문구" : "절세집 커스텀 문구"} /></label>
+          <p>{kind === "brokerage" ? "최대 2줄" : "최대 1줄"}, 줄당 18자. 저장 시 제한을 적용합니다.</p>
+        </fieldset>)}
         <div className="dialog-actions">
           <button type="button" className="text-button" onClick={() => setDraft(toDraft(DEFAULT_MONEY_LEVEL_SETTINGS))}>기본값 복원</button>
           <span />

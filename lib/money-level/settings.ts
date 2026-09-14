@@ -22,6 +22,10 @@ export const DEFAULT_MONEY_LEVEL_SETTINGS: Readonly<MoneyLevelSettings> = {
   pensionWithdrawalRate: 0.033,
   leftStatue: "none",
   rightStatue: "none",
+  brokerageTextMode: "DEFAULT",
+  brokerageCustomText: "",
+  taxTextMode: "DEFAULT",
+  taxCustomText: "",
 };
 
 export function isValidMoneyLevelDate(value: unknown): value is string {
@@ -68,5 +72,20 @@ export function normalizeMoneyLevelSettings(
     ),
     leftStatue: isStatue(value?.leftStatue) ? value.leftStatue : "none",
     rightStatue: isStatue(value?.rightStatue) ? value.rightStatue : "none",
+    brokerageTextMode: value?.brokerageTextMode === "CUSTOM" ? "CUSTOM" : "DEFAULT",
+    brokerageCustomText: normalizeHouseText(value?.brokerageCustomText, 2),
+    taxTextMode: value?.taxTextMode === "CUSTOM" ? "CUSTOM" : "DEFAULT",
+    taxCustomText: normalizeHouseText(value?.taxCustomText, 1),
   };
+}
+
+/** 18 Unicode characters per line keeps banners legible even on mobile. */
+export function normalizeHouseText(value: unknown, lines: 1 | 2): string {
+  if (typeof value !== "string") return "";
+  return value.replace(/\r\n?/g, "\n").replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, "")
+    .split("\n").slice(0, lines).map(line => Array.from(line).slice(0, 18).join("")).join("\n");
+}
+
+export function resolveHouseText(settings: MoneyLevelSettings, kind: "brokerage" | "tax", stageDescription: string): string {
+  return settings[`${kind}TextMode`] === "CUSTOM" ? settings[`${kind}CustomText`] : stageDescription;
 }

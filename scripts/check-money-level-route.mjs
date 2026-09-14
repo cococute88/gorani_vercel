@@ -30,7 +30,7 @@ for (const time of ["morning", "day", "evening", "night"]) {
 assert(scene.includes("WeatherBackground") && scene.includes("resolveForestBackground") && scene.includes("fishing-rod.webp"), "Forest environmental art must resolve the time/weather WebP at runtime");
 assert(scene.includes("new Image()") && !scene.includes("Object.values(FOREST_WEATHER_BACKGROUNDS)"), "Scene switching must preload only the requested background");
 assert(forest.includes("ambientEnabled={marketWeather.ambientEnabled}"), "Forest must pass the Preview ambient toggle into the scene");
-assert(forest.includes("gorani.money-level.settings.v1"));
+assert(forest.includes("useMoneyLevelSettings()"));
 assert(forest.includes("gorani.money-level.snapshot.v1"));
 assert(scene.includes("SpineStage.create") && scene.includes("createdStage.dispose()"));
 assert(stage.includes("webglcontextlost") && stage.includes("webglcontextrestored"));

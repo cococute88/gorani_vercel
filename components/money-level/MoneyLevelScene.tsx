@@ -19,9 +19,9 @@ import { GORANI_BENCH_POSE } from "@/lib/money-level/forest/character-pose";
 import { cameraTranslation, clampCameraX, createForestCamera, edgePanSpeed, resolveGestureIntent, screenToWorld, TOUCH_SLOP_PX, type ForestCamera, type GestureIntent } from "@/lib/money-level/forest/camera";
 import { FISHING_VISUAL_CONFIG, fishingRodGeometry, GORANI_BENCH_VISUAL_OFFSET_Y_PX, type SemanticActivityZone } from "@/lib/money-level/forest/activity-zones";
 import { FISHING_BOBBER, fishingLineAngleDeg, projectForestPoint, statueSlotPlacement } from "@/lib/money-level/forest/landmarks";
-import { perspectiveScale, setForestSceneViewport, type ScenePoint } from "@/lib/money-level/forest/navigation";
+import { perspectiveScale, setForestSceneViewport, imagePointToScene, type ScenePoint } from "@/lib/money-level/forest/navigation";
 import { FOREST_SCENE, HOUSE_ART_FAMILY, resolveForestBackground } from "@/lib/money-level/forest/scene-config";
-import { brokerageHouseLabelPoint, houseWorldToViewport, TAX_LABEL_WORLD } from "@/lib/money-level/forest/house-geometry";
+import { brokerageHouseLabelPoint, houseWorldToViewport, taxHouseLabelPoint, TAX_LABEL_WORLD } from "@/lib/money-level/forest/house-geometry";
 import { getWorldObjectLighting, getHouseAmbientLighting } from "@/lib/money-level/forest/world-object-lighting";
 import type { CharacterId, CharacterState } from "@/lib/money-level/forest/character-types";
 import { resolveMoneyLevelWindIntensity } from "@/lib/money-level/weather";
@@ -52,6 +52,9 @@ declare global {
       startFishing: () => boolean;
       startFishingAs: (id: CharacterId) => boolean;
       startBenchSitting: (id: CharacterId) => boolean;
+      dropCharacter: (id: CharacterId, source: ScenePoint) => void;
+      startActivity: (id: CharacterId, zone: SemanticActivityZone["id"]) => boolean;
+      ceremonyOwners: () => ReturnType<CharacterActivityCoordinator["getCeremonyOwners"]>;
       startPondWatch: () => boolean;
       triggerMove: () => void;
     };
@@ -71,6 +74,8 @@ export default function MoneyLevelScene({
   previewOverridesEnabled,
   leftStatue,
   rightStatue,
+  brokerageText,
+  taxText,
   phrase,
 }: {
   brokerageStage: MoneyLevelHouseStage;
@@ -85,6 +90,8 @@ export default function MoneyLevelScene({
   previewOverridesEnabled: boolean;
   leftStatue: MoneyLevelStatue;
   rightStatue: MoneyLevelStatue;
+  brokerageText: string;
+  taxText: string;
   phrase: string;
 }) {
   const sceneRef = useRef<HTMLElement>(null);
@@ -94,6 +101,7 @@ export default function MoneyLevelScene({
   const statuesRef = useRef({ left: leftStatue, right: rightStatue });
   statuesRef.current = { left: leftStatue, right: rightStatue };
   const refreshStatuesRef = useRef<(() => void) | null>(null);
+  const reprojectCharactersRef = useRef<((previous: ForestCamera, next: ForestCamera) => void) | null>(null);
   useEffect(() => { refreshStatuesRef.current?.(); }, [leftStatue, rightStatue]);
   const [runtimeVersion, setRuntimeVersion] = useState(0);
   const [characterError, setCharacterError] = useState(false);
@@ -119,6 +127,7 @@ export default function MoneyLevelScene({
       scene.dataset.cameraMaxX = String(camera.maxX);
       setSceneSize(size);
       setForestSceneViewport(size);
+      reprojectCharactersRef.current?.(previous, camera);
     };
     measure();
     const observer = new ResizeObserver(measure);
@@ -222,6 +231,7 @@ export default function MoneyLevelScene({
     }
 
     refreshStatuesRef.current = () => { controllers.gorani.refreshStatueAvailability(); controllers.daramji.refreshStatueAvailability(); };
+    reprojectCharactersRef.current = (previous, next) => { controllers.gorani.reproject(previous, next); controllers.daramji.reproject(previous, next); };
 
     const updateFishingVisual = (id: CharacterId, hand: BoneScreenPoint) => {
       const activity = scene.querySelector<HTMLElement>(".fishing-activity");
@@ -516,6 +526,9 @@ export default function MoneyLevelScene({
         startFishing: () => controllers.gorani.startActivityAtZone("fishing_dock"),
         startFishingAs: (id) => controllers[id].startActivityAtZone("fishing_dock"),
         startBenchSitting: (id) => controllers[id].startActivityAtZone("bench_slot"),
+        dropCharacter: (id, source) => { controllers[id].beginDrag(); controllers[id].endDrag(imagePointToScene(source, mobile() ? "mobile" : "desktop")); },
+        startActivity: (id, zone) => controllers[id].startActivityAtZone(zone),
+        ceremonyOwners: () => activities.getCeremonyOwners(),
         startPondWatch: () => controllers.daramji.startActivityAtZone("pond_watch"),
         triggerMove: () => { controllers.gorani.triggerMove(); controllers.daramji.triggerMove(); },
         state: () => ({
@@ -528,6 +541,7 @@ export default function MoneyLevelScene({
     return () => {
       cancelled = true;
       refreshStatuesRef.current = null;
+      reprojectCharactersRef.current = null;
       initialization.abort();
       window.clearInterval(interactionTimer);
       window.clearTimeout(lightningTimer);
@@ -647,8 +661,8 @@ export default function MoneyLevelScene({
         <div className="lightning-layer ambient-motion-layer" aria-hidden="true" />
       </> : null}
       <div className="scene-label-layer">
-        <HouseLabel kind="brokerage" stage={brokerageStage} value={brokerageValue} displayLevel={brokerageLevel} sceneSize={sceneSize} />
-        <HouseLabel kind="tax" stage={taxStage} value={taxValue} displayLevel={taxLevel} sceneSize={sceneSize} />
+        <HouseLabel kind="brokerage" text={brokerageText} value={brokerageValue} displayLevel={brokerageLevel} sceneSize={sceneSize} />
+        <HouseLabel kind="tax" text={taxText} value={taxValue} displayLevel={taxLevel} sceneSize={sceneSize} />
       </div>
       <div className="scene-weather"><span>{weatherIcon(weather)}</span><b>{weatherLabel(weather)}</b><small>{timeLabel(timeOfDay)}</small></div>
       <p className="forest-phrase">{phrase}</p>
@@ -753,11 +767,14 @@ function HouseVisual({ kind, stage, sceneSize }: { kind: "brokerage" | "tax"; st
   );
 }
 
-function HouseLabel({ kind, stage, value, displayLevel, sceneSize }: { kind: "brokerage" | "tax"; stage: MoneyLevelHouseStage; value: number; displayLevel: number; sceneSize: { width: number; height: number; mobile: boolean } }) {
+function HouseLabel({ kind, text, value, displayLevel, sceneSize }: { kind: "brokerage" | "tax"; text: string; value: number; displayLevel: number; sceneSize: { width: number; height: number; mobile: boolean } }) {
   const title = kind === "brokerage" ? "위탁 집" : "절세 집";
-  const point = kind === "brokerage" ? brokerageHouseLabelPoint(sceneSize, sceneSize.mobile) : projectForestPoint(TAX_LABEL_WORLD, sceneSize, sceneSize.mobile);
-  const style = { left: point.x, top: point.y };
-  return <div className={`house-label house-label-${kind}`} style={style} data-house-label={kind} aria-label={`${title} 정보`}><span className="house-leaf" aria-hidden="true">♧</span><div><p>{title} <small title="월 현금흐름 하트 기준 레벨">Lv.{displayLevel}</small></p><strong>{stage.label}</strong><b>{(value / 100_000_000).toFixed(1)}억원</b></div></div>;
+  const point = kind === "brokerage" ? brokerageHouseLabelPoint(sceneSize, sceneSize.mobile) : taxHouseLabelPoint(sceneSize, sceneSize.mobile);
+  const half = sceneSize.mobile ? 91 : 102;
+  const rawX = projectForestPoint(TAX_LABEL_WORLD, sceneSize, sceneSize.mobile).x;
+  // Clamp AFTER camera translation, then compensate the parent's transform.
+  const style = { left: kind === "tax" ? `calc(clamp(${half}px, calc(${rawX}px + var(--forest-camera-translation, 0px)), calc(100% - ${half}px)) - var(--forest-camera-translation, 0px))` : point.x, top: point.y };
+  return <div className={`house-label house-label-${kind}`} style={style} data-house-label={kind} aria-label={`${title} 정보`}><span className="house-leaf" aria-hidden="true">♧</span><div className="house-label-content"><p>{title} <small title="월 현금흐름 하트 기준 레벨">Lv.{displayLevel}</small><b>{(value / 100_000_000).toFixed(1)}억원</b></p><strong>{text}</strong></div></div>;
 }
 
 function CharacterAnchor({ id, layer }: { id: CharacterId; layer: "shadow" | "hit" }) {

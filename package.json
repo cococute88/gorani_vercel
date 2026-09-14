@@ -72,6 +72,8 @@
     "check:money-level-house-lighting": "npx --yes tsx scripts/check-money-level-house-lighting.mts",
     "check:money-level-follow-up-browser": "node scripts/check-money-level-follow-up-browser.mjs",
     "check:money-level-world-follow-up": "npx --yes tsx scripts/check-money-level-world-follow-up.mts",
+    "check:money-level-world-v2": "npx --yes tsx scripts/check-money-level-world-v2.mts",
+    "check:money-level-world-v2-browser": "node scripts/check-money-level-world-v2-browser.mjs",
     "check:money-level-house-world-browser": "node scripts/check-money-level-house-world-browser.mjs",
     "check:money-level-ceremony-browser": "node scripts/check-money-level-ceremony-browser.mjs",
     "check:money-level-night-final-browser": "node scripts/check-money-level-night-final-browser.mjs",
