@@ -13,13 +13,16 @@ import {
   imagePointToScene,
   routeWaypoints,
   waypointPoint,
+  isSegmentSafe,
+  OPENED_WAYPOINTS,
   type SceneLayout,
   type ScenePoint,
 } from "./navigation";
 import type { MoneyLevelWeather as Weather } from "../types";
 import { BENCH_EXIT_MASTER } from "./landmarks";
+import type { ForestCamera } from "./camera";
 import { normalGroundFacing } from "./character-pose";
-import { NO_STATUES, STATUE_VIEW_EXITS, type StatueSelection } from "./statue-view";
+import { NO_STATUES, CEREMONY_SLOTS, CEREMONY_SLOT_IDS, type StatueSelection } from "./statue-view";
 import { CharacterActivityCoordinator, type CharacterActivity } from "./activity-coordinator";
 import {
   getActivityZone,
@@ -82,6 +85,7 @@ export class ForestBehaviorController {
   private pendingActivity: SemanticActivity | null = null;
   private activityZoneId: SemanticActivityZone["id"] | null = null;
   private reservedDrop: ResolvedActivityDrop | null = null;
+  private snappingActivity: ResolvedActivityDrop | null = null;
   private activityRequest = 0;
   private exitResolve: (() => void) | null = null;
   position: ActorPosition;
@@ -179,6 +183,7 @@ export class ForestBehaviorController {
     this.pendingActivity = null;
     this.activityZoneId = null;
     this.phase = "dragging";
+    this.snappingActivity = null;
     this.state.animation = "idle_front";
     this.state.speed = CHARACTER_CONFIG[this.id].animationSpeeds.idle_front;
     this.state.loop = true;
@@ -196,16 +201,27 @@ export class ForestBehaviorController {
   }
 
   endDrag(point: ScenePoint): DragDropResult {
-    const resolved = resolveDrop(point, this.layout(), this.id);
+    let resolved = resolveDrop(point, this.layout(), this.id);
     const activityDrop = resolveManualActivityIntent(point, resolved, this.layout(), this.id, this.statues());
     if (activityDrop) {
-      this.enterActivityFromManualDrop(activityDrop);
-      return {
+      if (activityDrop.zone.ceremonySlot) {
+        // Broad drop intent can include blocked ground. Lift the character
+        // onto the resolved safe grass before walking to the assigned slot.
+        this.position.x = resolved.point.x;
+        this.position.y = resolved.point.y;
+        this.waypoint = resolved.waypoint;
+      }
+      const assigned = this.enterActivityFromManualDrop(activityDrop);
+      if (assigned) return {
         snapped: false,
-        point: activityDrop.point,
+        point: assigned.point,
         activity: activityDrop.zone.activity,
-        activityZoneId: activityDrop.zone.id,
+        activityZoneId: assigned.zone.id,
       };
+      // If only one visible statue slot exists and it is occupied, remain on
+      // its safe exit grass rather than dancing at the other owner's anchor.
+      if (activityDrop.zone.ceremonySlot) resolved = resolveDrop(imagePointToScene(
+        CEREMONY_SLOTS[activityDrop.zone.ceremonySlot].exit, this.layout()), this.layout(), this.id);
     }
     void this.activities.setCharacterActivity(this.id, "roaming");
     this.waypoint = resolved.waypoint;
@@ -235,6 +251,30 @@ export class ForestBehaviorController {
     return this.phase;
   }
 
+  /** Preserve the source ground point when cover/crop changes during a resize. */
+  reproject(previous: ForestCamera, next: ForestCamera): void {
+    const source = { x: (this.position.x * previous.width / 100 + previous.cropX) / previous.scale,
+      y: (this.position.y * previous.height / 100 + previous.cropY) / previous.scale };
+    this.position.x = (source.x * next.scale - next.cropX) / next.width * 100;
+    this.position.y = (source.y * next.scale - next.cropY) / next.height * 100;
+    cancelAnimationFrame(this.animationFrame);
+    if (this.reservedDrop) this.reservedDrop = resolveZoneAnchor(this.reservedDrop.zone, this.position, this.layout(), this.id);
+    if (this.phase === "moving" && this.targetWaypointId) this.moveTo(getWaypoint(this.targetWaypointId));
+    else if (this.phase === "post-drag" && this.snappingActivity) {
+      const drop = resolveZoneAnchor(this.snappingActivity.zone, this.position, this.layout(), this.id);
+      const token = this.activityRequest;
+      if (drop) this.snapTo(drop.point, () => {
+        if (token !== this.activityRequest) return;
+        this.snappingActivity = null;
+        this.enterSemanticActivity(drop.zone, drop.waypoint);
+      }, BEHAVIOR_CONFIG.manualActivitySnapMs);
+    } else if (this.activityZoneId && this.phase !== "dragging" && this.phase !== "post-drag") {
+      const zone = getActivityZone(this.activityZoneId), drop = resolveZoneAnchor(zone, this.position, this.layout(), this.id);
+      if (drop) { this.position.x = drop.point.x; this.position.y = drop.point.y; }
+    } else if (this.phase === "post-drag" && !this.activityZoneId) this.schedulePostDragStay();
+    this.onChange(this.position, this.phase);
+  }
+
   getTargetWaypointId(): string | null { return this.targetWaypointId; }
 
   getActivityZoneId(): SemanticActivityZone["id"] | null { return this.activityZoneId; }
@@ -247,8 +287,7 @@ export class ForestBehaviorController {
     if (!isActivityAvailable(zone, this.statues())) return false;
     const resolved = resolveZoneAnchor(zone, this.position, this.layout(), this.id);
     if (!resolved) return false;
-    this.requestActivity(resolved, false);
-    return true;
+    return Boolean(this.requestActivity(resolved, false));
   }
 
   refreshStatueAvailability(): void {
@@ -262,7 +301,7 @@ export class ForestBehaviorController {
 
   /** Called by the shared coordinator before a replacement can use the slot. */
   leaveOccupiedSlot(activity: "fishing" | "bench-sit" | "statue-ceremony"): Promise<void> {
-    const statueSlot = this.activityZoneId ? getActivityZone(this.activityZoneId).statueSlot : undefined;
+    const ceremonySlot = this.activityZoneId ? getActivityZone(this.activityZoneId).ceremonySlot : undefined;
     this.activityRequest += 1;
     this.finishExit();
     window.clearTimeout(this.timer);
@@ -271,7 +310,7 @@ export class ForestBehaviorController {
     this.pendingActivity = null;
     this.activityZoneId = null;
     this.reservedDrop = null;
-    const exit = getWaypoint(activity === "fishing" ? "pond_edge" : activity === "bench-sit" ? "bench_exit" : statueSlot === "left" ? "path_front" : "daramji_home");
+    const exit = getWaypoint(activity === "fishing" ? "pond_edge" : activity === "bench-sit" ? "bench_exit" : ceremonySlot ? CEREMONY_SLOTS[ceremonySlot].exitWaypoint : "path_front");
     if (activity === "fishing") void this.activities.setCharacterActivity(this.id, "pond-watch");
     const promise = new Promise<void>((resolve) => { this.exitResolve = resolve; });
     this.state.animation = "run";
@@ -284,7 +323,7 @@ export class ForestBehaviorController {
       this.chooseNext(true, exit);
     } else {
       this.waypoint = exit;
-      const source = activity === "statue-ceremony" && statueSlot ? STATUE_VIEW_EXITS[statueSlot] : BENCH_EXIT_MASTER;
+      const source = activity === "statue-ceremony" && ceremonySlot ? CEREMONY_SLOTS[ceremonySlot].exit : BENCH_EXIT_MASTER;
       this.snapTo(imagePointToScene(source, this.layout()), () => {
         this.finishExit();
         this.enterPostActivityIdle(exit);
@@ -298,10 +337,17 @@ export class ForestBehaviorController {
     this.exitResolve = null;
   }
 
-  private requestActivity(drop: ResolvedActivityDrop, manual: boolean): void {
+  private requestActivity(drop: ResolvedActivityDrop, manual: boolean): ResolvedActivityDrop | null {
+    if (drop.zone.ceremonySlot) {
+      const available = CEREMONY_SLOT_IDS.filter(slot => isActivityAvailable(getActivityZone(slot), this.statues()));
+      const assigned = this.activities.claimCeremony(this.id, drop.zone.ceremonySlot, available);
+      if (!assigned) return null;
+      drop = resolveZoneAnchor(getActivityZone(assigned), drop.point, this.layout(), this.id) ?? drop;
+    }
     const token = ++this.activityRequest;
     this.finishExit();
     this.reservedDrop = null;
+    this.snappingActivity = null;
     window.clearTimeout(this.timer);
     cancelAnimationFrame(this.animationFrame);
     this.route = [];
@@ -311,14 +357,15 @@ export class ForestBehaviorController {
     const activity: CharacterActivity = drop.zone.statueSlot ? "statue-ceremony" : drop.zone.activity as CharacterActivity;
     const departure = this.activities.setCharacterActivity(this.id, activity);
     this.phase = manual ? "post-drag" : "moving";
-    this.state.animation = "idle";
-    this.state.speed = CHARACTER_CONFIG[this.id].animationSpeeds.idle;
+    this.state.animation = drop.zone.ceremonySlot ? "run" : "idle";
+    this.state.speed = CHARACTER_CONFIG[this.id].animationSpeeds[drop.zone.ceremonySlot ? "run" : "idle"];
     this.state.loop = true;
     this.state.hat = "";
     this.state.face = "";
     this.onChange(this.position, this.phase);
     void departure.then(() => {
       if (this.stopped || token !== this.activityRequest || this.activities.getActivity(this.id) !== activity) return;
+      drop = resolveZoneAnchor(drop.zone, this.position, this.layout(), this.id) ?? drop;
       if (!manual) {
         if (this.waypoint.id === drop.waypoint.id && Math.hypot(this.position.x - drop.point.x, this.position.y - drop.point.y) < 0.1) {
           this.enterSemanticActivity(drop.zone, drop.waypoint);
@@ -328,12 +375,22 @@ export class ForestBehaviorController {
         this.chooseNext(true, drop.waypoint);
         return;
       }
+      if (drop.zone.ceremonySlot && !isSegmentSafe(this.position, drop.point, this.layout(), this.id)) {
+        // Occupied-slot redirects can cross the pond in a straight line.
+        // Keep the reservation while following the same safe roaming graph.
+        this.reservedDrop = drop;
+        this.chooseNext(true, drop.waypoint);
+        return;
+      }
       this.waypoint = drop.waypoint;
+      this.snappingActivity = drop;
       this.snapTo(drop.point, () => {
         if (token !== this.activityRequest || this.activities.getActivity(this.id) !== activity) return;
+        this.snappingActivity = null;
         this.enterSemanticActivity(drop.zone, drop.waypoint, drop.zone.manualDurationMs ?? drop.zone.durationMs);
-      }, BEHAVIOR_CONFIG.manualActivitySnapMs);
+      }, drop.zone.ceremonySlot ? 800 : BEHAVIOR_CONFIG.manualActivitySnapMs);
     });
+    return drop;
   }
 
   private chooseNext(forceDifferent = false, forcedWaypoint?: Waypoint): void {
@@ -362,7 +419,7 @@ export class ForestBehaviorController {
 
   private weightedWaypoint(forceDifferent: boolean): Waypoint {
     const config = CHARACTER_CONFIG[this.id];
-    const weighted = WAYPOINTS.map((waypoint) => {
+    const weighted = [...WAYPOINTS, ...Object.values(OPENED_WAYPOINTS)].map((waypoint) => {
       let weight = waypoint.weight;
       if (waypoint.id === config.homeWaypoint) weight *= BEHAVIOR_CONFIG.homeWeightMultiplier;
       if (["rain", "thunderstorm"].includes(this.weather()) && [config.homeWaypoint, "large_tree"].includes(waypoint.id)) {
@@ -487,8 +544,8 @@ export class ForestBehaviorController {
     else this.enterDaily(waypoint, "idle");
   }
 
-  private enterActivityFromManualDrop(activityDrop: ResolvedActivityDrop): void {
-    this.requestActivity(activityDrop, true);
+  private enterActivityFromManualDrop(activityDrop: ResolvedActivityDrop): ResolvedActivityDrop | null {
+    return this.requestActivity(activityDrop, true);
   }
 
   private enterSemanticActivity(
