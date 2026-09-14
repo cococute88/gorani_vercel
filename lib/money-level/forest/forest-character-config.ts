@@ -47,7 +47,7 @@ export const BEHAVIOR_CONFIG = {
   moveMsPerSceneUnit: 180,
   homeWeightMultiplier: 1.7,
   rainShelterMultiplier: 1.8,
-  longPressMs: 320,
+  longPressMs: 280,
   dragMoveThresholdPx: 5,
   postDragStayMinMs: 15_000,
   postDragStayMaxMs: 30_000,
@@ -101,7 +101,7 @@ export const CHARACTER_CONFIG: Record<CharacterId, CharacterForestConfig> = {
     rejectedBrokenAssets: ["die", "die_fall", "dash", "wall_idle", "Gimmick_Coopsaw_Left"],
     homeWaypoint: "gorani_home",
     scale: 0.2,
-    interactionBounds: { widthPx: 58, heightPx: 78, mobileWidthPx: 48, mobileHeightPx: 66 },
+    interactionBounds: { widthPx: 58, heightPx: 78, mobileWidthPx: 48, mobileHeightPx: 82 },
     animationSpeeds: { idle: 0.34, idle_front: 0.32, run: 0.4, event: 0.5 },
   },
   daramji: {
@@ -120,7 +120,7 @@ export const CHARACTER_CONFIG: Record<CharacterId, CharacterForestConfig> = {
     rejectedBrokenAssets: ["die", "die_fall", "wall_idle", "wall_to_fall", "tag_hide"],
     homeWaypoint: "daramji_home",
     scale: 0.22,
-    interactionBounds: { widthPx: 54, heightPx: 72, mobileWidthPx: 46, mobileHeightPx: 62 },
+    interactionBounds: { widthPx: 54, heightPx: 72, mobileWidthPx: 46, mobileHeightPx: 78 },
     animationSpeeds: { idle: 0.34, idle_front: 0.32, run: 0.4, event: 0.48 },
   },
 };

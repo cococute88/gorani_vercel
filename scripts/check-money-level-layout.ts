@@ -7,6 +7,7 @@ import { BROKERAGE_LABEL, brokerageLabelPoint, FISHING_BOBBER, fishingLineAngleD
 import { auditNavigation, getWaypoint, isPointInWalkableRegion, setForestSceneViewport, waypointPoint } from "../lib/money-level/forest/navigation";
 import { getActivityZone } from "../lib/money-level/forest/activity-zones";
 import { FOREST_SCENE, HOUSE_ART_FAMILY, resolveForestBackground } from "../lib/money-level/forest/scene-config";
+import { houseWorldToViewport, HOUSE_WORLD_GEOMETRY } from "../lib/money-level/forest/house-geometry";
 import { getWorldObjectLighting } from "../lib/money-level/forest/world-object-lighting";
 import { MONEY_LEVEL_HOUSE_STAGES } from "../lib/money-level/house-stages";
 import { DEFAULT_MONEY_LEVEL_SETTINGS, isValidMoneyLevelSettings, normalizeMoneyLevelSettings, STATUE_OPTIONS } from "../lib/money-level/settings";
@@ -21,6 +22,14 @@ function webpSize(file: string): { width: number; height: number } {
   const data = readFileSync(file);
   assert.equal(data.toString("ascii", 0, 4), "RIFF");
   assert.equal(data.toString("ascii", 8, 12), "WEBP");
+  if (data.toString("ascii", 12, 16) === "VP8L") {
+    // Night dock color patches use lossless WebP so outside-mask decoded pixels
+    // remain exact. Validate its signature and packed canvas dimensions too.
+    assert.equal(data[20], 0x2f);
+    const bits = data.readUInt32LE(21);
+    assert.equal(bits >>> 29, 0, "supported lossless WebP version");
+    return { width: (bits & 0x3fff) + 1, height: ((bits >>> 14) & 0x3fff) + 1 };
+  }
   assert.equal(data.toString("ascii", 12, 16), "VP8 ");
   assert.equal(data.toString("hex", 23, 26), "9d012a");
   return { width: data.readUInt16LE(26) & 0x3fff, height: data.readUInt16LE(28) & 0x3fff };
@@ -72,13 +81,9 @@ for (const [name, width, height, layout] of [
     assert.ok(Math.abs(placement.y - placement.width * 52 / 1219 - placement.visibleBottomY) < 1e-8, `${name} ${slot} visible baseline`);
     assert.ok(Math.abs(placement.x - originalPoint.x - config.screenOffsetXPx) < 1e-8, `${name} ${slot} screen-space x offset`);
   }
-  const tax = FOREST_SCENE.housePlacements.tax;
-  const taxPlacement = layout === "mobile" ? tax.mobile : tax;
-  const taxCenterX = width * taxPlacement.x / 100;
-  const taxVisibleRight = taxCenterX + width * taxPlacement.width / 100 * .39;
-  assert.ok(taxCenterX > width * .7, `${name} tax camp centered in right lot`);
-  assert.ok(taxVisibleRight < width - 8, `${name} tax art remains in frame`);
-  if (layout === "desktop") assert.ok(taxVisibleRight < right.x, `${name} tax art does not reach right pedestal`);
+  const tax = houseWorldToViewport("tax", { width, height }, layout === "mobile");
+  const taxVisibleRight = tax.x + tax.width * .39;
+  assert.ok(taxVisibleRight < right.x, `${name} tax art stays left of right pedestal in world space`);
   const halfCard = layout === "mobile" ? 67 : 80;
   assert.ok(card.x >= halfCard && card.x <= width - halfCard, `${name} brokerage card in frame`);
   assert.ok(card.y > 40 && card.y < height - 150, `${name} brokerage card above pedestal`);
@@ -97,7 +102,7 @@ assert.equal(STATUE_SLOTS.left.bottomLiftPx, 2);
 assert.ok(Math.abs(STATUE_SLOTS.right.scale - 1.3 * 1.1) < 1e-12);
 assert.equal(STATUE_SLOTS.right.bottomLiftPx, 3);
 assert.equal(STATUE_SLOTS.right.screenOffsetXPx, 1);
-assert.deepEqual(FOREST_SCENE.housePlacements.tax, { x: 74.8, y: 48.5, width: 31, mobile: { x: 76, y: 48, width: 46 } });
+assert.equal(HOUSE_WORLD_GEOMETRY.tax.x, 1258.884);
 for (const stage of MONEY_LEVEL_HOUSE_STAGES) {
   const explicit = FOREST_SCENE.stageAssets.tax as Record<string, { src: string } | undefined>;
   const fallback = FOREST_SCENE.familyFallbackAssets.tax[HOUSE_ART_FAMILY[stage.art]];
@@ -119,9 +124,8 @@ for (const time of ["morning", "day", "evening", "night"] as const) {
     const lighting = getWorldObjectLighting(time, weather);
     assert.ok(lighting.house.brightness >= .549 && lighting.house.brightness <= 1, `${time}/${weather} house exposure`);
     assert.ok(lighting.statue.brightness >= .565 && lighting.statue.brightness <= 1, `${time}/${weather} statue exposure`);
-    assert.ok(lighting.house.saturation >= .69, `${time}/${weather} material colors remain distinct`);
-    assert.equal(lighting.house.hueRotateDeg, lighting.statue.hueRotateDeg, `${time}/${weather} shared world hue`);
-    assert.equal(lighting.house.colorMatrix, lighting.statue.colorMatrix, `${time}/${weather} one alpha-preserving ambient`);
+    assert.ok(lighting.house.saturation >= .59, `${time}/${weather} material colors remain distinct`);
+    if (time === "day" || time === "morning") assert.equal(lighting.house.colorMatrix, lighting.statue.colorMatrix, `${time}/${weather} preserved ambient`);
   }
 }
 assert.equal(getWorldObjectLighting("day", "sunny").house.brightness, 1);

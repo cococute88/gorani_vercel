@@ -196,6 +196,7 @@ export default function MoneyLevelForest({ previewOverridesEnabled }: { previewO
                 weather={weather}
                 timeOfDay={timeOfDay}
                 ambientEnabled={marketWeather.ambientEnabled}
+                previewOverridesEnabled={previewOverridesEnabled}
                 leftStatue={settings.leftStatue}
                 rightStatue={settings.rightStatue}
                 phrase={phrase}

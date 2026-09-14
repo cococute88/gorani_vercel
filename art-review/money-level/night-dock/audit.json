@@ -1,0 +1,423 @@
+{
+  "sourceCommit": "f3919fdac7bf34624283854bcdbc2daea6b78363",
+  "method": "Lab chroma floor; source L* retained except Storm midtones -1.5; no resize/warp/drawing",
+  "commonPolygons": [
+    [
+      [
+        950,
+        706
+      ],
+      [
+        1039,
+        675
+      ],
+      [
+        1057,
+        678
+      ],
+      [
+        1161,
+        718
+      ],
+      [
+        1174,
+        716
+      ],
+      [
+        1180,
+        729
+      ],
+      [
+        1276,
+        765
+      ],
+      [
+        1280,
+        783
+      ],
+      [
+        1206,
+        816
+      ],
+      [
+        994,
+        738
+      ],
+      [
+        951,
+        718
+      ]
+    ],
+    [
+      [
+        963,
+        690
+      ],
+      [
+        970,
+        683
+      ],
+      [
+        984,
+        683
+      ],
+      [
+        990,
+        690
+      ],
+      [
+        990,
+        742
+      ],
+      [
+        982,
+        750
+      ],
+      [
+        970,
+        750
+      ],
+      [
+        963,
+        744
+      ]
+    ],
+    [
+      [
+        1043,
+        653
+      ],
+      [
+        1051,
+        648
+      ],
+      [
+        1061,
+        648
+      ],
+      [
+        1065,
+        653
+      ],
+      [
+        1065,
+        681
+      ],
+      [
+        1043,
+        679
+      ]
+    ],
+    [
+      [
+        1075,
+        734
+      ],
+      [
+        1083,
+        725
+      ],
+      [
+        1094,
+        725
+      ],
+      [
+        1100,
+        730
+      ],
+      [
+        1100,
+        789
+      ],
+      [
+        1093,
+        797
+      ],
+      [
+        1082,
+        798
+      ],
+      [
+        1075,
+        792
+      ]
+    ],
+    [
+      [
+        1157,
+        691
+      ],
+      [
+        1162,
+        685
+      ],
+      [
+        1173,
+        685
+      ],
+      [
+        1179,
+        690
+      ],
+      [
+        1179,
+        730
+      ],
+      [
+        1157,
+        722
+      ]
+    ],
+    [
+      [
+        1183,
+        787
+      ],
+      [
+        1189,
+        780
+      ],
+      [
+        1200,
+        780
+      ],
+      [
+        1207,
+        786
+      ],
+      [
+        1207,
+        840
+      ],
+      [
+        1200,
+        848
+      ],
+      [
+        1189,
+        848
+      ],
+      [
+        1183,
+        842
+      ]
+    ],
+    [
+      [
+        1272,
+        748
+      ],
+      [
+        1278,
+        740
+      ],
+      [
+        1289,
+        740
+      ],
+      [
+        1296,
+        746
+      ],
+      [
+        1296,
+        800
+      ],
+      [
+        1288,
+        808
+      ],
+      [
+        1279,
+        808
+      ],
+      [
+        1272,
+        802
+      ]
+    ]
+  ],
+  "maskBounds": [
+    951,
+    648,
+    1295,
+    846
+  ],
+  "maskPixels": 25448,
+  "variants": [
+    {
+      "weather": "sunny",
+      "asset": "public/money-level/art/background/forest-night-sunny-docked.webp",
+      "sourceSize": [
+        1683,
+        935
+      ],
+      "changedWoodPixels": 22092,
+      "outsideMaskChangedPixels": 0,
+      "waterOrGreeneryChangedPixels": 0,
+      "rightCleanupChangedPixels": 0,
+      "maxLuminanceDelta": 0.2316,
+      "edgeCorrelation": 0.99998449,
+      "geometryOffset": [
+        0,
+        0
+      ],
+      "midtoneDarkenLab": 0,
+      "beforeMedianLab": [
+        32.992,
+        7.057,
+        -9.069
+      ],
+      "afterMedianLab": [
+        32.935,
+        7.369,
+        9.822
+      ],
+      "encoding": "lossless WebP",
+      "bytes": 2023928
+    },
+    {
+      "weather": "cloudy",
+      "asset": "public/money-level/art/background/forest-night-cloudy-docked.webp",
+      "sourceSize": [
+        1683,
+        935
+      ],
+      "changedWoodPixels": 18626,
+      "outsideMaskChangedPixels": 0,
+      "waterOrGreeneryChangedPixels": 0,
+      "rightCleanupChangedPixels": 0,
+      "maxLuminanceDelta": 0.2328,
+      "edgeCorrelation": 0.99998541,
+      "geometryOffset": [
+        0,
+        0
+      ],
+      "midtoneDarkenLab": 0,
+      "beforeMedianLab": [
+        28.988,
+        5.21,
+        -4.444
+      ],
+      "afterMedianLab": [
+        29.024,
+        6.246,
+        7.796
+      ],
+      "encoding": "lossless WebP",
+      "bytes": 1962642
+    },
+    {
+      "weather": "rain",
+      "asset": "public/money-level/art/background/forest-night-rain-docked.webp",
+      "sourceSize": [
+        1683,
+        935
+      ],
+      "changedWoodPixels": 15766,
+      "outsideMaskChangedPixels": 0,
+      "waterOrGreeneryChangedPixels": 0,
+      "rightCleanupChangedPixels": 0,
+      "maxLuminanceDelta": 0.2303,
+      "edgeCorrelation": 0.99998821,
+      "geometryOffset": [
+        0,
+        0
+      ],
+      "midtoneDarkenLab": 0,
+      "beforeMedianLab": [
+        24.757,
+        4.056,
+        -3.038
+      ],
+      "afterMedianLab": [
+        24.895,
+        5.631,
+        6.821
+      ],
+      "encoding": "lossless WebP",
+      "bytes": 2050302
+    },
+    {
+      "weather": "storm",
+      "asset": "public/money-level/art/background/forest-night-storm-docked.webp",
+      "sourceSize": [
+        1683,
+        935
+      ],
+      "changedWoodPixels": 17505,
+      "outsideMaskChangedPixels": 0,
+      "waterOrGreeneryChangedPixels": 0,
+      "rightCleanupChangedPixels": 0,
+      "maxLuminanceDelta": 1.7122,
+      "edgeCorrelation": 0.99980501,
+      "geometryOffset": [
+        0,
+        0
+      ],
+      "midtoneDarkenLab": 1.5,
+      "beforeMedianLab": [
+        25.584,
+        7.753,
+        -1.576
+      ],
+      "afterMedianLab": [
+        24.189,
+        7.748,
+        5.88
+      ],
+      "encoding": "lossless WebP",
+      "bytes": 2100980
+    }
+  ],
+  "unchangedNonNightAssets": [
+    {
+      "asset": "public/money-level/art/background/forest-morning-sunny-docked.webp",
+      "sha256": "22ccbc77a24618ca44056d554bd39dbb3dec826c1580a92b819a9cb3c5d2bc5a"
+    },
+    {
+      "asset": "public/money-level/art/background/forest-morning-cloudy-docked.webp",
+      "sha256": "167ea60b1460c1c0e14d6a885161d57f92072d973f97210a581eacdd2a9ebd0d"
+    },
+    {
+      "asset": "public/money-level/art/background/forest-morning-rain-docked.webp",
+      "sha256": "a79bda90c71df8b665099f89f675a49cf49a04fe1c8ec2a92672d916b9d5fab4"
+    },
+    {
+      "asset": "public/money-level/art/background/forest-morning-storm-docked.webp",
+      "sha256": "060f4db2de1f4a41f93450e1a4aad09f802805b425d21de10b03e94064236bc2"
+    },
+    {
+      "asset": "public/money-level/art/background/forest-day-sunny-docked.webp",
+      "sha256": "0d872c7f1915b10694c5973db917c72a4ce4d500f9269567d0ac3b6c9b1a43ff"
+    },
+    {
+      "asset": "public/money-level/art/background/forest-day-cloudy-docked.webp",
+      "sha256": "00aa3f4408b38baa8dd56881eb776a13b66d675ab52cf74b1725c51f67954c57"
+    },
+    {
+      "asset": "public/money-level/art/background/forest-day-rain-docked.webp",
+      "sha256": "6f23169e32e8d6d08ac7e2bf8897b0a4e8c597be510391894a9cdc984a8f7329"
+    },
+    {
+      "asset": "public/money-level/art/background/forest-day-storm-docked.webp",
+      "sha256": "ad3f9c4de737423b8e09c530a46ab87bf9a82c2602c7d20569b3a570471084ca"
+    },
+    {
+      "asset": "public/money-level/art/background/forest-evening-sunny-docked.webp",
+      "sha256": "eaba11a4e77ae95206bce82c179dbf0e36406a8a944a4c5a119c9d3c7a6a47e1"
+    },
+    {
+      "asset": "public/money-level/art/background/forest-evening-cloudy-docked.webp",
+      "sha256": "10e820fc0738509b31bb19e97af3031e5254eaf245b55f0b238847d06958db42"
+    },
+    {
+      "asset": "public/money-level/art/background/forest-evening-rain-docked.webp",
+      "sha256": "70e49800c816226b0b74fd14dbf5a82f280c20d339f45fd075c2e5da70db6ffd"
+    },
+    {
+      "asset": "public/money-level/art/background/forest-evening-storm-docked.webp",
+      "sha256": "619f80e73fc04061f45b18f11a572b0b1ea14313133a0b1bf0b64be28cfc8b15"
+    }
+  ]
+}

@@ -18,10 +18,11 @@ import { CharacterActivityCoordinator } from "@/lib/money-level/forest/activity-
 import { GORANI_BENCH_POSE } from "@/lib/money-level/forest/character-pose";
 import { cameraTranslation, clampCameraX, createForestCamera, edgePanSpeed, resolveGestureIntent, screenToWorld, TOUCH_SLOP_PX, type ForestCamera, type GestureIntent } from "@/lib/money-level/forest/camera";
 import { FISHING_VISUAL_CONFIG, fishingRodGeometry, GORANI_BENCH_VISUAL_OFFSET_Y_PX, type SemanticActivityZone } from "@/lib/money-level/forest/activity-zones";
-import { brokerageLabelPoint, FISHING_BOBBER, fishingLineAngleDeg, projectForestPoint, statueSlotPlacement } from "@/lib/money-level/forest/landmarks";
+import { FISHING_BOBBER, fishingLineAngleDeg, projectForestPoint, statueSlotPlacement } from "@/lib/money-level/forest/landmarks";
 import { perspectiveScale, setForestSceneViewport, type ScenePoint } from "@/lib/money-level/forest/navigation";
-import { FOREST_SCENE, HOUSE_ART_FAMILY, resolveForestBackground, TAX_HOUSE_OFFSET_Y_PX } from "@/lib/money-level/forest/scene-config";
-import { getWorldObjectLighting } from "@/lib/money-level/forest/world-object-lighting";
+import { FOREST_SCENE, HOUSE_ART_FAMILY, resolveForestBackground } from "@/lib/money-level/forest/scene-config";
+import { brokerageHouseLabelPoint, houseWorldToViewport, TAX_LABEL_WORLD } from "@/lib/money-level/forest/house-geometry";
+import { getWorldObjectLighting, getHouseAmbientLighting } from "@/lib/money-level/forest/world-object-lighting";
 import type { CharacterId, CharacterState } from "@/lib/money-level/forest/character-types";
 import { resolveMoneyLevelWindIntensity } from "@/lib/money-level/weather";
 import { SpineStage, type BoneScreenPoint } from "./runtime/spine-stage";
@@ -67,6 +68,7 @@ export default function MoneyLevelScene({
   weather,
   timeOfDay,
   ambientEnabled,
+  previewOverridesEnabled,
   leftStatue,
   rightStatue,
   phrase,
@@ -80,6 +82,7 @@ export default function MoneyLevelScene({
   weather: MoneyLevelWeather;
   timeOfDay: MoneyLevelTimeOfDay;
   ambientEnabled: boolean;
+  previewOverridesEnabled: boolean;
   leftStatue: MoneyLevelStatue;
   rightStatue: MoneyLevelStatue;
   phrase: string;
@@ -95,6 +98,10 @@ export default function MoneyLevelScene({
   const [runtimeVersion, setRuntimeVersion] = useState(0);
   const [characterError, setCharacterError] = useState(false);
   const [sceneSize, setSceneSize] = useState({ width: 1320, height: 520, mobile: false });
+  const [houseAmbientEnabled, setHouseAmbientEnabled] = useState(true);
+  useEffect(() => {
+    setHouseAmbientEnabled(!previewOverridesEnabled || new URLSearchParams(window.location.search).get("houseAmbient") !== "off");
+  }, [previewOverridesEnabled]);
 
   useEffect(() => {
     const scene = sceneRef.current;
@@ -255,12 +262,48 @@ export default function MoneyLevelScene({
       grabOffset: ScenePoint;
       active: boolean;
       timer: number;
+      startedAt: number;
       target: HTMLElement;
     };
     let dragSession: DragSession | null = null;
     let panSession: { pointerId: number; startX: number; startY: number; cameraX: number; intent: GestureIntent } | null = null;
     let edgeFrame = 0;
     let edgeLastTime = 0;
+    const debugEnabled = previewOverridesEnabled && new URLSearchParams(window.location.search).get("interactionDebug") === "1";
+    const debugPanel = debugEnabled ? document.createElement("output") : null;
+    if (debugPanel) debugPanel.className = "interaction-debug";
+    let pointerCancelCount = 0;
+    let lastPointerType = "none";
+    let movementDistance = 0;
+    let pagePointerId: number | null = null;
+    const eventLog: string[] = [];
+    const renderInteractionDebug = () => {
+      const owner = dragSession?.active ? "CHARACTER_DRAG" : panSession?.intent === "horizontal" ? "FOREST_PAN" : pagePointerId !== null || panSession?.intent === "vertical" ? "PAGE" : "NONE";
+      scene.dataset.pointerOwner = owner;
+      scene.dataset.longPressTimer = dragSession && !dragSession.active ? "pending" : "off";
+      if (!debugPanel) return;
+      const elapsed = dragSession ? Math.round(performance.now() - dragSession.startedAt) : 0;
+      const captured = dragSession?.target.hasPointerCapture(dragSession.pointerId) ?? false;
+      debugPanel.textContent = `owner: ${owner}\nlongPressTimer: ${scene.dataset.longPressTimer} (${elapsed}ms / ${BEHAVIOR_CONFIG.longPressMs}ms)\npointerType: ${lastPointerType}\nmovement: ${movementDistance.toFixed(1)}px / ${TOUCH_SLOP_PX}px\npointercancel: ${pointerCancelCount}\ncapture: ${captured}\ncameraX: ${cameraRef.current.x.toFixed(1)}\ngrabbed: ${dragSession?.active ? dragSession.id : "none"}\n${eventLog.join("\n")}`;
+    };
+    if (debugPanel) {
+      scene.append(debugPanel);
+      const trace = (event: Event) => {
+        if (event instanceof PointerEvent) {
+          lastPointerType = event.pointerType;
+          if (event.type === "pointercancel") pointerCancelCount += 1;
+        }
+        const target = event.target instanceof HTMLElement ? event.target.id || event.target.className : "unknown";
+        eventLog.push(`${Math.round(performance.now())} ${event.type} ${target} cancelable=${event.cancelable}`);
+        if (eventLog.length > 6) eventLog.shift();
+        queueMicrotask(renderInteractionDebug);
+      };
+      for (const type of ["pointerdown", "pointermove", "pointerup", "pointercancel", "gotpointercapture", "lostpointercapture", "touchstart", "touchmove", "touchend", "touchcancel"]) {
+        scene.addEventListener(type, trace, { capture: true, passive: true });
+        cleanupListeners.push(() => scene.removeEventListener(type, trace, true));
+      }
+      cleanupListeners.push(() => debugPanel.remove());
+    }
     const toScenePoint = (event: { clientX: number; clientY: number }): ScenePoint => {
       const bounds = scene.getBoundingClientRect();
       return screenToWorld({ x: event.clientX - bounds.left - scene.clientLeft, y: event.clientY - bounds.top - scene.clientTop }, cameraRef.current);
@@ -274,6 +317,7 @@ export default function MoneyLevelScene({
       camera.x = clampCameraX(camera, x);
       scene.style.setProperty("--forest-camera-translation", `${cameraTranslation(camera)}px`);
       scene.dataset.cameraX = String(camera.x);
+      renderInteractionDebug();
     };
     const autoPan = (now: number) => {
       if (!dragSession?.active) return;
@@ -291,6 +335,8 @@ export default function MoneyLevelScene({
     const activateDrag = () => {
       if (!dragSession || dragSession.active) return;
       dragSession.active = true;
+      window.clearTimeout(dragSession.timer);
+      pagePointerId = null;
       panSession = null;
       const point = toScenePoint(dragSession);
       dragSession.grabOffset = { x: positions[dragSession.id].x - point.x, y: positions[dragSession.id].y - point.y };
@@ -301,6 +347,7 @@ export default function MoneyLevelScene({
       controllers[dragSession.id].beginDrag();
       edgeLastTime = performance.now();
       edgeFrame = window.requestAnimationFrame(autoPan);
+      renderInteractionDebug();
     };
     const finishDrag = (event: PointerEvent) => {
       if (!dragSession || event.pointerId !== dragSession.pointerId) return;
@@ -318,6 +365,7 @@ export default function MoneyLevelScene({
       const finished = dragSession;
       dragSession = null;
       if (finished.target.hasPointerCapture(finished.pointerId)) finished.target.releasePointerCapture(finished.pointerId);
+      renderInteractionDebug();
     };
 
     for (const id of ["gorani", "daramji"] as const) {
@@ -325,27 +373,52 @@ export default function MoneyLevelScene({
       if (!target) continue;
       const contextMenu = (event: Event) => event.preventDefault();
       const pointerDown = (event: PointerEvent) => {
-        if (dragSession || (event.pointerType === "mouse" && event.button !== 0)) return;
-        dragSession = { id, pointerId: event.pointerId, pointerType: event.pointerType, startX: event.clientX, startY: event.clientY, clientX: event.clientX, clientY: event.clientY, grabOffset: { x: 0, y: 0 }, active: false, timer: 0, target };
+        if (!event.isPrimary || dragSession || panSession || (event.pointerType === "mouse" && event.button !== 0)) return;
+        event.stopPropagation();
+        pagePointerId = null;
+        lastPointerType = event.pointerType;
+        movementDistance = 0;
+        dragSession = { id, pointerId: event.pointerId, pointerType: event.pointerType, startX: event.clientX, startY: event.clientY, clientX: event.clientX, clientY: event.clientY, grabOffset: { x: 0, y: 0 }, active: false, timer: 0, startedAt: performance.now(), target };
+        // Capture the press, not just the eventual drag. Moving sprites and
+        // finger jitter must not change the target while the timer is pending.
+        try { target.setPointerCapture(event.pointerId); } catch { /* Untrusted QA pointer. */ }
         if (event.pointerType === "touch") dragSession.timer = window.setTimeout(activateDrag, BEHAVIOR_CONFIG.longPressMs);
         else activateDrag();
+        renderInteractionDebug();
       };
       const pointerMove = (event: PointerEvent) => {
         if (!dragSession || event.pointerId !== dragSession.pointerId) return;
         dragSession.clientX = event.clientX;
         dragSession.clientY = event.clientY;
         const distance = Math.hypot(event.clientX - dragSession.startX, event.clientY - dragSession.startY);
+        movementDistance = distance;
         if (!dragSession.active && dragSession.pointerType !== "touch" && distance >= BEHAVIOR_CONFIG.dragMoveThresholdPx) activateDrag();
-        if (!dragSession.active && dragSession.pointerType === "touch" && distance >= TOUCH_SLOP_PX) {
-          window.clearTimeout(dragSession.timer);
+        if (!dragSession.active && dragSession.pointerType === "touch" && distance > TOUCH_SLOP_PX) {
+          const pending = dragSession;
+          window.clearTimeout(pending.timer);
+          const intent = resolveGestureIntent(event.clientX - pending.startX, event.clientY - pending.startY);
           dragSession = null;
+          if (intent === "horizontal") panSession = { pointerId: event.pointerId, startX: pending.startX, startY: pending.startY, cameraX: cameraRef.current.x, intent };
+          else pagePointerId = event.pointerId;
+          if (pending.target.hasPointerCapture(event.pointerId)) pending.target.releasePointerCapture(event.pointerId);
+          renderInteractionDebug();
           return;
         }
         if (!dragSession?.active) return;
         event.preventDefault();
         controllers[dragSession.id].updateDrag(dragPoint(event));
+        renderInteractionDebug();
       };
+      // Pointer capture cannot veto browser scrolling. Use a target-scoped,
+      // explicitly non-passive touch listener while the press/drag owns input.
+      // Early intentional movement is released by pointerMove before touchMove.
+      const touchMove = (event: TouchEvent) => {
+        if (dragSession?.target === target && event.touches.length === 1 && event.cancelable) event.preventDefault();
+      };
+      const suppressClick = (event: MouseEvent) => { if (event.detail !== 0) event.preventDefault(); };
       target.addEventListener("contextmenu", contextMenu);
+      target.addEventListener("click", suppressClick);
+      target.addEventListener("touchmove", touchMove, { passive: false });
       target.addEventListener("pointerdown", pointerDown);
       window.addEventListener("pointermove", pointerMove, { passive: false });
       window.addEventListener("pointerup", finishDrag);
@@ -353,6 +426,8 @@ export default function MoneyLevelScene({
       target.addEventListener("lostpointercapture", finishDrag);
       cleanupListeners.push(() => {
         target.removeEventListener("contextmenu", contextMenu);
+        target.removeEventListener("click", suppressClick);
+        target.removeEventListener("touchmove", touchMove);
         target.removeEventListener("pointerdown", pointerDown);
         window.removeEventListener("pointermove", pointerMove);
         window.removeEventListener("pointerup", finishDrag);
@@ -362,23 +437,30 @@ export default function MoneyLevelScene({
     }
 
     const panDown = (event: PointerEvent) => {
-      if (dragSession || panSession || (event.pointerType === "mouse" && event.button !== 0)) return;
+      if (!event.isPrimary || dragSession || panSession || (event.pointerType === "mouse" && event.button !== 0)) return;
+      pagePointerId = null;
+      lastPointerType = event.pointerType;
       panSession = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, cameraX: cameraRef.current.x, intent: "pending" };
     };
     const panMove = (event: PointerEvent) => {
       if (!panSession || panSession.pointerId !== event.pointerId || dragSession?.active) return;
       const dx = event.clientX - panSession.startX, dy = event.clientY - panSession.startY;
+      movementDistance = Math.hypot(dx, dy);
       panSession.intent = resolveGestureIntent(dx, dy, panSession.intent);
       scene.dataset.gestureIntent = panSession.intent;
+      renderInteractionDebug();
       if (panSession.intent !== "horizontal") return;
       event.preventDefault();
       try { scene.setPointerCapture(event.pointerId); } catch { /* Untrusted QA pointer. */ }
       setCameraX(panSession.cameraX - dx);
     };
     const panEnd = (event: PointerEvent) => {
+      if (pagePointerId === event.pointerId) pagePointerId = null;
+      renderInteractionDebug();
       if (panSession?.pointerId !== event.pointerId) return;
       panSession = null;
       if (scene.hasPointerCapture(event.pointerId)) scene.releasePointerCapture(event.pointerId);
+      renderInteractionDebug();
     };
     scene.addEventListener("pointerdown", panDown);
     window.addEventListener("pointermove", panMove, { passive: false });
@@ -392,6 +474,7 @@ export default function MoneyLevelScene({
       window.removeEventListener("pointercancel", panEnd);
       scene.removeEventListener("lostpointercapture", panEnd);
     });
+    renderInteractionDebug();
 
     void SpineStage.create({
       container: stageElement,
@@ -469,28 +552,68 @@ export default function MoneyLevelScene({
         delete window.__MONEY_LEVEL_DEBUG__;
       }
     };
-  }, [ambientEnabled, runtimeVersion, weather]);
+  }, [ambientEnabled, previewOverridesEnabled, runtimeVersion, weather]);
 
   const statuePlacements = {
     left: statueSlotPlacement("left", sceneSize, sceneSize.mobile),
     right: statueSlotPlacement("right", sceneSize, sceneSize.mobile),
   };
   const objectLighting = getWorldObjectLighting(timeOfDay, weather);
+  const houseAmbient = getHouseAmbientLighting(timeOfDay, weather);
+  const ambientOpacity = houseAmbientEnabled ? houseAmbient.opacity : 0;
+  const nightAmbient = houseAmbientEnabled ? houseAmbient.night : null;
   const worldObjectStyle = {
     "--money-level-house-lighting": `${objectLighting.house.filter} url(#${lightingFilterId})`,
-    "--money-level-statue-lighting": `${objectLighting.statue.filter} url(#${lightingFilterId})`,
+    "--money-level-statue-lighting": `${objectLighting.statue.filter} url(#${lightingFilterId}-statue)`,
   } as CSSProperties;
 
   return (
     <section ref={sceneRef} className="forest-scene" data-ambient={ambientEnabled ? "on" : "off"} aria-label="고라니와 다람쥐가 사는 숲">
       <svg width="0" height="0" aria-hidden="true" style={{ position: "absolute" }}>
-        <defs><filter id={lightingFilterId} colorInterpolationFilters="sRGB"><feColorMatrix type="matrix" values={objectLighting.house.colorMatrix} /></filter></defs>
+        <defs>
+          <filter id={lightingFilterId} colorInterpolationFilters="sRGB" x="0%" y="0%" width="100%" height="100%">
+            <feColorMatrix type="matrix" values={objectLighting.house.colorMatrix} result="houseBase" />
+            {nightAmbient ? <>
+              {/* Blend opaque working colors, then restore SourceAlpha ONCE.
+                  Native source-over blends of two translucent copies expand
+                  alpha (2A-A²); this keeps every original edge pixel intact. */}
+              <feComponentTransfer in="houseBase" result="opaqueBase"><feFuncA type="table" tableValues="1 1" /></feComponentTransfer>
+              <feFlood floodColor={houseAmbient.color} result="shadowColor" />
+              <feComposite in="opaqueBase" in2="shadowColor" operator="arithmetic" k1="1" result="shadowSurface" />
+              <feComposite in="opaqueBase" in2="shadowSurface" operator="arithmetic" k2={1 - ambientOpacity} k3={ambientOpacity} result="nightShadow" />
+              <feFlood floodColor={nightAmbient.color} result="moonlightColor" />
+              <feBlend in="moonlightColor" in2="nightShadow" mode={nightAmbient.blendMode} result="moonlitSurface" />
+              <feComposite in="nightShadow" in2="moonlitSurface" operator="arithmetic" k2={1 - nightAmbient.opacity} k3={nightAmbient.opacity} result="nightColor" />
+              <feComponentTransfer in="nightColor" result="crispNight">
+                <feFuncR type="linear" slope={nightAmbient.contrast} intercept={(1 - nightAmbient.contrast) / 2} />
+                <feFuncG type="linear" slope={nightAmbient.contrast} intercept={(1 - nightAmbient.contrast) / 2} />
+                <feFuncB type="linear" slope={nightAmbient.contrast} intercept={(1 - nightAmbient.contrast) / 2} />
+              </feComponentTransfer>
+              {/* Generic warm/highlight mask protects existing practical lights;
+                  no per-asset window coordinates or painted masks. */}
+              <feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2 -1 -1 0 -0.12" result="warmPixels" />
+              <feComponentTransfer in="warmPixels" result="practicalMask"><feFuncA type="linear" slope={nightAmbient.practicalLightProtection} /></feComponentTransfer>
+              <feComponentTransfer in="SourceGraphic" result="opaquePractical"><feFuncA type="table" tableValues="1 1" /></feComponentTransfer>
+              <feComposite in="opaquePractical" in2="practicalMask" operator="in" result="practicalLight" />
+              <feComposite in="practicalLight" in2="crispNight" operator="over" result="litNight" />
+              <feComposite in="litNight" in2="SourceAlpha" operator="in" />
+            </> : <>
+            <feFlood floodColor={houseAmbient.color} result="ambientColor" />
+            {/* Multiply premultiplied source by opaque illumination: alpha A×1
+                stays A, transparent RGB stays zero, and black ink cannot lift.
+                Interpolate two equal-alpha surfaces, avoiding source-over halos. */}
+            <feComposite in="houseBase" in2="ambientColor" operator="arithmetic" k1="1" k2="0" k3="0" k4="0" result="ambientSurface" />
+            <feComposite in="houseBase" in2="ambientSurface" operator="arithmetic" k1="0" k2={1 - ambientOpacity} k3={ambientOpacity} k4="0" />
+            </>}
+          </filter>
+          <filter id={`${lightingFilterId}-statue`} colorInterpolationFilters="sRGB"><feColorMatrix type="matrix" values={objectLighting.statue.colorMatrix} /></filter>
+        </defs>
       </svg>
       <div className="scene-world" style={worldObjectStyle}>
         <WeatherBackground timeOfDay={timeOfDay} weather={weather} />
         {ambientEnabled ? <div className="pond-shimmer-layer ambient-motion-layer" aria-hidden="true" /> : null}
-        <div className="house-place brokerage-house"><HouseVisual kind="brokerage" stage={brokerageStage} /></div>
-        <div className="house-place tax-house" style={{ translate: `0 ${TAX_HOUSE_OFFSET_Y_PX}px` }}><HouseVisual kind="tax" stage={taxStage} /></div>
+        <div className="house-place brokerage-house"><HouseVisual kind="brokerage" stage={brokerageStage} sceneSize={sceneSize} /></div>
+        <div className="house-place tax-house"><HouseVisual kind="tax" stage={taxStage} sceneSize={sceneSize} /></div>
         {(["left", "right"] as const).map((slot) => {
           const statue = slot === "left" ? leftStatue : rightStatue;
           if (statue === "none") return null;
@@ -614,15 +737,14 @@ function rippleStyle(ripple: (typeof POND_RIPPLES)[number], index: number): CSSP
   } as CSSProperties;
 }
 
-function HouseVisual({ kind, stage }: { kind: "brokerage" | "tax"; stage: MoneyLevelHouseStage }) {
-  const placement = FOREST_SCENE.housePlacements[kind];
+function HouseVisual({ kind, stage, sceneSize }: { kind: "brokerage" | "tax"; stage: MoneyLevelHouseStage; sceneSize: { width: number; height: number; mobile: boolean } }) {
+  const placement = houseWorldToViewport(kind, sceneSize, sceneSize.mobile);
   const family = HOUSE_ART_FAMILY[stage.art];
   const accountAssets = FOREST_SCENE.stageAssets[kind] as Partial<Record<MoneyLevelHouseStage["art"], { src: string; alt: string; composite?: "masked" | "alpha" }>>;
   const asset = accountAssets[stage.art] ?? FOREST_SCENE.familyFallbackAssets[kind][family];
   const composite = asset.composite ?? "masked";
   const style = {
-    "--house-x": `${placement.x}%`, "--house-y": `${placement.y}%`, "--house-width": `${placement.width}%`,
-    "--house-mobile-x": `${placement.mobile.x}%`, "--house-mobile-y": `${placement.mobile.y}%`, "--house-mobile-width": `${placement.mobile.width}%`,
+    "--house-x": `${placement.x}px`, "--house-y": `${placement.y}px`, "--house-width": `${placement.width}px`,
   } as CSSProperties;
   return (
     <article className={`house-card house-${kind} house-family-${family} house-composite-${composite}`} style={style} data-level={stage.level} data-art={stage.art} data-composite={composite} aria-label={`${kind === "brokerage" ? "위탁" : "절세"} 집, ${stage.label}`}>
@@ -633,11 +755,8 @@ function HouseVisual({ kind, stage }: { kind: "brokerage" | "tax"; stage: MoneyL
 
 function HouseLabel({ kind, stage, value, displayLevel, sceneSize }: { kind: "brokerage" | "tax"; stage: MoneyLevelHouseStage; value: number; displayLevel: number; sceneSize: { width: number; height: number; mobile: boolean } }) {
   const title = kind === "brokerage" ? "위탁 집" : "절세 집";
-  const placement = FOREST_SCENE.labelPlacements.tax;
-  const point = kind === "brokerage" ? brokerageLabelPoint(sceneSize, sceneSize.mobile) : null;
-  const style = point
-    ? { left: point.x, top: point.y }
-    : { "--label-x": `${placement.x}%`, "--label-y": `${placement.y}%`, "--label-mobile-x": `${placement.mobile.x}%`, "--label-mobile-y": `${placement.mobile.y}%` } as CSSProperties;
+  const point = kind === "brokerage" ? brokerageHouseLabelPoint(sceneSize, sceneSize.mobile) : projectForestPoint(TAX_LABEL_WORLD, sceneSize, sceneSize.mobile);
+  const style = { left: point.x, top: point.y };
   return <div className={`house-label house-label-${kind}`} style={style} data-house-label={kind} aria-label={`${title} 정보`}><span className="house-leaf" aria-hidden="true">♧</span><div><p>{title} <small title="월 현금흐름 하트 기준 레벨">Lv.{displayLevel}</small></p><strong>{stage.label}</strong><b>{(value / 100_000_000).toFixed(1)}억원</b></div></div>;
 }
 

@@ -1,6 +1,6 @@
 import type { CharacterId } from "./character-types";
 import { GORANI_BENCH_POSE } from "./character-pose";
-import { NO_STATUES, STATUE_VIEW_ANCHORS, STATUE_VIEW_RADIUS_MASTER, STATUE_CEREMONY_OFFSET_Y_PX, type StatueSelection } from "./statue-view";
+import { NO_STATUES, STATUE_VIEW_ANCHORS, STATUE_CEREMONY_DROP_ZONES, STATUE_CEREMONY_OFFSET_Y_PX, type StatueSelection } from "./statue-view";
 import { BENCH_SEAT_MASTER } from "./landmarks";
 import {
   getWaypoint,
@@ -168,8 +168,9 @@ export function resolveActivityDrop(
   character: CharacterId,
   statues: StatueSelection = NO_STATUES,
 ): ResolvedActivityDrop | null {
-  if (!isPointSafe(point, layout, character) && !matchesBench(point, layout)) return null;
-  const zone = ACTIVITY_ZONES.find((candidate) => isActivityAvailable(candidate, statues) && candidate.allowedCharacters.includes(character) && matchesZone(point, candidate, layout));
+  const zone = ACTIVITY_ZONES.find((candidate) => isActivityAvailable(candidate, statues) && candidate.allowedCharacters.includes(character)
+    && (candidate.statueSlot || isPointSafe(point, layout, character) || candidate.activity === "bench-sit" && matchesBench(point, layout))
+    && matchesZone(point, candidate, layout));
   if (!zone) return null;
   return resolveZoneAnchor(zone, point, layout, character);
 }
@@ -183,7 +184,9 @@ export function resolveManualActivityIntent(
 ): ResolvedActivityDrop | null {
   const zone = ACTIVITY_ZONES.find((candidate) => {
     if (!candidate.allowedCharacters.includes(character) || !isActivityAvailable(candidate, statues)) return false;
-    const rawMatch = (isPointSafe(rawPoint, layout, character) || candidate.activity === "bench-sit" && matchesBench(rawPoint, layout)) && matchesZone(rawPoint, candidate, layout);
+    // A broad ceremony intent does not make that raw point walkable. It always
+    // resolves to the existing curated anchor, never dances at the drop point.
+    const rawMatch = (candidate.statueSlot || isPointSafe(rawPoint, layout, character) || candidate.activity === "bench-sit" && matchesBench(rawPoint, layout)) && matchesZone(rawPoint, candidate, layout);
     const resolvedMatch = isPointSafe(resolvedDrop.point, layout, character) && matchesZone(resolvedDrop.point, candidate, layout);
     return candidate.activity === "fishing" ? rawMatch || (resolvedMatch && isPointSafe(rawPoint, layout, character)) : rawMatch;
   });
@@ -216,9 +219,7 @@ function distance(left: ScenePoint, right: ScenePoint): number {
 
 function matchesZone(point: ScenePoint, zone: SemanticActivityZone, layout: SceneLayout): boolean {
   if (zone.statueSlot) {
-    const anchor = imagePointToScene(STATUE_VIEW_ANCHORS[zone.statueSlot], layout);
-    const edge = imagePointToScene({ x: STATUE_VIEW_ANCHORS[zone.statueSlot].x + STATUE_VIEW_RADIUS_MASTER, y: STATUE_VIEW_ANCHORS[zone.statueSlot].y + STATUE_VIEW_RADIUS_MASTER }, layout);
-    return Math.hypot((point.x - anchor.x) / (edge.x - anchor.x), (point.y - anchor.y) / (edge.y - anchor.y)) <= 1;
+    return pointInPolygon(point, STATUE_CEREMONY_DROP_ZONES[zone.statueSlot].map(p => imagePointToScene(p, layout)));
   }
   if (zone.activity === "bench-sit") return matchesBench(point, layout);
   return zone.activation[layout].some((circle) => distance(point, circle) <= circle.radius)

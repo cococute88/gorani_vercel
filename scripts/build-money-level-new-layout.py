@@ -20,7 +20,7 @@ from scipy.ndimage import binary_erosion, distance_transform_edt, gaussian_filte
 
 
 ROOT = Path(__file__).resolve().parents[1]
-MASTER = ROOT / "reference/new_reference.png"
+MASTER = ROOT / "reference/new_reference-clean-edges.png"
 DONORS = ROOT / "art-review/money-level/new-layout/candidates"
 OUTPUT = ROOT / "art-review/money-level/new-layout/hybrid"
 TIMES = ("morning", "day", "evening", "night")

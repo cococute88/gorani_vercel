@@ -1,0 +1,196 @@
+{
+  "candidateSize": [
+    1683,
+    935
+  ],
+  "worldSize": [
+    1683,
+    935
+  ],
+  "polygons": [
+    [
+      [
+        1465,
+        688
+      ],
+      [
+        1496,
+        670
+      ],
+      [
+        1530,
+        636
+      ],
+      [
+        1562,
+        634
+      ],
+      [
+        1572,
+        680
+      ],
+      [
+        1600,
+        687
+      ],
+      [
+        1640,
+        722
+      ],
+      [
+        1638,
+        790
+      ],
+      [
+        1585,
+        811
+      ],
+      [
+        1530,
+        785
+      ],
+      [
+        1455,
+        747
+      ],
+      [
+        1435,
+        735
+      ],
+      [
+        1435,
+        700
+      ]
+    ]
+  ],
+  "variants": [
+    {
+      "name": "morning-sunny",
+      "outsideChangedPixels": 0,
+      "size": [
+        1683,
+        935
+      ]
+    },
+    {
+      "name": "morning-cloudy",
+      "outsideChangedPixels": 0,
+      "size": [
+        1683,
+        935
+      ]
+    },
+    {
+      "name": "morning-rain",
+      "outsideChangedPixels": 0,
+      "size": [
+        1683,
+        935
+      ]
+    },
+    {
+      "name": "morning-storm",
+      "outsideChangedPixels": 0,
+      "size": [
+        1683,
+        935
+      ]
+    },
+    {
+      "name": "day-sunny",
+      "outsideChangedPixels": 0,
+      "size": [
+        1683,
+        935
+      ]
+    },
+    {
+      "name": "day-cloudy",
+      "outsideChangedPixels": 0,
+      "size": [
+        1683,
+        935
+      ]
+    },
+    {
+      "name": "day-rain",
+      "outsideChangedPixels": 0,
+      "size": [
+        1683,
+        935
+      ]
+    },
+    {
+      "name": "day-storm",
+      "outsideChangedPixels": 0,
+      "size": [
+        1683,
+        935
+      ]
+    },
+    {
+      "name": "evening-sunny",
+      "outsideChangedPixels": 0,
+      "size": [
+        1683,
+        935
+      ]
+    },
+    {
+      "name": "evening-cloudy",
+      "outsideChangedPixels": 0,
+      "size": [
+        1683,
+        935
+      ]
+    },
+    {
+      "name": "evening-rain",
+      "outsideChangedPixels": 0,
+      "size": [
+        1683,
+        935
+      ]
+    },
+    {
+      "name": "evening-storm",
+      "outsideChangedPixels": 0,
+      "size": [
+        1683,
+        935
+      ]
+    },
+    {
+      "name": "night-sunny",
+      "outsideChangedPixels": 0,
+      "size": [
+        1683,
+        935
+      ]
+    },
+    {
+      "name": "night-cloudy",
+      "outsideChangedPixels": 0,
+      "size": [
+        1683,
+        935
+      ]
+    },
+    {
+      "name": "night-rain",
+      "outsideChangedPixels": 0,
+      "size": [
+        1683,
+        935
+      ]
+    },
+    {
+      "name": "night-storm",
+      "outsideChangedPixels": 0,
+      "size": [
+        1683,
+        935
+      ]
+    }
+  ]
+}

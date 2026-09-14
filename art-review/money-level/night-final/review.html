@@ -1,0 +1,11 @@
+<!doctype html><meta charset="utf-8"><title>PR #232 final visual review</title>
+<style>body{background:#19211f;color:#eee;font:15px system-ui;margin:20px}img{width:100%}a{color:#a9cddd}h2{font-size:20px}</style>
+<h1>PR #232 — Night integration / Brokerage stump clearance</h1>
+<p>Night panels use the same new world anchor. Rows: ambient OFF / historical 6d0ff93 crisp / new tuned.
+Columns: Night Sunny / Rain / Storm. Current and max stage, followed by Tax. Click images to inspect original sheet resolution.</p>
+<h2>A. Current/max Brokerage Night</h2><a href="night-brokerage.jpg"><img src="night-brokerage.jpg"></a>
+<h2>Tax current/max Night</h2><a href="night-tax.jpg"><img src="night-tax.jpg"></a>
+<h2>Native SVG blend experiments (1.10 contrast, before final practical-light protection)</h2><a href="night-blend-modes.jpg"><img src="night-blend-modes.jpg"></a>
+<h2>B. Stump at 250% — all four resolved Brokerage artwork silhouettes</h2><a href="geometry-source-250-percent.jpg"><img src="geometry-source-250-percent.jpg"></a>
+<h2>1440 / 1320 / 1100 / 980 / 768 × two heights — ambient OFF</h2><a href="geometry-viewports.jpg"><img src="geometry-viewports.jpg"></a>
+<h2>Existing stage artwork and unchanged max fallback mapping</h2><a href="brokerage-stages.jpg"><img src="brokerage-stages.jpg"></a><p>Final: multiply 18–22%, hard-light 15%, contrast 1.12; Night saturation .88/.84/.82/.80. SourceAlpha restored once. All 20 Brokerage stage mappings and 10 viewport ratios verified. Actual Android regression NOT RUN.</p>
