@@ -5,7 +5,9 @@ export type HouseKind = "brokerage" | "tax";
 // from the existing 1320×520 composition; Tax's former -6px lift is baked into
 // its source Y, so it scales with the scene rather than drifting at each ratio.
 export const HOUSE_WORLD_GEOMETRY = {
-  brokerage: { x: 563.805, y: 434.35, width: 622.71 },
+  // +36/-44 master pixels clears the complete baked stump for every resolved
+  // Brokerage artwork, including the larger masked cabin/proper-house fence.
+  brokerage: { x: 599.805, y: 390.35, width: 622.71 },
   tax: { x: 1258.884, y: 449.905, width: 521.73 },
 } as const;
 export const TAX_LABEL_WORLD = { x: 1208.394, y: 596.785 } as const;

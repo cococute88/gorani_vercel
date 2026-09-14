@@ -36,7 +36,7 @@ try {
       });
     });
     for (const h of geometry) {
-      const expected = h.kind === "brokerage" ? [563.805, 434.35, 622.71] : [1258.884, 449.905, 521.73];
+      const expected = h.kind === "brokerage" ? [599.805, 390.35, 622.71] : [1258.884, 449.905, 521.73];
       for (const [i, value] of [h.x, h.y, h.width].entries()) assert.ok(Math.abs(value - expected[i]) < .1, `rendered ${h.kind} master coordinate stable: ${value} vs ${expected[i]}`);
     }
     const name = `geometry-${width}-${height}.png`;
@@ -98,8 +98,7 @@ try {
       actual.id = "alpha-qa";
       const rasterize = async off => {
         const filter = actual.cloneNode(true);
-        if (off) { const composite = filter.lastElementChild; composite.setAttribute("k2", "1"); composite.setAttribute("k3", "0"); }
-        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="96" height="64"><defs>${filter.outerHTML}</defs><g filter="url(#alpha-qa)">${[.25, .5, .75, 1].map((a, i) => `<rect x="${10.4 + i * 20}" y="10.4" width="14.4" height="40.4" fill="#a58c46" opacity="${a}"/>`).join("")}<rect x="10" y="54" width="70" height="6" fill="#000"/></g></svg>`;
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="96" height="64"><defs>${filter.outerHTML}</defs><g ${off ? "" : 'filter="url(#alpha-qa)"'}>${[.25, .5, .75, 1].map((a, i) => `<rect x="${10.4 + i * 20}" y="10.4" width="14.4" height="40.4" fill="#a58c46" opacity="${a}"/>`).join("")}<rect x="10" y="54" width="70" height="6" fill="#000"/></g></svg>`;
         const image = new Image(); image.src = "data:image/svg+xml;base64," + btoa(svg); await image.decode();
         const canvas = document.createElement("canvas"); canvas.width = 96; canvas.height = 64;
         const ctx = canvas.getContext("2d"); ctx.drawImage(image, 0, 0);

@@ -561,6 +561,7 @@ export default function MoneyLevelScene({
   const objectLighting = getWorldObjectLighting(timeOfDay, weather);
   const houseAmbient = getHouseAmbientLighting(timeOfDay, weather);
   const ambientOpacity = houseAmbientEnabled ? houseAmbient.opacity : 0;
+  const nightAmbient = houseAmbientEnabled ? houseAmbient.night : null;
   const worldObjectStyle = {
     "--money-level-house-lighting": `${objectLighting.house.filter} url(#${lightingFilterId})`,
     "--money-level-statue-lighting": `${objectLighting.statue.filter} url(#${lightingFilterId}-statue)`,
@@ -572,12 +573,38 @@ export default function MoneyLevelScene({
         <defs>
           <filter id={lightingFilterId} colorInterpolationFilters="sRGB" x="0%" y="0%" width="100%" height="100%">
             <feColorMatrix type="matrix" values={objectLighting.house.colorMatrix} result="houseBase" />
+            {nightAmbient ? <>
+              {/* Blend opaque working colors, then restore SourceAlpha ONCE.
+                  Native source-over blends of two translucent copies expand
+                  alpha (2A-A²); this keeps every original edge pixel intact. */}
+              <feComponentTransfer in="houseBase" result="opaqueBase"><feFuncA type="table" tableValues="1 1" /></feComponentTransfer>
+              <feFlood floodColor={houseAmbient.color} result="shadowColor" />
+              <feComposite in="opaqueBase" in2="shadowColor" operator="arithmetic" k1="1" result="shadowSurface" />
+              <feComposite in="opaqueBase" in2="shadowSurface" operator="arithmetic" k2={1 - ambientOpacity} k3={ambientOpacity} result="nightShadow" />
+              <feFlood floodColor={nightAmbient.color} result="moonlightColor" />
+              <feBlend in="moonlightColor" in2="nightShadow" mode={nightAmbient.blendMode} result="moonlitSurface" />
+              <feComposite in="nightShadow" in2="moonlitSurface" operator="arithmetic" k2={1 - nightAmbient.opacity} k3={nightAmbient.opacity} result="nightColor" />
+              <feComponentTransfer in="nightColor" result="crispNight">
+                <feFuncR type="linear" slope={nightAmbient.contrast} intercept={(1 - nightAmbient.contrast) / 2} />
+                <feFuncG type="linear" slope={nightAmbient.contrast} intercept={(1 - nightAmbient.contrast) / 2} />
+                <feFuncB type="linear" slope={nightAmbient.contrast} intercept={(1 - nightAmbient.contrast) / 2} />
+              </feComponentTransfer>
+              {/* Generic warm/highlight mask protects existing practical lights;
+                  no per-asset window coordinates or painted masks. */}
+              <feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2 -1 -1 0 -0.12" result="warmPixels" />
+              <feComponentTransfer in="warmPixels" result="practicalMask"><feFuncA type="linear" slope={nightAmbient.practicalLightProtection} /></feComponentTransfer>
+              <feComponentTransfer in="SourceGraphic" result="opaquePractical"><feFuncA type="table" tableValues="1 1" /></feComponentTransfer>
+              <feComposite in="opaquePractical" in2="practicalMask" operator="in" result="practicalLight" />
+              <feComposite in="practicalLight" in2="crispNight" operator="over" result="litNight" />
+              <feComposite in="litNight" in2="SourceAlpha" operator="in" />
+            </> : <>
             <feFlood floodColor={houseAmbient.color} result="ambientColor" />
             {/* Multiply premultiplied source by opaque illumination: alpha A×1
                 stays A, transparent RGB stays zero, and black ink cannot lift.
                 Interpolate two equal-alpha surfaces, avoiding source-over halos. */}
             <feComposite in="houseBase" in2="ambientColor" operator="arithmetic" k1="1" k2="0" k3="0" k4="0" result="ambientSurface" />
             <feComposite in="houseBase" in2="ambientSurface" operator="arithmetic" k1="0" k2={1 - ambientOpacity} k3={ambientOpacity} k4="0" />
+            </>}
           </filter>
           <filter id={`${lightingFilterId}-statue`} colorInterpolationFilters="sRGB"><feColorMatrix type="matrix" values={objectLighting.statue.colorMatrix} /></filter>
         </defs>
