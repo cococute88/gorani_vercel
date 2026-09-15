@@ -772,11 +772,11 @@ function HouseVisual({ kind, stage, sceneSize }: { kind: "brokerage" | "tax"; st
 function HouseLabel({ kind, text, value, displayLevel, sceneSize, visualFrame }: { kind: "brokerage" | "tax"; text: string; value: number; displayLevel: number; sceneSize: { width: number; height: number; mobile: boolean }; visualFrame?: HouseVisualFrame }) {
   const title = kind === "brokerage" ? "위탁 집" : "절세 집";
   const point = kind === "brokerage" ? brokerageHouseLabelPoint(sceneSize, sceneSize.mobile) : taxHouseLabelPoint(sceneSize, sceneSize.mobile, 0, visualFrame);
-  const half = sceneSize.mobile ? 91 : 102;
+  const half = 96;
   const rawX = projectForestPoint(TAX_LABEL_WORLD, sceneSize, sceneSize.mobile).x;
   // Clamp AFTER camera translation, then compensate the parent's transform.
   const style = { left: kind === "tax" ? `calc(clamp(${half}px, calc(${rawX}px + var(--forest-camera-translation, 0px)), calc(100% - ${half}px)) - var(--forest-camera-translation, 0px))` : point.x, top: point.y };
-  return <div className={`house-label house-label-${kind}`} style={style} data-house-label={kind} aria-label={`${title} 정보`}><span className="house-leaf" aria-hidden="true">♧</span><div className="house-label-content"><p>{title} <small title="월 현금흐름 하트 기준 레벨">Lv.{displayLevel}</small><b>{(value / 100_000_000).toFixed(1)}억원</b></p><strong>{text}</strong></div></div>;
+  return <div className={`house-label house-label-${kind}`} style={style} data-house-label={kind} aria-label={`${title} 정보`}><div className="house-label-content"><p><span className="house-leaf" aria-hidden="true">♧</span><span>{title}</span><small title="월 현금흐름 하트 기준 레벨">Lv.{displayLevel}</small><b>{(value / 100_000_000).toFixed(1)}억원</b></p><strong>{text}</strong></div></div>;
 }
 
 function CharacterAnchor({ id, layer }: { id: CharacterId; layer: "shadow" | "hit" }) {

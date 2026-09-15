@@ -89,3 +89,13 @@ export function normalizeHouseText(value: unknown, lines: 1 | 2): string {
 export function resolveHouseText(settings: MoneyLevelSettings, kind: "brokerage" | "tax", stageDescription: string): string {
   return settings[`${kind}TextMode`] === "CUSTOM" ? settings[`${kind}CustomText`] : stageDescription;
 }
+
+/** Editing limits do not reinterpret or truncate previously saved preferences. */
+export function houseTextDraftError(value: string, previous: string, kind: "brokerage" | "tax"): string {
+  if (value === previous) return "";
+  const lines = kind === "brokerage" ? 2 : 1;
+  const characters = kind === "brokerage" ? 12 : 18;
+  const parts = value.replace(/\r\n?/g, "\n").split("\n");
+  return parts.length > lines || parts.some(part => Array.from(part).length > characters)
+    ? `최대 ${lines}줄, 줄당 ${characters}자로 입력해주세요.` : "";
+}

@@ -1,5 +1,10 @@
 # Tax clipping and layering follow-up — Draft PR #233
 
+Subsequent compact-card/foreground finishing evidence:
+[MONEY_LEVEL_COMPACT_FINISH_QA.md](MONEY_LEVEL_COMPACT_FINISH_QA.md).
+The strict Tax-only background audit below describes commit `620579c`; the final
+finishing audit proves exact pixels outside its two new masks against that commit.
+
 Continued `codex/money-level-world-settings-v2` from synchronized commit
 `372425e43ca49ce50651ebbed4563180621fdc77`. No branch restart, reset, revert,
 merge or auto-merge. The attachment and `tax-2-final.png` were inspected directly.

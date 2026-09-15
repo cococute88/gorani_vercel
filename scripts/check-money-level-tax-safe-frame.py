@@ -7,6 +7,8 @@ ROOT=Path(__file__).resolve().parents[1]
 OUT=ROOT/'art-review/money-level/tax-safe-frame-v2'
 record=json.loads((OUT/'tax-rock-audit.json').read_text())
 mask=np.asarray(Image.open(OUT/'TAX_PLOT_ROCK_REMOVAL_MASK.png'))>0
+for name in ['LEFT_FINISH_MASK','TAX_FRONT_FINISH_MASK']:
+ mask |= np.asarray(Image.open(ROOT/f'art-review/money-level/compact-finish-v3/{name}.png'))>0
 for entry in record['files']:
  before=np.asarray(Image.open(io.BytesIO(subprocess.check_output(['git','show',f"{record['baseline']}:{entry['path']}"],cwd=ROOT))).convert('RGB'))
  after=np.asarray(Image.open(ROOT/entry['path']).convert('RGB'))
@@ -23,4 +25,4 @@ for entry in json.loads((OUT/'safe-frame-audit.json').read_text()):
  # The first occupied row of each subject core (roof peaks on tents) is full alpha.
  y=entry['objectCoreBounds'][1]
  assert np.any(alpha[y]==255)
-print('PASS: all four full RGB silhouettes safe-framed; 33 backgrounds outside NEW Tax mask exact; completed LEFT/RIGHT preserved')
+print('PASS: four RGB silhouettes safe-framed; 33 backgrounds outside Tax + finishing masks exact; newest strict finishing audit is separate')

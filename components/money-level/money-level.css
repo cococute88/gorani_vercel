@@ -72,16 +72,15 @@
 .moneyLevelRoot .house-composite-masked.house-family-camp .house-art-image{ -webkit-mask-image: radial-gradient(ellipse 39% 35% at 50% 61%,#000 58%,transparent 100%); mask-image: radial-gradient(ellipse 39% 35% at 50% 61%,#000 58%,transparent 100%); }
 .moneyLevelRoot .forest-statue{ position: absolute; z-index: 3; display: block; width: var(--statue-width); height: auto; pointer-events: none; user-select: none; transform: translate(-50%,-100%); filter: var(--money-level-statue-lighting) drop-shadow(0 2px 1px rgba(35,42,31,.21)); transition: filter .5s ease; }
 .moneyLevelRoot .scene-label-layer{ position: absolute; inset: 0; z-index: 11; pointer-events: none; }
-.moneyLevelRoot .house-label{ position: absolute; top: var(--label-y); left: var(--label-x); display: flex; align-items: center; gap: 7px; min-width: 155px; padding: 7px 10px; border: 2px solid #876b4c; border-radius: 8px 10px 7px 9px; color: #55422c; background: linear-gradient(145deg,#fff8dc,#eed39d); box-shadow: inset 0 0 0 2px rgba(255,255,255,.5),0 4px 0 rgba(92,66,39,.2); transform: translate(-50%,-50%); text-align: left; }
+.moneyLevelRoot .house-label{ position: absolute; top: var(--label-y); left: var(--label-x); display: block; width: 144px; max-width: 144px; min-width: 0; box-sizing: border-box; padding: 6px; border: 2px solid #876b4c; border-radius: 8px 10px 7px 9px; color: #55422c; background: linear-gradient(145deg,#fff8dc,#eed39d); box-shadow: inset 0 0 0 2px rgba(255,255,255,.5),0 4px 0 rgba(92,66,39,.2); transform: translate(-50%,-50%); text-align: left; }
 .moneyLevelRoot .house-leaf{ color: #678d48; font-size: 1.1rem; }
-.moneyLevelRoot .house-label{ width: 204px; min-width: 0; box-sizing: border-box; }
 .moneyLevelRoot .house-label-content{ flex: 1; min-width: 0; }
-.moneyLevelRoot .house-label p{ display: flex; align-items: center; gap: 3px; white-space: nowrap; margin: 0; font-size: .69rem; font-weight: 900; }
-.moneyLevelRoot .house-label p small{ margin-left: 3px; padding: 1px 5px; border-radius: 999px; color: #fff8df; background: #718e4e; font-size: .54rem; }
+.moneyLevelRoot .house-label .house-leaf{ font-size: 12px; line-height: 14px; }
+.moneyLevelRoot .house-label p{ display: flex; align-items: center; gap: 2px; white-space: nowrap; margin: 0; font-size: 10px; line-height: 14px; font-weight: 900; }
+.moneyLevelRoot .house-label p small{ margin-left: 0; padding: 0 3px; border-radius: 999px; color: #fff8df; background: #718e4e; font-size: 8px; line-height: 12px; }
 .moneyLevelRoot .house-label-tax p small{ background: #cb8d39; }
-.moneyLevelRoot .house-label strong{ display: block; margin-top: 3px; max-width: 100%; color: #756149; font-size: .59rem; line-height: 1.4; white-space: pre-wrap; overflow-wrap: anywhere; }
-.moneyLevelRoot .house-label p b{ margin-left: auto; color: #493824; font-size: .69rem; }
-.moneyLevelRoot .house-label-tax strong{ font-size: .54rem; }
+.moneyLevelRoot .house-label strong{ display: block; margin-top: 2px; max-width: 100%; color: #756149; font-size: 9px; line-height: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.moneyLevelRoot .house-label p b{ margin-left: 0; color: #493824; font-size: 10px; }
 
 .moneyLevelRoot .character-ground-layer, .moneyLevelRoot .scene-activity-layer, .moneyLevelRoot .character-interaction-layer{ position: absolute; inset: 0; pointer-events: none; }
 .moneyLevelRoot .character-ground-layer{ z-index: 3; }
@@ -272,9 +271,7 @@
   .moneyLevelRoot .pond-ripple-layer{ clip-path: polygon(61% 61%,100% 57%,100% 100%,58% 100%,55% 80%); }
   .moneyLevelRoot .pond-ripple-layer i{ top: var(--ripple-mobile-y); left: var(--ripple-mobile-x); }
   .moneyLevelRoot .forest-statue{ width: var(--statue-width); }
-  .moneyLevelRoot .house-label{ top: var(--label-mobile-y); left: var(--label-mobile-x); width: 182px; min-width: 0; padding: 5px 7px; }
-  .moneyLevelRoot .house-label strong{ max-width: 100%; font-size: .52rem; }
-  .moneyLevelRoot .house-label p b{ font-size: .62rem; }
+  .moneyLevelRoot .house-label{ top: var(--label-mobile-y); left: var(--label-mobile-x); }
   .moneyLevelRoot .house-leaf{ font-size: .9rem; }
   .moneyLevelRoot .character-hit-target{ width: var(--hit-mobile-width); height: var(--hit-mobile-height); bottom: -16px; }
   .moneyLevelRoot .character-contact-shadow{ width: 29px; height: 8px; }

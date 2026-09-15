@@ -112,6 +112,8 @@ def main() -> None:
     tax_mask = ROOT / "art-review/money-level/tax-safe-frame-v2/TAX_PLOT_ROCK_REMOVAL_MASK.png"
     if tax_mask.exists():
         repair_mask = np.maximum(repair_mask, np.asarray(Image.open(tax_mask)) / 255)
+    for name in ['LEFT_FINISH_MASK','TAX_FRONT_FINISH_MASK']:
+        repair_mask = np.maximum(repair_mask, np.asarray(Image.open(ROOT / f'art-review/money-level/compact-finish-v3/{name}.png')) / 255)
     print(f"Master {size[0]}x{size[1]}: {MASTER}")
     failed = False
     for variant in names:

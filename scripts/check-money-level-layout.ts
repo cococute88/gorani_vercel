@@ -131,9 +131,10 @@ for (const time of ["morning", "day", "evening", "night"] as const) {
 assert.equal(getWorldObjectLighting("day", "sunny").house.brightness, 1);
 assert.equal(getWorldObjectLighting("evening", "sunny").house.brightness, .82);
 assert.equal(getWorldObjectLighting("night", "thunderstorm").house.brightness, .549);
-assert.equal(BROKERAGE_LABEL.desktop.x, 200);
-const wideCardRight = brokerageLabelPoint({ width: 1320, height: 520 }, false).x + 155 / 2;
-assert.ok(245 - wideCardRight >= 6 && 245 - wideCardRight <= 12, "wide card must leave 6–12px to the measured house silhouette");
+assert.equal(BROKERAGE_LABEL.desktop.x, 170);
+assert.equal(BROKERAGE_LABEL.mobile.x, 170, "cards use a shared world anchor at every ratio");
+const wideCardRight = brokerageLabelPoint({ width: 1320, height: 520 }, false).x + 72;
+assert.ok(245 - wideCardRight >= 6, "compact card must clear the measured house silhouette");
 assert.equal(STATUE_OPTIONS.length, 7);
 for (const option of STATUE_OPTIONS.filter((item) => item.value !== "none")) {
   const png = readFileSync(path.join(root, `public/money-level/art/statues/${option.value}.png`));
