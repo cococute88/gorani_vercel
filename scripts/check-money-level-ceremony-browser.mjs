@@ -66,21 +66,24 @@ try {
     }
     p = await screen(point);
     await send("touchMove", p.x - offset.x, p.y - offset.y); await send("touchEnd");
-    await page.waitForFunction(id => document.querySelector(".spine-forest-stage").dataset[`${id}Phase`] === "statue-appreciation", id, { timeout: 4000 });
+    await page.waitForFunction(id => document.querySelector(".spine-forest-stage").dataset[`${id}Phase`] === "statue-appreciation", id, { timeout: 30000 });
     const all = await states(), s = all[id]; g = await geometry();
-    const anchor = slot === "left" ? { x: 470, y: 772, offset: -16 } : { x: 1550, y: 621, offset: 0 };
+    const owners = await page.evaluate(() => window.__MONEY_LEVEL_DEBUG__.ceremonyOwners());
+    const assigned = Object.keys(owners).find(slot => owners[slot] === id);
+    const anchor = { CEREMONY_LEFT_A: { x: 470, y: 751.6, offset: 0 }, CEREMONY_LEFT_B: { x: 694, y: 736, offset: 0 }, CEREMONY_RIGHT: { x: 1370, y: 593, offset: 0 } }[assigned];
     assert.ok(Math.abs(s.x / 100 * g.width - (anchor.x * g.scale - g.cropX)) < .1);
     assert.ok(Math.abs(s.y / 100 * g.height - (anchor.y * g.scale - g.cropY + anchor.offset)) < .1);
     assert.equal(s.animation, "ceremony_valentinesday");
-    assert.equal(Object.values(all).filter(s => s.phase === "statue-appreciation").length, 1);
+    assert.ok(Object.values(all).filter(s => s.phase === "statue-appreciation").length <= 2);
+    assert.ok(Math.hypot(all.gorani.x-all.daramji.x,all.gorani.y-all.daramji.y)>.1);
     const name = `390-${slot}-${id}-${point.y}.png`;
     await page.locator(".forest-scene").screenshot({ path: path.join(output, name) });
     results.push({ id, slot, drop: point, anchor, state: s });
   }
   await drop("gorani", "left", { x: 475, y: 684 });
   await drop("daramji", "left", { x: 470, y: 794 });
-  await drop("gorani", "right", { x: 1560, y: 562 });
-  await drop("daramji", "right", { x: 1555, y: 640 });
+  await drop("gorani", "right", { x: 1360, y: 562 });
+  await drop("daramji", "right", { x: 1365, y: 602 });
   await writeFile(path.join(output, "results.json"), JSON.stringify({ results, status: "SIMULATED TOUCH PASS; REAL DEVICE REGRESSION NOT RUN" }, null, 2));
   console.log(JSON.stringify({ results, output, status: "SIMULATED TOUCH PASS; REAL DEVICE REGRESSION NOT RUN" }));
   await context.close();

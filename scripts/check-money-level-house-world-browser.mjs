@@ -36,7 +36,7 @@ try {
       });
     });
     for (const h of geometry) {
-      const expected = h.kind === "brokerage" ? [599.805, 390.35, 622.71] : [1258.884, 449.905, 521.73];
+      const expected = h.kind === "brokerage" ? [599.805, 390.35, 622.71] : [1246.884, 414.905, 495.6435];
       for (const [i, value] of [h.x, h.y, h.width].entries()) assert.ok(Math.abs(value - expected[i]) < .1, `rendered ${h.kind} master coordinate stable: ${value} vs ${expected[i]}`);
     }
     const name = `geometry-${width}-${height}.png`;

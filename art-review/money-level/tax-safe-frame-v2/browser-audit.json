@@ -1,0 +1,359 @@
+{
+  "results": [
+    {
+      "width": 1440,
+      "geometry": {
+        "x": "974.9847557932263px",
+        "y": "244.87402257872844px",
+        "width": "387.562px",
+        "mask": "none",
+        "overflow": "visible",
+        "layer": "2",
+        "viewportOverflow": "hidden"
+      },
+      "ground": {
+        "x": 1246.884,
+        "y": 540.10661328125
+      },
+      "resizeGroundInvariant": "covered by projection"
+    },
+    {
+      "width": 1320,
+      "geometry": {
+        "x": "948.313440285205px",
+        "y": "245.99904931669636px",
+        "width": "376.96000000000004px",
+        "mask": "none",
+        "overflow": "visible",
+        "layer": "2",
+        "viewportOverflow": "hidden"
+      },
+      "ground": {
+        "x": 1246.884,
+        "y": 540.10661328125
+      },
+      "resizeGroundInvariant": "PASS"
+    },
+    {
+      "stageMapping": {
+        "level": 0,
+        "art": "clearing",
+        "composite": "alpha",
+        "src": "/money-level/art/houses/tax-stage-10-15-camp-plus-alpha-v2.webp"
+      }
+    },
+    {
+      "stageMapping": {
+        "level": 1,
+        "art": "camp",
+        "composite": "alpha",
+        "src": "/money-level/art/houses/tax-stage-10-15-camp-plus-alpha-v2.webp"
+      }
+    },
+    {
+      "stageMapping": {
+        "level": 2,
+        "art": "camp-plus",
+        "composite": "alpha",
+        "src": "/money-level/art/houses/tax-stage-10-15-camp-plus-alpha-v2.webp"
+      }
+    },
+    {
+      "stageMapping": {
+        "level": 3,
+        "art": "tent-small",
+        "composite": "alpha",
+        "src": "/money-level/art/houses/tax-stage-15-20-small-white-tent-alpha-v2.webp"
+      }
+    },
+    {
+      "stageMapping": {
+        "level": 4,
+        "art": "tent-large",
+        "composite": "alpha",
+        "src": "/money-level/art/houses/tax-stage-20-25-large-white-tent-alpha-v2.webp"
+      }
+    },
+    {
+      "stageMapping": {
+        "level": 5,
+        "art": "tent-color",
+        "composite": "alpha",
+        "src": "/money-level/art/houses/tax-stage-25-30-colored-tent-alpha-v2.webp"
+      }
+    },
+    {
+      "stageMapping": {
+        "level": 6,
+        "art": "micro-house",
+        "composite": "alpha",
+        "src": "/money-level/art/houses/tax-stage-25-30-colored-tent-alpha-v2.webp"
+      }
+    },
+    {
+      "stageMapping": {
+        "level": 7,
+        "art": "cabin",
+        "composite": "alpha",
+        "src": "/money-level/art/houses/tax-stage-25-30-colored-tent-alpha-v2.webp"
+      }
+    },
+    {
+      "stageMapping": {
+        "level": 8,
+        "art": "cabin-expanded",
+        "composite": "alpha",
+        "src": "/money-level/art/houses/tax-stage-25-30-colored-tent-alpha-v2.webp"
+      }
+    },
+    {
+      "stageMapping": {
+        "level": 9,
+        "art": "house",
+        "composite": "alpha",
+        "src": "/money-level/art/houses/tax-stage-25-30-colored-tent-alpha-v2.webp"
+      }
+    },
+    {
+      "stageMapping": {
+        "level": 10,
+        "art": "workshop-house",
+        "composite": "alpha",
+        "src": "/money-level/art/houses/tax-stage-25-30-colored-tent-alpha-v2.webp"
+      }
+    },
+    {
+      "stageMapping": {
+        "level": 11,
+        "art": "two-story",
+        "composite": "alpha",
+        "src": "/money-level/art/houses/tax-stage-25-30-colored-tent-alpha-v2.webp"
+      }
+    },
+    {
+      "stageMapping": {
+        "level": 12,
+        "art": "two-story-garden",
+        "composite": "alpha",
+        "src": "/money-level/art/houses/tax-stage-25-30-colored-tent-alpha-v2.webp"
+      }
+    },
+    {
+      "stageMapping": {
+        "level": 13,
+        "art": "two-story-veranda",
+        "composite": "alpha",
+        "src": "/money-level/art/houses/tax-stage-25-30-colored-tent-alpha-v2.webp"
+      }
+    },
+    {
+      "stageMapping": {
+        "level": 14,
+        "art": "two-story-large",
+        "composite": "alpha",
+        "src": "/money-level/art/houses/tax-stage-25-30-colored-tent-alpha-v2.webp"
+      }
+    },
+    {
+      "stageMapping": {
+        "level": 15,
+        "art": "two-story-annex",
+        "composite": "alpha",
+        "src": "/money-level/art/houses/tax-stage-25-30-colored-tent-alpha-v2.webp"
+      }
+    },
+    {
+      "stageMapping": {
+        "level": 16,
+        "art": "mansion",
+        "composite": "alpha",
+        "src": "/money-level/art/houses/tax-stage-25-30-colored-tent-alpha-v2.webp"
+      }
+    },
+    {
+      "stageMapping": {
+        "level": 17,
+        "art": "mansion-garden",
+        "composite": "alpha",
+        "src": "/money-level/art/houses/tax-stage-25-30-colored-tent-alpha-v2.webp"
+      }
+    },
+    {
+      "stageMapping": {
+        "level": 18,
+        "art": "grand-mansion",
+        "composite": "alpha",
+        "src": "/money-level/art/houses/tax-stage-25-30-colored-tent-alpha-v2.webp"
+      }
+    },
+    {
+      "stageMapping": {
+        "level": 19,
+        "art": "grand-mansion-annex",
+        "composite": "alpha",
+        "src": "/money-level/art/houses/tax-stage-25-30-colored-tent-alpha-v2.webp"
+      }
+    },
+    {
+      "width": 1100,
+      "geometry": {
+        "x": "785.3220677361854px",
+        "y": "252.87421271538915px",
+        "width": "312.17px",
+        "mask": "none",
+        "overflow": "visible",
+        "layer": "2",
+        "viewportOverflow": "hidden"
+      },
+      "ground": {
+        "x": 1246.884,
+        "y": 540.1066132812499
+      },
+      "resizeGroundInvariant": "covered by projection"
+    },
+    {
+      "width": 980,
+      "geometry": {
+        "x": "717.9996235294118px",
+        "y": "253.82423529411764px",
+        "width": "303.21720000000005px",
+        "mask": "none",
+        "overflow": "visible",
+        "layer": "2",
+        "viewportOverflow": "hidden"
+      },
+      "ground": {
+        "x": 1246.884,
+        "y": 540.10661328125
+      },
+      "resizeGroundInvariant": "covered by projection"
+    },
+    {
+      "width": 768,
+      "geometry": {
+        "x": "613.0625711229947px",
+        "y": "246.72425668449193px",
+        "width": "294.7356px",
+        "mask": "none",
+        "overflow": "visible",
+        "layer": "2",
+        "viewportOverflow": "hidden"
+      },
+      "ground": {
+        "x": 1246.884,
+        "y": 540.1066132812499
+      },
+      "resizeGroundInvariant": "covered by projection"
+    },
+    {
+      "width": 390,
+      "geometry": {
+        "x": "410.0074139037434px",
+        "y": "225.42432085561498px",
+        "width": "269.2908px",
+        "mask": "none",
+        "overflow": "visible",
+        "layer": "2",
+        "viewportOverflow": "hidden"
+      },
+      "ground": {
+        "x": 1246.884,
+        "y": 540.10661328125
+      },
+      "resizeGroundInvariant": "covered by projection"
+    },
+    {
+      "label": "current",
+      "time": "day",
+      "value": 140000000,
+      "art": "camp-plus"
+    },
+    {
+      "label": "small-white",
+      "time": "day",
+      "value": 170000000,
+      "art": "tent-small"
+    },
+    {
+      "label": "largest-white",
+      "time": "day",
+      "value": 220000000,
+      "art": "tent-large"
+    },
+    {
+      "label": "colored",
+      "time": "day",
+      "value": 270000000,
+      "art": "tent-color"
+    },
+    {
+      "label": "max-fallback",
+      "time": "day",
+      "value": 950000000,
+      "art": "grand-mansion-annex"
+    },
+    {
+      "label": "current",
+      "time": "evening",
+      "value": 140000000,
+      "art": "camp-plus"
+    },
+    {
+      "label": "small-white",
+      "time": "evening",
+      "value": 170000000,
+      "art": "tent-small"
+    },
+    {
+      "label": "largest-white",
+      "time": "evening",
+      "value": 220000000,
+      "art": "tent-large"
+    },
+    {
+      "label": "colored",
+      "time": "evening",
+      "value": 270000000,
+      "art": "tent-color"
+    },
+    {
+      "label": "max-fallback",
+      "time": "evening",
+      "value": 950000000,
+      "art": "grand-mansion-annex"
+    },
+    {
+      "label": "current",
+      "time": "night",
+      "value": 140000000,
+      "art": "camp-plus"
+    },
+    {
+      "label": "small-white",
+      "time": "night",
+      "value": 170000000,
+      "art": "tent-small"
+    },
+    {
+      "label": "largest-white",
+      "time": "night",
+      "value": 220000000,
+      "art": "tent-large"
+    },
+    {
+      "label": "colored",
+      "time": "night",
+      "value": 270000000,
+      "art": "tent-color"
+    },
+    {
+      "label": "max-fallback",
+      "time": "night",
+      "value": 950000000,
+      "art": "grand-mansion-annex"
+    }
+  ],
+  "errors": [],
+  "remoteCloud": "not tested; no signed-in credentials",
+  "physicalAndroid": "not tested"
+}

@@ -1,0 +1,164 @@
+[
+  {
+    "width": 1440,
+    "label": "small-white",
+    "art": "tent-small",
+    "x": 1246.884,
+    "y": 540.10661328125,
+    "mask": "none",
+    "filename": "small-white-viewport-1440.png"
+  },
+  {
+    "width": 1440,
+    "label": "largest-white",
+    "art": "tent-large",
+    "x": 1246.884,
+    "y": 540.10661328125,
+    "mask": "none",
+    "filename": "largest-white-viewport-1440.png"
+  },
+  {
+    "width": 1440,
+    "label": "max-fallback",
+    "art": "grand-mansion-annex",
+    "x": 1246.884,
+    "y": 540.10661328125,
+    "mask": "none",
+    "filename": "max-fallback-viewport-1440.png"
+  },
+  {
+    "width": 1320,
+    "label": "small-white",
+    "art": "tent-small",
+    "x": 1246.884,
+    "y": 540.10661328125,
+    "mask": "none",
+    "filename": "small-white-viewport-1320.png"
+  },
+  {
+    "width": 1320,
+    "label": "largest-white",
+    "art": "tent-large",
+    "x": 1246.884,
+    "y": 540.10661328125,
+    "mask": "none",
+    "filename": "largest-white-viewport-1320.png"
+  },
+  {
+    "width": 1320,
+    "label": "max-fallback",
+    "art": "grand-mansion-annex",
+    "x": 1246.884,
+    "y": 540.10661328125,
+    "mask": "none",
+    "filename": "max-fallback-viewport-1320.png"
+  },
+  {
+    "width": 1100,
+    "label": "small-white",
+    "art": "tent-small",
+    "x": 1246.884,
+    "y": 540.1066132812499,
+    "mask": "none",
+    "filename": "small-white-viewport-1100.png"
+  },
+  {
+    "width": 1100,
+    "label": "largest-white",
+    "art": "tent-large",
+    "x": 1246.884,
+    "y": 540.1066132812499,
+    "mask": "none",
+    "filename": "largest-white-viewport-1100.png"
+  },
+  {
+    "width": 1100,
+    "label": "max-fallback",
+    "art": "grand-mansion-annex",
+    "x": 1246.884,
+    "y": 540.1066132812499,
+    "mask": "none",
+    "filename": "max-fallback-viewport-1100.png"
+  },
+  {
+    "width": 980,
+    "label": "small-white",
+    "art": "tent-small",
+    "x": 1246.884,
+    "y": 540.10661328125,
+    "mask": "none",
+    "filename": "small-white-viewport-980.png"
+  },
+  {
+    "width": 980,
+    "label": "largest-white",
+    "art": "tent-large",
+    "x": 1246.884,
+    "y": 540.10661328125,
+    "mask": "none",
+    "filename": "largest-white-viewport-980.png"
+  },
+  {
+    "width": 980,
+    "label": "max-fallback",
+    "art": "grand-mansion-annex",
+    "x": 1246.884,
+    "y": 540.10661328125,
+    "mask": "none",
+    "filename": "max-fallback-viewport-980.png"
+  },
+  {
+    "width": 768,
+    "label": "small-white",
+    "art": "tent-small",
+    "x": 1246.884,
+    "y": 540.1066132812499,
+    "mask": "none",
+    "filename": "small-white-viewport-768.png"
+  },
+  {
+    "width": 768,
+    "label": "largest-white",
+    "art": "tent-large",
+    "x": 1246.884,
+    "y": 540.1066132812499,
+    "mask": "none",
+    "filename": "largest-white-viewport-768.png"
+  },
+  {
+    "width": 768,
+    "label": "max-fallback",
+    "art": "grand-mansion-annex",
+    "x": 1246.884,
+    "y": 540.1066132812499,
+    "mask": "none",
+    "filename": "max-fallback-viewport-768.png"
+  },
+  {
+    "width": 390,
+    "label": "small-white",
+    "art": "tent-small",
+    "x": 1246.884,
+    "y": 540.10661328125,
+    "mask": "none",
+    "filename": "small-white-viewport-390.png"
+  },
+  {
+    "width": 390,
+    "label": "largest-white",
+    "art": "tent-large",
+    "x": 1246.884,
+    "y": 540.10661328125,
+    "mask": "none",
+    "filename": "largest-white-viewport-390.png"
+  },
+  {
+    "width": 390,
+    "label": "max-fallback",
+    "art": "grand-mansion-annex",
+    "x": 1246.884,
+    "y": 540.10661328125,
+    "mask": "none",
+    "filename": "max-fallback-viewport-390.png"
+  }
+]

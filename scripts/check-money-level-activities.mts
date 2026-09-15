@@ -3,10 +3,10 @@ import { readFileSync } from "node:fs";
 import { CharacterActivityCoordinator } from "../lib/money-level/forest/activity-coordinator";
 import { BENCH_SLOT, FISHING_VISUAL_CONFIG, fishingRodGeometry, GORANI_BENCH_VISUAL_OFFSET_Y_PX, getActivityZone, resolveManualActivityIntent, resolveZoneAnchor } from "../lib/money-level/forest/activity-zones";
 import { FISHING_BOBBER, fishingLineAngleDeg, projectForestPoint } from "../lib/money-level/forest/landmarks";
-import { getWaypoint, imagePointToScene, isPointSafe, resolveDrop, setForestSceneViewport, waypointPoint } from "../lib/money-level/forest/navigation";
+import { getWaypoint, imagePointToScene, isPointSafe, isSegmentSafe, resolveDrop, setForestSceneViewport, waypointPoint } from "../lib/money-level/forest/navigation";
 import type { CharacterId } from "../lib/money-level/forest/character-types";
 import { GORANI_BENCH_POSE, normalGroundFacing } from "../lib/money-level/forest/character-pose";
-import { NO_STATUES, STATUE_CEREMONY_OFFSET_Y_PX, STATUE_VIEW_ANCHORS, STATUE_VIEW_EXITS, type StatueSelection } from "../lib/money-level/forest/statue-view";
+import { NO_STATUES, CEREMONY_SLOTS, STATUE_CEREMONY_OFFSET_Y_PX, STATUE_VIEW_ANCHORS, STATUE_VIEW_EXITS, type StatueSelection } from "../lib/money-level/forest/statue-view";
 import { ForestBehaviorController } from "../lib/money-level/forest/behavior";
 import { initialCharacterState } from "../lib/money-level/forest/forest-character-config";
 
@@ -58,8 +58,6 @@ await exchange("gorani", "daramji", "fishing"); // A
 await exchange("daramji", "gorani", "fishing"); // B
 await exchange("gorani", "daramji", "bench-sit"); // C
 await exchange("daramji", "gorani", "bench-sit"); // D
-await exchange("gorani", "daramji", "statue-ceremony");
-await exchange("daramji", "gorani", "statue-ceremony");
 
 for (const [from, to] of [["fishing", "bench-sit"], ["bench-sit", "fishing"]] as const) {
   const coordinator = new CharacterActivityCoordinator(async () => {});
@@ -118,7 +116,8 @@ for (const [label, width, height, layout] of [
 setForestSceneViewport(null);
 
 // Run the real controllers through synchronous fake browser timers/RAF. This
-// catches LEFT→RIGHT global slot mistakes that a coordinator-only test misses.
+// catches slot redirects and blocked straight-line shortcuts that a
+// coordinator-only test misses.
 const frames: FrameRequestCallback[] = [];
 Object.defineProperty(globalThis, "window", { configurable: true, value: { setTimeout: () => 0, clearTimeout: () => {}, matchMedia: () => ({ matches: false }) } });
 Object.defineProperty(globalThis, "document", { configurable: true, value: { hidden: false } });
@@ -129,32 +128,50 @@ const controllers = {} as Record<CharacterId, ForestBehaviorController>;
 const states = { gorani: initialCharacterState("gorani"), daramji: initialCharacterState("daramji") };
 let statues: StatueSelection = { left: "marble-bear", right: "gold-bear" };
 const globalCeremony = new CharacterActivityCoordinator((id, activity) => controllers[id].leaveOccupiedSlot(activity));
-for (const id of ["gorani", "daramji"] as const) controllers[id] = new ForestBehaviorController({ id, state: states[id], weather: () => "sunny", mobile: () => false, activities: globalCeremony, statues: () => statues, onChange: () => {} });
+const previousMovement: Partial<Record<CharacterId, { x: number; y: number }>> = {};
+for (const id of ["gorani", "daramji"] as const) controllers[id] = new ForestBehaviorController({ id, state: states[id], weather: () => "sunny", mobile: () => false, activities: globalCeremony, statues: () => statues, onChange: (point, phase) => {
+  if (phase === "moving") {
+    assert.ok(isPointSafe(point, "desktop", id), "ceremony walk stays on safe ground");
+    const previous = previousMovement[id];
+    if (previous) assert.ok(isSegmentSafe(previous, point, "desktop", id), "redirect cannot cut through pond/house/retained obstacles");
+    previousMovement[id] = { x: point.x, y: point.y };
+  } else delete previousMovement[id];
+} });
 async function settle() {
   for (let i = 0; i < 12; i++) {
     await Promise.resolve();
     for (const frame of frames.splice(0)) frame(performance.now() + 100_000);
   }
 }
-let previousCeremony: { id: CharacterId; slot: "left" | "right" } | undefined;
-for (const [id, slot] of [["gorani", "left"], ["daramji", "left"], ["gorani", "right"], ["daramji", "right"], ["gorani", "left"], ["daramji", "left"]] as const) {
+for (const [id, slot] of [["gorani", "CEREMONY_LEFT_A"], ["daramji", "CEREMONY_LEFT_B"], ["daramji", "CEREMONY_LEFT_A"], ["daramji", "CEREMONY_RIGHT"], ["gorani", "CEREMONY_RIGHT"], ["gorani", "CEREMONY_LEFT_A"]] as const) {
   controllers[id].beginDrag();
-  controllers[id].endDrag(imagePointToScene(STATUE_VIEW_ANCHORS[slot], "desktop"));
+  const result = controllers[id].endDrag(imagePointToScene(CEREMONY_SLOTS[slot].anchor, "desktop"));
   await settle();
-  assert.equal(globalCeremony.getOwner("statue-ceremony"), id);
+  const assigned = globalCeremony.getCeremonySlot(id)!;
+  assert.equal(result.activityZoneId, assigned);
   assert.equal(controllers[id].getPhase(), "statue-appreciation");
-  assert.equal(states[id].animation, getActivityZone(slot === "left" ? "STATUE_VIEW_LEFT" : "STATUE_VIEW_RIGHT").animationByCharacter?.[id]);
-  assert.equal(controllers[id].position.facing, slot === "left" ? "right" : "left", "activity orientation is deterministic");
-  assert.equal(Object.values(controllers).filter((controller) => controller.getPhase() === "statue-appreciation").length, 1, "Forest-wide exactly one ceremony after every replacement");
-  if (previousCeremony) {
-    const old = controllers[previousCeremony.id];
-    const exit = imagePointToScene(STATUE_VIEW_EXITS[previousCeremony.slot], "desktop");
-    assert.equal(old.getPhase(), "daily", "old occupant visibly returns to idle");
-    assert.ok(Math.hypot(old.position.x - exit.x, old.position.y - exit.y) < 1e-8, "exit belongs to the old pedestal, including LEFT→RIGHT");
-  }
-  previousCeremony = { id, slot };
+  assert.equal(states[id].animation, getActivityZone(assigned).animationByCharacter?.[id]);
+  assert.equal(controllers[id].position.facing, CEREMONY_SLOTS[assigned].facing);
+  assert.ok(Object.values(globalCeremony.getCeremonyOwners()).filter(Boolean).length <= 2);
+  const anchor = imagePointToScene(CEREMONY_SLOTS[assigned].anchor, "desktop");
+  assert.ok(Math.hypot(controllers[id].position.x-anchor.x,controllers[id].position.y-anchor.y)<1e-8);
+  assert.ok(Math.hypot(controllers.gorani.position.x-controllers.daramji.position.x,controllers.gorani.position.y-controllers.daramji.position.y)>.1);
 }
+statues = { left: "none", right: "gold-bear" };
+controllers.gorani.refreshStatueAvailability();
+controllers.daramji.refreshStatueAvailability();
+controllers.daramji.beginDrag();
+controllers.daramji.endDrag(imagePointToScene(CEREMONY_SLOTS.CEREMONY_RIGHT.anchor, "desktop"));
+await settle();
+controllers.gorani.beginDrag();
+const rejected = controllers.gorani.endDrag(imagePointToScene(CEREMONY_SLOTS.CEREMONY_RIGHT.anchor, "desktop"));
+await settle();
+assert.equal(rejected.activity, null, "occupied sole visible slot cannot redirect onto an unavailable statue");
+assert.equal(globalCeremony.getCeremonySlot("gorani"), null);
+assert.equal(globalCeremony.getCeremonySlot("daramji"), "CEREMONY_RIGHT");
+assert.notDeepEqual(controllers.gorani.position, controllers.daramji.position);
 statues = NO_STATUES;
+controllers.gorani.refreshStatueAvailability();
 controllers.daramji.refreshStatueAvailability();
 assert.equal(controllers.daramji.getPhase(), "daily", "removing selected statue ends active ceremony");
 assert.equal(globalCeremony.getOwner("statue-ceremony"), null, "none releases global ceremony owner");
@@ -169,4 +186,4 @@ assert.equal(globalCeremony.getOwner("statue-ceremony"), null, "bench releases c
 controllers.gorani.stop(); controllers.daramji.stop();
 setForestSceneViewport(null);
 assert.notEqual(fishingRodGeometry("gorani", { x: 0, y: 0, flipped: true }, "desktop").size, fishingRodGeometry("daramji", { x: 0, y: 0, flipped: true }, "desktop").size);
-console.log("Money Level A–F replacements, global ceremony exchanges/exits/none, real controllers, Spine pose/facing, drag safety and responsive anchors passed");
+console.log("Money Level fishing/bench exchanges, 3 ceremony slots with max 2 owners, real controllers, none/release, Spine pose/facing and responsive anchors passed");

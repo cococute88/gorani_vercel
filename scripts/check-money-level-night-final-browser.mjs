@@ -90,7 +90,7 @@ try {
       const scale=Math.max(bg.width/1683,bg.height/935),cropY=(935*scale-bg.height)/2;
       return [...document.querySelectorAll(".house-card")].map(h=>{const b=h.getBoundingClientRect();return{kind:h.classList.contains("house-brokerage")?"brokerage":"tax",x:(b.x+b.width/2-bg.x)/scale,y:(b.y+b.height/2-bg.y+cropY)/scale,width:b.width/scale};});
     });
-    for(const h of geometry){const expected=h.kind==="brokerage"?[599.805,390.35,622.71]:[1258.884,449.905,521.73];[h.x,h.y,h.width].forEach((v,i)=>assert.ok(Math.abs(v-expected[i])<.1));}
+    for(const h of geometry){const expected=h.kind==="brokerage"?[599.805,390.35,622.71]:[1246.884,414.905,495.6435];[h.x,h.y,h.width].forEach((v,i)=>assert.ok(Math.abs(v-expected[i])<.1));}
     for(const mode of ["new-anchor","old-anchor","house-off"]) {
       await p.evaluate(mode=>{const h=document.querySelector(".house-brokerage");if(mode==="new-anchor")window.newHousePosition={x:h.style.getPropertyValue("--house-x"),y:h.style.getPropertyValue("--house-y")};if(mode==="old-anchor"){const bg=document.querySelector(".scene-background-current").getBoundingClientRect(),scale=Math.max(bg.width/1683,bg.height/935);h.style.setProperty("--house-x",`${parseFloat(window.newHousePosition.x)-36*scale}px`);h.style.setProperty("--house-y",`${parseFloat(window.newHousePosition.y)+44*scale}px`);}if(mode==="house-off")h.style.visibility="hidden";},mode);
       await p.waitForTimeout(100);

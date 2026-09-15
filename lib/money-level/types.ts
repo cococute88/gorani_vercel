@@ -19,6 +19,10 @@ export interface MoneyLevelSettings {
   pensionWithdrawalRate: number;
   leftStatue: MoneyLevelStatue;
   rightStatue: MoneyLevelStatue;
+  brokerageTextMode: "DEFAULT" | "CUSTOM";
+  brokerageCustomText: string;
+  taxTextMode: "DEFAULT" | "CUSTOM";
+  taxCustomText: string;
 }
 
 export interface HeartBreakdown {

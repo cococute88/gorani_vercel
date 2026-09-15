@@ -22,6 +22,10 @@ export const DEFAULT_MONEY_LEVEL_SETTINGS: Readonly<MoneyLevelSettings> = {
   pensionWithdrawalRate: 0.033,
   leftStatue: "none",
   rightStatue: "none",
+  brokerageTextMode: "DEFAULT",
+  brokerageCustomText: "",
+  taxTextMode: "DEFAULT",
+  taxCustomText: "",
 };
 
 export function isValidMoneyLevelDate(value: unknown): value is string {
@@ -68,5 +72,29 @@ export function normalizeMoneyLevelSettings(
     ),
     leftStatue: isStatue(value?.leftStatue) ? value.leftStatue : "none",
     rightStatue: isStatue(value?.rightStatue) ? value.rightStatue : "none",
+    brokerageTextMode: value?.brokerageTextMode === "CUSTOM" ? "CUSTOM" : "DEFAULT",
+    brokerageCustomText: normalizeHouseText(value?.brokerageCustomText),
+    taxTextMode: value?.taxTextMode === "CUSTOM" ? "CUSTOM" : "DEFAULT",
+    taxCustomText: normalizeHouseText(value?.taxCustomText),
   };
+}
+
+/** Hydration sanitizes controls without truncating an existing user preference. */
+export function normalizeHouseText(value: unknown): string {
+  if (typeof value !== "string") return "";
+  return value.replace(/\r\n?/g, "\n").replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, "");
+}
+
+export function resolveHouseText(settings: MoneyLevelSettings, kind: "brokerage" | "tax", stageDescription: string): string {
+  return settings[`${kind}TextMode`] === "CUSTOM" ? settings[`${kind}CustomText`] : stageDescription;
+}
+
+/** Editing limits do not reinterpret or truncate previously saved preferences. */
+export function houseTextDraftError(value: string, previous: string, _kind: "brokerage" | "tax"): string {
+  if (value === previous) return "";
+  const lines = 2;
+  const characters = 12;
+  const parts = value.replace(/\r\n?/g, "\n").split("\n");
+  return parts.length > lines || parts.some(part => Array.from(part).length > characters)
+    ? `최대 ${lines}줄, 줄당 ${characters}자로 입력해주세요.` : "";
 }

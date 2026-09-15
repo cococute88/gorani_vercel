@@ -33,15 +33,14 @@ export function statueSlotPlacement(
 export const BROKERAGE_LABEL = {
   // At 1320×520, the house silhouette starts near x=245 at card-bottom level.
   // This places the card right edge near x=235: a 10px visual gap.
-  desktop: { x: 200, y: 375 },
-  mobile: { x: 590, y: 310 },
+  desktop: { x: 170, y: 375 },
+  mobile: { x: 170, y: 375 },
 } as const;
 
 export function brokerageLabelPoint(scene: { width: number; height: number }, mobile: boolean) {
   const point = projectForestPoint(BROKERAGE_LABEL[mobile ? "mobile" : "desktop"], scene, mobile);
-  // The rendered card is 130px on mobile and 155px otherwise; keep 2px of
-  // breathing room while allowing the tight crops to move fully left.
-  const halfCard = mobile ? 67 : 80;
+  // Keep the compact banner inside a shared 24px outer inset on every viewport.
+  const halfCard = 96; // 144px card half-width + common 24px outer inset.
   return { x: Math.max(halfCard, Math.min(scene.width - halfCard, point.x)), y: point.y };
 }
 

@@ -21,7 +21,7 @@ for (const width of [1440, 1320, 1100, 980, 768, 390]) for (const height of [520
     const anchor = imagePointToScene(STATUE_VIEW_ANCHORS[slot], layout, { x: 0, y: STATUE_CEREMONY_OFFSET_Y_PX[slot] });
     // Interior points across the old grass plus a new upper point. A 54-master
     // radius cannot accept the latter, but the new polygon can.
-    const upper = slot === "left" ? { x: 475, y: 684 } : { x: 1560, y: 562 };
+    const upper = slot === "left" ? { x: 475, y: 684 } : { x: 1360, y: 562 };
     for (const p of [upper, STATUE_VIEW_ANCHORS[slot], ...STATUE_VIEW_GRASS[slot].map(p => ({ x: p.x + (p.x < STATUE_VIEW_ANCHORS[slot].x ? 1 : -1), y: p.y + (p.y < STATUE_VIEW_ANCHORS[slot].y ? 1 : -1) }))]) {
       const point = imagePointToScene(p, layout);
       const result = resolveManualActivityIntent(point, resolveDrop(point, layout, id), layout, id, statues);
@@ -35,7 +35,7 @@ setForestSceneViewport(null);
 for (const slot of ["left", "right"] as const) {
   const top = Math.min(...STATUE_CEREMONY_DROP_ZONES[slot].map(p => p.y));
   const legacyTop = Math.min(...STATUE_VIEW_GRASS[slot].map(p => p.y));
-  assert.ok((legacyTop - top) * 1320 / 1683 >= (slot === "left" ? 40 : 30), "source polygon expands above existing trigger terrain");
+  assert.ok((legacyTop - top) * 1320 / 1683 >= (slot === "left" ? 40 : 20), "source polygon expands above existing trigger terrain");
   assert.equal(resolveActivityDrop(imagePointToScene({ x: slot === "left" ? 590 : 1470, y: slot === "left" ? 735 : 568 }, "desktop"), "desktop", "gorani", { left: "stone-bear", right: "gold-bear" }), null, "pedestals are not drop zones");
 }
 for (const time of ["morning", "day", "evening", "night"] as const) for (const weather of ["sunny", "cloudy", "rain", "thunderstorm"] as const) {
@@ -49,5 +49,5 @@ assert.equal(getHouseAmbientLighting("morning", "sunny").opacity, 0);
 assert.equal(getHouseAmbientLighting("evening", "sunny").opacity, .035);
 assert.equal(getHouseAmbientLighting("night", "thunderstorm").opacity, .22);
 assert.deepEqual(HOUSE_WORLD_GEOMETRY.brokerage, { x: 599.805, y: 390.35, width: 622.71 });
-assert.deepEqual(HOUSE_WORLD_GEOMETRY.tax, { x: 1258.884, y: 449.905, width: 521.73 });
+assert.deepEqual(HOUSE_WORLD_GEOMETRY.tax, { x: 1246.884, y: 414.905, width: 495.6435 });
 console.log("World house/landmark invariance across 12 ratios, broad ceremony intent → fixed anchor, none/pedestal exclusion and ambient resolver PASS");

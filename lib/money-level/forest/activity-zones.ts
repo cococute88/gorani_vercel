@@ -1,6 +1,6 @@
 import type { CharacterId } from "./character-types";
 import { GORANI_BENCH_POSE } from "./character-pose";
-import { NO_STATUES, STATUE_VIEW_ANCHORS, STATUE_CEREMONY_DROP_ZONES, STATUE_CEREMONY_OFFSET_Y_PX, type StatueSelection } from "./statue-view";
+import { NO_STATUES, CEREMONY_SLOTS, CEREMONY_SLOT_IDS, type CeremonySlotId, type StatueSelection } from "./statue-view";
 import { BENCH_SEAT_MASTER } from "./landmarks";
 import {
   getWaypoint,
@@ -22,7 +22,8 @@ export interface ActivityActivationCircle extends ScenePoint {
 }
 
 export interface SemanticActivityZone {
-  id: "fishing_dock" | "bench_slot" | "pond_watch" | "STATUE_VIEW_LEFT" | "STATUE_VIEW_RIGHT";
+  id: "fishing_dock" | "bench_slot" | "pond_watch" | "STATUE_VIEW_LEFT" | "STATUE_VIEW_RIGHT" | CeremonySlotId;
+  ceremonySlot?: CeremonySlotId;
   statueSlot?: "left" | "right";
   activity: SemanticActivity;
   allowedCharacters: readonly CharacterId[];
@@ -138,16 +139,17 @@ export const ACTIVITY_ZONES: readonly SemanticActivityZone[] = [
     durationMs: { min: 15_000, max: 35_000 },
     preferredFacing: "right",
   },
-  ...(["left", "right"] as const).map((slot): SemanticActivityZone => ({
-    id: slot === "left" ? "STATUE_VIEW_LEFT" : "STATUE_VIEW_RIGHT",
-    statueSlot: slot,
+  ...CEREMONY_SLOT_IDS.map((slot): SemanticActivityZone => ({
+    id: slot,
+    ceremonySlot: slot,
+    statueSlot: CEREMONY_SLOTS[slot].statueSlot,
     activity: "statue-appreciation",
     allowedCharacters: ["gorani", "daramji"],
     activation: { desktop: [], mobile: [] },
     walkableRegionIds: [],
-    anchorWaypointIds: { gorani: [slot === "left" ? "path_front" : "daramji_home"], daramji: [slot === "left" ? "path_front" : "daramji_home"] },
+    anchorWaypointIds: { gorani: [CEREMONY_SLOTS[slot].waypoint], daramji: [CEREMONY_SLOTS[slot].waypoint] },
     durationMs: { min: 30_000, max: 60_000 },
-    preferredFacing: slot === "left" ? "right" : "left",
+    preferredFacing: CEREMONY_SLOTS[slot].facing,
     animationByCharacter: { gorani: "ceremony_valentinesday", daramji: "ceremony_valentinesday" },
     animationSpeed: .5,
   })),
@@ -157,6 +159,8 @@ export const isActivityAvailable = (zone: SemanticActivityZone, statues: StatueS
   !zone.statueSlot || statues[zone.statueSlot] !== "none";
 
 export function getActivityZone(id: SemanticActivityZone["id"]): SemanticActivityZone {
+  if (id === "STATUE_VIEW_LEFT") id = "CEREMONY_LEFT_A";
+  if (id === "STATUE_VIEW_RIGHT") id = "CEREMONY_RIGHT";
   const zone = ACTIVITY_ZONES.find((candidate) => candidate.id === id);
   if (!zone) throw new Error(`알 수 없는 activity zone: ${id}`);
   return zone;
@@ -207,7 +211,7 @@ export function resolveZoneAnchor(
   const waypoint = candidates[0];
   if (!waypoint) return null;
   const configuredPoint = zone.anchorPoints?.[waypoint.id]?.[layout];
-  const anchorPoint = zone.statueSlot ? imagePointToScene(STATUE_VIEW_ANCHORS[zone.statueSlot], layout, { x: 0, y: STATUE_CEREMONY_OFFSET_Y_PX[zone.statueSlot] }) : zone.activity === "bench-sit" ? imagePointToScene(BENCH_SLOT, layout) : configuredPoint && isPointSafe(configuredPoint, layout, character)
+  const anchorPoint = zone.ceremonySlot ? imagePointToScene(CEREMONY_SLOTS[zone.ceremonySlot].anchor, layout) : zone.activity === "bench-sit" ? imagePointToScene(BENCH_SLOT, layout) : configuredPoint && isPointSafe(configuredPoint, layout, character)
     ? configuredPoint
     : waypointPoint(waypoint, layout);
   return { zone, waypoint, point: anchorPoint };
@@ -218,8 +222,8 @@ function distance(left: ScenePoint, right: ScenePoint): number {
 }
 
 function matchesZone(point: ScenePoint, zone: SemanticActivityZone, layout: SceneLayout): boolean {
-  if (zone.statueSlot) {
-    return pointInPolygon(point, STATUE_CEREMONY_DROP_ZONES[zone.statueSlot].map(p => imagePointToScene(p, layout)));
+  if (zone.ceremonySlot) {
+    return pointInPolygon(point, CEREMONY_SLOTS[zone.ceremonySlot].polygon.map(p => imagePointToScene(p, layout)));
   }
   if (zone.activity === "bench-sit") return matchesBench(point, layout);
   return zone.activation[layout].some((circle) => distance(point, circle) <= circle.radius)

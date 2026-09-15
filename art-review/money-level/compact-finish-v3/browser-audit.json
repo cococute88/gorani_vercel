@@ -1,0 +1,800 @@
+{
+  "results": [
+    {
+      "width": 1440,
+      "time": "day",
+      "mode": "DEFAULT",
+      "geometry": [
+        {
+          "kind": "brokerage",
+          "width": 144,
+          "left": 60.921875,
+          "right": 1111.078125,
+          "headerOverflow": false,
+          "bodyOverflow": false,
+          "spacing": 2,
+          "amountInside": true,
+          "height": 44,
+          "body": "확장 오두막",
+          "paddingLeft": 8
+        },
+        {
+          "kind": "tax",
+          "width": 144,
+          "left": 1111.0625,
+          "right": 60.9375,
+          "headerOverflow": false,
+          "bodyOverflow": false,
+          "spacing": 2,
+          "amountInside": true,
+          "height": 44,
+          "body": "생활 소품이 놓인 캠프",
+          "paddingLeft": 8
+        }
+      ]
+    },
+    {
+      "width": 1440,
+      "time": "day",
+      "mode": "CUSTOM",
+      "geometry": [
+        {
+          "kind": "brokerage",
+          "width": 144,
+          "left": 60.921875,
+          "right": 1111.078125,
+          "headerOverflow": false,
+          "bodyOverflow": false,
+          "spacing": 2,
+          "amountInside": true,
+          "height": 56,
+          "body": "나는 테스트 중입니다.\n기분 좋은 테스트",
+          "paddingLeft": 8
+        },
+        {
+          "kind": "tax",
+          "width": 144,
+          "left": 1111.0625,
+          "right": 60.9375,
+          "headerOverflow": false,
+          "bodyOverflow": false,
+          "spacing": 2,
+          "amountInside": true,
+          "height": 56,
+          "body": "나는 테스트 중입니다.\n기본 좋은 테스트",
+          "paddingLeft": 8
+        }
+      ]
+    },
+    {
+      "width": 1440,
+      "time": "night",
+      "mode": "DEFAULT",
+      "geometry": [
+        {
+          "kind": "brokerage",
+          "width": 144,
+          "left": 60.921875,
+          "right": 1111.078125,
+          "headerOverflow": false,
+          "bodyOverflow": false,
+          "spacing": 2,
+          "amountInside": true,
+          "height": 44,
+          "body": "확장 오두막",
+          "paddingLeft": 8
+        },
+        {
+          "kind": "tax",
+          "width": 144,
+          "left": 1111.0625,
+          "right": 60.9375,
+          "headerOverflow": false,
+          "bodyOverflow": false,
+          "spacing": 2,
+          "amountInside": true,
+          "height": 44,
+          "body": "생활 소품이 놓인 캠프",
+          "paddingLeft": 8
+        }
+      ]
+    },
+    {
+      "width": 1440,
+      "time": "night",
+      "mode": "CUSTOM",
+      "geometry": [
+        {
+          "kind": "brokerage",
+          "width": 144,
+          "left": 60.921875,
+          "right": 1111.078125,
+          "headerOverflow": false,
+          "bodyOverflow": false,
+          "spacing": 2,
+          "amountInside": true,
+          "height": 56,
+          "body": "나는 테스트 중입니다.\n기분 좋은 테스트",
+          "paddingLeft": 8
+        },
+        {
+          "kind": "tax",
+          "width": 144,
+          "left": 1111.0625,
+          "right": 60.9375,
+          "headerOverflow": false,
+          "bodyOverflow": false,
+          "spacing": 2,
+          "amountInside": true,
+          "height": 56,
+          "body": "나는 테스트 중입니다.\n기본 좋은 테스트",
+          "paddingLeft": 8
+        }
+      ]
+    },
+    {
+      "width": 1320,
+      "time": "day",
+      "mode": "DEFAULT",
+      "geometry": [
+        {
+          "kind": "brokerage",
+          "width": 144,
+          "left": 57.28125,
+          "right": 1078.71875,
+          "headerOverflow": false,
+          "bodyOverflow": false,
+          "spacing": 2,
+          "amountInside": true,
+          "height": 44,
+          "body": "확장 오두막",
+          "paddingLeft": 8
+        },
+        {
+          "kind": "tax",
+          "width": 144,
+          "left": 1078.703125,
+          "right": 57.296875,
+          "headerOverflow": false,
+          "bodyOverflow": false,
+          "spacing": 2,
+          "amountInside": true,
+          "height": 44,
+          "body": "생활 소품이 놓인 캠프",
+          "paddingLeft": 8
+        }
+      ]
+    },
+    {
+      "width": 1320,
+      "time": "day",
+      "mode": "CUSTOM",
+      "geometry": [
+        {
+          "kind": "brokerage",
+          "width": 144,
+          "left": 57.28125,
+          "right": 1078.71875,
+          "headerOverflow": false,
+          "bodyOverflow": false,
+          "spacing": 2,
+          "amountInside": true,
+          "height": 56,
+          "body": "나는 테스트 중입니다.\n기분 좋은 테스트",
+          "paddingLeft": 8
+        },
+        {
+          "kind": "tax",
+          "width": 144,
+          "left": 1078.703125,
+          "right": 57.296875,
+          "headerOverflow": false,
+          "bodyOverflow": false,
+          "spacing": 2,
+          "amountInside": true,
+          "height": 56,
+          "body": "나는 테스트 중입니다.\n기본 좋은 테스트",
+          "paddingLeft": 8
+        }
+      ]
+    },
+    {
+      "width": 1320,
+      "time": "night",
+      "mode": "DEFAULT",
+      "geometry": [
+        {
+          "kind": "brokerage",
+          "width": 144,
+          "left": 57.28125,
+          "right": 1078.71875,
+          "headerOverflow": false,
+          "bodyOverflow": false,
+          "spacing": 2,
+          "amountInside": true,
+          "height": 44,
+          "body": "확장 오두막",
+          "paddingLeft": 8
+        },
+        {
+          "kind": "tax",
+          "width": 144,
+          "left": 1078.703125,
+          "right": 57.296875,
+          "headerOverflow": false,
+          "bodyOverflow": false,
+          "spacing": 2,
+          "amountInside": true,
+          "height": 44,
+          "body": "생활 소품이 놓인 캠프",
+          "paddingLeft": 8
+        }
+      ]
+    },
+    {
+      "width": 1320,
+      "time": "night",
+      "mode": "CUSTOM",
+      "geometry": [
+        {
+          "kind": "brokerage",
+          "width": 144,
+          "left": 57.28125,
+          "right": 1078.71875,
+          "headerOverflow": false,
+          "bodyOverflow": false,
+          "spacing": 2,
+          "amountInside": true,
+          "height": 56,
+          "body": "나는 테스트 중입니다.\n기분 좋은 테스트",
+          "paddingLeft": 8
+        },
+        {
+          "kind": "tax",
+          "width": 144,
+          "left": 1078.703125,
+          "right": 57.296875,
+          "headerOverflow": false,
+          "bodyOverflow": false,
+          "spacing": 2,
+          "amountInside": true,
+          "height": 56,
+          "body": "나는 테스트 중입니다.\n기본 좋은 테스트",
+          "paddingLeft": 8
+        }
+      ]
+    },
+    {
+      "width": 1100,
+      "time": "day",
+      "mode": "DEFAULT",
+      "geometry": [
+        {
+          "kind": "brokerage",
+          "width": 144,
+          "left": 35.0625,
+          "right": 880.9375,
+          "headerOverflow": false,
+          "bodyOverflow": false,
+          "spacing": 2,
+          "amountInside": true,
+          "height": 44,
+          "body": "확장 오두막",
+          "paddingLeft": 8
+        },
+        {
+          "kind": "tax",
+          "width": 144,
+          "left": 880.921875,
+          "right": 35.078125,
+          "headerOverflow": false,
+          "bodyOverflow": false,
+          "spacing": 2,
+          "amountInside": true,
+          "height": 44,
+          "body": "생활 소품이 놓인 캠프",
+          "paddingLeft": 8
+        }
+      ]
+    },
+    {
+      "width": 1100,
+      "time": "day",
+      "mode": "CUSTOM",
+      "geometry": [
+        {
+          "kind": "brokerage",
+          "width": 144,
+          "left": 35.0625,
+          "right": 880.9375,
+          "headerOverflow": false,
+          "bodyOverflow": false,
+          "spacing": 2,
+          "amountInside": true,
+          "height": 56,
+          "body": "나는 테스트 중입니다.\n기분 좋은 테스트",
+          "paddingLeft": 8
+        },
+        {
+          "kind": "tax",
+          "width": 144,
+          "left": 880.921875,
+          "right": 35.078125,
+          "headerOverflow": false,
+          "bodyOverflow": false,
+          "spacing": 2,
+          "amountInside": true,
+          "height": 56,
+          "body": "나는 테스트 중입니다.\n기본 좋은 테스트",
+          "paddingLeft": 8
+        }
+      ]
+    },
+    {
+      "width": 1100,
+      "time": "night",
+      "mode": "DEFAULT",
+      "geometry": [
+        {
+          "kind": "brokerage",
+          "width": 144,
+          "left": 35.0625,
+          "right": 880.9375,
+          "headerOverflow": false,
+          "bodyOverflow": false,
+          "spacing": 2,
+          "amountInside": true,
+          "height": 44,
+          "body": "확장 오두막",
+          "paddingLeft": 8
+        },
+        {
+          "kind": "tax",
+          "width": 144,
+          "left": 880.921875,
+          "right": 35.078125,
+          "headerOverflow": false,
+          "bodyOverflow": false,
+          "spacing": 2,
+          "amountInside": true,
+          "height": 44,
+          "body": "생활 소품이 놓인 캠프",
+          "paddingLeft": 8
+        }
+      ]
+    },
+    {
+      "width": 1100,
+      "time": "night",
+      "mode": "CUSTOM",
+      "geometry": [
+        {
+          "kind": "brokerage",
+          "width": 144,
+          "left": 35.0625,
+          "right": 880.9375,
+          "headerOverflow": false,
+          "bodyOverflow": false,
+          "spacing": 2,
+          "amountInside": true,
+          "height": 56,
+          "body": "나는 테스트 중입니다.\n기분 좋은 테스트",
+          "paddingLeft": 8
+        },
+        {
+          "kind": "tax",
+          "width": 144,
+          "left": 880.921875,
+          "right": 35.078125,
+          "headerOverflow": false,
+          "bodyOverflow": false,
+          "spacing": 2,
+          "amountInside": true,
+          "height": 56,
+          "body": "나는 테스트 중입니다.\n기본 좋은 테스트",
+          "paddingLeft": 8
+        }
+      ]
+    },
+    {
+      "width": 980,
+      "time": "day",
+      "mode": "DEFAULT",
+      "geometry": [
+        {
+          "kind": "brokerage",
+          "width": 144,
+          "left": 24,
+          "right": 772,
+          "headerOverflow": false,
+          "bodyOverflow": false,
+          "spacing": 2,
+          "amountInside": true,
+          "height": 44,
+          "body": "확장 오두막",
+          "paddingLeft": 8
+        },
+        {
+          "kind": "tax",
+          "width": 144,
+          "left": 772,
+          "right": 24,
+          "headerOverflow": false,
+          "bodyOverflow": false,
+          "spacing": 2,
+          "amountInside": true,
+          "height": 44,
+          "body": "생활 소품이 놓인 캠프",
+          "paddingLeft": 8
+        }
+      ]
+    },
+    {
+      "width": 980,
+      "time": "day",
+      "mode": "CUSTOM",
+      "geometry": [
+        {
+          "kind": "brokerage",
+          "width": 144,
+          "left": 24,
+          "right": 772,
+          "headerOverflow": false,
+          "bodyOverflow": false,
+          "spacing": 2,
+          "amountInside": true,
+          "height": 56,
+          "body": "나는 테스트 중입니다.\n기분 좋은 테스트",
+          "paddingLeft": 8
+        },
+        {
+          "kind": "tax",
+          "width": 144,
+          "left": 772,
+          "right": 24,
+          "headerOverflow": false,
+          "bodyOverflow": false,
+          "spacing": 2,
+          "amountInside": true,
+          "height": 56,
+          "body": "나는 테스트 중입니다.\n기본 좋은 테스트",
+          "paddingLeft": 8
+        }
+      ]
+    },
+    {
+      "width": 980,
+      "time": "night",
+      "mode": "DEFAULT",
+      "geometry": [
+        {
+          "kind": "brokerage",
+          "width": 144,
+          "left": 24,
+          "right": 772,
+          "headerOverflow": false,
+          "bodyOverflow": false,
+          "spacing": 2,
+          "amountInside": true,
+          "height": 44,
+          "body": "확장 오두막",
+          "paddingLeft": 8
+        },
+        {
+          "kind": "tax",
+          "width": 144,
+          "left": 772,
+          "right": 24,
+          "headerOverflow": false,
+          "bodyOverflow": false,
+          "spacing": 2,
+          "amountInside": true,
+          "height": 44,
+          "body": "생활 소품이 놓인 캠프",
+          "paddingLeft": 8
+        }
+      ]
+    },
+    {
+      "width": 980,
+      "time": "night",
+      "mode": "CUSTOM",
+      "geometry": [
+        {
+          "kind": "brokerage",
+          "width": 144,
+          "left": 24,
+          "right": 772,
+          "headerOverflow": false,
+          "bodyOverflow": false,
+          "spacing": 2,
+          "amountInside": true,
+          "height": 56,
+          "body": "나는 테스트 중입니다.\n기분 좋은 테스트",
+          "paddingLeft": 8
+        },
+        {
+          "kind": "tax",
+          "width": 144,
+          "left": 772,
+          "right": 24,
+          "headerOverflow": false,
+          "bodyOverflow": false,
+          "spacing": 2,
+          "amountInside": true,
+          "height": 56,
+          "body": "나는 테스트 중입니다.\n기본 좋은 테스트",
+          "paddingLeft": 8
+        }
+      ]
+    },
+    {
+      "width": 768,
+      "time": "day",
+      "mode": "DEFAULT",
+      "geometry": [
+        {
+          "kind": "brokerage",
+          "width": 144,
+          "left": 24,
+          "right": 576,
+          "headerOverflow": false,
+          "bodyOverflow": false,
+          "spacing": 2,
+          "amountInside": true,
+          "height": 44,
+          "body": "확장 오두막",
+          "paddingLeft": 8
+        },
+        {
+          "kind": "tax",
+          "width": 144,
+          "left": 576,
+          "right": 24,
+          "headerOverflow": false,
+          "bodyOverflow": false,
+          "spacing": 2,
+          "amountInside": true,
+          "height": 44,
+          "body": "생활 소품이 놓인 캠프",
+          "paddingLeft": 8
+        }
+      ]
+    },
+    {
+      "width": 768,
+      "time": "day",
+      "mode": "CUSTOM",
+      "geometry": [
+        {
+          "kind": "brokerage",
+          "width": 144,
+          "left": 24,
+          "right": 576,
+          "headerOverflow": false,
+          "bodyOverflow": false,
+          "spacing": 2,
+          "amountInside": true,
+          "height": 56,
+          "body": "나는 테스트 중입니다.\n기분 좋은 테스트",
+          "paddingLeft": 8
+        },
+        {
+          "kind": "tax",
+          "width": 144,
+          "left": 576,
+          "right": 24,
+          "headerOverflow": false,
+          "bodyOverflow": false,
+          "spacing": 2,
+          "amountInside": true,
+          "height": 56,
+          "body": "나는 테스트 중입니다.\n기본 좋은 테스트",
+          "paddingLeft": 8
+        }
+      ]
+    },
+    {
+      "width": 768,
+      "time": "night",
+      "mode": "DEFAULT",
+      "geometry": [
+        {
+          "kind": "brokerage",
+          "width": 144,
+          "left": 24,
+          "right": 576,
+          "headerOverflow": false,
+          "bodyOverflow": false,
+          "spacing": 2,
+          "amountInside": true,
+          "height": 44,
+          "body": "확장 오두막",
+          "paddingLeft": 8
+        },
+        {
+          "kind": "tax",
+          "width": 144,
+          "left": 576,
+          "right": 24,
+          "headerOverflow": false,
+          "bodyOverflow": false,
+          "spacing": 2,
+          "amountInside": true,
+          "height": 44,
+          "body": "생활 소품이 놓인 캠프",
+          "paddingLeft": 8
+        }
+      ]
+    },
+    {
+      "width": 768,
+      "time": "night",
+      "mode": "CUSTOM",
+      "geometry": [
+        {
+          "kind": "brokerage",
+          "width": 144,
+          "left": 24,
+          "right": 576,
+          "headerOverflow": false,
+          "bodyOverflow": false,
+          "spacing": 2,
+          "amountInside": true,
+          "height": 56,
+          "body": "나는 테스트 중입니다.\n기분 좋은 테스트",
+          "paddingLeft": 8
+        },
+        {
+          "kind": "tax",
+          "width": 144,
+          "left": 576,
+          "right": 24,
+          "headerOverflow": false,
+          "bodyOverflow": false,
+          "spacing": 2,
+          "amountInside": true,
+          "height": 56,
+          "body": "나는 테스트 중입니다.\n기본 좋은 테스트",
+          "paddingLeft": 8
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "time": "day",
+      "mode": "DEFAULT",
+      "geometry": [
+        {
+          "kind": "brokerage",
+          "width": 144,
+          "left": 24,
+          "right": 222,
+          "headerOverflow": false,
+          "bodyOverflow": false,
+          "spacing": 2,
+          "amountInside": true,
+          "height": 44,
+          "body": "확장 오두막",
+          "paddingLeft": 8
+        },
+        {
+          "kind": "tax",
+          "width": 144,
+          "left": 222,
+          "right": 24,
+          "headerOverflow": false,
+          "bodyOverflow": false,
+          "spacing": 2,
+          "amountInside": true,
+          "height": 44,
+          "body": "생활 소품이 놓인 캠프",
+          "paddingLeft": 8
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "time": "day",
+      "mode": "CUSTOM",
+      "geometry": [
+        {
+          "kind": "brokerage",
+          "width": 144,
+          "left": 24,
+          "right": 222,
+          "headerOverflow": false,
+          "bodyOverflow": false,
+          "spacing": 2,
+          "amountInside": true,
+          "height": 56,
+          "body": "나는 테스트 중입니다.\n기분 좋은 테스트",
+          "paddingLeft": 8
+        },
+        {
+          "kind": "tax",
+          "width": 144,
+          "left": 222,
+          "right": 24,
+          "headerOverflow": false,
+          "bodyOverflow": false,
+          "spacing": 2,
+          "amountInside": true,
+          "height": 56,
+          "body": "나는 테스트 중입니다.\n기본 좋은 테스트",
+          "paddingLeft": 8
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "time": "night",
+      "mode": "DEFAULT",
+      "geometry": [
+        {
+          "kind": "brokerage",
+          "width": 144,
+          "left": 24,
+          "right": 222,
+          "headerOverflow": false,
+          "bodyOverflow": false,
+          "spacing": 2,
+          "amountInside": true,
+          "height": 44,
+          "body": "확장 오두막",
+          "paddingLeft": 8
+        },
+        {
+          "kind": "tax",
+          "width": 144,
+          "left": 222,
+          "right": 24,
+          "headerOverflow": false,
+          "bodyOverflow": false,
+          "spacing": 2,
+          "amountInside": true,
+          "height": 44,
+          "body": "생활 소품이 놓인 캠프",
+          "paddingLeft": 8
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "time": "night",
+      "mode": "CUSTOM",
+      "geometry": [
+        {
+          "kind": "brokerage",
+          "width": 144,
+          "left": 24,
+          "right": 222,
+          "headerOverflow": false,
+          "bodyOverflow": false,
+          "spacing": 2,
+          "amountInside": true,
+          "height": 56,
+          "body": "나는 테스트 중입니다.\n기분 좋은 테스트",
+          "paddingLeft": 8
+        },
+        {
+          "kind": "tax",
+          "width": 144,
+          "left": 222,
+          "right": 24,
+          "headerOverflow": false,
+          "bodyOverflow": false,
+          "spacing": 2,
+          "amountInside": true,
+          "height": 56,
+          "body": "나는 테스트 중입니다.\n기본 좋은 테스트",
+          "paddingLeft": 8
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "legacyText": "unchanged hydrate/save PASS",
+  "liveCloud": "not run",
+  "physicalAndroid": "not run"
+}

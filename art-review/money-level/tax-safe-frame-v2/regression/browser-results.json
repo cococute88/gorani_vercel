@@ -1,0 +1,552 @@
+{
+  "results": [
+    {
+      "viewport": 1440,
+      "width": 1316,
+      "height": 572,
+      "cameraMaxX": 0,
+      "labels": [
+        {
+          "kind": "brokerage",
+          "left": 54.375,
+          "right": 258.375,
+          "top": 183.671875,
+          "bottom": 247.640625,
+          "text": "곰라니의\n조기은퇴 기지",
+          "textOverflow": false,
+          "titleOverflow": false
+        },
+        {
+          "kind": "tax",
+          "left": 1110,
+          "right": 1314,
+          "top": 137.875,
+          "bottom": 187.53125,
+          "text": "다람쥐 절세 연구소",
+          "textOverflow": false,
+          "titleOverflow": false
+        }
+      ],
+      "persistence": "reload/re-entry/tab reopen local PASS",
+      "cloud": "LIVE LOGIN/CROSS-SESSION NOT RUN"
+    },
+    {
+      "rightPathfinding": "gorani",
+      "visited": [
+        "gorani_home",
+        "garden",
+        "pond_edge",
+        "tax_front",
+        "tax_corridor",
+        "fence_opening",
+        "right_grass",
+        "ceremony_right"
+      ]
+    },
+    {
+      "rightPathfinding": "daramji",
+      "visited": [
+        "daramji_home",
+        "tax_front",
+        "tax_corridor",
+        "fence_opening",
+        "right_grass",
+        "ceremony_right"
+      ]
+    },
+    {
+      "matrix": [
+        "CEREMONY_LEFT_A",
+        "CEREMONY_LEFT_B"
+      ],
+      "owners": {
+        "CEREMONY_LEFT_A": "gorani",
+        "CEREMONY_LEFT_B": "daramji",
+        "CEREMONY_RIGHT": null
+      },
+      "actors": {
+        "gorani": {
+          "animation": "ceremony_valentinesday",
+          "accessory": "none",
+          "position": {
+            "x": 27.926322043969105,
+            "y": 87.77470301534474,
+            "facing": "right"
+          },
+          "phase": "statue-appreciation",
+          "waypoint": "ceremony_left_a",
+          "activityZone": "CEREMONY_LEFT_A"
+        },
+        "daramji": {
+          "animation": "ceremony_valentinesday",
+          "accessory": "none",
+          "position": {
+            "x": 41.23588829471182,
+            "y": 85.70048489834586,
+            "facing": "left"
+          },
+          "phase": "statue-appreciation",
+          "waypoint": "ceremony_left_b",
+          "activityZone": "CEREMONY_LEFT_B"
+        }
+      }
+    },
+    {
+      "matrix": [
+        "CEREMONY_LEFT_A",
+        "CEREMONY_RIGHT"
+      ],
+      "owners": {
+        "CEREMONY_LEFT_A": "gorani",
+        "CEREMONY_LEFT_B": null,
+        "CEREMONY_RIGHT": "daramji"
+      },
+      "actors": {
+        "gorani": {
+          "animation": "ceremony_valentinesday",
+          "accessory": "none",
+          "position": {
+            "x": 27.926322043969105,
+            "y": 87.77470301534474,
+            "facing": "right"
+          },
+          "phase": "statue-appreciation",
+          "waypoint": "ceremony_left_a",
+          "activityZone": "CEREMONY_LEFT_A"
+        },
+        "daramji": {
+          "animation": "ceremony_valentinesday",
+          "accessory": "none",
+          "position": {
+            "x": 81.40225787284609,
+            "y": 66.68681882585626,
+            "facing": "right"
+          },
+          "phase": "statue-appreciation",
+          "waypoint": "ceremony_right",
+          "activityZone": "CEREMONY_RIGHT"
+        }
+      }
+    },
+    {
+      "matrix": [
+        "CEREMONY_LEFT_A",
+        "CEREMONY_LEFT_A"
+      ],
+      "owners": {
+        "CEREMONY_LEFT_A": "gorani",
+        "CEREMONY_LEFT_B": "daramji",
+        "CEREMONY_RIGHT": null
+      },
+      "actors": {
+        "gorani": {
+          "animation": "ceremony_valentinesday",
+          "accessory": "none",
+          "position": {
+            "x": 27.926322043969105,
+            "y": 87.77470301534474,
+            "facing": "right"
+          },
+          "phase": "statue-appreciation",
+          "waypoint": "ceremony_left_a",
+          "activityZone": "CEREMONY_LEFT_A"
+        },
+        "daramji": {
+          "animation": "ceremony_valentinesday",
+          "accessory": "none",
+          "position": {
+            "x": 41.23588829471182,
+            "y": 85.70048489834586,
+            "facing": "left"
+          },
+          "phase": "statue-appreciation",
+          "waypoint": "ceremony_left_b",
+          "activityZone": "CEREMONY_LEFT_B"
+        }
+      }
+    },
+    {
+      "matrix": [
+        "CEREMONY_RIGHT",
+        "CEREMONY_RIGHT"
+      ],
+      "owners": {
+        "CEREMONY_LEFT_A": null,
+        "CEREMONY_LEFT_B": "daramji",
+        "CEREMONY_RIGHT": "gorani"
+      },
+      "actors": {
+        "gorani": {
+          "animation": "ceremony_valentinesday",
+          "accessory": "none",
+          "position": {
+            "x": 81.40225787284609,
+            "y": 66.68681882585626,
+            "facing": "right"
+          },
+          "phase": "statue-appreciation",
+          "waypoint": "ceremony_right",
+          "activityZone": "CEREMONY_RIGHT"
+        },
+        "daramji": {
+          "animation": "ceremony_valentinesday",
+          "accessory": "none",
+          "position": {
+            "x": 41.23588829471182,
+            "y": 85.70048489834586,
+            "facing": "left"
+          },
+          "phase": "statue-appreciation",
+          "waypoint": "ceremony_left_b",
+          "activityZone": "CEREMONY_LEFT_B"
+        }
+      }
+    },
+    {
+      "activeResize": 980,
+      "owners": {
+        "CEREMONY_LEFT_A": "gorani",
+        "CEREMONY_LEFT_B": null,
+        "CEREMONY_RIGHT": "daramji"
+      },
+      "points": {
+        "gorani": {
+          "x": 470.0000000000001,
+          "y": 751.5999999999999
+        },
+        "daramji": {
+          "x": 1370.0000000000002,
+          "y": 593
+        }
+      }
+    },
+    {
+      "activeResize": 768,
+      "owners": {
+        "CEREMONY_LEFT_A": "gorani",
+        "CEREMONY_LEFT_B": null,
+        "CEREMONY_RIGHT": "daramji"
+      },
+      "points": {
+        "gorani": {
+          "x": 469.99999999999994,
+          "y": 751.6
+        },
+        "daramji": {
+          "x": 1369.9999999999998,
+          "y": 593
+        }
+      }
+    },
+    {
+      "activeResize": 390,
+      "owners": {
+        "CEREMONY_LEFT_A": "gorani",
+        "CEREMONY_LEFT_B": null,
+        "CEREMONY_RIGHT": "daramji"
+      },
+      "points": {
+        "gorani": {
+          "x": 470,
+          "y": 751.6
+        },
+        "daramji": {
+          "x": 1370,
+          "y": 593.0000000000001
+        }
+      }
+    },
+    {
+      "activeResize": 1320,
+      "owners": {
+        "CEREMONY_LEFT_A": "gorani",
+        "CEREMONY_LEFT_B": null,
+        "CEREMONY_RIGHT": "daramji"
+      },
+      "points": {
+        "gorani": {
+          "x": 470.00000000000006,
+          "y": 751.6
+        },
+        "daramji": {
+          "x": 1369.9999999999998,
+          "y": 593
+        }
+      }
+    },
+    {
+      "taxStage": 0,
+      "art": "clearing"
+    },
+    {
+      "taxStage": 1,
+      "art": "camp"
+    },
+    {
+      "taxStage": 2,
+      "art": "camp-plus"
+    },
+    {
+      "taxStage": 3,
+      "art": "tent-small"
+    },
+    {
+      "taxStage": 4,
+      "art": "tent-large"
+    },
+    {
+      "taxStage": 5,
+      "art": "tent-color"
+    },
+    {
+      "taxStage": 6,
+      "art": "micro-house"
+    },
+    {
+      "taxStage": 7,
+      "art": "cabin"
+    },
+    {
+      "taxStage": 8,
+      "art": "cabin-expanded"
+    },
+    {
+      "taxStage": 9,
+      "art": "house"
+    },
+    {
+      "taxStage": 10,
+      "art": "workshop-house"
+    },
+    {
+      "taxStage": 11,
+      "art": "two-story"
+    },
+    {
+      "taxStage": 12,
+      "art": "two-story-garden"
+    },
+    {
+      "taxStage": 13,
+      "art": "two-story-veranda"
+    },
+    {
+      "taxStage": 14,
+      "art": "two-story-large"
+    },
+    {
+      "taxStage": 15,
+      "art": "two-story-annex"
+    },
+    {
+      "taxStage": 16,
+      "art": "mansion"
+    },
+    {
+      "taxStage": 17,
+      "art": "mansion-garden"
+    },
+    {
+      "taxStage": 18,
+      "art": "grand-mansion"
+    },
+    {
+      "taxStage": 19,
+      "art": "grand-mansion-annex"
+    },
+    {
+      "viewport": 1320,
+      "width": 1280,
+      "height": 572,
+      "cameraMaxX": 0,
+      "labels": [
+        {
+          "kind": "brokerage",
+          "left": 50.09375,
+          "right": 254.09375,
+          "top": 185.65625,
+          "bottom": 249.625,
+          "text": "곰라니의\n조기은퇴 기지",
+          "textOverflow": false,
+          "titleOverflow": false
+        },
+        {
+          "kind": "tax",
+          "left": 1076,
+          "right": 1280,
+          "top": 140.21875,
+          "bottom": 189.875,
+          "text": "다람쥐 절세 연구소",
+          "textOverflow": false,
+          "titleOverflow": false
+        }
+      ],
+      "persistence": "reload/re-entry/tab reopen local PASS",
+      "cloud": "LIVE LOGIN/CROSS-SESSION NOT RUN"
+    },
+    {
+      "viewport": 1100,
+      "width": 1060,
+      "height": 572,
+      "cameraMaxX": 0,
+      "labels": [
+        {
+          "kind": "brokerage",
+          "left": 23.953125,
+          "right": 227.953125,
+          "top": 197.75,
+          "bottom": 261.71875,
+          "text": "곰라니의\n조기은퇴 기지",
+          "textOverflow": false,
+          "titleOverflow": false
+        },
+        {
+          "kind": "tax",
+          "left": 856,
+          "right": 1060,
+          "top": 154.46875,
+          "bottom": 204.125,
+          "text": "다람쥐 절세 연구소",
+          "textOverflow": false,
+          "titleOverflow": false
+        }
+      ],
+      "persistence": "reload/re-entry/tab reopen local PASS",
+      "cloud": "LIVE LOGIN/CROSS-SESSION NOT RUN"
+    },
+    {
+      "viewport": 980,
+      "width": 940,
+      "height": 572,
+      "cameraMaxX": 89.60000000000014,
+      "labels": [
+        {
+          "kind": "brokerage",
+          "left": 0,
+          "right": 204,
+          "top": 37.828125,
+          "bottom": 101.796875,
+          "text": "곰라니의\n조기은퇴 기지",
+          "textOverflow": false,
+          "titleOverflow": false
+        },
+        {
+          "kind": "tax",
+          "left": 736,
+          "right": 940,
+          "top": 156.4375,
+          "bottom": 206.09375,
+          "text": "다람쥐 절세 연구소",
+          "textOverflow": false,
+          "titleOverflow": false
+        }
+      ],
+      "persistence": "reload/re-entry/tab reopen local PASS",
+      "cloud": "LIVE LOGIN/CROSS-SESSION NOT RUN"
+    },
+    {
+      "viewport": 768,
+      "width": 744,
+      "height": 556,
+      "cameraMaxX": 256.79999999999995,
+      "labels": [
+        {
+          "kind": "brokerage",
+          "left": 0,
+          "right": 204,
+          "top": 34.703125,
+          "bottom": 98.671875,
+          "text": "곰라니의\n조기은퇴 기지",
+          "textOverflow": false,
+          "titleOverflow": false
+        },
+        {
+          "kind": "tax",
+          "left": 540,
+          "right": 744,
+          "top": 150.3125,
+          "bottom": 199.96875,
+          "text": "다람쥐 절세 연구소",
+          "textOverflow": false,
+          "titleOverflow": false
+        }
+      ],
+      "persistence": "reload/re-entry/tab reopen local PASS",
+      "cloud": "LIVE LOGIN/CROSS-SESSION NOT RUN"
+    },
+    {
+      "touchRight": "gorani",
+      "owners": {
+        "CEREMONY_LEFT_A": null,
+        "CEREMONY_LEFT_B": null,
+        "CEREMONY_RIGHT": "gorani"
+      }
+    },
+    {
+      "touchRight": "daramji",
+      "owners": {
+        "CEREMONY_LEFT_A": null,
+        "CEREMONY_LEFT_B": "daramji",
+        "CEREMONY_RIGHT": "gorani"
+      }
+    },
+    {
+      "mobilePan": {
+        "before": {
+          "width": 390,
+          "height": 508,
+          "scale": 0.5433155080213904,
+          "worldWidth": 914.4,
+          "cropX": 267.444,
+          "cropY": 0,
+          "x": 267.444,
+          "maxX": 524.4
+        },
+        "after": {
+          "width": 390,
+          "height": 508,
+          "scale": 0.5433155080213904,
+          "worldWidth": 914.4,
+          "cropX": 267.444,
+          "cropY": 0,
+          "x": 517.444,
+          "maxX": 524.4
+        }
+      },
+      "realAndroid": "NOT RUN"
+    },
+    {
+      "viewport": 390,
+      "width": 390,
+      "height": 508,
+      "cameraMaxX": 524.4,
+      "labels": [
+        {
+          "kind": "brokerage",
+          "left": 0,
+          "right": 182,
+          "top": 28.890625,
+          "bottom": 85.703125,
+          "text": "곰라니의\n조기은퇴 기지",
+          "textOverflow": false,
+          "titleOverflow": false
+        },
+        {
+          "kind": "tax",
+          "left": 208,
+          "right": 390,
+          "top": 134.140625,
+          "bottom": 179.328125,
+          "text": "다람쥐 절세 연구소",
+          "textOverflow": false,
+          "titleOverflow": false
+        }
+      ],
+      "persistence": "reload/re-entry/tab reopen local PASS",
+      "cloud": "LIVE LOGIN/CROSS-SESSION NOT RUN"
+    }
+  ],
+  "errors": [],
+  "cloud": "mock contract tests only; live Cloud not verified",
+  "android": "simulated CDP touch only"
+}

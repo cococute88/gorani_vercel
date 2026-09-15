@@ -66,18 +66,21 @@
 .moneyLevelRoot .weather-thunderstorm .sky-drift-layer::before{ opacity: .11; animation-duration: 40s; }
 .moneyLevelRoot .house-place{ position: absolute; inset: 0; z-index: 2; pointer-events: none; }
 .moneyLevelRoot .house-card{ position: absolute; top: var(--house-y); left: var(--house-x); width: var(--house-width); transform: translate(-50%,-50%); }
+.moneyLevelRoot .house-tax{ overflow: visible; }
 .moneyLevelRoot .house-art-image{ display: block; width: 100%; height: auto; user-select: none; filter: var(--money-level-house-lighting) drop-shadow(0 7px 6px rgba(43,54,44,.13)); transition: filter .5s ease; }
 .moneyLevelRoot .house-composite-masked .house-art-image{ -webkit-mask-image: radial-gradient(ellipse 49% 47% at 50% 55%,#000 67%,transparent 100%); mask-image: radial-gradient(ellipse 49% 47% at 50% 55%,#000 67%,transparent 100%); }
 .moneyLevelRoot .house-composite-masked.house-family-camp .house-art-image{ -webkit-mask-image: radial-gradient(ellipse 39% 35% at 50% 61%,#000 58%,transparent 100%); mask-image: radial-gradient(ellipse 39% 35% at 50% 61%,#000 58%,transparent 100%); }
 .moneyLevelRoot .forest-statue{ position: absolute; z-index: 3; display: block; width: var(--statue-width); height: auto; pointer-events: none; user-select: none; transform: translate(-50%,-100%); filter: var(--money-level-statue-lighting) drop-shadow(0 2px 1px rgba(35,42,31,.21)); transition: filter .5s ease; }
 .moneyLevelRoot .scene-label-layer{ position: absolute; inset: 0; z-index: 11; pointer-events: none; }
-.moneyLevelRoot .house-label{ position: absolute; top: var(--label-y); left: var(--label-x); display: flex; align-items: center; gap: 7px; min-width: 155px; padding: 7px 10px; border: 2px solid #876b4c; border-radius: 8px 10px 7px 9px; color: #55422c; background: linear-gradient(145deg,#fff8dc,#eed39d); box-shadow: inset 0 0 0 2px rgba(255,255,255,.5),0 4px 0 rgba(92,66,39,.2); transform: translate(-50%,-50%); text-align: left; }
+.moneyLevelRoot .house-label{ position: absolute; top: var(--label-y); left: var(--label-x); display: block; width: 144px; max-width: 144px; min-width: 0; box-sizing: border-box; padding: 6px 6px 6px 8px; border: 2px solid #876b4c; border-radius: 8px 10px 7px 9px; color: #55422c; background: linear-gradient(145deg,#fff8dc,#eed39d); box-shadow: inset 0 0 0 2px rgba(255,255,255,.5),0 4px 0 rgba(92,66,39,.2); transform: translate(-50%,-50%); text-align: left; }
 .moneyLevelRoot .house-leaf{ color: #678d48; font-size: 1.1rem; }
-.moneyLevelRoot .house-label p{ margin: 0; font-size: .69rem; font-weight: 900; }
-.moneyLevelRoot .house-label p small{ margin-left: 3px; padding: 1px 5px; border-radius: 999px; color: #fff8df; background: #718e4e; font-size: .54rem; }
+.moneyLevelRoot .house-label-content{ flex: 1; min-width: 0; }
+.moneyLevelRoot .house-label .house-leaf{ font-size: 12px; line-height: 14px; }
+.moneyLevelRoot .house-label p{ display: flex; align-items: center; gap: 2px; white-space: nowrap; margin: 0; font-size: 10px; line-height: 14px; font-weight: 900; }
+.moneyLevelRoot .house-label p small{ margin-left: 0; padding: 0 3px; border-radius: 999px; color: #fff8df; background: #718e4e; font-size: 8px; line-height: 12px; }
 .moneyLevelRoot .house-label-tax p small{ background: #cb8d39; }
-.moneyLevelRoot .house-label strong{ display: block; margin-top: 1px; max-width: 148px; overflow: hidden; color: #756149; font-size: .59rem; text-overflow: ellipsis; white-space: nowrap; }
-.moneyLevelRoot .house-label b{ display: block; margin-top: 1px; color: #493824; font-size: .76rem; }
+.moneyLevelRoot .house-label strong{ display: block; margin-top: 2px; max-width: 100%; color: #756149; font-size: 9px; line-height: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.moneyLevelRoot .house-label p b{ margin-left: 0; color: #493824; font-size: 10px; }
 
 .moneyLevelRoot .character-ground-layer, .moneyLevelRoot .scene-activity-layer, .moneyLevelRoot .character-interaction-layer{ position: absolute; inset: 0; pointer-events: none; }
 .moneyLevelRoot .character-ground-layer{ z-index: 3; }
@@ -227,6 +230,9 @@
 .moneyLevelRoot .object-settings label{ display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: .77rem; font-weight: 750; }
 .moneyLevelRoot .object-settings select{ min-height: 36px; padding: 5px 9px; border: 1px solid #cbb997; border-radius: 8px; color: #51432f; background: #fffdf5; }
 .moneyLevelRoot .object-settings p{ margin: 8px 0 0; color: #81765e; font-size: .68rem; }
+.moneyLevelRoot .house-text-settings textarea{ width: 100%; min-width: 0; padding: 8px; border: 1px solid #cbb997; border-radius: 8px; background: #fffdf5; color: #51432f; resize: vertical; }
+.moneyLevelRoot .house-text-settings label + label{ display: grid; gap: 5px; margin-top: 8px; }
+.moneyLevelRoot .settings-sync-status{ color: #81765e; font-size: .8rem; text-align: center; }
 .moneyLevelRoot .dialog-actions{ display: grid; grid-template-columns: auto 1fr auto auto; gap: 9px; margin-top: 22px; }
 .moneyLevelRoot .dialog-actions button{ min-height: 42px; padding: 9px 15px; border-radius: 11px; cursor: pointer; font-weight: 800; }
 .moneyLevelRoot .text-button{ border: 0; color: #77684f; background: transparent; }
@@ -265,9 +271,7 @@
   .moneyLevelRoot .pond-ripple-layer{ clip-path: polygon(61% 61%,100% 57%,100% 100%,58% 100%,55% 80%); }
   .moneyLevelRoot .pond-ripple-layer i{ top: var(--ripple-mobile-y); left: var(--ripple-mobile-x); }
   .moneyLevelRoot .forest-statue{ width: var(--statue-width); }
-  .moneyLevelRoot .house-label{ top: var(--label-mobile-y); left: var(--label-mobile-x); min-width: 130px; padding: 5px 7px; }
-  .moneyLevelRoot .house-label strong{ max-width: 112px; font-size: .52rem; }
-  .moneyLevelRoot .house-label b{ font-size: .67rem; }
+  .moneyLevelRoot .house-label{ top: var(--label-mobile-y); left: var(--label-mobile-x); }
   .moneyLevelRoot .house-leaf{ font-size: .9rem; }
   .moneyLevelRoot .character-hit-target{ width: var(--hit-mobile-width); height: var(--hit-mobile-height); bottom: -16px; }
   .moneyLevelRoot .character-contact-shadow{ width: 29px; height: 8px; }

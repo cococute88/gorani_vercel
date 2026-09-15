@@ -40,7 +40,10 @@ const statueMaterials = ["stone", "marble", "wood", "gold", "whitegold", "crysta
 const statueAssets = statueMaterials.map((material) => `art/statues/${material}-bear.png`);
 assert.equal(timeBackgrounds.length, 16, "Production must contain the complete 4x4 illustrated background matrix");
 assert.equal(dockedBackgrounds.length, 16, "Each illustrated scene needs its baked connector rendition");
-const required = [...pngMasters, ...webpRenditions, ...timeBackgrounds, ...dockedBackgrounds, ...statueAssets];
+const taxAlphaRenditions = pngMasters.filter(file => file.startsWith("art/houses/tax-stage-"))
+  .map(file => file.replace(/\.png$/, "-alpha-v2.webp"));
+assert.equal(taxAlphaRenditions.length, 4, "Each opaque Tax master needs its audited safe-frame alpha rendition");
+const required = [...pngMasters, ...webpRenditions, ...taxAlphaRenditions, ...timeBackgrounds, ...dockedBackgrounds, ...statueAssets];
 
 async function assertExactCase(relativePath) {
   let current = assetRoot;

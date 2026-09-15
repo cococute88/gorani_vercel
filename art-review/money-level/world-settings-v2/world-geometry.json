@@ -1,0 +1,823 @@
+{
+  "ceremony": {
+    "CEREMONY_LEFT_A": {
+      "statueSlot": "left",
+      "waypoint": "ceremony_left_a",
+      "facing": "right",
+      "anchor": {
+        "x": 470,
+        "y": 751.6
+      },
+      "exit": {
+        "x": 470,
+        "y": 663
+      },
+      "exitWaypoint": "left_grass",
+      "polygon": [
+        {
+          "x": 410,
+          "y": 660
+        },
+        {
+          "x": 510,
+          "y": 660
+        },
+        {
+          "x": 528,
+          "y": 706
+        },
+        {
+          "x": 528,
+          "y": 804
+        },
+        {
+          "x": 430,
+          "y": 810
+        },
+        {
+          "x": 410,
+          "y": 780
+        }
+      ]
+    },
+    "CEREMONY_LEFT_B": {
+      "statueSlot": "left",
+      "waypoint": "ceremony_left_b",
+      "facing": "left",
+      "anchor": {
+        "x": 694,
+        "y": 736
+      },
+      "exit": {
+        "x": 686,
+        "y": 661
+      },
+      "exitWaypoint": "left_access",
+      "polygon": [
+        {
+          "x": 654,
+          "y": 678
+        },
+        {
+          "x": 730,
+          "y": 676
+        },
+        {
+          "x": 753,
+          "y": 705
+        },
+        {
+          "x": 748,
+          "y": 774
+        },
+        {
+          "x": 665,
+          "y": 780
+        },
+        {
+          "x": 649,
+          "y": 750
+        }
+      ]
+    },
+    "CEREMONY_RIGHT": {
+      "statueSlot": "right",
+      "waypoint": "ceremony_right",
+      "facing": "right",
+      "anchor": {
+        "x": 1370,
+        "y": 593
+      },
+      "exit": {
+        "x": 1320,
+        "y": 593
+      },
+      "exitWaypoint": "right_grass",
+      "polygon": [
+        {
+          "x": 1305,
+          "y": 555
+        },
+        {
+          "x": 1378,
+          "y": 548
+        },
+        {
+          "x": 1403,
+          "y": 575
+        },
+        {
+          "x": 1401,
+          "y": 610
+        },
+        {
+          "x": 1348,
+          "y": 616
+        },
+        {
+          "x": 1305,
+          "y": 598
+        }
+      ]
+    }
+  },
+  "opened": {
+    "bench-exit-grass": [
+      {
+        "x": 332,
+        "y": 650
+      },
+      {
+        "x": 398,
+        "y": 650
+      },
+      {
+        "x": 398,
+        "y": 679
+      },
+      {
+        "x": 332,
+        "y": 679
+      }
+    ],
+    "opened-left-grass": [
+      {
+        "x": 388,
+        "y": 563
+      },
+      {
+        "x": 510,
+        "y": 563
+      },
+      {
+        "x": 545,
+        "y": 640
+      },
+      {
+        "x": 736,
+        "y": 650
+      },
+      {
+        "x": 800,
+        "y": 660
+      },
+      {
+        "x": 800,
+        "y": 777
+      },
+      {
+        "x": 655,
+        "y": 780
+      },
+      {
+        "x": 655,
+        "y": 678
+      },
+      {
+        "x": 520,
+        "y": 678
+      },
+      {
+        "x": 515,
+        "y": 797
+      },
+      {
+        "x": 430,
+        "y": 797
+      },
+      {
+        "x": 425,
+        "y": 679
+      },
+      {
+        "x": 355,
+        "y": 679
+      },
+      {
+        "x": 355,
+        "y": 650
+      }
+    ],
+    "tax-front-corridor": [
+      {
+        "x": 905,
+        "y": 590
+      },
+      {
+        "x": 1040,
+        "y": 574
+      },
+      {
+        "x": 1105,
+        "y": 569
+      },
+      {
+        "x": 1170,
+        "y": 575
+      },
+      {
+        "x": 1250,
+        "y": 570
+      },
+      {
+        "x": 1310,
+        "y": 565
+      },
+      {
+        "x": 1390,
+        "y": 575
+      },
+      {
+        "x": 1390,
+        "y": 609
+      },
+      {
+        "x": 1305,
+        "y": 609
+      },
+      {
+        "x": 1200,
+        "y": 604
+      },
+      {
+        "x": 1110,
+        "y": 617
+      },
+      {
+        "x": 990,
+        "y": 628
+      },
+      {
+        "x": 916,
+        "y": 632
+      }
+    ]
+  },
+  "waypoints": {
+    "gorani_home": {
+      "x": 774,
+      "y": 587
+    },
+    "brokerage_yard": {
+      "x": 774,
+      "y": 640
+    },
+    "bench": {
+      "x": 707,
+      "y": 680
+    },
+    "garden": {
+      "x": 808,
+      "y": 613
+    },
+    "daramji_home": {
+      "x": 976,
+      "y": 580
+    },
+    "campfire": {
+      "x": 959,
+      "y": 534
+    },
+    "tax_clearing": {
+      "x": 942,
+      "y": 494
+    },
+    "meadow": {
+      "x": 892,
+      "y": 501
+    },
+    "flower_patch": {
+      "x": 892,
+      "y": 554
+    },
+    "path_front": {
+      "x": 808,
+      "y": 693
+    },
+    "path_center": {
+      "x": 825,
+      "y": 613
+    },
+    "path_mid": {
+      "x": 842,
+      "y": 527
+    },
+    "path_back_lower": {
+      "x": 875,
+      "y": 461
+    },
+    "path_back_mid": {
+      "x": 926,
+      "y": 408
+    },
+    "path_back_upper": {
+      "x": 959,
+      "y": 355
+    },
+    "left_grass": {
+      "x": 470,
+      "y": 663
+    },
+    "left_access": {
+      "x": 686,
+      "y": 661
+    },
+    "ceremony_left_a": {
+      "x": 470,
+      "y": 751.6
+    },
+    "ceremony_left_b": {
+      "x": 694,
+      "y": 736
+    },
+    "tax_front": {
+      "x": 1080,
+      "y": 600
+    },
+    "tax_corridor": {
+      "x": 1210,
+      "y": 586
+    },
+    "fence_opening": {
+      "x": 1270,
+      "y": 575
+    },
+    "right_grass": {
+      "x": 1320,
+      "y": 593
+    },
+    "ceremony_right": {
+      "x": 1370,
+      "y": 593
+    }
+  },
+  "obstacles": [
+    {
+      "id": "brokerage-house",
+      "x": 346,
+      "y": 230,
+      "width": 422,
+      "height": 328
+    },
+    {
+      "id": "tax-house",
+      "x": 1095,
+      "y": 330,
+      "width": 292,
+      "height": 235
+    },
+    {
+      "id": "bench",
+      "x": 230,
+      "y": 540,
+      "width": 155,
+      "height": 109
+    },
+    {
+      "id": "left-pedestal",
+      "x": 530,
+      "y": 693,
+      "width": 119,
+      "height": 61
+    },
+    {
+      "id": "right-pedestal",
+      "x": 1415,
+      "y": 538,
+      "width": 110,
+      "height": 61
+    },
+    {
+      "id": "right-stump",
+      "x": 1376,
+      "y": 494,
+      "width": 70,
+      "height": 57
+    },
+    {
+      "id": "right-rear-fence",
+      "x": 1295,
+      "y": 294,
+      "width": 89,
+      "height": 65
+    },
+    {
+      "id": "left-fence",
+      "x": 200,
+      "y": 703,
+      "width": 218,
+      "height": 90
+    },
+    {
+      "id": "foreground-rocks",
+      "x": 549,
+      "y": 780,
+      "width": 154,
+      "height": 74
+    }
+  ],
+  "pond": [
+    {
+      "x": 990,
+      "y": 646
+    },
+    {
+      "x": 1100,
+      "y": 626
+    },
+    {
+      "x": 1190,
+      "y": 611
+    },
+    {
+      "x": 1230,
+      "y": 606
+    },
+    {
+      "x": 1245,
+      "y": 590
+    },
+    {
+      "x": 1260,
+      "y": 584
+    },
+    {
+      "x": 1279,
+      "y": 585
+    },
+    {
+      "x": 1293,
+      "y": 592
+    },
+    {
+      "x": 1308,
+      "y": 610
+    },
+    {
+      "x": 1324,
+      "y": 608
+    },
+    {
+      "x": 1337,
+      "y": 611
+    },
+    {
+      "x": 1355,
+      "y": 626
+    },
+    {
+      "x": 1370,
+      "y": 622
+    },
+    {
+      "x": 1382,
+      "y": 609
+    },
+    {
+      "x": 1398,
+      "y": 599
+    },
+    {
+      "x": 1415,
+      "y": 600
+    },
+    {
+      "x": 1430,
+      "y": 611
+    },
+    {
+      "x": 1450,
+      "y": 625
+    },
+    {
+      "x": 1515,
+      "y": 630
+    },
+    {
+      "x": 1645,
+      "y": 702
+    },
+    {
+      "x": 1683,
+      "y": 935
+    },
+    {
+      "x": 960,
+      "y": 935
+    },
+    {
+      "x": 910,
+      "y": 760
+    }
+  ],
+  "legacy": [
+    {
+      "id": "main-meadow",
+      "points": [
+        {
+          "x": 639.54,
+          "y": 454.24
+        },
+        {
+          "x": 1026.6299999999999,
+          "y": 447.61
+        },
+        {
+          "x": 1093.9499999999998,
+          "y": 573.5799999999999
+        },
+        {
+          "x": 1026.6299999999999,
+          "y": 719.4399999999999
+        },
+        {
+          "x": 622.7099999999999,
+          "y": 732.7
+        },
+        {
+          "x": 639.54,
+          "y": 600.0999999999999
+        }
+      ]
+    },
+    {
+      "id": "brokerage-yard-path",
+      "points": [
+        {
+          "x": 656.3699999999999,
+          "y": 533.8
+        },
+        {
+          "x": 942.4799999999999,
+          "y": 454.24
+        },
+        {
+          "x": 942.4799999999999,
+          "y": 692.92
+        },
+        {
+          "x": 572.2199999999999,
+          "y": 732.7
+        },
+        {
+          "x": 656.3699999999999,
+          "y": 653.14
+        }
+      ]
+    },
+    {
+      "id": "tax-camp-clearing",
+      "points": [
+        {
+          "x": 841.4999999999999,
+          "y": 434.35
+        },
+        {
+          "x": 1043.4599999999998,
+          "y": 421.09
+        },
+        {
+          "x": 1077.12,
+          "y": 586.8399999999999
+        },
+        {
+          "x": 976.1399999999999,
+          "y": 666.4
+        },
+        {
+          "x": 841.4999999999999,
+          "y": 653.14
+        }
+      ]
+    },
+    {
+      "id": "center-trail",
+      "points": [
+        {
+          "x": 723.6899999999999,
+          "y": 427.71999999999997
+        },
+        {
+          "x": 1026.6299999999999,
+          "y": 401.2
+        },
+        {
+          "x": 992.9699999999999,
+          "y": 619.99
+        },
+        {
+          "x": 908.8199999999999,
+          "y": 732.7
+        },
+        {
+          "x": 706.8599999999999,
+          "y": 732.7
+        },
+        {
+          "x": 757.3499999999999,
+          "y": 600.0999999999999
+        }
+      ]
+    },
+    {
+      "id": "back-trail",
+      "points": [
+        {
+          "x": 807.8399999999999,
+          "y": 308.38
+        },
+        {
+          "x": 1077.12,
+          "y": 301.75
+        },
+        {
+          "x": 1026.6299999999999,
+          "y": 474.13
+        },
+        {
+          "x": 791.0099999999999,
+          "y": 494.02
+        }
+      ]
+    },
+    {
+      "id": "pond-side-grass",
+      "points": [
+        {
+          "x": 690.03,
+          "y": 553.69
+        },
+        {
+          "x": 1110.78,
+          "y": 540.4300000000001
+        },
+        {
+          "x": 1110.78,
+          "y": 653.14
+        },
+        {
+          "x": 1026.6299999999999,
+          "y": 686.29
+        },
+        {
+          "x": 706.8599999999999,
+          "y": 719.4399999999999
+        }
+      ]
+    }
+  ],
+  "graph": {
+    "gorani_home": [
+      "brokerage_yard",
+      "garden"
+    ],
+    "brokerage_yard": [
+      "gorani_home",
+      "bench",
+      "garden",
+      "path_front"
+    ],
+    "bench": [
+      "brokerage_yard",
+      "path_front"
+    ],
+    "garden": [
+      "gorani_home",
+      "brokerage_yard",
+      "meadow",
+      "pond_edge",
+      "path_center"
+    ],
+    "daramji_home": [
+      "campfire",
+      "tax_front"
+    ],
+    "campfire": [
+      "daramji_home",
+      "tax_clearing",
+      "meadow",
+      "flower_patch"
+    ],
+    "tax_clearing": [
+      "campfire"
+    ],
+    "meadow": [
+      "garden",
+      "campfire",
+      "flower_patch",
+      "path_mid"
+    ],
+    "flower_patch": [
+      "campfire",
+      "meadow",
+      "path_center"
+    ],
+    "path_front": [
+      "brokerage_yard",
+      "bench",
+      "path_center",
+      "left_access",
+      "ceremony_left_b"
+    ],
+    "left_access": [
+      "path_front",
+      "left_grass",
+      "ceremony_left_b"
+    ],
+    "left_grass": [
+      "left_access",
+      "ceremony_left_a"
+    ],
+    "ceremony_left_a": [
+      "left_grass"
+    ],
+    "ceremony_left_b": [
+      "left_access",
+      "path_front"
+    ],
+    "tax_front": [
+      "daramji_home",
+      "pond_edge",
+      "tax_corridor"
+    ],
+    "tax_corridor": [
+      "tax_front",
+      "fence_opening"
+    ],
+    "fence_opening": [
+      "tax_corridor",
+      "right_grass"
+    ],
+    "right_grass": [
+      "fence_opening",
+      "ceremony_right"
+    ],
+    "ceremony_right": [
+      "right_grass"
+    ],
+    "path_center": [
+      "garden",
+      "flower_patch",
+      "path_front",
+      "path_mid",
+      "pond_edge"
+    ],
+    "path_mid": [
+      "meadow",
+      "path_center",
+      "path_back_lower"
+    ],
+    "path_back_lower": [
+      "path_mid",
+      "path_back_mid"
+    ],
+    "path_back_mid": [
+      "path_back_lower",
+      "path_back_upper"
+    ],
+    "path_back_upper": [
+      "path_back_mid"
+    ],
+    "pond_edge": [
+      "garden",
+      "path_center",
+      "pond_land",
+      "tax_front"
+    ],
+    "pond_land": [
+      "pond_edge",
+      "dock_connector"
+    ],
+    "dock_connector": [
+      "pond_land",
+      "dock_start"
+    ],
+    "dock_start": [
+      "dock_connector",
+      "dock_mid"
+    ],
+    "dock_mid": [
+      "dock_start",
+      "dock_end"
+    ],
+    "dock_end": [
+      "dock_mid"
+    ]
+  },
+  "houses": {
+    "brokerage": {
+      "x": 599.805,
+      "y": 390.35,
+      "width": 622.71
+    },
+    "tax": {
+      "x": 1246.884,
+      "y": 414.905,
+      "width": 495.6435
+    }
+  },
+  "taxLabel": {
+    "x": 1550,
+    "y": 363
+  }
+}

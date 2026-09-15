@@ -21,10 +21,8 @@ import {
 import { resolveMoneyLevelPortfolioHouses } from "@/lib/money-level/house-stages";
 import { resolveForestBackground } from "@/lib/money-level/forest/scene-config";
 import { calculateRetirementProgress } from "@/lib/money-level/retirement";
-import {
-  DEFAULT_MONEY_LEVEL_SETTINGS,
-  normalizeMoneyLevelSettings,
-} from "@/lib/money-level/settings";
+import { resolveHouseText } from "@/lib/money-level/settings";
+import { useMoneyLevelSettings } from "@/lib/money-level/use-money-level-settings";
 import { isSuspiciousMoneyLevelUpdatedAt } from "@/lib/money-level/portfolio-selector";
 import { useMoneyLevelMarketWeather, type MoneyLevelWeatherState } from "@/lib/money-level/use-money-level-market-weather";
 import type {
@@ -36,7 +34,6 @@ import type {
 import MoneyLevelScene from "./MoneyLevelScene";
 import MoneyLevelSettingsDialog from "./MoneyLevelSettings";
 
-const SETTINGS_KEY = "gorani.money-level.settings.v1";
 const SNAPSHOT_KEY = "gorani.money-level.snapshot.v1";
 const EMPTY_SNAPSHOT: MoneyLevelPortfolioSnapshot = {
   brokerageValue: 0,
@@ -61,7 +58,8 @@ export default function MoneyLevelForest({ previewOverridesEnabled }: { previewO
   const theme = useResolvedTheme();
   const live = useMoneyLevelPortfolioSnapshot();
   const refreshController = usePortfolioRefresh();
-  const [settings, setSettings] = useState<MoneyLevelSettings>({ ...DEFAULT_MONEY_LEVEL_SETTINGS });
+  const settingsController = useMoneyLevelSettings();
+  const { settings } = settingsController;
   const [lastGood, setLastGood] = useState<MoneyLevelPortfolioSnapshot | null>(null);
   const [storageReady, setStorageReady] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -72,7 +70,6 @@ export default function MoneyLevelForest({ previewOverridesEnabled }: { previewO
   const marketWeather = useMoneyLevelMarketWeather(now, previewOverridesEnabled);
 
   useEffect(() => {
-    setSettings(readStoredSettings());
     setLastGood(readStoredSnapshot());
     setPhrase(sample(phrases));
     setStorageReady(true);
@@ -140,12 +137,7 @@ export default function MoneyLevelForest({ previewOverridesEnabled }: { previewO
   };
 
   const saveSettings = (next: MoneyLevelSettings) => {
-    setSettings(next);
-    try {
-      localStorage.setItem(SETTINGS_KEY, JSON.stringify(next));
-    } catch (error) {
-      if (process.env.NODE_ENV !== "production") console.warn("[Money Level] settings cache write failed", error);
-    }
+    void settingsController.save(next);
   };
 
   return (
@@ -173,7 +165,7 @@ export default function MoneyLevelForest({ previewOverridesEnabled }: { previewO
               <div className="brand-lockup"><span className="brand-mark" aria-hidden="true">♧</span><div><p>나의 작은 자산 숲</p><h1>곰라니 머니레벨</h1></div></div>
               <div className="topbar-actions">
                 <Link href="/portfolio" className="icon-button icon-button-back" aria-label="포트폴리오로 돌아가기" title="포트폴리오로 돌아가기"><span aria-hidden="true">←</span></Link>
-                <button className="icon-button" type="button" aria-label="설정 열기" onClick={() => setSettingsOpen(true)}>⚙</button>
+                <button className="icon-button" type="button" aria-label="설정 열기" disabled={settingsController.status !== "ready"} title={settingsController.status === "ready" ? "설정" : "설정을 불러오는 중"} onClick={() => setSettingsOpen(true)}>⚙</button>
               </div>
             </header>
             <section className="money-hud" aria-label="금융 상태" aria-busy={!storageReady || live.syncStatus === "loading"}>
@@ -199,6 +191,8 @@ export default function MoneyLevelForest({ previewOverridesEnabled }: { previewO
                 previewOverridesEnabled={previewOverridesEnabled}
                 leftStatue={settings.leftStatue}
                 rightStatue={settings.rightStatue}
+                brokerageText={resolveHouseText(settings, "brokerage", calculations.houses.brokerage.label)}
+                taxText={resolveHouseText(settings, "tax", calculations.houses.taxAdvantaged.label)}
                 phrase={phrase}
               />
             ) : (
@@ -215,7 +209,8 @@ export default function MoneyLevelForest({ previewOverridesEnabled }: { previewO
             </footer>
           </section>
         </main>
-        <MoneyLevelSettingsDialog open={settingsOpen} settings={settings} onClose={() => setSettingsOpen(false)} onSave={saveSettings} />
+        {settingsController.error ? <p className="settings-sync-status" role="status">{settingsController.error}</p> : null}
+        <MoneyLevelSettingsDialog open={settingsOpen && settingsController.status === "ready"} settings={settings} onClose={() => setSettingsOpen(false)} onSave={saveSettings} />
       </div>
     </>
   );
@@ -237,15 +232,6 @@ function HeartGroup({ label, color, breakdown, special = 0 }: { label: string; c
       </span>
     </span>
   );
-}
-
-function readStoredSettings(): MoneyLevelSettings {
-  try {
-    const value = JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? "null") as Partial<MoneyLevelSettings> | null;
-    return normalizeMoneyLevelSettings(value);
-  } catch {
-    return { ...DEFAULT_MONEY_LEVEL_SETTINGS };
-  }
 }
 
 function readStoredSnapshot(): MoneyLevelPortfolioSnapshot | null {

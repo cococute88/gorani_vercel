@@ -1,0 +1,14 @@
+{
+  "status": "PASS",
+  "startingMain": "471d7866e5817e9a1691f6f6e33ea698f3dda428",
+  "branch": "codex/money-level-world-settings-v2",
+  "moneyLevelSuites": ["selector", "domain", "route", "assets", "market-weather", "layout", "activities", "mobile", "house-lighting", "world-follow-up", "world-v2"],
+  "browserSuites": ["mobile-browser", "follow-up-browser", "ceremony-browser", "house-world-browser", "night-final-browser", "world-v2-browser"],
+  "worldV2BrowserResults": 39,
+  "backgroundAudit": {"files": 33, "productionVariants": 16, "canvas": [1683,935], "outsideBothMasksChangedPixels": 0, "leftWipPreserved": true, "retainedLandmarkDrift": [0,0]},
+  "typecheck": "PASS",
+  "lint": "PASS: no warnings/errors",
+  "productionBuild": "PASS",
+  "limitations": {"liveFirebasePersistence": "NOT RUN: no credentials; injected adapter mocks only", "physicalAndroid": "NOT RUN: trusted Chrome CDP touch only", "reportedSameOriginStatueReset": "Not reproduced; lack of Cloud persistence confirmed"},
+  "merge": "NOT PERFORMED; Draft review required"
+}

@@ -1,0 +1,42 @@
+[
+  {
+    "check": "domain",
+    "exit": 0
+  },
+  {
+    "check": "selector",
+    "exit": 0
+  },
+  {
+    "check": "route",
+    "exit": 0
+  },
+  {
+    "check": "assets",
+    "exit": 0
+  },
+  {
+    "check": "market-weather",
+    "exit": 0
+  },
+  {
+    "check": "layout",
+    "exit": 0
+  },
+  {
+    "check": "activities",
+    "exit": 0
+  },
+  {
+    "check": "mobile",
+    "exit": 0
+  },
+  {
+    "check": "house-lighting",
+    "exit": 0
+  },
+  {
+    "check": "world-follow-up",
+    "exit": 0
+  }
+]

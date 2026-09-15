@@ -1,4 +1,5 @@
 import { brokerageLabelPoint, FOREST_MASTER_SIZE, projectForestPoint } from "./landmarks";
+import type { HouseVisualFrame } from "./tax-artwork";
 
 export type HouseKind = "brokerage" | "tax";
 // Image-box centers/widths in the immutable 1683×935 background. Calibrated
@@ -8,9 +9,21 @@ export const HOUSE_WORLD_GEOMETRY = {
   // +36/-44 master pixels clears the complete baked stump for every resolved
   // Brokerage artwork, including the larger masked cabin/proper-house fence.
   brokerage: { x: 599.805, y: 390.35, width: 622.71 },
-  tax: { x: 1258.884, y: 449.905, width: 521.73 },
+  tax: { x: 1246.884, y: 414.905, width: 495.6435 },
 } as const;
-export const TAX_LABEL_WORLD = { x: 1208.394, y: 596.785 } as const;
+export const TAX_LABEL_WORLD = { x: 1513, y: 363 } as const;
+
+/** Card UI clamps separately from immutable house geometry. */
+export function taxHouseLabelPoint(scene: { width: number; height: number }, mobile: boolean, cameraTranslation = 0, frame?: HouseVisualFrame) {
+  const point = projectForestPoint(TAX_LABEL_WORLD, scene, mobile);
+  const halfWidth = 96; // 72px half-card + shared 24px outer inset.
+  const house = houseWorldToViewport("tax", scene, mobile);
+  // The HUD may clamp horizontally over the object during camera pan. Keep its
+  // bottom above the restored silhouette, using art pixels rather than ratios.
+  const visualTop = frame ? house.y + (frame.visibleBounds[1] - frame.reference.height / 2) * house.width / frame.reference.width : Infinity;
+  return { x: Math.max(halfWidth, Math.min(scene.width - halfWidth, point.x + cameraTranslation)) - cameraTranslation,
+    y: Math.max(32, Math.min(scene.height - 32, point.y, visualTop - 48)) };
+}
 export const HOUSE_BACKGROUND_LANDMARKS = {
   brokerage: { x: 435, y: 602 }, // stump beside the baked bench
   tax: { x: 1415, y: 520 }, // right-lot fence/stump corner
@@ -28,7 +41,7 @@ export function houseWorldToViewport(kind: HouseKind, scene: { width: number; he
 export function brokerageHouseLabelPoint(scene: { width: number; height: number }, mobile: boolean) {
   const point = brokerageLabelPoint(scene, mobile);
   const house = houseWorldToViewport("brokerage", scene, mobile);
-  const halfWidth = mobile ? 67 : 80;
+  const halfWidth = 72;
   // Shared 1536×1024 art frame, with transparent/feathered side margins.
   const top = house.y - house.width / 3;
   if (point.x + halfWidth > house.x - house.width * .35
