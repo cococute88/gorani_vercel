@@ -13,8 +13,10 @@
           "headerOverflow": false,
           "bodyOverflow": false,
           "spacing": 2,
+          "amountInside": true,
           "height": 44,
-          "body": "확장 오두막"
+          "body": "확장 오두막",
+          "paddingLeft": 8
         },
         {
           "kind": "tax",
@@ -24,8 +26,10 @@
           "headerOverflow": false,
           "bodyOverflow": false,
           "spacing": 2,
+          "amountInside": true,
           "height": 44,
-          "body": "생활 소품이 놓인 캠프"
+          "body": "생활 소품이 놓인 캠프",
+          "paddingLeft": 8
         }
       ]
     },
@@ -42,8 +46,10 @@
           "headerOverflow": false,
           "bodyOverflow": false,
           "spacing": 2,
+          "amountInside": true,
           "height": 56,
-          "body": "나는 테스트 중입니다.\n기분 좋은 테스트"
+          "body": "나는 테스트 중입니다.\n기분 좋은 테스트",
+          "paddingLeft": 8
         },
         {
           "kind": "tax",
@@ -53,8 +59,10 @@
           "headerOverflow": false,
           "bodyOverflow": false,
           "spacing": 2,
-          "height": 44,
-          "body": "나는 테스트 중입니다."
+          "amountInside": true,
+          "height": 56,
+          "body": "나는 테스트 중입니다.\n기본 좋은 테스트",
+          "paddingLeft": 8
         }
       ]
     },
@@ -71,8 +79,10 @@
           "headerOverflow": false,
           "bodyOverflow": false,
           "spacing": 2,
+          "amountInside": true,
           "height": 44,
-          "body": "확장 오두막"
+          "body": "확장 오두막",
+          "paddingLeft": 8
         },
         {
           "kind": "tax",
@@ -82,8 +92,10 @@
           "headerOverflow": false,
           "bodyOverflow": false,
           "spacing": 2,
+          "amountInside": true,
           "height": 44,
-          "body": "생활 소품이 놓인 캠프"
+          "body": "생활 소품이 놓인 캠프",
+          "paddingLeft": 8
         }
       ]
     },
@@ -100,8 +112,10 @@
           "headerOverflow": false,
           "bodyOverflow": false,
           "spacing": 2,
+          "amountInside": true,
           "height": 56,
-          "body": "나는 테스트 중입니다.\n기분 좋은 테스트"
+          "body": "나는 테스트 중입니다.\n기분 좋은 테스트",
+          "paddingLeft": 8
         },
         {
           "kind": "tax",
@@ -111,8 +125,10 @@
           "headerOverflow": false,
           "bodyOverflow": false,
           "spacing": 2,
-          "height": 44,
-          "body": "나는 테스트 중입니다."
+          "amountInside": true,
+          "height": 56,
+          "body": "나는 테스트 중입니다.\n기본 좋은 테스트",
+          "paddingLeft": 8
         }
       ]
     },
@@ -129,8 +145,10 @@
           "headerOverflow": false,
           "bodyOverflow": false,
           "spacing": 2,
+          "amountInside": true,
           "height": 44,
-          "body": "확장 오두막"
+          "body": "확장 오두막",
+          "paddingLeft": 8
         },
         {
           "kind": "tax",
@@ -140,8 +158,10 @@
           "headerOverflow": false,
           "bodyOverflow": false,
           "spacing": 2,
+          "amountInside": true,
           "height": 44,
-          "body": "생활 소품이 놓인 캠프"
+          "body": "생활 소품이 놓인 캠프",
+          "paddingLeft": 8
         }
       ]
     },
@@ -158,8 +178,10 @@
           "headerOverflow": false,
           "bodyOverflow": false,
           "spacing": 2,
+          "amountInside": true,
           "height": 56,
-          "body": "나는 테스트 중입니다.\n기분 좋은 테스트"
+          "body": "나는 테스트 중입니다.\n기분 좋은 테스트",
+          "paddingLeft": 8
         },
         {
           "kind": "tax",
@@ -169,8 +191,10 @@
           "headerOverflow": false,
           "bodyOverflow": false,
           "spacing": 2,
-          "height": 44,
-          "body": "나는 테스트 중입니다."
+          "amountInside": true,
+          "height": 56,
+          "body": "나는 테스트 중입니다.\n기본 좋은 테스트",
+          "paddingLeft": 8
         }
       ]
     },
@@ -187,8 +211,10 @@
           "headerOverflow": false,
           "bodyOverflow": false,
           "spacing": 2,
+          "amountInside": true,
           "height": 44,
-          "body": "확장 오두막"
+          "body": "확장 오두막",
+          "paddingLeft": 8
         },
         {
           "kind": "tax",
@@ -198,8 +224,10 @@
           "headerOverflow": false,
           "bodyOverflow": false,
           "spacing": 2,
+          "amountInside": true,
           "height": 44,
-          "body": "생활 소품이 놓인 캠프"
+          "body": "생활 소품이 놓인 캠프",
+          "paddingLeft": 8
         }
       ]
     },
@@ -216,8 +244,10 @@
           "headerOverflow": false,
           "bodyOverflow": false,
           "spacing": 2,
+          "amountInside": true,
           "height": 56,
-          "body": "나는 테스트 중입니다.\n기분 좋은 테스트"
+          "body": "나는 테스트 중입니다.\n기분 좋은 테스트",
+          "paddingLeft": 8
         },
         {
           "kind": "tax",
@@ -227,8 +257,10 @@
           "headerOverflow": false,
           "bodyOverflow": false,
           "spacing": 2,
-          "height": 44,
-          "body": "나는 테스트 중입니다."
+          "amountInside": true,
+          "height": 56,
+          "body": "나는 테스트 중입니다.\n기본 좋은 테스트",
+          "paddingLeft": 8
         }
       ]
     },
@@ -245,8 +277,10 @@
           "headerOverflow": false,
           "bodyOverflow": false,
           "spacing": 2,
+          "amountInside": true,
           "height": 44,
-          "body": "확장 오두막"
+          "body": "확장 오두막",
+          "paddingLeft": 8
         },
         {
           "kind": "tax",
@@ -256,8 +290,10 @@
           "headerOverflow": false,
           "bodyOverflow": false,
           "spacing": 2,
+          "amountInside": true,
           "height": 44,
-          "body": "생활 소품이 놓인 캠프"
+          "body": "생활 소품이 놓인 캠프",
+          "paddingLeft": 8
         }
       ]
     },
@@ -274,8 +310,10 @@
           "headerOverflow": false,
           "bodyOverflow": false,
           "spacing": 2,
+          "amountInside": true,
           "height": 56,
-          "body": "나는 테스트 중입니다.\n기분 좋은 테스트"
+          "body": "나는 테스트 중입니다.\n기분 좋은 테스트",
+          "paddingLeft": 8
         },
         {
           "kind": "tax",
@@ -285,8 +323,10 @@
           "headerOverflow": false,
           "bodyOverflow": false,
           "spacing": 2,
-          "height": 44,
-          "body": "나는 테스트 중입니다."
+          "amountInside": true,
+          "height": 56,
+          "body": "나는 테스트 중입니다.\n기본 좋은 테스트",
+          "paddingLeft": 8
         }
       ]
     },
@@ -303,8 +343,10 @@
           "headerOverflow": false,
           "bodyOverflow": false,
           "spacing": 2,
+          "amountInside": true,
           "height": 44,
-          "body": "확장 오두막"
+          "body": "확장 오두막",
+          "paddingLeft": 8
         },
         {
           "kind": "tax",
@@ -314,8 +356,10 @@
           "headerOverflow": false,
           "bodyOverflow": false,
           "spacing": 2,
+          "amountInside": true,
           "height": 44,
-          "body": "생활 소품이 놓인 캠프"
+          "body": "생활 소품이 놓인 캠프",
+          "paddingLeft": 8
         }
       ]
     },
@@ -332,8 +376,10 @@
           "headerOverflow": false,
           "bodyOverflow": false,
           "spacing": 2,
+          "amountInside": true,
           "height": 56,
-          "body": "나는 테스트 중입니다.\n기분 좋은 테스트"
+          "body": "나는 테스트 중입니다.\n기분 좋은 테스트",
+          "paddingLeft": 8
         },
         {
           "kind": "tax",
@@ -343,8 +389,10 @@
           "headerOverflow": false,
           "bodyOverflow": false,
           "spacing": 2,
-          "height": 44,
-          "body": "나는 테스트 중입니다."
+          "amountInside": true,
+          "height": 56,
+          "body": "나는 테스트 중입니다.\n기본 좋은 테스트",
+          "paddingLeft": 8
         }
       ]
     },
@@ -361,8 +409,10 @@
           "headerOverflow": false,
           "bodyOverflow": false,
           "spacing": 2,
+          "amountInside": true,
           "height": 44,
-          "body": "확장 오두막"
+          "body": "확장 오두막",
+          "paddingLeft": 8
         },
         {
           "kind": "tax",
@@ -372,8 +422,10 @@
           "headerOverflow": false,
           "bodyOverflow": false,
           "spacing": 2,
+          "amountInside": true,
           "height": 44,
-          "body": "생활 소품이 놓인 캠프"
+          "body": "생활 소품이 놓인 캠프",
+          "paddingLeft": 8
         }
       ]
     },
@@ -390,8 +442,10 @@
           "headerOverflow": false,
           "bodyOverflow": false,
           "spacing": 2,
+          "amountInside": true,
           "height": 56,
-          "body": "나는 테스트 중입니다.\n기분 좋은 테스트"
+          "body": "나는 테스트 중입니다.\n기분 좋은 테스트",
+          "paddingLeft": 8
         },
         {
           "kind": "tax",
@@ -401,8 +455,10 @@
           "headerOverflow": false,
           "bodyOverflow": false,
           "spacing": 2,
-          "height": 44,
-          "body": "나는 테스트 중입니다."
+          "amountInside": true,
+          "height": 56,
+          "body": "나는 테스트 중입니다.\n기본 좋은 테스트",
+          "paddingLeft": 8
         }
       ]
     },
@@ -419,8 +475,10 @@
           "headerOverflow": false,
           "bodyOverflow": false,
           "spacing": 2,
+          "amountInside": true,
           "height": 44,
-          "body": "확장 오두막"
+          "body": "확장 오두막",
+          "paddingLeft": 8
         },
         {
           "kind": "tax",
@@ -430,8 +488,10 @@
           "headerOverflow": false,
           "bodyOverflow": false,
           "spacing": 2,
+          "amountInside": true,
           "height": 44,
-          "body": "생활 소품이 놓인 캠프"
+          "body": "생활 소품이 놓인 캠프",
+          "paddingLeft": 8
         }
       ]
     },
@@ -448,8 +508,10 @@
           "headerOverflow": false,
           "bodyOverflow": false,
           "spacing": 2,
+          "amountInside": true,
           "height": 56,
-          "body": "나는 테스트 중입니다.\n기분 좋은 테스트"
+          "body": "나는 테스트 중입니다.\n기분 좋은 테스트",
+          "paddingLeft": 8
         },
         {
           "kind": "tax",
@@ -459,8 +521,10 @@
           "headerOverflow": false,
           "bodyOverflow": false,
           "spacing": 2,
-          "height": 44,
-          "body": "나는 테스트 중입니다."
+          "amountInside": true,
+          "height": 56,
+          "body": "나는 테스트 중입니다.\n기본 좋은 테스트",
+          "paddingLeft": 8
         }
       ]
     },
@@ -477,8 +541,10 @@
           "headerOverflow": false,
           "bodyOverflow": false,
           "spacing": 2,
+          "amountInside": true,
           "height": 44,
-          "body": "확장 오두막"
+          "body": "확장 오두막",
+          "paddingLeft": 8
         },
         {
           "kind": "tax",
@@ -488,8 +554,10 @@
           "headerOverflow": false,
           "bodyOverflow": false,
           "spacing": 2,
+          "amountInside": true,
           "height": 44,
-          "body": "생활 소품이 놓인 캠프"
+          "body": "생활 소품이 놓인 캠프",
+          "paddingLeft": 8
         }
       ]
     },
@@ -506,8 +574,10 @@
           "headerOverflow": false,
           "bodyOverflow": false,
           "spacing": 2,
+          "amountInside": true,
           "height": 56,
-          "body": "나는 테스트 중입니다.\n기분 좋은 테스트"
+          "body": "나는 테스트 중입니다.\n기분 좋은 테스트",
+          "paddingLeft": 8
         },
         {
           "kind": "tax",
@@ -517,8 +587,10 @@
           "headerOverflow": false,
           "bodyOverflow": false,
           "spacing": 2,
-          "height": 44,
-          "body": "나는 테스트 중입니다."
+          "amountInside": true,
+          "height": 56,
+          "body": "나는 테스트 중입니다.\n기본 좋은 테스트",
+          "paddingLeft": 8
         }
       ]
     },
@@ -535,8 +607,10 @@
           "headerOverflow": false,
           "bodyOverflow": false,
           "spacing": 2,
+          "amountInside": true,
           "height": 44,
-          "body": "확장 오두막"
+          "body": "확장 오두막",
+          "paddingLeft": 8
         },
         {
           "kind": "tax",
@@ -546,8 +620,10 @@
           "headerOverflow": false,
           "bodyOverflow": false,
           "spacing": 2,
+          "amountInside": true,
           "height": 44,
-          "body": "생활 소품이 놓인 캠프"
+          "body": "생활 소품이 놓인 캠프",
+          "paddingLeft": 8
         }
       ]
     },
@@ -564,8 +640,10 @@
           "headerOverflow": false,
           "bodyOverflow": false,
           "spacing": 2,
+          "amountInside": true,
           "height": 56,
-          "body": "나는 테스트 중입니다.\n기분 좋은 테스트"
+          "body": "나는 테스트 중입니다.\n기분 좋은 테스트",
+          "paddingLeft": 8
         },
         {
           "kind": "tax",
@@ -575,8 +653,10 @@
           "headerOverflow": false,
           "bodyOverflow": false,
           "spacing": 2,
-          "height": 44,
-          "body": "나는 테스트 중입니다."
+          "amountInside": true,
+          "height": 56,
+          "body": "나는 테스트 중입니다.\n기본 좋은 테스트",
+          "paddingLeft": 8
         }
       ]
     },
@@ -593,8 +673,10 @@
           "headerOverflow": false,
           "bodyOverflow": false,
           "spacing": 2,
+          "amountInside": true,
           "height": 44,
-          "body": "확장 오두막"
+          "body": "확장 오두막",
+          "paddingLeft": 8
         },
         {
           "kind": "tax",
@@ -604,8 +686,10 @@
           "headerOverflow": false,
           "bodyOverflow": false,
           "spacing": 2,
+          "amountInside": true,
           "height": 44,
-          "body": "생활 소품이 놓인 캠프"
+          "body": "생활 소품이 놓인 캠프",
+          "paddingLeft": 8
         }
       ]
     },
@@ -622,8 +706,10 @@
           "headerOverflow": false,
           "bodyOverflow": false,
           "spacing": 2,
+          "amountInside": true,
           "height": 56,
-          "body": "나는 테스트 중입니다.\n기분 좋은 테스트"
+          "body": "나는 테스트 중입니다.\n기분 좋은 테스트",
+          "paddingLeft": 8
         },
         {
           "kind": "tax",
@@ -633,8 +719,10 @@
           "headerOverflow": false,
           "bodyOverflow": false,
           "spacing": 2,
-          "height": 44,
-          "body": "나는 테스트 중입니다."
+          "amountInside": true,
+          "height": 56,
+          "body": "나는 테스트 중입니다.\n기본 좋은 테스트",
+          "paddingLeft": 8
         }
       ]
     },
@@ -651,8 +739,10 @@
           "headerOverflow": false,
           "bodyOverflow": false,
           "spacing": 2,
+          "amountInside": true,
           "height": 44,
-          "body": "확장 오두막"
+          "body": "확장 오두막",
+          "paddingLeft": 8
         },
         {
           "kind": "tax",
@@ -662,8 +752,10 @@
           "headerOverflow": false,
           "bodyOverflow": false,
           "spacing": 2,
+          "amountInside": true,
           "height": 44,
-          "body": "생활 소품이 놓인 캠프"
+          "body": "생활 소품이 놓인 캠프",
+          "paddingLeft": 8
         }
       ]
     },
@@ -680,8 +772,10 @@
           "headerOverflow": false,
           "bodyOverflow": false,
           "spacing": 2,
+          "amountInside": true,
           "height": 56,
-          "body": "나는 테스트 중입니다.\n기분 좋은 테스트"
+          "body": "나는 테스트 중입니다.\n기분 좋은 테스트",
+          "paddingLeft": 8
         },
         {
           "kind": "tax",
@@ -691,8 +785,10 @@
           "headerOverflow": false,
           "bodyOverflow": false,
           "spacing": 2,
-          "height": 44,
-          "body": "나는 테스트 중입니다."
+          "amountInside": true,
+          "height": 56,
+          "body": "나는 테스트 중입니다.\n기본 좋은 테스트",
+          "paddingLeft": 8
         }
       ]
     }

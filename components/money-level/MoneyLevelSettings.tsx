@@ -126,8 +126,8 @@ export default function MoneyLevelSettingsDialog({
         {(["brokerage", "tax"] as const).map(kind => <fieldset className="object-settings house-text-settings" key={kind}>
           <legend>{kind === "brokerage" ? "위탁집 문구" : "절세집 문구"}</legend>
           <label><span>표시 방식</span><select value={draft[`${kind}TextMode`]} onChange={event => setField(`${kind}TextMode`, event.target.value)}><option value="DEFAULT">기본</option><option value="CUSTOM">커스텀</option></select></label>
-          <label><span>문구</span><textarea rows={kind === "brokerage" ? 2 : 1} disabled={draft[`${kind}TextMode`] !== "CUSTOM"} value={draft[`${kind}CustomText`]} onChange={event => { setField(`${kind}CustomText`, event.target.value); event.target.setCustomValidity(houseTextDraftError(event.target.value, settings[`${kind}CustomText`], kind)); }} aria-label={kind === "brokerage" ? "위탁집 커스텀 문구" : "절세집 커스텀 문구"} /></label>
-          <p>{kind === "brokerage" ? "최대 2줄, 줄당 12자" : "최대 1줄, 18자"}. 기존 저장 문구는 유지하며, 화면에서는 자연스럽게 줄바꿈합니다.</p>
+          <label><span>문구</span><textarea rows={2} disabled={draft[`${kind}TextMode`] !== "CUSTOM"} value={draft[`${kind}CustomText`]} onChange={event => { setField(`${kind}CustomText`, event.target.value); event.target.setCustomValidity(houseTextDraftError(event.target.value, settings[`${kind}CustomText`], kind)); }} aria-label={kind === "brokerage" ? "위탁집 커스텀 문구" : "절세집 커스텀 문구"} /></label>
+          <p>최대 2줄, 줄당 12자. 기존 저장 문구는 유지하며, 화면에서는 자연스럽게 줄바꿈합니다.</p>
         </fieldset>)}
         <div className="dialog-actions">
           <button type="button" className="text-button" onClick={() => setDraft(toDraft(DEFAULT_MONEY_LEVEL_SETTINGS))}>기본값 복원</button>

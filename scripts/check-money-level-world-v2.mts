@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { MoneyLevelSettingsSession, settingsCacheKey, LEGACY_SETTINGS_KEY, type SettingsCloud } from "../lib/money-level/settings-persistence";
-import { normalizeMoneyLevelSettings, resolveHouseText } from "../lib/money-level/settings";
+import { houseTextDraftError, normalizeMoneyLevelSettings, resolveHouseText } from "../lib/money-level/settings";
 import { CharacterActivityCoordinator } from "../lib/money-level/forest/activity-coordinator";
 import { CEREMONY_SLOTS, CEREMONY_SLOT_IDS } from "../lib/money-level/forest/statue-view";
 import { getActivityZone, resolveManualActivityIntent } from "../lib/money-level/forest/activity-zones";
@@ -37,7 +37,13 @@ assert.equal(resolveHouseText(legacy,"brokerage","확장 오두막"),"곰라니�
 assert.equal(resolveHouseText(legacy,"brokerage","다음 stage"),"곰라니의\n조기은퇴 기지");
 assert.equal(resolveHouseText({...legacy,brokerageTextMode:"DEFAULT"},"brokerage","다음 stage"),"다음 stage");
 const limited=normalizeMoneyLevelSettings({...legacy,brokerageCustomText:"가".repeat(50)+"\n둘째\n셋째",taxCustomText:"가".repeat(30)+"\n둘째"});
-assert.equal(limited.brokerageCustomText.split("\n").length,2); assert.equal(Array.from(limited.taxCustomText).length,18);
+assert.equal(limited.brokerageCustomText,"가".repeat(50)+"\n둘째\n셋째"); assert.equal(limited.taxCustomText,"가".repeat(30)+"\n둘째");
+for (const kind of ["brokerage","tax"] as const) {
+  assert.equal(houseTextDraftError("가".repeat(12)+"\n"+"나".repeat(12),"",kind),"");
+  assert.notEqual(houseTextDraftError("가".repeat(13),"",kind),"");
+  assert.notEqual(houseTextDraftError("첫째\n둘째\n셋째","",kind),"");
+  const existing="가".repeat(18)+"\n나".repeat(18); assert.equal(houseTextDraftError(existing,existing,kind),"");
+}
 
 const coordinator = new CharacterActivityCoordinator(async()=>{});
 const occupy = (id:"gorani"|"daramji",slot:typeof CEREMONY_SLOT_IDS[number])=>{const assigned=coordinator.claimCeremony(id,slot); void coordinator.setCharacterActivity(id,"statue-ceremony"); return assigned;};

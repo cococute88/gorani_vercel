@@ -73,17 +73,16 @@ export function normalizeMoneyLevelSettings(
     leftStatue: isStatue(value?.leftStatue) ? value.leftStatue : "none",
     rightStatue: isStatue(value?.rightStatue) ? value.rightStatue : "none",
     brokerageTextMode: value?.brokerageTextMode === "CUSTOM" ? "CUSTOM" : "DEFAULT",
-    brokerageCustomText: normalizeHouseText(value?.brokerageCustomText, 2),
+    brokerageCustomText: normalizeHouseText(value?.brokerageCustomText),
     taxTextMode: value?.taxTextMode === "CUSTOM" ? "CUSTOM" : "DEFAULT",
-    taxCustomText: normalizeHouseText(value?.taxCustomText, 1),
+    taxCustomText: normalizeHouseText(value?.taxCustomText),
   };
 }
 
-/** 18 Unicode characters per line keeps banners legible even on mobile. */
-export function normalizeHouseText(value: unknown, lines: 1 | 2): string {
+/** Hydration sanitizes controls without truncating an existing user preference. */
+export function normalizeHouseText(value: unknown): string {
   if (typeof value !== "string") return "";
-  return value.replace(/\r\n?/g, "\n").replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, "")
-    .split("\n").slice(0, lines).map(line => Array.from(line).slice(0, 18).join("")).join("\n");
+  return value.replace(/\r\n?/g, "\n").replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, "");
 }
 
 export function resolveHouseText(settings: MoneyLevelSettings, kind: "brokerage" | "tax", stageDescription: string): string {
@@ -91,10 +90,10 @@ export function resolveHouseText(settings: MoneyLevelSettings, kind: "brokerage"
 }
 
 /** Editing limits do not reinterpret or truncate previously saved preferences. */
-export function houseTextDraftError(value: string, previous: string, kind: "brokerage" | "tax"): string {
+export function houseTextDraftError(value: string, previous: string, _kind: "brokerage" | "tax"): string {
   if (value === previous) return "";
-  const lines = kind === "brokerage" ? 2 : 1;
-  const characters = kind === "brokerage" ? 12 : 18;
+  const lines = 2;
+  const characters = 12;
   const parts = value.replace(/\r\n?/g, "\n").split("\n");
   return parts.length > lines || parts.some(part => Array.from(part).length > characters)
     ? `최대 ${lines}줄, 줄당 ${characters}자로 입력해주세요.` : "";
