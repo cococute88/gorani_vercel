@@ -36,14 +36,23 @@ const timeBackgrounds = ["morning", "day", "evening", "night"]
   .flatMap((time) => ["sunny", "cloudy", "rain", "storm"]
     .map((weather) => `art/background/forest-${time}-${weather}.webp`));
 const dockedBackgrounds = timeBackgrounds.map((file) => file.replace(/\.webp$/, "-docked.webp"));
+const seasonalBackgrounds = ["spring", "summer", "fall", "winter"].flatMap((season) =>
+  ["morning", "day", "evening", "night"].flatMap((time) =>
+    ["sunny", "cloudy", "rain", "storm", "snow"]
+      .filter((weather) => !(season === "summer" && weather === "snow"))
+      .map((weather) => `art/background/seasonal/forest-${season}-${time}-${weather}.webp`),
+  ),
+);
+const retainedSourceArtifacts = ["art/background/background.zip"];
 const statueMaterials = ["stone", "marble", "wood", "gold", "whitegold", "crystal"];
 const statueAssets = statueMaterials.map((material) => `art/statues/${material}-bear.png`);
 assert.equal(timeBackgrounds.length, 16, "Production must contain the complete 4x4 illustrated background matrix");
 assert.equal(dockedBackgrounds.length, 16, "Each illustrated scene needs its baked connector rendition");
+assert.equal(seasonalBackgrounds.length, 76, "Seasonal Production must contain exactly 76 backgrounds");
 const taxAlphaRenditions = pngMasters.filter(file => file.startsWith("art/houses/tax-stage-"))
   .map(file => file.replace(/\.png$/, "-alpha-v2.webp"));
 assert.equal(taxAlphaRenditions.length, 4, "Each opaque Tax master needs its audited safe-frame alpha rendition");
-const required = [...pngMasters, ...webpRenditions, ...taxAlphaRenditions, ...timeBackgrounds, ...dockedBackgrounds, ...statueAssets];
+const required = [...pngMasters, ...webpRenditions, ...taxAlphaRenditions, ...timeBackgrounds, ...dockedBackgrounds, ...seasonalBackgrounds, ...statueAssets, ...retainedSourceArtifacts];
 
 async function assertExactCase(relativePath) {
   let current = assetRoot;
@@ -68,6 +77,14 @@ for (const file of dockedBackgrounds) {
     assert.equal(header.readUInt32BE(16), width, `Wrong width: ${pngPath}`);
     assert.equal(header.readUInt32BE(20), height, `Wrong height: ${pngPath}`);
   }
+}
+for (const file of seasonalBackgrounds) {
+  const absolute = path.join(assetRoot, file);
+  const info = await stat(absolute);
+  assert(info.size > 100_000, `Seasonal background rendition is unexpectedly small: ${file}`);
+  const header = (await readFile(absolute)).subarray(0, 32);
+  assert.equal(header.toString("ascii", 0, 4), "RIFF", `Expected WebP RIFF header: ${file}`);
+  assert.equal(header.toString("ascii", 8, 12), "WEBP", `Expected WebP payload: ${file}`);
 }
 const sceneComponent = await readFile(path.join(root, "components", "money-level", "MoneyLevelScene.tsx"), "utf8");
 const settingsComponent = await readFile(path.join(root, "lib", "money-level", "settings.ts"), "utf8");
@@ -114,10 +131,9 @@ for (const file of webpRenditions) {
     && (await readFile(path.join(root, "components", "money-level", "MoneyLevelScene.tsx"), "utf8")).includes(publicUrl);
   assert(scene.includes(publicUrl) || fishingRodUsed, `WebP rendition is not used at runtime: ${publicUrl}`);
 }
-for (const file of dockedBackgrounds) {
-  const publicUrl = `/money-level/${file}`;
-  assert(scene.includes(publicUrl), `Time background is not mapped at runtime: ${publicUrl}`);
-}
+// Legacy docked backgrounds remain as a rollback-safe source set while the
+// centralized seasonal manifest is verified in Production.
+assert(scene.includes("FOREST_SEASONAL_BACKGROUND_MANIFEST") && scene.includes("/seasonal/forest-${season}-${time}-${WEATHER_FILE_SUFFIX[weather]}.webp"), "Seasonal backgrounds must resolve through the centralized manifest");
 assert(!`${catalog}\n${scene}`.match(/\/money-level\/art\/[^"']+\.png/), "Runtime scene config must not load environmental PNG masters");
 assert(!`${catalog}\n${scene}`.includes("curation"), "Production config must not import curation assets");
 console.log(`Money Level assets OK: ${actual.length} exact-case files`);

@@ -3,7 +3,13 @@
 
 import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
 import type { MoneyLevelHouseStage } from "@/lib/money-level/house-stages";
-import type { MoneyLevelStatue, MoneyLevelTimeOfDay, MoneyLevelWeather } from "@/lib/money-level/types";
+import type {
+  MoneyLevelForestSpecialEvent,
+  MoneyLevelSceneWeather,
+  MoneyLevelSeason,
+  MoneyLevelStatue,
+  MoneyLevelTimeOfDay,
+} from "@/lib/money-level/types";
 import {
   BEHAVIOR_CONFIG,
   CHARACTER_CONFIG,
@@ -71,6 +77,8 @@ export default function MoneyLevelScene({
   brokerageLevel,
   taxLevel,
   weather,
+  season,
+  specialEvent,
   timeOfDay,
   ambientEnabled,
   previewOverridesEnabled,
@@ -86,7 +94,9 @@ export default function MoneyLevelScene({
   taxValue: number;
   brokerageLevel: number;
   taxLevel: number;
-  weather: MoneyLevelWeather;
+  weather: MoneyLevelSceneWeather;
+  season: MoneyLevelSeason;
+  specialEvent: MoneyLevelForestSpecialEvent;
   timeOfDay: MoneyLevelTimeOfDay;
   ambientEnabled: boolean;
   previewOverridesEnabled: boolean;
@@ -97,6 +107,8 @@ export default function MoneyLevelScene({
   phrase: string;
 }) {
   const sceneRef = useRef<HTMLElement>(null);
+  const weatherRef = useRef(weather);
+  weatherRef.current = weather;
   const lightingFilterId = `world-object-lighting-${useId().replace(/:/g, "")}`;
   const stageRef = useRef<HTMLDivElement>(null);
   const cameraRef = useRef(createForestCamera(1320, 520, false));
@@ -146,8 +158,6 @@ export default function MoneyLevelScene({
     const initialization = new AbortController();
     let stage: SpineStage | null = null;
     let interactionTimer = 0;
-    let lightningTimer = 0;
-    let lightningResetTimer = 0;
     const cleanupListeners: Array<() => void> = [];
     const mobile = () => window.innerWidth <= MOBILE_BREAKPOINT;
     const states: Record<CharacterId, CharacterState> = {
@@ -164,21 +174,6 @@ export default function MoneyLevelScene({
     activeRuntimeCount += 1;
     stageElement.dataset.activeRuntimeCount = String(activeRuntimeCount);
     setCharacterError(false);
-
-    const lightning = scene.querySelector<HTMLElement>(".lightning-layer");
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const scheduleLightning = () => {
-      if (weather !== "thunderstorm" || !ambientEnabled || reducedMotion || !lightning) return;
-      lightningTimer = window.setTimeout(() => {
-        lightning.dataset.flashCount = String(Number(lightning.dataset.flashCount ?? "0") + 1);
-        lightning.classList.add("is-flashing");
-        lightningResetTimer = window.setTimeout(() => {
-          lightning.classList.remove("is-flashing");
-          scheduleLightning();
-        }, 1_050);
-      }, 18_000 + Math.random() * 20_000);
-    };
-    scheduleLightning();
 
     const worldPlacement = (id: CharacterId) => {
       const viewportHeight = 270;
@@ -221,7 +216,7 @@ export default function MoneyLevelScene({
       controllers[id] = new ForestBehaviorController({
         id,
         state: states[id],
-        weather: () => weather,
+        weather: () => weatherRef.current === "snow" ? "cloudy" : weatherRef.current,
         mobile,
         activities,
         statues: () => statuesRef.current,
@@ -546,9 +541,6 @@ export default function MoneyLevelScene({
       reprojectCharactersRef.current = null;
       initialization.abort();
       window.clearInterval(interactionTimer);
-      window.clearTimeout(lightningTimer);
-      window.clearTimeout(lightningResetTimer);
-      lightning?.classList.remove("is-flashing");
       if (dragSession) window.clearTimeout(dragSession.timer);
       window.cancelAnimationFrame(edgeFrame);
       scene.classList.remove("is-character-dragging");
@@ -568,7 +560,33 @@ export default function MoneyLevelScene({
         delete window.__MONEY_LEVEL_DEBUG__;
       }
     };
-  }, [ambientEnabled, previewOverridesEnabled, runtimeVersion, weather]);
+  }, [previewOverridesEnabled, runtimeVersion]);
+
+  useEffect(() => {
+    const lightning = sceneRef.current?.querySelector<HTMLElement>(".lightning-layer");
+    if (weather !== "thunderstorm" || !ambientEnabled || !lightning || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let flashTimer = 0;
+    let resetTimer = 0;
+    let cancelled = false;
+    const schedule = () => {
+      flashTimer = window.setTimeout(() => {
+        if (cancelled) return;
+        lightning.dataset.flashCount = String(Number(lightning.dataset.flashCount ?? "0") + 1);
+        lightning.classList.add("is-flashing");
+        resetTimer = window.setTimeout(() => {
+          lightning.classList.remove("is-flashing");
+          schedule();
+        }, 1_050);
+      }, 18_000 + Math.random() * 20_000);
+    };
+    schedule();
+    return () => {
+      cancelled = true;
+      window.clearTimeout(flashTimer);
+      window.clearTimeout(resetTimer);
+      lightning.classList.remove("is-flashing");
+    };
+  }, [ambientEnabled, weather]);
 
   const statuePlacements = {
     left: statueSlotPlacement("left", sceneSize, sceneSize.mobile),
@@ -584,7 +602,7 @@ export default function MoneyLevelScene({
   } as CSSProperties;
 
   return (
-    <section ref={sceneRef} className="forest-scene" data-ambient={ambientEnabled ? "on" : "off"} aria-label="고라니와 다람쥐가 사는 숲">
+    <section ref={sceneRef} className="forest-scene" data-ambient={ambientEnabled ? "on" : "off"} data-special-event={specialEvent} aria-label="고라니와 다람쥐가 사는 숲">
       <svg width="0" height="0" aria-hidden="true" style={{ position: "absolute" }}>
         <defs>
           <filter id={lightingFilterId} colorInterpolationFilters="sRGB" x="0%" y="0%" width="100%" height="100%">
@@ -626,7 +644,7 @@ export default function MoneyLevelScene({
         </defs>
       </svg>
       <div className="scene-world" style={worldObjectStyle}>
-        <WeatherBackground timeOfDay={timeOfDay} weather={weather} />
+        <WeatherBackground season={season} timeOfDay={timeOfDay} weather={weather} />
         {ambientEnabled ? <div className="pond-shimmer-layer ambient-motion-layer" aria-hidden="true" /> : null}
         <div className="house-place brokerage-house"><HouseVisual kind="brokerage" stage={brokerageStage} sceneSize={sceneSize} /></div>
         <div className="house-place tax-house"><HouseVisual kind="tax" stage={taxStage} sceneSize={sceneSize} /></div>
@@ -640,6 +658,7 @@ export default function MoneyLevelScene({
           <CharacterAnchor id="gorani" layer="shadow" /><CharacterAnchor id="daramji" layer="shadow" />
         </div>
       </div>
+      {ambientEnabled && specialEvent === "payday-leaf-shower" ? <PaydayLeafShower layer="far" count={48} /> : null}
       {/* Render only the camera viewport, not a translated/clipped full-world canvas. */}
       <div ref={stageRef} className="spine-forest-stage" data-runtime-version={runtimeVersion} />
       <div className="scene-activity-layer" aria-hidden="true">
@@ -655,9 +674,10 @@ export default function MoneyLevelScene({
         <CharacterAnchor id="gorani" layer="hit" /><CharacterAnchor id="daramji" layer="hit" />
       </div>
       {ambientEnabled ? <>
-        <div className={`wind-layer wind-${resolveMoneyLevelWindIntensity(weather)} ambient-motion-layer`} aria-hidden="true">
+        <div className={`wind-layer wind-${specialEvent === "normal-windy" ? "breeze" : resolveMoneyLevelWindIntensity(weather)} ambient-motion-layer`} aria-hidden="true">
           {Array.from({ length: 8 }, (_, index) => <i key={index} style={{ "--i": index } as CSSProperties} />)}
         </div>
+        {specialEvent === "payday-leaf-shower" ? <PaydayLeafShower layer="front" count={72} /> : null}
         <div className="rain-layer ambient-motion-layer" aria-hidden="true">{Array.from({ length: 72 }, (_, index) => <i key={index} className={`rain-depth-${index % 3}`} style={rainDropStyle(index)} />)}</div>
         <div className="pond-ripple-layer ambient-motion-layer" aria-hidden="true">{POND_RIPPLES.map((ripple, index) => <i key={index} style={rippleStyle(ripple, index)} />)}</div>
         <div className="lightning-layer ambient-motion-layer" aria-hidden="true" />
@@ -672,8 +692,8 @@ export default function MoneyLevelScene({
   );
 }
 
-function WeatherBackground({ timeOfDay, weather }: { timeOfDay: MoneyLevelTimeOfDay; weather: MoneyLevelWeather }) {
-  const requestedSrc = resolveForestBackground(timeOfDay, weather);
+function WeatherBackground({ season, timeOfDay, weather }: { season: MoneyLevelSeason; timeOfDay: MoneyLevelTimeOfDay; weather: MoneyLevelSceneWeather }) {
+  const requestedSrc = resolveForestBackground(season, timeOfDay, weather);
   const activeSrcRef = useRef(requestedSrc);
   const transitionTimerRef = useRef(0);
   const frameRef = useRef(0);
@@ -717,6 +737,46 @@ function WeatherBackground({ timeOfDay, weather }: { timeOfDay: MoneyLevelTimeOf
       <img className={`scene-background scene-background-current${previousSrc && !revealed ? " is-entering" : ""}`} src={activeSrc} alt={FOREST_SCENE.background.alt} draggable={false} />
     </div>
   );
+}
+
+function PaydayLeafShower({ layer, count }: { layer: "far" | "front"; count: number }) {
+  return (
+    <div
+      className={`payday-leaf-shower payday-leaf-shower-${layer} ambient-motion-layer`}
+      data-leaf-count={count}
+      aria-hidden="true"
+    >
+      {Array.from({ length: count }, (_, index) => <i key={index} style={paydayLeafStyle(index, layer)} />)}
+    </div>
+  );
+}
+
+function paydayLeafStyle(index: number, layer: "far" | "front"): CSSProperties {
+  const front = layer === "front";
+  const seed = index + (front ? 47 : 3);
+  const size = (front ? 19 : 12) + (seed * 7 % (front ? 13 : 9));
+  const speed = (front ? 9.2 : 14.5) + (seed * 13 % 55) / 10;
+  const turn = 520 + (seed * 47 % 620);
+  const sway = -34 + (seed * 19 % 69);
+  const palette = front
+    ? ["#6bbd3f", "#a7da4f", "#43a946", "#c6e95c", "#55c05d"]
+    : ["#86c94f", "#b9e269", "#61b64f", "#9fd45a"];
+  return {
+    "--payday-leaf-x": `${-4 + (seed * 37 + index * 11) % 109}%`,
+    "--payday-leaf-size": `${size}px`,
+    "--payday-leaf-speed": `${speed.toFixed(1)}s`,
+    "--payday-leaf-delay": `${-((seed * 2.73) % speed).toFixed(2)}s`,
+    "--payday-leaf-color": palette[seed % palette.length],
+    "--payday-leaf-sway-a": `${Math.round(sway * -.7)}px`,
+    "--payday-leaf-sway-b": `${sway}px`,
+    "--payday-leaf-sway-c": `${Math.round(sway * -.45)}px`,
+    "--payday-leaf-sway-end": `${Math.round(sway * .65)}px`,
+    "--payday-leaf-turn-a": `${Math.round(turn * .28)}deg`,
+    "--payday-leaf-turn-b": `${Math.round(turn * .55)}deg`,
+    "--payday-leaf-turn-c": `${Math.round(turn * .82)}deg`,
+    "--payday-leaf-turn": `${turn}deg`,
+    "--payday-leaf-opacity": front ? (.82 + (seed % 4) * .05).toFixed(2) : (.6 + (seed % 4) * .06).toFixed(2),
+  } as CSSProperties;
 }
 
 const POND_RIPPLES = [
@@ -786,6 +846,6 @@ function CharacterAnchor({ id, layer }: { id: CharacterId; layer: "shadow" | "hi
   return <span className="character-anchor character-hit-anchor" data-character-anchor={id}><span className="character-hit-target" id={`${id}-drag-target`} role="button" aria-label={`${id === "gorani" ? "고라니" : "다람쥐"} 옮기기`} tabIndex={0} style={style} /></span>;
 }
 
-function weatherLabel(value: MoneyLevelWeather): string { return ({ sunny: "맑음", cloudy: "흐림", rain: "비", thunderstorm: "천둥번개" } as const)[value]; }
-function weatherIcon(value: MoneyLevelWeather): string { return ({ sunny: "☀", cloudy: "☁", rain: "☂", thunderstorm: "ϟ" } as const)[value]; }
+function weatherLabel(value: MoneyLevelSceneWeather): string { return ({ sunny: "맑음", cloudy: "흐림", rain: "비", thunderstorm: "천둥번개", snow: "눈" } as const)[value]; }
+function weatherIcon(value: MoneyLevelSceneWeather): string { return ({ sunny: "☀", cloudy: "☁", rain: "☂", thunderstorm: "ϟ", snow: "❄" } as const)[value]; }
 function timeLabel(value: MoneyLevelTimeOfDay): string { return ({ morning: "아침", day: "낮", evening: "저녁", night: "밤" } as const)[value]; }

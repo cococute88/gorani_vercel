@@ -1,5 +1,6 @@
 import type { MoneyLevelHouseArt } from "../house-stages";
-import type { MoneyLevelTimeOfDay, MoneyLevelWeather } from "../types";
+import type { MoneyLevelSceneWeather, MoneyLevelSeason, MoneyLevelTimeOfDay } from "../types";
+import { FOREST_SEASONS, FOREST_TIMES, isSeasonWeatherAvailable } from "./seasonal-backgrounds";
 import { TAX_VISUAL_FRAMES, type HouseVisualFrame } from "./tax-artwork";
 
 export interface SceneAsset {
@@ -9,37 +10,34 @@ export interface SceneAsset {
   visualFrame?: HouseVisualFrame;
 }
 
-export const FOREST_BACKGROUND_FALLBACK = "/money-level/art/background/forest-day-sunny-docked.webp";
-
-export const FOREST_WEATHER_BACKGROUNDS: Record<MoneyLevelTimeOfDay, Record<MoneyLevelWeather, string>> = {
-  morning: {
-    sunny: "/money-level/art/background/forest-morning-sunny-docked.webp",
-    cloudy: "/money-level/art/background/forest-morning-cloudy-docked.webp",
-    rain: "/money-level/art/background/forest-morning-rain-docked.webp",
-    thunderstorm: "/money-level/art/background/forest-morning-storm-docked.webp",
-  },
-  day: {
-    sunny: "/money-level/art/background/forest-day-sunny-docked.webp",
-    cloudy: "/money-level/art/background/forest-day-cloudy-docked.webp",
-    rain: "/money-level/art/background/forest-day-rain-docked.webp",
-    thunderstorm: "/money-level/art/background/forest-day-storm-docked.webp",
-  },
-  evening: {
-    sunny: "/money-level/art/background/forest-evening-sunny-docked.webp",
-    cloudy: "/money-level/art/background/forest-evening-cloudy-docked.webp",
-    rain: "/money-level/art/background/forest-evening-rain-docked.webp",
-    thunderstorm: "/money-level/art/background/forest-evening-storm-docked.webp",
-  },
-  night: {
-    sunny: "/money-level/art/background/forest-night-sunny-docked.webp",
-    cloudy: "/money-level/art/background/forest-night-cloudy-docked.webp",
-    rain: "/money-level/art/background/forest-night-rain-docked.webp",
-    thunderstorm: "/money-level/art/background/forest-night-storm-docked.webp",
-  },
+export const FOREST_BACKGROUND_FALLBACK = "/money-level/art/background/seasonal/forest-spring-day-sunny.webp";
+const WEATHER_FILE_SUFFIX: Record<MoneyLevelSceneWeather, string> = {
+  sunny: "sunny",
+  cloudy: "cloudy",
+  rain: "rain",
+  thunderstorm: "storm",
+  snow: "snow",
 };
 
-export function resolveForestBackground(time: MoneyLevelTimeOfDay, weather: MoneyLevelWeather): string {
-  return FOREST_WEATHER_BACKGROUNDS[time]?.[weather] ?? FOREST_BACKGROUND_FALLBACK;
+export type ForestBackgroundKey = `${MoneyLevelSeason}/${MoneyLevelTimeOfDay}/${MoneyLevelSceneWeather}`;
+
+export const FOREST_SEASONAL_BACKGROUND_MANIFEST: Readonly<Partial<Record<ForestBackgroundKey, string>>> = Object.freeze(
+  Object.fromEntries(FOREST_SEASONS.flatMap((season) => FOREST_TIMES.flatMap((time) =>
+    (Object.keys(WEATHER_FILE_SUFFIX) as MoneyLevelSceneWeather[])
+      .filter((weather) => isSeasonWeatherAvailable(season, weather))
+      .map((weather) => [
+        `${season}/${time}/${weather}`,
+        `/money-level/art/background/seasonal/forest-${season}-${time}-${WEATHER_FILE_SUFFIX[weather]}.webp`,
+      ]),
+  ))) as Partial<Record<ForestBackgroundKey, string>>,
+);
+
+export function resolveForestBackground(
+  season: MoneyLevelSeason,
+  time: MoneyLevelTimeOfDay,
+  weather: MoneyLevelSceneWeather,
+): string {
+  return FOREST_SEASONAL_BACKGROUND_MANIFEST[`${season}/${time}/${weather}`] ?? FOREST_BACKGROUND_FALLBACK;
 }
 
 const TAX_CAMP_PLUS: SceneAsset = {

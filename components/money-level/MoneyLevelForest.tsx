@@ -20,6 +20,7 @@ import {
 } from "@/lib/money-level/finance";
 import { resolveMoneyLevelPortfolioHouses } from "@/lib/money-level/house-stages";
 import { resolveForestBackground } from "@/lib/money-level/forest/scene-config";
+import { formatCalendarDate, millisecondsUntilNextSeoulBoundary } from "@/lib/money-level/forest/seoul-time";
 import { calculateRetirementProgress } from "@/lib/money-level/retirement";
 import { resolveHouseText } from "@/lib/money-level/settings";
 import { useMoneyLevelSettings } from "@/lib/money-level/use-money-level-settings";
@@ -66,8 +67,29 @@ export default function MoneyLevelForest({ previewOverridesEnabled }: { previewO
   const [phrase, setPhrase] = useState<(typeof phrases)[number]>(phrases[0]);
   const [syncMessage, setSyncMessage] = useState<SyncMessage>(null);
   const [manualLiveAccepted, setManualLiveAccepted] = useState(false);
-  const [now] = useState(() => new Date());
+  const [now, setNow] = useState(() => new Date());
   const marketWeather = useMoneyLevelMarketWeather(now, previewOverridesEnabled);
+
+  useEffect(() => {
+    let timer = 0;
+    const schedule = () => {
+      window.clearTimeout(timer);
+      const current = new Date();
+      setNow(current);
+      timer = window.setTimeout(schedule, millisecondsUntilNextSeoulBoundary(current));
+    };
+    timer = window.setTimeout(schedule, millisecondsUntilNextSeoulBoundary(now));
+    const refreshWhenVisible = () => { if (!document.hidden) schedule(); };
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    window.addEventListener("focus", refreshWhenVisible);
+    return () => {
+      window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+      window.removeEventListener("focus", refreshWhenVisible);
+    };
+  // The scheduler owns subsequent Date values; adding now would reschedule twice.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     setLastGood(readStoredSnapshot());
@@ -155,11 +177,15 @@ export default function MoneyLevelForest({ previewOverridesEnabled }: { previewO
         data-brokerage-stage={snapshot ? calculations.houses.brokerage.art : ""}
         data-tax-stage={snapshot ? calculations.houses.taxAdvantaged.art : ""}
         data-weather={weather}
+        data-season={marketWeather.season}
+        data-special-event={marketWeather.specialEvent}
+        data-seoul-date={formatCalendarDate(marketWeather.calendarDate)}
+        data-actual-payday={formatCalendarDate(marketWeather.actualPayday)}
         data-weather-fallback={String(marketWeather.fallback)}
         data-time-of-day={timeOfDay}
         data-ambient={marketWeather.ambientEnabled ? "on" : "off"}
       >
-        <main className={`forest-shell weather-${weather} time-${timeOfDay}${marketWeather.ambientEnabled ? "" : " ambient-off"}`}>
+        <main className={`forest-shell season-${marketWeather.season} weather-${weather} event-${marketWeather.specialEvent} time-${timeOfDay}${marketWeather.ambientEnabled ? "" : " ambient-off"}`}>
           <section className="forest-card" aria-label="곰라니 머니레벨 숲">
             <header className="topbar">
               <div className="brand-lockup"><span className="brand-mark" aria-hidden="true">♧</span><div><p>나의 작은 자산 숲</p><h1>곰라니 머니레벨</h1></div></div>
@@ -186,6 +212,8 @@ export default function MoneyLevelForest({ previewOverridesEnabled }: { previewO
                 brokerageLevel={calculations.brokerageLevel}
                 taxLevel={calculations.taxLevel}
                 weather={weather}
+                season={marketWeather.season}
+                specialEvent={marketWeather.specialEvent}
                 timeOfDay={timeOfDay}
                 ambientEnabled={marketWeather.ambientEnabled}
                 previewOverridesEnabled={previewOverridesEnabled}
@@ -197,7 +225,7 @@ export default function MoneyLevelForest({ previewOverridesEnabled }: { previewO
               />
             ) : (
               <section className="forest-scene forest-empty" aria-label="포트폴리오 데이터 대기 중">
-                <div className="scene-illustration" aria-hidden="true"><img src={resolveForestBackground(timeOfDay, weather)} alt="" draggable={false} /></div>
+                <div className="scene-illustration" aria-hidden="true"><img src={resolveForestBackground(marketWeather.season, timeOfDay, weather)} alt="" draggable={false} /></div>
                 <div className="empty-forest-copy" role="status"><strong>{live.syncStatus === "loading" ? "숲을 불러오는 중이에요…" : "포트폴리오 데이터를 아직 불러오지 못했어요."}</strong><Link href="/portfolio">포트폴리오 보기</Link></div>
               </section>
             )}
@@ -264,6 +292,9 @@ function MarketWeatherDebug({ state }: { state: MoneyLevelWeatherState }) {
       <span>change: {data ? `${data.changePct.toFixed(4)}%` : "unavailable"}</span>
       <span>resolved: {data?.resolvedWeather ?? "unavailable"}</span>
       <span>displayed: {state.weather}</span>
+      <span>season/event: {state.season} / {state.specialEvent}</span>
+      <span>Seoul date/payday: {formatCalendarDate(state.calendarDate)} / {formatCalendarDate(state.actualPayday)}</span>
+      <span>holiday data: {state.holidayDataQuality}</span>
       <span>time: {state.timeOfDay}</span>
       <span>source: {data?.source ?? "none"} · fallback: {String(state.fallback)}</span>
     </aside>

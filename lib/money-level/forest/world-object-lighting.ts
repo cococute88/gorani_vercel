@@ -1,4 +1,4 @@
-import type { MoneyLevelTimeOfDay, MoneyLevelWeather } from "../types";
+import type { MoneyLevelSceneWeather, MoneyLevelTimeOfDay } from "../types";
 
 type AmbientGrade = {
   brightness: number;
@@ -21,6 +21,7 @@ export const HOUSE_AMBIENT_WEATHER = {
   cloudy: { color: "#7d8a98", opacity: .015 },
   rain: { color: "#607d96", opacity: .02 },
   thunderstorm: { color: "#465b79", opacity: .025 },
+  snow: { color: "#d8e6ed", opacity: .018 },
 } as const;
 
 // Night weather is a complete material grade: do not multiply another weather
@@ -30,6 +31,7 @@ export const HOUSE_NIGHT_LIGHTING = {
   cloudy: { saturation: .84, shadowColor: "#193951", shadowOpacity: .20, lightColor: "#446b9e" },
   rain: { saturation: .82, shadowColor: "#103e59", shadowOpacity: .20, lightColor: "#2e789d" },
   thunderstorm: { saturation: .80, shadowColor: "#132b49", shadowOpacity: .22, lightColor: "#3b6397" },
+  snow: { saturation: .82, shadowColor: "#1d405d", shadowOpacity: .19, lightColor: "#7396b8" },
 } as const;
 
 type HouseAmbientLighting = {
@@ -41,7 +43,7 @@ type HouseAmbientLighting = {
 
 /** Material-independent Brokerage/Tax lighting. Approved non-Night grades keep
  * their single subtle tint; Night adds a stronger shadow + moonlight composite. */
-export function getHouseAmbientLighting(time: MoneyLevelTimeOfDay, weather: MoneyLevelWeather): HouseAmbientLighting {
+export function getHouseAmbientLighting(time: MoneyLevelTimeOfDay, weather: MoneyLevelSceneWeather): HouseAmbientLighting {
   if (time === "night") {
     const night = HOUSE_NIGHT_LIGHTING[weather];
     return { color: night.shadowColor, opacity: night.shadowOpacity, blendMode: "multiply",
@@ -74,7 +76,7 @@ const TIME_LIGHTING: Record<MoneyLevelTimeOfDay, {
   night: { houseBrightness: .67, statueBrightness: .69, saturation: .84, sepia: 0, hueRotateDeg: 0, contrast: .94, rgb: [.73, .88, 1.08] },
 };
 
-const WEATHER_LIGHTING: Record<MoneyLevelWeather, {
+const WEATHER_LIGHTING: Record<MoneyLevelSceneWeather, {
   brightness: number;
   saturation: number;
   hueRotateDeg: number;
@@ -84,6 +86,7 @@ const WEATHER_LIGHTING: Record<MoneyLevelWeather, {
   cloudy: { brightness: .96, saturation: .96, hueRotateDeg: 0, rgb: [.98, 1, 1.015] },
   rain: { brightness: .91, saturation: .94, hueRotateDeg: 0, rgb: [.95, .99, 1.035] },
   thunderstorm: { brightness: .82, saturation: .9, hueRotateDeg: 0, rgb: [.91, .97, 1.045] },
+  snow: { brightness: .95, saturation: .92, hueRotateDeg: 0, rgb: [.96, 1.01, 1.045] },
 };
 
 function grade(brightness: number, saturation: number, sepia: number, hueRotateDeg: number, contrast: number, rgb: readonly number[]): AmbientGrade {
@@ -102,7 +105,7 @@ function grade(brightness: number, saturation: number, sepia: number, hueRotateD
   };
 }
 
-export function getWorldObjectLighting(time: MoneyLevelTimeOfDay, weather: MoneyLevelWeather): {
+export function getWorldObjectLighting(time: MoneyLevelTimeOfDay, weather: MoneyLevelSceneWeather): {
   house: AmbientGrade;
   statue: AmbientGrade;
 } {
@@ -139,4 +142,5 @@ export const HOUSE_WEATHER_LIGHTING = {
   cloudy: { saturation: .86, rgb: [.98, 1, 1.015] },
   rain: { saturation: .84, rgb: [.95, .99, 1.035] },
   thunderstorm: { saturation: .82, rgb: [.91, .97, 1.045] },
-} satisfies Record<MoneyLevelWeather, { saturation: number; rgb: number[] }>;
+  snow: { saturation: .86, rgb: [.96, 1.01, 1.045] },
+} satisfies Record<MoneyLevelSceneWeather, { saturation: number; rgb: number[] }>;

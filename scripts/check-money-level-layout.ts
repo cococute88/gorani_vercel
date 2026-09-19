@@ -37,8 +37,8 @@ function webpSize(file: string): { width: number; height: number } {
 
 for (const time of ["morning", "day", "evening", "night"] as const) {
   for (const [weather, fileWeather] of [["sunny", "sunny"], ["cloudy", "cloudy"], ["rain", "rain"], ["thunderstorm", "storm"]] as const) {
-    const url = `/money-level/art/background/forest-${time}-${fileWeather}-docked.webp`;
-    assert.equal(resolveForestBackground(time as MoneyLevelTimeOfDay, weather as MoneyLevelWeather), url);
+    const url = `/money-level/art/background/seasonal/forest-summer-${time}-${fileWeather}.webp`;
+    assert.equal(resolveForestBackground("summer", time as MoneyLevelTimeOfDay, weather as MoneyLevelWeather), url);
     assert.deepEqual(webpSize(path.join(root, "public", url)), { width: 1683, height: 935 });
     const candidate = readFileSync(path.join(root, `art-review/money-level/new-layout/hybrid/forest-${time}-${fileWeather}.png`));
     assert.equal(candidate.readUInt32BE(16), 1683);
