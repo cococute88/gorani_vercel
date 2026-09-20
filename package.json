@@ -73,6 +73,8 @@
     "check:money-level-mobile": "npx --yes tsx scripts/check-money-level-mobile.mts",
     "check:money-level-mobile-browser": "node scripts/check-money-level-mobile-browser.mjs",
     "check:money-level-house-lighting": "npx --yes tsx scripts/check-money-level-house-lighting.mts",
+    "check:money-level-house-hotfix": "npx --yes tsx scripts/check-money-level-house-hotfix.mts",
+    "check:money-level-house-hotfix-browser": "node scripts/check-money-level-house-hotfix-browser.mjs",
     "check:money-level-follow-up-browser": "node scripts/check-money-level-follow-up-browser.mjs",
     "check:money-level-world-follow-up": "npx --yes tsx scripts/check-money-level-world-follow-up.mts",
     "check:money-level-world-v2": "npx --yes tsx scripts/check-money-level-world-v2.mts",

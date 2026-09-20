@@ -6,6 +6,40 @@ export interface HouseVisualFrame {
   ground: { x: number; y: number };
   visibleBounds: readonly [number, number, number, number];
 }
+
+const temporaryFrame = (
+  canvas: HouseVisualFrame["canvas"],
+  visibleBounds: HouseVisualFrame["visibleBounds"],
+  ground: HouseVisualFrame["ground"],
+  referenceWidth = 1536,
+): HouseVisualFrame => {
+  const referenceScale = referenceWidth / 1536;
+  return {
+    canvas,
+    reference: {
+      width: referenceWidth,
+      height: 1024 * referenceScale,
+      ground: { x: referenceWidth / 2, y: 900 * referenceScale },
+    },
+    ground,
+    visibleBounds,
+  };
+};
+
+/** Temporary user-approved art frames. Source pixels remain unwarped; only
+ * render scale and the real ground contact are normalized. */
+export const TEMPORARY_HOUSE_VISUAL_FRAMES = {
+  "camp-spring-summer": temporaryFrame({ width: 1536, height: 1024 }, [65, 241, 1436, 926], { x: 751, y: 925 }),
+  "camp-fall": temporaryFrame({ width: 1536, height: 1024 }, [65, 160, 1450, 942], { x: 758, y: 941 }),
+  // The winter camp's source illustration is about 12% narrower than the
+  // other seasonal camps, so normalize it with uniform scale only.
+  "camp-winter": temporaryFrame({ width: 1536, height: 1024 }, [124, 306, 1325, 930], { x: 725, y: 929 }, 1345),
+  "tent-neutral": temporaryFrame({ width: 1448, height: 1086 }, [126, 72, 1369, 1017], { x: 748, y: 1016 }),
+  "tent-yellow": temporaryFrame({ width: 1536, height: 1024 }, [35, 20, 1493, 977], { x: 764, y: 976 }),
+  "house-fall": temporaryFrame({ width: 1448, height: 1086 }, [2, 11, 1444, 1049], { x: 723, y: 1048 }),
+  "house-winter": temporaryFrame({ width: 1536, height: 1024 }, [50, 13, 1486, 971], { x: 768, y: 970 }),
+} satisfies Record<string, HouseVisualFrame>;
+
 const frame = (visibleBounds: HouseVisualFrame["visibleBounds"]): HouseVisualFrame => ({
   canvas: { width: 1536, height: 1024 },
   reference: { width: 1536, height: 1024, ground: { x: 768, y: 900 } },

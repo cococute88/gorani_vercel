@@ -26,7 +26,7 @@ import { cameraTranslation, clampCameraX, createForestCamera, edgePanSpeed, reso
 import { FISHING_VISUAL_CONFIG, fishingRodGeometry, GORANI_BENCH_VISUAL_OFFSET_Y_PX, type SemanticActivityZone } from "@/lib/money-level/forest/activity-zones";
 import { FISHING_BOBBER, fishingLineAngleDeg, projectForestPoint, statueSlotPlacement } from "@/lib/money-level/forest/landmarks";
 import { perspectiveScale, setForestSceneViewport, imagePointToScene, type ScenePoint } from "@/lib/money-level/forest/navigation";
-import { FOREST_SCENE, HOUSE_ART_FAMILY, resolveForestBackground } from "@/lib/money-level/forest/scene-config";
+import { FOREST_SCENE, HOUSE_ART_FAMILY, resolveForestBackground, resolveForestHouseAsset } from "@/lib/money-level/forest/scene-config";
 import { brokerageHouseLabelPoint, houseWorldToViewport, taxHouseLabelPoint, TAX_LABEL_WORLD } from "@/lib/money-level/forest/house-geometry";
 import { resolveHouseVisualFrame, type HouseVisualFrame } from "@/lib/money-level/forest/tax-artwork";
 import type { SceneAsset } from "@/lib/money-level/forest/scene-config";
@@ -596,6 +596,8 @@ export default function MoneyLevelScene({
   const houseAmbient = getHouseAmbientLighting(timeOfDay, weather);
   const ambientOpacity = houseAmbientEnabled ? houseAmbient.opacity : 0;
   const nightAmbient = houseAmbientEnabled ? houseAmbient.night : null;
+  const brokerageHouseAsset = resolveForestHouseAsset(season, brokerageStage.art);
+  const taxHouseAsset = resolveForestHouseAsset(season, taxStage.art);
   const worldObjectStyle = {
     "--money-level-house-lighting": `${objectLighting.house.filter} url(#${lightingFilterId})`,
     "--money-level-statue-lighting": `${objectLighting.statue.filter} url(#${lightingFilterId}-statue)`,
@@ -646,8 +648,8 @@ export default function MoneyLevelScene({
       <div className="scene-world" style={worldObjectStyle}>
         <WeatherBackground season={season} timeOfDay={timeOfDay} weather={weather} />
         {ambientEnabled ? <div className="pond-shimmer-layer ambient-motion-layer" aria-hidden="true" /> : null}
-        <div className="house-place brokerage-house"><HouseVisual kind="brokerage" stage={brokerageStage} sceneSize={sceneSize} /></div>
-        <div className="house-place tax-house"><HouseVisual kind="tax" stage={taxStage} sceneSize={sceneSize} /></div>
+        <div className="house-place brokerage-house"><HouseVisual kind="brokerage" stage={brokerageStage} sceneSize={sceneSize} asset={brokerageHouseAsset} /></div>
+        <div className="house-place tax-house"><HouseVisual kind="tax" stage={taxStage} sceneSize={sceneSize} asset={taxHouseAsset} /></div>
         {(["left", "right"] as const).map((slot) => {
           const statue = slot === "left" ? leftStatue : rightStatue;
           if (statue === "none") return null;
@@ -683,8 +685,8 @@ export default function MoneyLevelScene({
         <div className="lightning-layer ambient-motion-layer" aria-hidden="true" />
       </> : null}
       <div className="scene-label-layer">
-        <HouseLabel kind="brokerage" text={brokerageText} value={brokerageValue} displayLevel={brokerageLevel} sceneSize={sceneSize} />
-        <HouseLabel kind="tax" text={taxText} value={taxValue} displayLevel={taxLevel} sceneSize={sceneSize} visualFrame={((FOREST_SCENE.stageAssets.tax as Partial<Record<MoneyLevelHouseStage["art"], SceneAsset>>)[taxStage.art] ?? FOREST_SCENE.familyFallbackAssets.tax[HOUSE_ART_FAMILY[taxStage.art]]).visualFrame} />
+        <HouseLabel kind="brokerage" text={brokerageText} value={brokerageValue} displayLevel={brokerageLevel} sceneSize={sceneSize} visualFrame={brokerageHouseAsset?.visualFrame} />
+        <HouseLabel kind="tax" text={taxText} value={taxValue} displayLevel={taxLevel} sceneSize={sceneSize} visualFrame={taxHouseAsset?.visualFrame} />
       </div>
       <div className="scene-weather"><span>{weatherIcon(weather)}</span><b>{weatherLabel(weather)}</b><small>{timeLabel(timeOfDay)}</small></div>
       <p className="forest-phrase">{phrase}</p>
@@ -813,17 +815,16 @@ function rippleStyle(ripple: (typeof POND_RIPPLES)[number], index: number): CSSP
   } as CSSProperties;
 }
 
-function HouseVisual({ kind, stage, sceneSize }: { kind: "brokerage" | "tax"; stage: MoneyLevelHouseStage; sceneSize: { width: number; height: number; mobile: boolean } }) {
+function HouseVisual({ kind, stage, sceneSize, asset }: { kind: "brokerage" | "tax"; stage: MoneyLevelHouseStage; sceneSize: { width: number; height: number; mobile: boolean }; asset: SceneAsset | null }) {
   const family = HOUSE_ART_FAMILY[stage.art];
-  const accountAssets = FOREST_SCENE.stageAssets[kind] as Partial<Record<MoneyLevelHouseStage["art"], SceneAsset>>;
-  const asset = accountAssets[stage.art] ?? FOREST_SCENE.familyFallbackAssets[kind][family];
+  if (!asset) return null;
   const placement = resolveHouseVisualFrame(houseWorldToViewport(kind, sceneSize, sceneSize.mobile), asset.visualFrame);
   const composite = asset.composite ?? "masked";
   const style = {
     "--house-x": `${placement.x}px`, "--house-y": `${placement.y}px`, "--house-width": `${placement.width}px`,
   } as CSSProperties;
   return (
-    <article className={`house-card house-${kind} house-family-${family} house-composite-${composite}`} style={style} data-level={stage.level} data-art={stage.art} data-composite={composite} aria-label={`${kind === "brokerage" ? "위탁" : "절세"} 집, ${stage.label}`}>
+    <article className={`house-card house-${kind} house-family-${family} house-composite-${composite}`} style={style} data-level={stage.level} data-art={stage.art} data-asset-src={asset.src} data-composite={composite} aria-label={`${kind === "brokerage" ? "위탁" : "절세"} 집, ${stage.label}`}>
       <img className="house-art-image" src={asset.src} alt={asset.alt} draggable={false} />
     </article>
   );
@@ -831,7 +832,7 @@ function HouseVisual({ kind, stage, sceneSize }: { kind: "brokerage" | "tax"; st
 
 function HouseLabel({ kind, text, value, displayLevel, sceneSize, visualFrame }: { kind: "brokerage" | "tax"; text: string; value: number; displayLevel: number; sceneSize: { width: number; height: number; mobile: boolean }; visualFrame?: HouseVisualFrame }) {
   const title = kind === "brokerage" ? "위탁 집" : "절세 집";
-  const point = kind === "brokerage" ? brokerageHouseLabelPoint(sceneSize, sceneSize.mobile) : taxHouseLabelPoint(sceneSize, sceneSize.mobile, 0, visualFrame);
+  const point = kind === "brokerage" ? brokerageHouseLabelPoint(sceneSize, sceneSize.mobile, visualFrame) : taxHouseLabelPoint(sceneSize, sceneSize.mobile, 0, visualFrame);
   const half = 96;
   const rawX = projectForestPoint(TAX_LABEL_WORLD, sceneSize, sceneSize.mobile).x;
   // Clamp AFTER camera translation, then compensate the parent's transform.

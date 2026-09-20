@@ -52,7 +52,17 @@ assert.equal(seasonalBackgrounds.length, 76, "Seasonal Production must contain e
 const taxAlphaRenditions = pngMasters.filter(file => file.startsWith("art/houses/tax-stage-"))
   .map(file => file.replace(/\.png$/, "-alpha-v2.webp"));
 assert.equal(taxAlphaRenditions.length, 4, "Each opaque Tax master needs its audited safe-frame alpha rendition");
-const required = [...pngMasters, ...webpRenditions, ...taxAlphaRenditions, ...timeBackgrounds, ...dockedBackgrounds, ...seasonalBackgrounds, ...statueAssets, ...retainedSourceArtifacts];
+const temporaryHouseAssets = [
+  "art/houses/temporary-camp-spring-summer.webp",
+  "art/houses/temporary-camp-fall.webp",
+  "art/houses/temporary-camp-winter.webp",
+  "art/houses/temporary-tent-neutral.webp",
+  "art/houses/temporary-tent-yellow.webp",
+  "art/houses/temporary-house-fall.webp",
+  "art/houses/temporary-house-winter.webp",
+];
+assert.equal(temporaryHouseAssets.length, 7, "Temporary house hotfix must reuse exactly seven approved illustrations");
+const required = [...pngMasters, ...webpRenditions, ...taxAlphaRenditions, ...temporaryHouseAssets, ...timeBackgrounds, ...dockedBackgrounds, ...seasonalBackgrounds, ...statueAssets, ...retainedSourceArtifacts];
 
 async function assertExactCase(relativePath) {
   let current = assetRoot;
@@ -86,6 +96,11 @@ for (const file of seasonalBackgrounds) {
   assert.equal(header.toString("ascii", 0, 4), "RIFF", `Expected WebP RIFF header: ${file}`);
   assert.equal(header.toString("ascii", 8, 12), "WEBP", `Expected WebP payload: ${file}`);
 }
+for (const file of temporaryHouseAssets) {
+  const header = (await readFile(path.join(assetRoot, file))).subarray(0, 32);
+  assert.equal(header.toString("ascii", 0, 4), "RIFF", `Expected WebP RIFF header: ${file}`);
+  assert.equal(header.toString("ascii", 8, 12), "WEBP", `Expected WebP payload: ${file}`);
+}
 const sceneComponent = await readFile(path.join(root, "components", "money-level", "MoneyLevelScene.tsx"), "utf8");
 const settingsComponent = await readFile(path.join(root, "lib", "money-level", "settings.ts"), "utf8");
 assert(sceneComponent.includes('/money-level/art/statues/${statue}.png'), "Statue object URL must resolve the selected material");
@@ -104,7 +119,9 @@ async function listFiles(directory, prefix = "") {
   return nested.flat();
 }
 
-const actual = (await listFiles(assetRoot)).sort();
+// `art/baseidea/` is a local, untracked user staging area. It is deliberately
+// outside the Production manifest and must neither fail this check nor enter a PR.
+const actual = (await listFiles(assetRoot)).filter((file) => !file.startsWith("art/baseidea/")).sort();
 assert.deepEqual(actual, [...required].sort(), "Only approved masters and WebP renditions may enter the Production namespace");
 
 for (const character of ["gorani", "daramji"]) {
@@ -127,6 +144,9 @@ for (const file of webpRenditions) {
   const publicUrl = `/money-level/${file}`;
   // The former connector rendition is retained as a source artifact, never as a visual layer.
   if (file.endsWith("dock-connector.webp")) continue;
+  // Legacy house renditions remain rollback-safe repository assets, but the
+  // temporary seasonal resolver must never select them at runtime.
+  if (file.startsWith("art/houses/")) continue;
   const fishingRodUsed = file.endsWith("fishing-rod.webp")
     && (await readFile(path.join(root, "components", "money-level", "MoneyLevelScene.tsx"), "utf8")).includes(publicUrl);
   assert(scene.includes(publicUrl) || fishingRodUsed, `WebP rendition is not used at runtime: ${publicUrl}`);
@@ -134,6 +154,7 @@ for (const file of webpRenditions) {
 // Legacy docked backgrounds remain as a rollback-safe source set while the
 // centralized seasonal manifest is verified in Production.
 assert(scene.includes("FOREST_SEASONAL_BACKGROUND_MANIFEST") && scene.includes("/seasonal/forest-${season}-${time}-${WEATHER_FILE_SUFFIX[weather]}.webp"), "Seasonal backgrounds must resolve through the centralized manifest");
+assert(scene.includes("resolveForestHouseAsset") && scene.includes("/money-level/art/houses/temporary-${name}.webp"), "Temporary house art must resolve through one centralized manifest");
 assert(!`${catalog}\n${scene}`.match(/\/money-level\/art\/[^"']+\.png/), "Runtime scene config must not load environmental PNG masters");
 assert(!`${catalog}\n${scene}`.includes("curation"), "Production config must not import curation assets");
 console.log(`Money Level assets OK: ${actual.length} exact-case files`);

@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { BROKERAGE_LABEL, brokerageLabelPoint, FISHING_BOBBER, fishingLineAngleDeg, projectForestPoint, STATUE_SLOTS, statueSlotPlacement, DOCK_WAYPOINTS } from "../lib/money-level/forest/landmarks";
 import { auditNavigation, getWaypoint, isPointInWalkableRegion, setForestSceneViewport, waypointPoint } from "../lib/money-level/forest/navigation";
 import { getActivityZone } from "../lib/money-level/forest/activity-zones";
-import { FOREST_SCENE, HOUSE_ART_FAMILY, resolveForestBackground } from "../lib/money-level/forest/scene-config";
+import { resolveForestBackground, resolveForestHouseAsset } from "../lib/money-level/forest/scene-config";
 import { houseWorldToViewport, HOUSE_WORLD_GEOMETRY } from "../lib/money-level/forest/house-geometry";
 import { getWorldObjectLighting } from "../lib/money-level/forest/world-object-lighting";
 import { MONEY_LEVEL_HOUSE_STAGES } from "../lib/money-level/house-stages";
@@ -104,11 +104,16 @@ assert.equal(STATUE_SLOTS.right.bottomLiftPx, 3);
 assert.equal(STATUE_SLOTS.right.screenOffsetXPx, 1);
 assert.equal(HOUSE_WORLD_GEOMETRY.tax.x, 1246.884);
 for (const stage of MONEY_LEVEL_HOUSE_STAGES) {
-  const explicit = FOREST_SCENE.stageAssets.tax as Record<string, { src: string } | undefined>;
-  const fallback = FOREST_SCENE.familyFallbackAssets.tax[HOUSE_ART_FAMILY[stage.art]];
-  const asset = explicit[stage.art] ?? fallback;
-  assert.ok(asset.src.startsWith("/money-level/art/houses/"), `tax stage ${stage.level} uses the shared right-lot anchor`);
-  assert.deepEqual(webpSize(path.join(root, "public", asset.src)), { width: 1536, height: 1024 }, `tax stage ${stage.level} source size`);
+  for (const season of ["spring", "summer", "fall", "winter"] as const) {
+    const asset = resolveForestHouseAsset(season, stage.art);
+    if (stage.art === "clearing") {
+      assert.equal(asset, null, `${season} clearing remains empty`);
+      continue;
+    }
+    assert.ok(asset?.src.startsWith("/money-level/art/houses/temporary-"), `${season} stage ${stage.level} uses approved temporary art`);
+    const size = webpSize(path.join(root, "public", asset!.src));
+    assert.ok((size.width === 1536 && size.height === 1024) || (size.width === 1448 && size.height === 1086), `${season} stage ${stage.level} source size`);
+  }
 }
 const representativeLighting = [
   ["day", "sunny"], ["evening", "sunny"], ["evening", "rain"], ["night", "sunny"], ["night", "thunderstorm"],
