@@ -40,22 +40,29 @@ export function resolveForestBackground(
   return FOREST_SEASONAL_BACKGROUND_MANIFEST[`${season}/${time}/${weather}`] ?? FOREST_BACKGROUND_FALLBACK;
 }
 
-const temporaryAsset = (name: keyof typeof TEMPORARY_HOUSE_VISUAL_FRAMES, alt: string): SceneAsset => ({
-  src: `/money-level/art/houses/temporary-${name}.webp`,
+type TemporaryHouseSource = "camp-spring-summer" | "camp-fall" | "camp-winter" | "tent-neutral" | "tent-yellow" | "house-fall" | "house-winter";
+
+const temporaryAsset = (source: TemporaryHouseSource, frame: keyof typeof TEMPORARY_HOUSE_VISUAL_FRAMES, alt: string): SceneAsset => ({
+  src: `/money-level/art/houses/temporary-${source}.webp`,
   alt,
   composite: "alpha",
-  visualFrame: TEMPORARY_HOUSE_VISUAL_FRAMES[name],
+  visualFrame: TEMPORARY_HOUSE_VISUAL_FRAMES[frame],
 });
 
 export const TEMPORARY_HOUSE_ASSETS = {
-  "camp-spring-summer": temporaryAsset("camp-spring-summer", "모닥불과 돗자리, 바구니와 랜턴이 있는 포근한 야영지"),
-  "camp-fall": temporaryAsset("camp-fall", "가을 낙엽 사이 모닥불과 돗자리가 있는 야영지"),
-  "camp-winter": temporaryAsset("camp-winter", "눈밭의 모닥불과 돗자리, 랜턴이 있는 겨울 야영지"),
-  "tent-neutral": temporaryAsset("tent-neutral", "하얀 천막과 모닥불이 있는 야영지"),
-  "tent-yellow": temporaryAsset("tent-yellow", "노란 천막과 모닥불, 생활 소품이 있는 야영지"),
-  "house-fall": temporaryAsset("house-fall", "가을 낙엽과 꽃으로 둘러싸인 아늑한 집"),
-  "house-winter": temporaryAsset("house-winter", "눈 덮인 지붕과 따뜻한 창문이 있는 겨울 집"),
+  "camp-spring-summer": temporaryAsset("camp-spring-summer", "camp-spring-summer", "모닥불과 돗자리, 바구니와 랜턴이 있는 포근한 야영지"),
+  "camp-fall": temporaryAsset("camp-fall", "camp-fall", "가을 낙엽 사이 모닥불과 돗자리가 있는 야영지"),
+  "camp-winter": temporaryAsset("camp-winter", "camp-winter", "눈밭의 모닥불과 돗자리, 랜턴이 있는 겨울 야영지"),
+  "tent-neutral": temporaryAsset("tent-neutral", "tent-neutral-small", "하얀 천막과 모닥불이 있는 야영지"),
+  "tent-yellow": temporaryAsset("tent-yellow", "tent-yellow", "노란 천막과 모닥불, 생활 소품이 있는 야영지"),
+  "house-fall": temporaryAsset("house-fall", "house-fall", "가을 낙엽과 꽃으로 둘러싸인 아늑한 집"),
+  "house-winter": temporaryAsset("house-winter", "house-winter", "눈 덮인 지붕과 따뜻한 창문이 있는 겨울 집"),
 } as const;
+
+const TEMPORARY_LARGE_TENT_ASSET: SceneAsset = {
+  ...TEMPORARY_HOUSE_ASSETS["tent-neutral"],
+  visualFrame: TEMPORARY_HOUSE_VISUAL_FRAMES["tent-neutral-large"],
+};
 
 const CAMP_ASSET_BY_SEASON = {
   spring: TEMPORARY_HOUSE_ASSETS["camp-spring-summer"],
@@ -75,7 +82,8 @@ const HOUSE_ASSET_BY_SEASON = {
 export function resolveForestHouseAsset(season: MoneyLevelSeason, art: MoneyLevelHouseArt): SceneAsset | null {
   if (art === "clearing") return null;
   if (art === "camp" || art === "camp-plus") return CAMP_ASSET_BY_SEASON[season];
-  if (art === "tent-small" || art === "tent-large") return TEMPORARY_HOUSE_ASSETS["tent-neutral"];
+  if (art === "tent-small") return TEMPORARY_HOUSE_ASSETS["tent-neutral"];
+  if (art === "tent-large") return TEMPORARY_LARGE_TENT_ASSET;
   if (art === "tent-color") return TEMPORARY_HOUSE_ASSETS["tent-yellow"];
   return HOUSE_ASSET_BY_SEASON[season];
 }

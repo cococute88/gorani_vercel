@@ -11,15 +11,17 @@ await mkdir(output, { recursive: true });
 const dates = { spring: "2026-04-16", summer: "2026-06-16", fall: "2026-09-16", winter: "2026-12-16" };
 const stageCases = [
   { name: "camp", value: .75e8, art: "camp" },
-  { name: "tent", value: 1.75e8, art: "tent-small" },
-  { name: "colored-tent", value: 2.75e8, art: "tent-color" },
+  { name: "camp-plus", value: 1.25e8, art: "camp-plus" },
+  { name: "tent-small", value: 1.75e8, art: "tent-small" },
+  { name: "tent-large", value: 2.25e8, art: "tent-large" },
+  { name: "tent-color", value: 2.75e8, art: "tent-color" },
   { name: "house", value: 3.25e8, art: "micro-house" },
 ];
 const expected = {
-  spring: { camp: "temporary-camp-spring-summer.webp", tent: "temporary-tent-neutral.webp", "colored-tent": "temporary-tent-yellow.webp", house: "temporary-house-fall.webp" },
-  summer: { camp: "temporary-camp-spring-summer.webp", tent: "temporary-tent-neutral.webp", "colored-tent": "temporary-tent-yellow.webp", house: "temporary-house-fall.webp" },
-  fall: { camp: "temporary-camp-fall.webp", tent: "temporary-tent-neutral.webp", "colored-tent": "temporary-tent-yellow.webp", house: "temporary-house-fall.webp" },
-  winter: { camp: "temporary-camp-winter.webp", tent: "temporary-tent-neutral.webp", "colored-tent": "temporary-tent-yellow.webp", house: "temporary-house-winter.webp" },
+  spring: { camp: "temporary-camp-spring-summer.webp", "camp-plus": "temporary-camp-spring-summer.webp", "tent-small": "temporary-tent-neutral.webp", "tent-large": "temporary-tent-neutral.webp", "tent-color": "temporary-tent-yellow.webp", house: "temporary-house-fall.webp" },
+  summer: { camp: "temporary-camp-spring-summer.webp", "camp-plus": "temporary-camp-spring-summer.webp", "tent-small": "temporary-tent-neutral.webp", "tent-large": "temporary-tent-neutral.webp", "tent-color": "temporary-tent-yellow.webp", house: "temporary-house-fall.webp" },
+  fall: { camp: "temporary-camp-fall.webp", "camp-plus": "temporary-camp-fall.webp", "tent-small": "temporary-tent-neutral.webp", "tent-large": "temporary-tent-neutral.webp", "tent-color": "temporary-tent-yellow.webp", house: "temporary-house-fall.webp" },
+  winter: { camp: "temporary-camp-winter.webp", "camp-plus": "temporary-camp-winter.webp", "tent-small": "temporary-tent-neutral.webp", "tent-large": "temporary-tent-neutral.webp", "tent-color": "temporary-tent-yellow.webp", house: "temporary-house-winter.webp" },
 };
 const assetPaths = [...new Set(Object.values(expected).flatMap((mapping) => Object.values(mapping)))].map((name) => `/money-level/art/houses/${name}`);
 const errors = [], failedRequests = [], results = [];

@@ -43,7 +43,12 @@ for (const season of seasons) {
       : stage.art === "tent-small" || stage.art === "tent-large"
         ? "tent-neutral"
         : stage.art === "tent-color" ? "tent-yellow" : expectedBySeason[season].house;
-    assert.equal(asset, TEMPORARY_HOUSE_ASSETS[expected], `${season}/${stage.art}`);
+    assert.equal(asset?.src, TEMPORARY_HOUSE_ASSETS[expected].src, `${season}/${stage.art}`);
+    if (stage.art === "tent-large") {
+      assert.equal(asset?.visualFrame, TEMPORARY_HOUSE_VISUAL_FRAMES["tent-neutral-large"]);
+    } else {
+      assert.equal(asset?.visualFrame, TEMPORARY_HOUSE_ASSETS[expected].visualFrame);
+    }
   }
 }
 

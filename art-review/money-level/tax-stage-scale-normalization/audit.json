@@ -1,0 +1,516 @@
+{
+  "alphaThreshold": 8,
+  "fitPolicy": "uniform scale preserving alpha-bounds area; horizontal centre and bottom baseline aligned",
+  "sourceFamilies": [
+    {
+      "stage": "camp-plus",
+      "stem": "tax-stage-10-15-camp-plus",
+      "files": [
+        {
+          "file": "tax-stage-10-15-camp-plus.png",
+          "role": "RGB source",
+          "format": "PNG",
+          "mode": "RGB",
+          "dimensions": [
+            1536,
+            1024
+          ],
+          "bytes": 2219839,
+          "sha256": "d67d839b26dc24cb1285faf7996a979b7d287c92e10628e086954739a9ecbde3"
+        },
+        {
+          "file": "tax-stage-10-15-camp-plus.webp",
+          "role": "legacy RGB rendition",
+          "format": "WEBP",
+          "mode": "RGB",
+          "dimensions": [
+            1536,
+            1024
+          ],
+          "bytes": 289336,
+          "sha256": "cb857d05ab4e2ec7fe4432088217b23114fd81190b7a571f9a1bfe72901a46e4"
+        },
+        {
+          "file": "tax-stage-10-15-camp-plus-alpha-v2.webp",
+          "role": "authoritative alpha master",
+          "format": "WEBP",
+          "mode": "RGBA",
+          "dimensions": [
+            1536,
+            1024
+          ],
+          "bytes": 690992,
+          "sha256": "af367c678ac56b24e12ccc0a22df3a2b2166577959911883f82ee60bd9129701"
+        }
+      ],
+      "runtimeReferenced": false
+    },
+    {
+      "stage": "tent-small",
+      "stem": "tax-stage-15-20-small-white-tent",
+      "files": [
+        {
+          "file": "tax-stage-15-20-small-white-tent.png",
+          "role": "RGB source",
+          "format": "PNG",
+          "mode": "RGB",
+          "dimensions": [
+            1536,
+            1024
+          ],
+          "bytes": 2240421,
+          "sha256": "cd1f2616b40a03332a25c71242b092696bd6488d4c2db28dec70720690d8ac15"
+        },
+        {
+          "file": "tax-stage-15-20-small-white-tent.webp",
+          "role": "legacy RGB rendition",
+          "format": "WEBP",
+          "mode": "RGB",
+          "dimensions": [
+            1536,
+            1024
+          ],
+          "bytes": 296616,
+          "sha256": "035ef8110a214739b26fabc4da2621760e5f2e868682b9c94e9b4d4f8396b10f"
+        },
+        {
+          "file": "tax-stage-15-20-small-white-tent-alpha-v2.webp",
+          "role": "authoritative alpha master",
+          "format": "WEBP",
+          "mode": "RGBA",
+          "dimensions": [
+            1536,
+            1024
+          ],
+          "bytes": 673344,
+          "sha256": "47e0edc6b99e963fe961978342c1cb84868fc6240432e37b2c13e0a63c851efb"
+        }
+      ],
+      "runtimeReferenced": false
+    },
+    {
+      "stage": "tent-large",
+      "stem": "tax-stage-20-25-large-white-tent",
+      "files": [
+        {
+          "file": "tax-stage-20-25-large-white-tent.png",
+          "role": "RGB source",
+          "format": "PNG",
+          "mode": "RGB",
+          "dimensions": [
+            1536,
+            1024
+          ],
+          "bytes": 2271986,
+          "sha256": "22d14af5d96bb98baca683b1039777d709df867f7b6da54a66319ee73c3e920d"
+        },
+        {
+          "file": "tax-stage-20-25-large-white-tent.webp",
+          "role": "legacy RGB rendition",
+          "format": "WEBP",
+          "mode": "RGB",
+          "dimensions": [
+            1536,
+            1024
+          ],
+          "bytes": 303722,
+          "sha256": "ffb158613971800e66ecd17da84e46f43e92a6a997165e522b7fa66c7eaa3035"
+        },
+        {
+          "file": "tax-stage-20-25-large-white-tent-alpha-v2.webp",
+          "role": "authoritative alpha master",
+          "format": "WEBP",
+          "mode": "RGBA",
+          "dimensions": [
+            1536,
+            1024
+          ],
+          "bytes": 825122,
+          "sha256": "026ce76279ee46692ffe3a6f0dcab9dc9d97d3bccb1860d5968310ad5ab241eb"
+        }
+      ],
+      "runtimeReferenced": false
+    },
+    {
+      "stage": "tent-color",
+      "stem": "tax-stage-25-30-colored-tent",
+      "files": [
+        {
+          "file": "tax-stage-25-30-colored-tent.png",
+          "role": "RGB source",
+          "format": "PNG",
+          "mode": "RGB",
+          "dimensions": [
+            1536,
+            1024
+          ],
+          "bytes": 2430138,
+          "sha256": "4fcf4f3924bdc4974d9b796591271d39baa6cdd0adb632d4c4b30b7d1bb375b1"
+        },
+        {
+          "file": "tax-stage-25-30-colored-tent.webp",
+          "role": "legacy RGB rendition",
+          "format": "WEBP",
+          "mode": "RGB",
+          "dimensions": [
+            1536,
+            1024
+          ],
+          "bytes": 363518,
+          "sha256": "beba05a5843d58410d4e49fe6dd8ecd7f65b104b9da8f28d899614e6d8e3c537"
+        },
+        {
+          "file": "tax-stage-25-30-colored-tent-alpha-v2.webp",
+          "role": "authoritative alpha master",
+          "format": "WEBP",
+          "mode": "RGBA",
+          "dimensions": [
+            1536,
+            1024
+          ],
+          "bytes": 1136044,
+          "sha256": "2f64d2a2ed1d6eef65999f6c2c02c9c795a2de438c92e3324d49086889df6e94"
+        }
+      ],
+      "runtimeReferenced": false
+    }
+  ],
+  "runtimeMappings": [
+    {
+      "name": "camp-spring-summer",
+      "stage": "camp / camp-plus",
+      "seasons": "spring, summer",
+      "master": "tax-stage-10-15-camp-plus-alpha-v2.webp",
+      "replacement": "temporary-camp-spring-summer.webp",
+      "masterSha256": "af367c678ac56b24e12ccc0a22df3a2b2166577959911883f82ee60bd9129701",
+      "replacementSha256": "468865fae498799cd23844d4aa210cb99c980ac6f2ee87e96931a594f3b7a7a9",
+      "masterBoundsAlpha8": [
+        157,
+        346,
+        1299,
+        959
+      ],
+      "replacementBoundsAlpha8": [
+        65,
+        241,
+        1437,
+        927
+      ],
+      "before": {
+        "referenceWidth": 1536,
+        "ground": [
+          751,
+          925
+        ],
+        "mappedBounds": [
+          82.0,
+          216.0,
+          1454.0,
+          902.0
+        ],
+        "widthRatio": 1.201401,
+        "heightRatio": 1.119086,
+        "areaRatio": 1.344472
+      },
+      "after": {
+        "uniformScale": 0.862430636,
+        "referenceWidth": 1781.0128,
+        "ground": [
+          797.3805,
+          858.5887
+        ],
+        "mappedBounds": [
+          136.37,
+          367.37,
+          1319.63,
+          959.0
+        ],
+        "widthRatio": 1.036125,
+        "heightRatio": 0.965134,
+        "areaRatio": 1.0,
+        "centerDeltaX": 0,
+        "bottomDeltaY": 0
+      }
+    },
+    {
+      "name": "camp-fall",
+      "stage": "camp / camp-plus",
+      "seasons": "fall",
+      "master": "tax-stage-10-15-camp-plus-alpha-v2.webp",
+      "replacement": "temporary-camp-fall.webp",
+      "masterSha256": "af367c678ac56b24e12ccc0a22df3a2b2166577959911883f82ee60bd9129701",
+      "replacementSha256": "f359f053d59fbe8fb385d2d49e2a73d4f401a229d7b9f9ea7792f57b96703e94",
+      "masterBoundsAlpha8": [
+        157,
+        346,
+        1299,
+        959
+      ],
+      "replacementBoundsAlpha8": [
+        65,
+        159,
+        1451,
+        943
+      ],
+      "before": {
+        "referenceWidth": 1536,
+        "ground": [
+          758,
+          941
+        ],
+        "mappedBounds": [
+          75.0,
+          118.0,
+          1461.0,
+          902.0
+        ],
+        "widthRatio": 1.21366,
+        "heightRatio": 1.278956,
+        "areaRatio": 1.552218
+      },
+      "after": {
+        "uniformScale": 0.802645255,
+        "referenceWidth": 1913.6723,
+        "ground": [
+          807.8352,
+          869.4931
+        ],
+        "mappedBounds": [
+          171.77,
+          329.73,
+          1284.23,
+          959.0
+        ],
+        "widthRatio": 0.974139,
+        "heightRatio": 1.026548,
+        "areaRatio": 1.0,
+        "centerDeltaX": 0,
+        "bottomDeltaY": 0
+      }
+    },
+    {
+      "name": "camp-winter",
+      "stage": "camp / camp-plus",
+      "seasons": "winter",
+      "master": "tax-stage-10-15-camp-plus-alpha-v2.webp",
+      "replacement": "temporary-camp-winter.webp",
+      "masterSha256": "af367c678ac56b24e12ccc0a22df3a2b2166577959911883f82ee60bd9129701",
+      "replacementSha256": "2c0e4bd23b511913fd86066c95de48a7e8dac5c39ec0603e2eb7d17e85b7fc11",
+      "masterBoundsAlpha8": [
+        157,
+        346,
+        1299,
+        959
+      ],
+      "replacementBoundsAlpha8": [
+        113,
+        293,
+        1337,
+        941
+      ],
+      "before": {
+        "referenceWidth": 1345,
+        "ground": [
+          725,
+          929
+        ],
+        "mappedBounds": [
+          69.09,
+          173.68,
+          1466.91,
+          913.7
+        ],
+        "widthRatio": 1.224008,
+        "heightRatio": 1.207212,
+        "areaRatio": 1.477637
+      },
+      "after": {
+        "uniformScale": 0.939474675,
+        "referenceWidth": 1634.9563,
+        "ground": [
+          767.577,
+          878.1989
+        ],
+        "mappedBounds": [
+          153.04,
+          350.22,
+          1302.96,
+          959.0
+        ],
+        "widthRatio": 1.006933,
+        "heightRatio": 0.993115,
+        "areaRatio": 1.0,
+        "centerDeltaX": 0,
+        "bottomDeltaY": 0
+      }
+    },
+    {
+      "name": "tent-neutral-small",
+      "stage": "tent-small",
+      "seasons": "all",
+      "master": "tax-stage-15-20-small-white-tent-alpha-v2.webp",
+      "replacement": "temporary-tent-neutral.webp",
+      "masterSha256": "47e0edc6b99e963fe961978342c1cb84868fc6240432e37b2c13e0a63c851efb",
+      "replacementSha256": "cb51ba939528de3e42f0a0fcbf9a5e5032479553f1f1ec1bf3aec40ff94f2615",
+      "masterBoundsAlpha8": [
+        159,
+        224,
+        1254,
+        969
+      ],
+      "replacementBoundsAlpha8": [
+        126,
+        71,
+        1370,
+        1018
+      ],
+      "before": {
+        "referenceWidth": 1536,
+        "ground": [
+          748,
+          1016
+        ],
+        "mappedBounds": [
+          146.0,
+          -45.0,
+          1390.0,
+          902.0
+        ],
+        "widthRatio": 1.136073,
+        "heightRatio": 1.271141,
+        "areaRatio": 1.444109
+      },
+      "after": {
+        "uniformScale": 0.832146932,
+        "referenceWidth": 1845.8279,
+        "ground": [
+          821.9052,
+          935.082
+        ],
+        "mappedBounds": [
+          188.9,
+          180.96,
+          1224.1,
+          969.0
+        ],
+        "widthRatio": 0.94538,
+        "heightRatio": 1.057776,
+        "areaRatio": 1.0,
+        "centerDeltaX": 0,
+        "bottomDeltaY": 0
+      }
+    },
+    {
+      "name": "tent-neutral-large",
+      "stage": "tent-large",
+      "seasons": "all",
+      "master": "tax-stage-20-25-large-white-tent-alpha-v2.webp",
+      "replacement": "temporary-tent-neutral.webp",
+      "masterSha256": "026ce76279ee46692ffe3a6f0dcab9dc9d97d3bccb1860d5968310ad5ab241eb",
+      "replacementSha256": "cb51ba939528de3e42f0a0fcbf9a5e5032479553f1f1ec1bf3aec40ff94f2615",
+      "masterBoundsAlpha8": [
+        157,
+        70,
+        1417,
+        967
+      ],
+      "replacementBoundsAlpha8": [
+        126,
+        71,
+        1370,
+        1018
+      ],
+      "before": {
+        "referenceWidth": 1536,
+        "ground": [
+          748,
+          1016
+        ],
+        "mappedBounds": [
+          146.0,
+          -45.0,
+          1390.0,
+          902.0
+        ],
+        "widthRatio": 0.987302,
+        "heightRatio": 1.055741,
+        "areaRatio": 1.042335
+      },
+      "after": {
+        "uniformScale": 0.979481673,
+        "referenceWidth": 1568.1764,
+        "ground": [
+          728.602,
+          949.5965
+        ],
+        "mappedBounds": [
+          177.76,
+          39.43,
+          1396.24,
+          967.0
+        ],
+        "widthRatio": 0.967044,
+        "heightRatio": 1.034079,
+        "areaRatio": 1.0,
+        "centerDeltaX": 0,
+        "bottomDeltaY": 0
+      }
+    },
+    {
+      "name": "tent-yellow",
+      "stage": "tent-color",
+      "seasons": "all",
+      "master": "tax-stage-25-30-colored-tent-alpha-v2.webp",
+      "replacement": "temporary-tent-yellow.webp",
+      "masterSha256": "2f64d2a2ed1d6eef65999f6c2c02c9c795a2de438c92e3324d49086889df6e94",
+      "replacementSha256": "478e46a40d66a807f7cd68bf67b700034e493d78f44f1fda97b9acc5b0b8165c",
+      "masterBoundsAlpha8": [
+        57,
+        71,
+        1482,
+        969
+      ],
+      "replacementBoundsAlpha8": [
+        35,
+        20,
+        1494,
+        977
+      ],
+      "before": {
+        "referenceWidth": 1536,
+        "ground": [
+          764,
+          976
+        ],
+        "mappedBounds": [
+          39.0,
+          -56.0,
+          1498.0,
+          901.0
+        ],
+        "widthRatio": 1.02386,
+        "heightRatio": 1.065702,
+        "areaRatio": 1.091129
+      },
+      "after": {
+        "uniformScale": 0.957330699,
+        "referenceWidth": 1604.4612,
+        "ground": [
+          762.9331,
+          904.9246
+        ],
+        "mappedBounds": [
+          71.13,
+          52.83,
+          1467.87,
+          969.0
+        ],
+        "widthRatio": 0.980172,
+        "heightRatio": 1.020229,
+        "areaRatio": 1.0,
+        "centerDeltaX": 0,
+        "bottomDeltaY": 0
+      }
+    }
+  ]
+}

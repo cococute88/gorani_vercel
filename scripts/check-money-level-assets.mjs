@@ -154,7 +154,7 @@ for (const file of webpRenditions) {
 // Legacy docked backgrounds remain as a rollback-safe source set while the
 // centralized seasonal manifest is verified in Production.
 assert(scene.includes("FOREST_SEASONAL_BACKGROUND_MANIFEST") && scene.includes("/seasonal/forest-${season}-${time}-${WEATHER_FILE_SUFFIX[weather]}.webp"), "Seasonal backgrounds must resolve through the centralized manifest");
-assert(scene.includes("resolveForestHouseAsset") && scene.includes("/money-level/art/houses/temporary-${name}.webp"), "Temporary house art must resolve through one centralized manifest");
+assert(scene.includes("resolveForestHouseAsset") && scene.includes("/money-level/art/houses/temporary-${source}.webp"), "Temporary house art must resolve through one centralized manifest");
 assert(!`${catalog}\n${scene}`.match(/\/money-level\/art\/[^"']+\.png/), "Runtime scene config must not load environmental PNG masters");
 assert(!`${catalog}\n${scene}`.includes("curation"), "Production config must not import curation assets");
 console.log(`Money Level assets OK: ${actual.length} exact-case files`);
