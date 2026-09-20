@@ -101,7 +101,8 @@ try{
       for(let stage=0;stage<20;stage++){
         await page.evaluate(stage=>localStorage.setItem('gorani.money-level.snapshot.v1',JSON.stringify({brokerageValue:427486959,isaPrincipal:stage*50000000+1000000,pensionPrincipal:0,updatedAt:'2026-09-14T00:00:00.000Z'})),stage);
         await page.reload();await ready(page);await snapshot(page,`tax-stage-${stage}.png`);
-        results.push({taxStage:stage,art:await page.locator('.house-tax').getAttribute('data-art')});
+        const taxHouse=page.locator('.house-tax');
+        results.push({taxStage:stage,art:await taxHouse.count()?await taxHouse.getAttribute('data-art'):'clearing'});
       }
       await page.evaluate(()=>localStorage.removeItem('gorani.money-level.snapshot.v1'));await page.reload();await ready(page);
       await page.evaluate(()=>{
