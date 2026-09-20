@@ -41,13 +41,13 @@ for (const slot of ["left", "right"] as const) {
 for (const time of ["morning", "day", "evening", "night"] as const) for (const weather of ["sunny", "cloudy", "rain", "thunderstorm"] as const) {
   const ambient = getHouseAmbientLighting(time, weather);
   assert.match(ambient.color, /^#[0-9a-f]{6}$/);
-  assert.ok(ambient.opacity >= 0 && ambient.opacity <= (time === "night" ? .22 : .075));
+  assert.ok(ambient.opacity >= 0 && ambient.opacity <= (time === "night" ? .11 : .058));
   assert.equal(ambient.blendMode, "multiply");
 }
 assert.equal(getHouseAmbientLighting("day", "sunny").opacity, 0);
 assert.equal(getHouseAmbientLighting("morning", "sunny").opacity, 0);
-assert.equal(getHouseAmbientLighting("evening", "sunny").opacity, .035);
-assert.equal(getHouseAmbientLighting("night", "thunderstorm").opacity, .22);
+assert.equal(getHouseAmbientLighting("evening", "sunny").opacity, .018);
+assert.equal(getHouseAmbientLighting("night", "thunderstorm").opacity, .11);
 assert.deepEqual(HOUSE_WORLD_GEOMETRY.brokerage, { x: 599.805, y: 390.35, width: 622.71 });
 assert.deepEqual(HOUSE_WORLD_GEOMETRY.tax, { x: 1246.884, y: 414.905, width: 495.6435 });
 console.log("World house/landmark invariance across 12 ratios, broad ceremony intent → fixed anchor, none/pedestal exclusion and ambient resolver PASS");

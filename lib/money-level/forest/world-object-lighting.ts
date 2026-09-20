@@ -13,7 +13,7 @@ type AmbientGrade = {
 export const HOUSE_AMBIENT_TIME = {
   day: { color: "#87979d", opacity: 0 },
   morning: { color: "#91a7b9", opacity: 0 },
-  evening: { color: "#946d85", opacity: .035 },
+  evening: { color: "#946d85", opacity: .018 },
   night: { color: "#486a87", opacity: .05 },
 } as const;
 export const HOUSE_AMBIENT_WEATHER = {
@@ -27,11 +27,11 @@ export const HOUSE_AMBIENT_WEATHER = {
 // Night weather is a complete material grade: do not multiply another weather
 // saturation into it. Color remains readable under stronger environmental light.
 export const HOUSE_NIGHT_LIGHTING = {
-  sunny: { saturation: .88, shadowColor: "#103a62", shadowOpacity: .18, lightColor: "#336dac" },
-  cloudy: { saturation: .84, shadowColor: "#193951", shadowOpacity: .20, lightColor: "#446b9e" },
-  rain: { saturation: .82, shadowColor: "#103e59", shadowOpacity: .20, lightColor: "#2e789d" },
-  thunderstorm: { saturation: .80, shadowColor: "#132b49", shadowOpacity: .22, lightColor: "#3b6397" },
-  snow: { saturation: .82, shadowColor: "#1d405d", shadowOpacity: .19, lightColor: "#7396b8" },
+  sunny: { saturation: .94, shadowColor: "#103a62", shadowOpacity: .09, lightColor: "#336dac" },
+  cloudy: { saturation: .92, shadowColor: "#193951", shadowOpacity: .10, lightColor: "#446b9e" },
+  rain: { saturation: .91, shadowColor: "#103e59", shadowOpacity: .10, lightColor: "#2e789d" },
+  thunderstorm: { saturation: .90, shadowColor: "#132b49", shadowOpacity: .11, lightColor: "#3b6397" },
+  snow: { saturation: .91, shadowColor: "#1d405d", shadowOpacity: .095, lightColor: "#7396b8" },
 } as const;
 
 type HouseAmbientLighting = {
@@ -47,7 +47,7 @@ export function getHouseAmbientLighting(time: MoneyLevelTimeOfDay, weather: Mone
   if (time === "night") {
     const night = HOUSE_NIGHT_LIGHTING[weather];
     return { color: night.shadowColor, opacity: night.shadowOpacity, blendMode: "multiply",
-      night: { color: night.lightColor, opacity: .15, blendMode: "hard-light", contrast: 1.12, practicalLightProtection: .55 } };
+      night: { color: night.lightColor, opacity: .075, blendMode: "hard-light", contrast: 1.06, practicalLightProtection: .55 } };
   }
   const base = HOUSE_AMBIENT_TIME[time];
   const sky = HOUSE_AMBIENT_WEATHER[weather];
@@ -70,10 +70,10 @@ const TIME_LIGHTING: Record<MoneyLevelTimeOfDay, {
   contrast: number;
   rgb: readonly [number, number, number];
 }> = {
-  morning: { houseBrightness: .93, statueBrightness: .94, saturation: .96, sepia: .015, hueRotateDeg: 0, contrast: .98, rgb: [.98, 1, 1.035] },
+  morning: { houseBrightness: .965, statueBrightness: .94, saturation: .96, sepia: .015, hueRotateDeg: 0, contrast: .98, rgb: [.98, 1, 1.035] },
   day: { houseBrightness: 1, statueBrightness: 1, saturation: 1, sepia: 0, hueRotateDeg: 0, contrast: 1, rgb: [1, 1, 1] },
-  evening: { houseBrightness: .82, statueBrightness: .84, saturation: .9, sepia: .06, hueRotateDeg: 0, contrast: .96, rgb: [1.12, .95, .78] },
-  night: { houseBrightness: .67, statueBrightness: .69, saturation: .84, sepia: 0, hueRotateDeg: 0, contrast: .94, rgb: [.73, .88, 1.08] },
+  evening: { houseBrightness: .91, statueBrightness: .84, saturation: .9, sepia: .06, hueRotateDeg: 0, contrast: .96, rgb: [1.12, .95, .78] },
+  night: { houseBrightness: .835, statueBrightness: .69, saturation: .84, sepia: 0, hueRotateDeg: 0, contrast: .94, rgb: [.73, .88, 1.08] },
 };
 
 const WEATHER_LIGHTING: Record<MoneyLevelSceneWeather, {
@@ -121,21 +121,22 @@ export function getWorldObjectLighting(time: MoneyLevelTimeOfDay, weather: Money
   return {
     house: grade(day.houseBrightness * sky.brightness,
       time === "night" ? HOUSE_NIGHT_LIGHTING[weather].saturation : houseTime.saturation * houseSky.saturation, houseTime.sepia,
-      houseTime.hueRotateDeg, time === "evening" || time === "night" ? 1 : day.contrast,
+      houseTime.hueRotateDeg, houseTime.contrast,
       houseTime.rgb.map((channel, index) => Number((channel * houseSky.rgb[index]).toFixed(3)))),
     statue: grade(day.statueBrightness * sky.brightness, saturation, day.sepia, hue, day.contrast, rgb),
   };
 }
 
 const HOUSE_TIME_LIGHTING = {
-  morning: { saturation: .96, sepia: .015, hueRotateDeg: 0, rgb: [.98, 1, 1.035] },
-  day: { saturation: 1, sepia: 0, hueRotateDeg: 0, rgb: [1, 1, 1] },
-  // Remove the former yellow sepia/blue suppression; a small red shift puts
-  // timber in sunset while keeping the roof green.
-  evening: { saturation: .86, sepia: 0, hueRotateDeg: -12, rgb: [1.08, .94, .97] },
-  // Cool the yellow-green daylight paint without recoloring warm windows.
-  night: { saturation: .88, sepia: 0, hueRotateDeg: 8, rgb: [.70, .88, 1.16] },
-} satisfies Record<MoneyLevelTimeOfDay, { saturation: number; sepia: number; hueRotateDeg: number; rgb: number[] }>;
+  morning: { saturation: .98, sepia: .008, hueRotateDeg: 0, contrast: .99, rgb: [.99, 1, 1.018] },
+  day: { saturation: 1, sepia: 0, hueRotateDeg: 0, contrast: 1, rgb: [1, 1, 1] },
+  // Seasonal backgrounds already carry their own sunset palette. Interpolate
+  // the former grade halfway toward identity so brown/orange temporary art
+  // keeps its material color without becoming a daylight sticker.
+  evening: { saturation: .93, sepia: 0, hueRotateDeg: -6, contrast: 1, rgb: [1.04, .97, .985] },
+  // Keep a readable cool night grade while halving the former recoloring.
+  night: { saturation: .94, sepia: 0, hueRotateDeg: 4, contrast: 1, rgb: [.85, .94, 1.08] },
+} satisfies Record<MoneyLevelTimeOfDay, { saturation: number; sepia: number; hueRotateDeg: number; contrast: number; rgb: number[] }>;
 
 export const HOUSE_WEATHER_LIGHTING = {
   sunny: { saturation: 1, rgb: [1, 1, 1] },

@@ -1,0 +1,301 @@
+{
+  "status": "PASS",
+  "lightingPolicy": "House-only time grades interpolated approximately halfway toward identity; weather retained; statue unchanged.",
+  "beforeAfter": {
+    "morning": {
+      "brightness": [
+        0.93,
+        0.965
+      ],
+      "saturation": [
+        0.96,
+        0.98
+      ],
+      "sepia": [
+        0.015,
+        0.008
+      ],
+      "contrast": [
+        0.98,
+        0.99
+      ],
+      "rgb": [
+        [
+          0.98,
+          1,
+          1.035
+        ],
+        [
+          0.99,
+          1,
+          1.018
+        ]
+      ]
+    },
+    "day": {
+      "brightness": [
+        1,
+        1
+      ],
+      "saturation": [
+        1,
+        1
+      ],
+      "rgb": [
+        [
+          1,
+          1,
+          1
+        ],
+        [
+          1,
+          1,
+          1
+        ]
+      ]
+    },
+    "evening": {
+      "brightness": [
+        0.82,
+        0.91
+      ],
+      "saturation": [
+        0.86,
+        0.93
+      ],
+      "hueDeg": [
+        -12,
+        -6
+      ],
+      "rgb": [
+        [
+          1.08,
+          0.94,
+          0.97
+        ],
+        [
+          1.04,
+          0.97,
+          0.985
+        ]
+      ],
+      "ambientOpacity": [
+        0.035,
+        0.018
+      ]
+    },
+    "night": {
+      "brightness": [
+        0.67,
+        0.835
+      ],
+      "hueDeg": [
+        8,
+        4
+      ],
+      "rgb": [
+        [
+          0.7,
+          0.88,
+          1.16
+        ],
+        [
+          0.85,
+          0.94,
+          1.08
+        ]
+      ],
+      "shadowOpacityRange": [
+        [
+          0.18,
+          0.22
+        ],
+        [
+          0.09,
+          0.11
+        ]
+      ],
+      "moonlightOpacity": [
+        0.15,
+        0.075
+      ],
+      "moonlightContrast": [
+        1.12,
+        1.06
+      ],
+      "practicalLightProtection": [
+        0.55,
+        0.55
+      ]
+    }
+  },
+  "projection": [
+    {
+      "layout": "desktop",
+      "season": "spring",
+      "src": "/money-level/art/background/seasonal/forest-spring-day-sunny.webp",
+      "naturalWidth": 1672,
+      "naturalHeight": 941,
+      "sourceAspect": 1.7768331562167907,
+      "objectFit": "cover",
+      "objectPosition": "50% 50%",
+      "sceneWidth": 1280,
+      "sceneHeight": 576,
+      "containerWidth": 1280,
+      "containerHeight": 572,
+      "coverScale": 0.7655502392344498,
+      "renderedWidth": 1280,
+      "renderedHeight": 720.3827751196172,
+      "cropLeft": 0,
+      "cropRight": 0,
+      "cropTop": 74.19138755980862,
+      "cropBottom": 74.19138755980862,
+      "visibleSourceY": [
+        96.91250000000001,
+        844.0875
+      ],
+      "scaleX": 0.7655502392344498,
+      "scaleY": 0.7655502392344498
+    },
+    {
+      "layout": "desktop",
+      "season": "fall",
+      "src": "/money-level/art/background/seasonal/forest-fall-day-sunny.webp",
+      "naturalWidth": 1672,
+      "naturalHeight": 941,
+      "sourceAspect": 1.7768331562167907,
+      "objectFit": "cover",
+      "objectPosition": "50% 50%",
+      "sceneWidth": 1280,
+      "sceneHeight": 576,
+      "containerWidth": 1280,
+      "containerHeight": 572,
+      "coverScale": 0.7655502392344498,
+      "renderedWidth": 1280,
+      "renderedHeight": 720.3827751196172,
+      "cropLeft": 0,
+      "cropRight": 0,
+      "cropTop": 74.19138755980862,
+      "cropBottom": 74.19138755980862,
+      "visibleSourceY": [
+        96.91250000000001,
+        844.0875
+      ],
+      "scaleX": 0.7655502392344498,
+      "scaleY": 0.7655502392344498
+    },
+    {
+      "layout": "desktop",
+      "season": "winter",
+      "src": "/money-level/art/background/seasonal/forest-winter-day-sunny.webp",
+      "naturalWidth": 1683,
+      "naturalHeight": 934,
+      "sourceAspect": 1.8019271948608138,
+      "objectFit": "cover",
+      "objectPosition": "50% 50%",
+      "sceneWidth": 1280,
+      "sceneHeight": 576,
+      "containerWidth": 1280,
+      "containerHeight": 572,
+      "coverScale": 0.7605466428995841,
+      "renderedWidth": 1280,
+      "renderedHeight": 710.3505644682115,
+      "cropLeft": 0,
+      "cropRight": 0,
+      "cropTop": 69.17528223410574,
+      "cropBottom": 69.17528223410574,
+      "visibleSourceY": [
+        90.95468749999996,
+        843.0453124999999
+      ],
+      "scaleX": 0.7605466428995841,
+      "scaleY": 0.7605466428995841
+    },
+    {
+      "layout": "mobile",
+      "season": "spring",
+      "src": "/money-level/art/background/seasonal/forest-spring-day-sunny.webp",
+      "naturalWidth": 1672,
+      "naturalHeight": 941,
+      "sourceAspect": 1.7768331562167907,
+      "objectFit": "cover",
+      "objectPosition": "51% 50%",
+      "sceneWidth": 390,
+      "sceneHeight": 512,
+      "containerWidth": 914.390625,
+      "containerHeight": 508,
+      "coverScale": 0.5468843450956937,
+      "renderedWidth": 914.3906249999999,
+      "renderedHeight": 514.6181687350478,
+      "cropLeft": 0,
+      "cropRight": 0,
+      "cropTop": 3.3090843675238943,
+      "cropBottom": 3.3090843675238943,
+      "visibleSourceY": [
+        6.050793732164469,
+        934.9492062678355
+      ],
+      "scaleX": 0.5468843450956937,
+      "scaleY": 0.5468843450956937
+    },
+    {
+      "layout": "mobile",
+      "season": "fall",
+      "src": "/money-level/art/background/seasonal/forest-fall-day-sunny.webp",
+      "naturalWidth": 1672,
+      "naturalHeight": 941,
+      "sourceAspect": 1.7768331562167907,
+      "objectFit": "cover",
+      "objectPosition": "51% 50%",
+      "sceneWidth": 390,
+      "sceneHeight": 512,
+      "containerWidth": 914.390625,
+      "containerHeight": 508,
+      "coverScale": 0.5468843450956937,
+      "renderedWidth": 914.3906249999999,
+      "renderedHeight": 514.6181687350478,
+      "cropLeft": 0,
+      "cropRight": 0,
+      "cropTop": 3.3090843675238943,
+      "cropBottom": 3.3090843675238943,
+      "visibleSourceY": [
+        6.050793732164469,
+        934.9492062678355
+      ],
+      "scaleX": 0.5468843450956937,
+      "scaleY": 0.5468843450956937
+    },
+    {
+      "layout": "mobile",
+      "season": "winter",
+      "src": "/money-level/art/background/seasonal/forest-winter-day-sunny.webp",
+      "naturalWidth": 1683,
+      "naturalHeight": 934,
+      "sourceAspect": 1.8019271948608138,
+      "objectFit": "cover",
+      "objectPosition": "51% 50%",
+      "sceneWidth": 390,
+      "sceneHeight": 512,
+      "containerWidth": 914.390625,
+      "containerHeight": 508,
+      "coverScale": 0.5438972162740899,
+      "renderedWidth": 915.3790149892934,
+      "renderedHeight": 508,
+      "cropLeft": 0.4941949946467048,
+      "cropRight": 0.4941949946467048,
+      "cropTop": 0,
+      "cropBottom": 0,
+      "visibleSourceY": [
+        0,
+        934
+      ],
+      "scaleX": 0.5438972162740899,
+      "scaleY": 0.5438972162740899
+    }
+  ],
+  "browser": {
+    "scenarios": 92,
+    "failedRequests": 0,
+    "errors": 0
+  }
+}

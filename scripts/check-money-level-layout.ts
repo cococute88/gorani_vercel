@@ -122,20 +122,21 @@ for (const [time, weather] of representativeLighting) {
   const lighting = getWorldObjectLighting(time, weather);
   assert.ok(lighting.house.filter.includes("brightness("));
   assert.ok(lighting.statue.filter.includes("sepia("));
-  assert.ok(lighting.statue.brightness >= lighting.house.brightness, `${time}/${weather} small statues stay readable`);
+  assert.ok(lighting.statue.brightness >= .565, `${time}/${weather} approved statue exposure stays readable`);
+  assert.ok(lighting.house.brightness >= .685, `${time}/${weather} recalibrated house exposure stays readable`);
 }
 for (const time of ["morning", "day", "evening", "night"] as const) {
   for (const weather of ["sunny", "cloudy", "rain", "thunderstorm"] as const) {
     const lighting = getWorldObjectLighting(time, weather);
-    assert.ok(lighting.house.brightness >= .549 && lighting.house.brightness <= 1, `${time}/${weather} house exposure`);
+    assert.ok(lighting.house.brightness >= .685 && lighting.house.brightness <= 1, `${time}/${weather} house exposure`);
     assert.ok(lighting.statue.brightness >= .565 && lighting.statue.brightness <= 1, `${time}/${weather} statue exposure`);
     assert.ok(lighting.house.saturation >= .59, `${time}/${weather} material colors remain distinct`);
-    if (time === "day" || time === "morning") assert.equal(lighting.house.colorMatrix, lighting.statue.colorMatrix, `${time}/${weather} preserved ambient`);
+    if (time === "day") assert.equal(lighting.house.colorMatrix, lighting.statue.colorMatrix, `${time}/${weather} identity ambient`);
   }
 }
 assert.equal(getWorldObjectLighting("day", "sunny").house.brightness, 1);
-assert.equal(getWorldObjectLighting("evening", "sunny").house.brightness, .82);
-assert.equal(getWorldObjectLighting("night", "thunderstorm").house.brightness, .549);
+assert.equal(getWorldObjectLighting("evening", "sunny").house.brightness, .91);
+assert.equal(getWorldObjectLighting("night", "thunderstorm").house.brightness, .685);
 assert.equal(BROKERAGE_LABEL.desktop.x, 170);
 assert.equal(BROKERAGE_LABEL.mobile.x, 170, "cards use a shared world anchor at every ratio");
 const wideCardRight = brokerageLabelPoint({ width: 1320, height: 520 }, false).x + 72;

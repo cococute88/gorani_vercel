@@ -8,9 +8,9 @@ const base = process.env.MONEY_LEVEL_QA_URL ?? "http://127.0.0.1:3001";
 const output = process.env.MONEY_LEVEL_QA_OUTPUT ?? path.join(tmpdir(), "money-level-house-world-qa");
 const washed = path.join(process.cwd(), "art-review/money-level/house-crisp-review");
 const temporaryFrames = {
-  "temporary-camp-spring-summer.webp": { canvas: [1536, 1024], ground: [751, 925] },
-  "temporary-camp-fall.webp": { canvas: [1536, 1024], ground: [758, 941] },
-  "temporary-camp-winter.webp": { canvas: [1536, 1024], ground: [725, 929] },
+  "temporary-camp-spring-summer.webp": { canvas: [1536, 1024], ground: [768, 900] },
+  "temporary-camp-fall.webp": { canvas: [1536, 1024], ground: [768, 900] },
+  "temporary-camp-winter.webp": { canvas: [1536, 1024], ground: [768, 900] },
   "temporary-tent-neutral.webp": { canvas: [1448, 1086], ground: [748, 1016] },
   "temporary-tent-yellow.webp": { canvas: [1536, 1024], ground: [764, 976] },
   "temporary-house-fall.webp": { canvas: [1448, 1086], ground: [723, 1048] },

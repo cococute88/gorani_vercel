@@ -75,6 +75,7 @@
     "check:money-level-house-lighting": "npx --yes tsx scripts/check-money-level-house-lighting.mts",
     "check:money-level-house-hotfix": "npx --yes tsx scripts/check-money-level-house-hotfix.mts",
     "check:money-level-house-hotfix-browser": "node scripts/check-money-level-house-hotfix-browser.mjs",
+    "check:money-level-house-lighting-browser": "node scripts/check-money-level-house-lighting-browser.mjs",
     "check:money-level-camp-assets-browser": "node scripts/check-money-level-camp-assets-browser.mjs",
     "check:money-level-tax-stage-scale": "npx --yes tsx scripts/check-money-level-tax-stage-scale.mts",
     "check:money-level-follow-up-browser": "node scripts/check-money-level-follow-up-browser.mjs",
