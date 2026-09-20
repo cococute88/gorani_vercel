@@ -1,4 +1,6 @@
-# Tax early-stage alpha-v2 scale normalization
+# Tax early-stage alpha-v2 scale normalization (historical)
+
+> Camp acceptance in this report has been superseded by [`../camp-direct-normalization/README.md`](../camp-direct-normalization/README.md). Equal alpha area did not reliably predict perceived camp size. The current camp WebPs are directly normalized and browser-verified; the tent results below remain applicable.
 
 `*-alpha-v2.webp` is the visual-size master. Runtime replacements keep their original pixels and use only uniform scale plus translation. The fit preserves alpha-bounds area, horizontal centre, and bottom baseline.
 

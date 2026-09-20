@@ -1,0 +1,522 @@
+[
+  {
+    "layout": "desktop",
+    "season": "spring",
+    "asset": "temporary-camp-spring-summer.webp",
+    "cards": [
+      {
+        "kind": "brokerage",
+        "src": "/money-level/art/houses/temporary-camp-spring-summer.webp",
+        "width": 473.59375,
+        "expectedWidth": 473.6
+      },
+      {
+        "kind": "tax",
+        "src": "/money-level/art/houses/temporary-camp-spring-summer.webp",
+        "width": 376.953125,
+        "expectedWidth": 376.96000000000004
+      }
+    ],
+    "decoded": {
+      "width": 1536,
+      "height": 1024,
+      "bounds8": [
+        293,
+        483,
+        1162,
+        918
+      ],
+      "coreBounds240": [
+        294,
+        484,
+        1161,
+        917
+      ],
+      "darkPartial": 1981
+    },
+    "masterDecoded": {
+      "width": 1536,
+      "height": 1024,
+      "bounds8": [
+        157,
+        346,
+        1299,
+        959
+      ],
+      "coreBounds240": [
+        199,
+        389,
+        1256,
+        917
+      ],
+      "darkPartial": 8981
+    },
+    "placements": {
+      "brokerage": {
+        "x": 456.179679144385,
+        "y": 229.32382650029712,
+        "width": 473.6
+      },
+      "tax": {
+        "x": 948.313440285205,
+        "y": 247.99904931669636,
+        "width": 376.96000000000004
+      }
+    }
+  },
+  {
+    "layout": "desktop",
+    "season": "summer",
+    "asset": "temporary-camp-spring-summer.webp",
+    "cards": [
+      {
+        "kind": "brokerage",
+        "src": "/money-level/art/houses/temporary-camp-spring-summer.webp",
+        "width": 473.59375,
+        "expectedWidth": 473.6
+      },
+      {
+        "kind": "tax",
+        "src": "/money-level/art/houses/temporary-camp-spring-summer.webp",
+        "width": 376.953125,
+        "expectedWidth": 376.96000000000004
+      }
+    ],
+    "decoded": {
+      "width": 1536,
+      "height": 1024,
+      "bounds8": [
+        293,
+        483,
+        1162,
+        918
+      ],
+      "coreBounds240": [
+        294,
+        484,
+        1161,
+        917
+      ],
+      "darkPartial": 1981
+    },
+    "masterDecoded": {
+      "width": 1536,
+      "height": 1024,
+      "bounds8": [
+        157,
+        346,
+        1299,
+        959
+      ],
+      "coreBounds240": [
+        199,
+        389,
+        1256,
+        917
+      ],
+      "darkPartial": 8981
+    },
+    "placements": {
+      "brokerage": {
+        "x": 456.179679144385,
+        "y": 229.32382650029712,
+        "width": 473.6
+      },
+      "tax": {
+        "x": 948.313440285205,
+        "y": 247.99904931669636,
+        "width": 376.96000000000004
+      }
+    }
+  },
+  {
+    "layout": "desktop",
+    "season": "fall",
+    "asset": "temporary-camp-fall.webp",
+    "cards": [
+      {
+        "kind": "brokerage",
+        "src": "/money-level/art/houses/temporary-camp-fall.webp",
+        "width": 473.59375,
+        "expectedWidth": 473.6
+      },
+      {
+        "kind": "tax",
+        "src": "/money-level/art/houses/temporary-camp-fall.webp",
+        "width": 376.953125,
+        "expectedWidth": 376.96000000000004
+      }
+    ],
+    "decoded": {
+      "width": 1536,
+      "height": 1024,
+      "bounds8": [
+        227,
+        353,
+        1227,
+        918
+      ],
+      "coreBounds240": [
+        228,
+        354,
+        1224,
+        917
+      ],
+      "darkPartial": 1999
+    },
+    "masterDecoded": {
+      "width": 1536,
+      "height": 1024,
+      "bounds8": [
+        157,
+        346,
+        1299,
+        959
+      ],
+      "coreBounds240": [
+        199,
+        389,
+        1256,
+        917
+      ],
+      "darkPartial": 8981
+    },
+    "placements": {
+      "brokerage": {
+        "x": 456.179679144385,
+        "y": 229.32382650029712,
+        "width": 473.6
+      },
+      "tax": {
+        "x": 948.313440285205,
+        "y": 247.99904931669636,
+        "width": 376.96000000000004
+      }
+    }
+  },
+  {
+    "layout": "desktop",
+    "season": "winter",
+    "asset": "temporary-camp-winter.webp",
+    "cards": [
+      {
+        "kind": "brokerage",
+        "src": "/money-level/art/houses/temporary-camp-winter.webp",
+        "width": 473.59375,
+        "expectedWidth": 473.6
+      },
+      {
+        "kind": "tax",
+        "src": "/money-level/art/houses/temporary-camp-winter.webp",
+        "width": 376.953125,
+        "expectedWidth": 376.96000000000004
+      }
+    ],
+    "decoded": {
+      "width": 1536,
+      "height": 1024,
+      "bounds8": [
+        182,
+        361,
+        1273,
+        938
+      ],
+      "coreBounds240": [
+        203,
+        385,
+        1252,
+        917
+      ],
+      "darkPartial": 0
+    },
+    "masterDecoded": {
+      "width": 1536,
+      "height": 1024,
+      "bounds8": [
+        157,
+        346,
+        1299,
+        959
+      ],
+      "coreBounds240": [
+        199,
+        389,
+        1256,
+        917
+      ],
+      "darkPartial": 8981
+    },
+    "placements": {
+      "brokerage": {
+        "x": 456.179679144385,
+        "y": 229.32382650029712,
+        "width": 473.6
+      },
+      "tax": {
+        "x": 948.313440285205,
+        "y": 247.99904931669636,
+        "width": 376.96000000000004
+      }
+    }
+  },
+  {
+    "layout": "mobile",
+    "season": "spring",
+    "asset": "temporary-camp-spring-summer.webp",
+    "cards": [
+      {
+        "kind": "brokerage",
+        "src": "/money-level/art/houses/temporary-camp-spring-summer.webp",
+        "width": 338.3125,
+        "expectedWidth": 340.992
+      },
+      {
+        "kind": "tax",
+        "src": "/money-level/art/houses/temporary-camp-spring-summer.webp",
+        "width": 269.28125,
+        "expectedWidth": 271.4112
+      }
+    ],
+    "decoded": {
+      "width": 1536,
+      "height": 1024,
+      "bounds8": [
+        293,
+        483,
+        1162,
+        918
+      ],
+      "coreBounds240": [
+        294,
+        484,
+        1161,
+        917
+      ],
+      "darkPartial": 1981
+    },
+    "masterDecoded": {
+      "width": 1536,
+      "height": 1024,
+      "bounds8": [
+        157,
+        346,
+        1299,
+        959
+      ],
+      "coreBounds240": [
+        199,
+        389,
+        1256,
+        917
+      ],
+      "darkPartial": 8981
+    },
+    "placements": {
+      "brokerage": {
+        "x": 57.33336898395714,
+        "y": 213.75315508021393,
+        "width": 340.992
+      },
+      "tax": {
+        "x": 411.6696770053475,
+        "y": 227.19931550802139,
+        "width": 271.4112
+      }
+    }
+  },
+  {
+    "layout": "mobile",
+    "season": "summer",
+    "asset": "temporary-camp-spring-summer.webp",
+    "cards": [
+      {
+        "kind": "brokerage",
+        "src": "/money-level/art/houses/temporary-camp-spring-summer.webp",
+        "width": 338.3125,
+        "expectedWidth": 340.992
+      },
+      {
+        "kind": "tax",
+        "src": "/money-level/art/houses/temporary-camp-spring-summer.webp",
+        "width": 269.28125,
+        "expectedWidth": 271.4112
+      }
+    ],
+    "decoded": {
+      "width": 1536,
+      "height": 1024,
+      "bounds8": [
+        293,
+        483,
+        1162,
+        918
+      ],
+      "coreBounds240": [
+        294,
+        484,
+        1161,
+        917
+      ],
+      "darkPartial": 1981
+    },
+    "masterDecoded": {
+      "width": 1536,
+      "height": 1024,
+      "bounds8": [
+        157,
+        346,
+        1299,
+        959
+      ],
+      "coreBounds240": [
+        199,
+        389,
+        1256,
+        917
+      ],
+      "darkPartial": 8981
+    },
+    "placements": {
+      "brokerage": {
+        "x": 57.33336898395714,
+        "y": 213.75315508021393,
+        "width": 340.992
+      },
+      "tax": {
+        "x": 411.6696770053475,
+        "y": 227.19931550802139,
+        "width": 271.4112
+      }
+    }
+  },
+  {
+    "layout": "mobile",
+    "season": "fall",
+    "asset": "temporary-camp-fall.webp",
+    "cards": [
+      {
+        "kind": "brokerage",
+        "src": "/money-level/art/houses/temporary-camp-fall.webp",
+        "width": 338.3125,
+        "expectedWidth": 340.992
+      },
+      {
+        "kind": "tax",
+        "src": "/money-level/art/houses/temporary-camp-fall.webp",
+        "width": 269.28125,
+        "expectedWidth": 271.4112
+      }
+    ],
+    "decoded": {
+      "width": 1536,
+      "height": 1024,
+      "bounds8": [
+        227,
+        353,
+        1227,
+        918
+      ],
+      "coreBounds240": [
+        228,
+        354,
+        1224,
+        917
+      ],
+      "darkPartial": 1999
+    },
+    "masterDecoded": {
+      "width": 1536,
+      "height": 1024,
+      "bounds8": [
+        157,
+        346,
+        1299,
+        959
+      ],
+      "coreBounds240": [
+        199,
+        389,
+        1256,
+        917
+      ],
+      "darkPartial": 8981
+    },
+    "placements": {
+      "brokerage": {
+        "x": 57.33336898395714,
+        "y": 213.75315508021393,
+        "width": 340.992
+      },
+      "tax": {
+        "x": 411.6696770053475,
+        "y": 227.19931550802139,
+        "width": 271.4112
+      }
+    }
+  },
+  {
+    "layout": "mobile",
+    "season": "winter",
+    "asset": "temporary-camp-winter.webp",
+    "cards": [
+      {
+        "kind": "brokerage",
+        "src": "/money-level/art/houses/temporary-camp-winter.webp",
+        "width": 338.3125,
+        "expectedWidth": 340.992
+      },
+      {
+        "kind": "tax",
+        "src": "/money-level/art/houses/temporary-camp-winter.webp",
+        "width": 269.28125,
+        "expectedWidth": 271.4112
+      }
+    ],
+    "decoded": {
+      "width": 1536,
+      "height": 1024,
+      "bounds8": [
+        182,
+        361,
+        1273,
+        938
+      ],
+      "coreBounds240": [
+        203,
+        385,
+        1252,
+        917
+      ],
+      "darkPartial": 0
+    },
+    "masterDecoded": {
+      "width": 1536,
+      "height": 1024,
+      "bounds8": [
+        157,
+        346,
+        1299,
+        959
+      ],
+      "coreBounds240": [
+        199,
+        389,
+        1256,
+        917
+      ],
+      "darkPartial": 8981
+    },
+    "placements": {
+      "brokerage": {
+        "x": 57.33336898395714,
+        "y": 213.75315508021393,
+        "width": 340.992
+      },
+      "tax": {
+        "x": 411.6696770053475,
+        "y": 227.19931550802139,
+        "width": 271.4112
+      }
+    }
+  }
+]

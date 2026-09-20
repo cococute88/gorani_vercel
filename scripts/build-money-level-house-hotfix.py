@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import argparse
 from collections.abc import Iterable
+from math import sqrt
 from pathlib import Path
 
 import numpy as np
@@ -23,6 +25,27 @@ ASSETS = {
 }
 
 BLACK_MATTE_SOURCES = {"winter 돗자리(1).png", "winter 돗자리.png", "winter 집(1).png", "winter 집.png"}
+
+# The grass-bearing alpha-v2 camp is the visual master. These approved camps
+# have very different outer silhouettes, so full-alpha area is not a useful
+# proxy for perceived size. Start from the opaque illustration core (rug,
+# firepit, stump/props), then verify the result in the real Forest preview.
+CAMP_OUTPUTS = {
+    "temporary-camp-spring-summer.webp",
+    "temporary-camp-fall.webp",
+    "temporary-camp-winter.webp",
+}
+# Browser comparison of the actual rug/firepit—not the full alpha footprint—
+# showed the Spring/Summer illustration still about 20% too large after the
+# first core-area fit. Fall and Winter already matched perceptually, so do not
+# copy the Spring adjustment across seasons.
+CAMP_VISUAL_SCALE_ADJUSTMENTS = {
+    "temporary-camp-spring-summer.webp": 0.82,
+    "temporary-camp-fall.webp": 1.0,
+    "temporary-camp-winter.webp": 1.0,
+}
+CAMP_MASTER_CORE_BOUNDS = (199, 389, 1256, 917)
+CAMP_CORE_ALPHA_THRESHOLD = 240
 
 
 def find_source(candidates: Iterable[str]) -> Path:
@@ -60,13 +83,59 @@ def remove_connected_black_matte(image: Image.Image) -> Image.Image:
     return Image.fromarray(np.dstack((corrected.astype(np.uint8), alpha)), "RGBA")
 
 
+def normalize_camp_pixels(image: Image.Image, visual_adjustment: float) -> tuple[Image.Image, float, tuple[float, float]]:
+    alpha = image.getchannel("A")
+    source_bounds = alpha.point(lambda value: 255 if value >= CAMP_CORE_ALPHA_THRESHOLD else 0).getbbox()
+    if source_bounds is None:
+        raise ValueError("Camp illustration has no opaque visual core")
+    sx0, sy0, sx1, sy1 = source_bounds
+    tx0, ty0, tx1, ty1 = CAMP_MASTER_CORE_BOUNDS
+    scale = sqrt(((tx1 - tx0) * (ty1 - ty0)) / ((sx1 - sx0) * (sy1 - sy0))) * visual_adjustment
+    source_center_x = (sx0 + sx1) / 2
+    target_center_x = (tx0 + tx1) / 2
+    translate_x = target_center_x - scale * source_center_x
+    translate_y = ty1 - scale * sy1
+    # Resample premultiplied colors so transparent black canvas pixels cannot
+    # bleed into anti-aliased illustration edges during the direct resize.
+    normalized = image.convert("RGBa").transform(
+        image.size,
+        Image.Transform.AFFINE,
+        (1 / scale, 0, -translate_x / scale, 0, 1 / scale, -translate_y / scale),
+        resample=Image.Resampling.BICUBIC,
+    ).convert("RGBA")
+    return normalized, scale, (translate_x, translate_y)
+
+
+def clear_exterior_dark_fringe(image: Image.Image) -> Image.Image:
+    rgba = np.asarray(image).copy()
+    alpha = rgba[:, :, 3]
+    # Browsers decode WebP through a premultiplied canvas. Sub-8 alpha can
+    # quantize warm edge RGB to black there even when Pillow preserves it.
+    # Drop only that visually invisible exterior fringe, then keep the source
+    # illustration's dark opaque outlines untouched.
+    invisible = alpha < 8
+    dark_partial = (alpha < 240) & (rgba[:, :, :3].max(axis=2) < 16)
+    rgba[invisible | dark_partial] = 0
+    return Image.fromarray(rgba, "RGBA")
+
+
 def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--camp-only", action="store_true", help="Rebuild only the three directly normalized camp assets")
+    args = parser.parse_args()
     OUTPUT.mkdir(parents=True, exist_ok=True)
     for output_name, candidates in ASSETS.items():
+        if args.camp_only and output_name not in CAMP_OUTPUTS:
+            continue
         source = find_source(candidates)
         with Image.open(source) as opened:
             opened.load()
             image = remove_connected_black_matte(opened) if source.name in BLACK_MATTE_SOURCES else opened.convert("RGBA")
+            if output_name in CAMP_OUTPUTS:
+                image, scale, translation = normalize_camp_pixels(image, CAMP_VISUAL_SCALE_ADJUSTMENTS[output_name])
+                if source.name in BLACK_MATTE_SOURCES:
+                    image = clear_exterior_dark_fringe(image)
+                print(f"  camp pixel normalization: scale={scale:.6f}, translate=({translation[0]:.2f}, {translation[1]:.2f})")
             image.save(OUTPUT / output_name, "WEBP", lossless=True, quality=100, method=6, exact=True)
             print(f"{source.name} -> {output_name} ({image.width}x{image.height})")
 

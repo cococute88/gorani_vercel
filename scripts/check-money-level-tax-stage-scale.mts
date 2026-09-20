@@ -5,11 +5,14 @@ import type { HouseVisualFrame } from "../lib/money-level/forest/tax-artwork";
 
 const MASTER_GROUND = { x: 768, y: 900 };
 const MASTER_WIDTH = 1536;
-const cases = [
-  { season: "spring", art: "camp-plus", src: "temporary-camp-spring-summer.webp", master: [157, 346, 1299, 959] },
-  { season: "summer", art: "camp-plus", src: "temporary-camp-spring-summer.webp", master: [157, 346, 1299, 959] },
-  { season: "fall", art: "camp-plus", src: "temporary-camp-fall.webp", master: [157, 346, 1299, 959] },
-  { season: "winter", art: "camp-plus", src: "temporary-camp-winter.webp", master: [157, 346, 1299, 959] },
+const campCases = [
+  { season: "spring", art: "camp-plus", src: "temporary-camp-spring-summer.webp" },
+  { season: "summer", art: "camp-plus", src: "temporary-camp-spring-summer.webp" },
+  { season: "fall", art: "camp-plus", src: "temporary-camp-fall.webp" },
+  { season: "winter", art: "camp-plus", src: "temporary-camp-winter.webp" },
+] as const;
+
+const tentCases = [
   { season: "spring", art: "tent-small", src: "temporary-tent-neutral.webp", master: [159, 224, 1254, 969] },
   { season: "spring", art: "tent-large", src: "temporary-tent-neutral.webp", master: [157, 70, 1417, 967] },
   { season: "spring", art: "tent-color", src: "temporary-tent-yellow.webp", master: [57, 71, 1482, 969] },
@@ -23,7 +26,22 @@ function mapBounds(frame: HouseVisualFrame) {
   return [x0 * scale + translateX, y0 * scale + translateY, x1 * scale + translateX, y1 * scale + translateY] as const;
 }
 
-for (const testCase of cases) {
+// Camp size/placement is baked into the WebP pixels after browser-first visual
+// comparison with the alpha-v2 master. Do not reintroduce the old alpha-area
+// fit here: unlike tents, the replacement camps have different silhouettes,
+// so equal alpha area is not equal perceived size.
+for (const testCase of campCases) {
+  const asset = resolveForestHouseAsset(testCase.season, testCase.art);
+  assert.ok(asset?.src.endsWith(testCase.src), `${testCase.season}/${testCase.art} source mapping`);
+  assert.ok(asset.visualFrame, `${testCase.season}/${testCase.art} visual frame`);
+  assert.equal(asset.visualFrame.reference.width, 1536, `${testCase.season}/${testCase.art} identity width`);
+  assert.equal(asset.visualFrame.reference.height, 1024, `${testCase.season}/${testCase.art} identity height`);
+  assert.deepEqual(asset.visualFrame.reference.ground, MASTER_GROUND, `${testCase.season}/${testCase.art} identity reference ground`);
+  assert.deepEqual(asset.visualFrame.ground, MASTER_GROUND, `${testCase.season}/${testCase.art} identity ground`);
+  assert.equal(MASTER_WIDTH / asset.visualFrame.reference.width, 1, `${testCase.season}/${testCase.art} no runtime scale`);
+}
+
+for (const testCase of tentCases) {
   const asset = resolveForestHouseAsset(testCase.season, testCase.art);
   assert.ok(asset?.src.endsWith(testCase.src), `${testCase.season}/${testCase.art} source mapping`);
   assert.ok(asset.visualFrame, `${testCase.season}/${testCase.art} visual frame`);
@@ -48,4 +66,4 @@ const large = resolveForestHouseAsset("spring", "tent-large");
 assert.equal(small?.src, large?.src, "one approved neutral tent file is intentionally reused");
 assert.notEqual(small?.visualFrame, large?.visualFrame, "small and large stages require distinct alpha-v2 master frames");
 
-console.log("PASS: 7 stage/season mappings; alpha area 1.000x; centre and bottom baseline exact; width/height within 6%");
+console.log("PASS: 4 direct-pixel camp mappings use identity frames; 3 tent mappings retain alpha-v2 frame regression checks");

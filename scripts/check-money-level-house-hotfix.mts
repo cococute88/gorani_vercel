@@ -27,7 +27,10 @@ for (const asset of Object.values(TEMPORARY_HOUSE_ASSETS)) {
   const data = readFileSync(absolute);
   assert.equal(data.toString("ascii", 0, 4), "RIFF");
   assert.equal(data.toString("ascii", 8, 12), "WEBP");
-  assert.ok(statSync(absolute).size > 500_000);
+  // Lossless WebP size drops with the directly normalized camp's smaller
+  // opaque footprint; keep only a corruption/truncation guard here. Browser
+  // decode and alpha-edge checks cover visual integrity separately.
+  assert.ok(statSync(absolute).size > 250_000);
 }
 
 for (const season of seasons) {

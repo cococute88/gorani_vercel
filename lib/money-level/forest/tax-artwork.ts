@@ -26,17 +26,17 @@ const temporaryFrame = (
   };
 };
 
-/** Temporary user-approved art frames. Source pixels remain unwarped; only
- * render scale and the real ground contact are normalized.
+/** Temporary user-approved art frames. Camp scale/placement is baked directly
+ * into the WebP pixels; tent/house frames retain metadata normalization.
  *
- * The four early-stage frames are calibrated against the matching legacy
- * `tax-stage-*-alpha-v2.webp` visual footprint. A single neutral tent source
- * therefore has two render frames: the 1.5-2.0 and 2.0-2.5 stages have
+ * Camp pixels are normalized directly onto the alpha-v2 1536×1024 canvas, so
+ * they intentionally use the identity frame here. A single neutral tent
+ * source still has two render frames: the 1.5-2.0 and 2.0-2.5 stages have
  * intentionally different master sizes. */
 export const TEMPORARY_HOUSE_VISUAL_FRAMES = {
-  "camp-spring-summer": temporaryFrame({ width: 1536, height: 1024 }, [65, 241, 1437, 927], { x: 797.3805, y: 858.5887 }, 1781.0128),
-  "camp-fall": temporaryFrame({ width: 1536, height: 1024 }, [65, 159, 1451, 943], { x: 807.8352, y: 869.4931 }, 1913.6723),
-  "camp-winter": temporaryFrame({ width: 1536, height: 1024 }, [113, 293, 1337, 941], { x: 767.577, y: 878.1989 }, 1634.9563),
+  "camp-spring-summer": temporaryFrame({ width: 1536, height: 1024 }, [293, 483, 1162, 918], { x: 768, y: 900 }),
+  "camp-fall": temporaryFrame({ width: 1536, height: 1024 }, [227, 353, 1227, 918], { x: 768, y: 900 }),
+  "camp-winter": temporaryFrame({ width: 1536, height: 1024 }, [182, 361, 1273, 938], { x: 768, y: 900 }),
   "tent-neutral-small": temporaryFrame({ width: 1448, height: 1086 }, [126, 71, 1370, 1018], { x: 821.9052, y: 935.082 }, 1845.8279),
   "tent-neutral-large": temporaryFrame({ width: 1448, height: 1086 }, [126, 71, 1370, 1018], { x: 728.602, y: 949.5965 }, 1568.1764),
   "tent-yellow": temporaryFrame({ width: 1536, height: 1024 }, [35, 20, 1494, 977], { x: 762.9331, y: 904.9246 }, 1604.4612),
