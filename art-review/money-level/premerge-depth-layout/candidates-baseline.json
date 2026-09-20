@@ -1,0 +1,82 @@
+[
+  {
+    "name": "current",
+    "viewport": 900,
+    "scroll": 956,
+    "header": 74,
+    "stats": 110.265625,
+    "forest": 576,
+    "forestClient": 572,
+    "footer": 66.390625,
+    "card": 862.96875,
+    "scale": 0.7655502392344498,
+    "renderedH": 720.3827751196172,
+    "cropTop": 74.19138755980862,
+    "cropBottom": 74.19138755980862,
+    "visibleY": [
+      96.91250000000001,
+      844.0875
+    ],
+    "coverage": 0.7940223166843783
+  },
+  {
+    "name": "forest-only",
+    "viewport": 900,
+    "scroll": 1070,
+    "header": 74,
+    "stats": 110.265625,
+    "forest": 690,
+    "forestClient": 686,
+    "footer": 66.390625,
+    "card": 976.96875,
+    "scale": 0.7655502392344498,
+    "renderedH": 720.3827751196172,
+    "cropTop": 17.191387559808618,
+    "cropBottom": 17.191387559808618,
+    "visibleY": [
+      22.456250000000008,
+      918.54375
+    ],
+    "coverage": 0.9522715196599362
+  },
+  {
+    "name": "compact-forest",
+    "viewport": 900,
+    "scroll": 1020,
+    "header": 60,
+    "stats": 92.265625,
+    "forest": 690,
+    "forestClient": 686,
+    "footer": 60.390625,
+    "card": 938.96875,
+    "scale": 0.7727272727272727,
+    "renderedH": 727.1363636363636,
+    "cropTop": 20.568181818181813,
+    "cropBottom": 20.568181818181813,
+    "visibleY": [
+      26.617647058823522,
+      914.3823529411765
+    ],
+    "coverage": 0.9434268925423517
+  },
+  {
+    "name": "full-y",
+    "viewport": 900,
+    "scroll": 1055,
+    "header": 60,
+    "stats": 92.265625,
+    "forest": 725,
+    "forestClient": 721,
+    "footer": 60.390625,
+    "card": 973.96875,
+    "scale": 0.7727272727272727,
+    "renderedH": 727.1363636363636,
+    "cropTop": 3.068181818181813,
+    "cropBottom": 3.068181818181813,
+    "visibleY": [
+      3.970588235294111,
+      937.0294117647059
+    ],
+    "coverage": 0.9915609176720636
+  }
+]

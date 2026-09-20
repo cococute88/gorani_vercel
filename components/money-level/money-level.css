@@ -70,7 +70,8 @@
 .moneyLevelRoot .house-art-image{ display: block; width: 100%; height: auto; user-select: none; filter: var(--money-level-house-lighting) drop-shadow(0 7px 6px rgba(43,54,44,.13)); transition: filter .5s ease; }
 .moneyLevelRoot .house-composite-masked .house-art-image{ -webkit-mask-image: radial-gradient(ellipse 49% 47% at 50% 55%,#000 67%,transparent 100%); mask-image: radial-gradient(ellipse 49% 47% at 50% 55%,#000 67%,transparent 100%); }
 .moneyLevelRoot .house-composite-masked.house-family-camp .house-art-image{ -webkit-mask-image: radial-gradient(ellipse 39% 35% at 50% 61%,#000 58%,transparent 100%); mask-image: radial-gradient(ellipse 39% 35% at 50% 61%,#000 58%,transparent 100%); }
-.moneyLevelRoot .forest-statue{ position: absolute; z-index: 3; display: block; width: var(--statue-width); height: auto; pointer-events: none; user-select: none; transform: translate(-50%,-100%); filter: var(--money-level-statue-lighting) drop-shadow(0 2px 1px rgba(35,42,31,.21)); transition: filter .5s ease; }
+.moneyLevelRoot .forest-depth-layer{ position: absolute; inset: 0; z-index: 4; pointer-events: none; }
+.moneyLevelRoot .forest-statue{ position: absolute; display: block; width: var(--statue-width); height: auto; pointer-events: none; user-select: none; transform: translate3d(var(--forest-camera-translation,0px),0,0) translate(-50%,-100%); filter: var(--money-level-statue-lighting) drop-shadow(0 2px 1px rgba(35,42,31,.21)); transition: filter .5s ease; }
 .moneyLevelRoot .scene-label-layer{ position: absolute; inset: 0; z-index: 11; pointer-events: none; }
 .moneyLevelRoot .house-label{ position: absolute; top: var(--label-y); left: var(--label-x); display: block; width: 144px; max-width: 144px; min-width: 0; box-sizing: border-box; padding: 6px 6px 6px 8px; border: 2px solid #876b4c; border-radius: 8px 10px 7px 9px; color: #55422c; background: linear-gradient(145deg,#fff8dc,#eed39d); box-shadow: inset 0 0 0 2px rgba(255,255,255,.5),0 4px 0 rgba(92,66,39,.2); transform: translate(-50%,-50%); text-align: left; }
 .moneyLevelRoot .house-leaf{ color: #678d48; font-size: 1.1rem; }
@@ -84,7 +85,7 @@
 
 .moneyLevelRoot .character-ground-layer, .moneyLevelRoot .scene-activity-layer, .moneyLevelRoot .character-interaction-layer{ position: absolute; inset: 0; pointer-events: none; }
 .moneyLevelRoot .character-ground-layer{ z-index: 3; }
-.moneyLevelRoot .spine-forest-stage{ position: absolute; inset: 0; z-index: 4; filter: var(--money-level-character-time-ambient) var(--money-level-character-weather-ambient); pointer-events: none; transition: filter .5s ease; }
+.moneyLevelRoot .spine-forest-stage{ position: absolute; inset: 0; filter: var(--money-level-character-time-ambient) var(--money-level-character-weather-ambient); pointer-events: none; transition: filter .5s ease; }
 .moneyLevelRoot .scene-activity-layer{ z-index: 5; }
 .moneyLevelRoot .character-interaction-layer{ z-index: 12; }
 .moneyLevelRoot .scene-only .spine-forest-stage, .moneyLevelRoot .scene-only .character-ground-layer, .moneyLevelRoot .scene-only .scene-activity-layer, .moneyLevelRoot .scene-only .character-interaction-layer{ display: none; }
@@ -255,6 +256,19 @@
   .moneyLevelRoot .retirement-card{ grid-row: span 2; }
   .moneyLevelRoot .heart-row{ min-height: 54px; }
   .moneyLevelRoot .forest-scene{ height: 560px; }
+}
+
+@media (min-width: 881px) {
+  .moneyLevelRoot .forest-shell{ min-height: calc(100dvh - 56px); padding-block: 10px; }
+  .moneyLevelRoot .topbar{ min-height: 56px; padding: 5px 18px; }
+  .moneyLevelRoot .brand-mark{ width: 40px; height: 40px; font-size: 1.45rem; }
+  .moneyLevelRoot .icon-button{ width: 40px; height: 40px; }
+  .moneyLevelRoot .money-hud{ padding: 5px 18px 6px; }
+  .moneyLevelRoot .retirement-card{ padding: 6px 11px; }
+  .moneyLevelRoot .progress-track{ height: 8px; margin: 4px 0 2px; }
+  .moneyLevelRoot .heart-row{ padding: 5px 11px; }
+  .moneyLevelRoot .forest-scene{ height: clamp(610px,calc(100dvh - 210px),725px); min-height: 610px; }
+  .moneyLevelRoot .forest-footer{ min-height: 54px; padding: 5px 16px; }
 }
 
 @media (max-width: 560px) {

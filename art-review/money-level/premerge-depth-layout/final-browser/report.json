@@ -1,0 +1,426 @@
+{
+  "layouts": [
+    {
+      "name": "desktop-spring",
+      "viewport": {
+        "width": 1320,
+        "height": 900,
+        "scrollHeight": 1002
+      },
+      "header": {
+        "width": 1280,
+        "height": 57.84375,
+        "top": 69,
+        "bottom": 126.84375
+      },
+      "stats": {
+        "width": 1280,
+        "height": 82.265625,
+        "top": 126.84375,
+        "bottom": 209.109375
+      },
+      "forest": {
+        "width": 1280,
+        "height": 690,
+        "top": 209.109375,
+        "bottom": 899.109375
+      },
+      "footer": {
+        "width": 1280,
+        "height": 58.390625,
+        "top": 931.421875,
+        "bottom": 989.8125
+      },
+      "card": {
+        "width": 1284,
+        "height": 924.8125,
+        "top": 67,
+        "bottom": 991.8125
+      },
+      "source": {
+        "width": 1672,
+        "height": 941
+      },
+      "scene": {
+        "width": 1280,
+        "height": 686
+      },
+      "scale": 0.7655502392344498,
+      "rendered": {
+        "width": 1280,
+        "height": 720.3827751196172
+      },
+      "crop": {
+        "top": 17.191387559808618,
+        "bottom": 17.191387559808618,
+        "left": 0,
+        "right": 0
+      },
+      "visibleSourceY": {
+        "start": 22.456250000000008,
+        "end": 918.54375
+      },
+      "visiblePercent": 95.22715196599361,
+      "objectFit": "cover"
+    },
+    {
+      "name": "desktop-fall",
+      "viewport": {
+        "width": 1320,
+        "height": 900,
+        "scrollHeight": 1002
+      },
+      "header": {
+        "width": 1280,
+        "height": 57.84375,
+        "top": 69,
+        "bottom": 126.84375
+      },
+      "stats": {
+        "width": 1280,
+        "height": 82.265625,
+        "top": 126.84375,
+        "bottom": 209.109375
+      },
+      "forest": {
+        "width": 1280,
+        "height": 690,
+        "top": 209.109375,
+        "bottom": 899.109375
+      },
+      "footer": {
+        "width": 1280,
+        "height": 58.390625,
+        "top": 931.421875,
+        "bottom": 989.8125
+      },
+      "card": {
+        "width": 1284,
+        "height": 924.8125,
+        "top": 67,
+        "bottom": 991.8125
+      },
+      "source": {
+        "width": 1672,
+        "height": 941
+      },
+      "scene": {
+        "width": 1280,
+        "height": 686
+      },
+      "scale": 0.7655502392344498,
+      "rendered": {
+        "width": 1280,
+        "height": 720.3827751196172
+      },
+      "crop": {
+        "top": 17.191387559808618,
+        "bottom": 17.191387559808618,
+        "left": 0,
+        "right": 0
+      },
+      "visibleSourceY": {
+        "start": 22.456250000000008,
+        "end": 918.54375
+      },
+      "visiblePercent": 95.22715196599361,
+      "objectFit": "cover"
+    },
+    {
+      "name": "desktop-winter",
+      "viewport": {
+        "width": 1320,
+        "height": 900,
+        "scrollHeight": 1002
+      },
+      "header": {
+        "width": 1280,
+        "height": 57.84375,
+        "top": 69,
+        "bottom": 126.84375
+      },
+      "stats": {
+        "width": 1280,
+        "height": 82.265625,
+        "top": 126.84375,
+        "bottom": 209.109375
+      },
+      "forest": {
+        "width": 1280,
+        "height": 690,
+        "top": 209.109375,
+        "bottom": 899.109375
+      },
+      "footer": {
+        "width": 1280,
+        "height": 58.390625,
+        "top": 931.421875,
+        "bottom": 989.8125
+      },
+      "card": {
+        "width": 1284,
+        "height": 924.8125,
+        "top": 67,
+        "bottom": 991.8125
+      },
+      "source": {
+        "width": 1683,
+        "height": 934
+      },
+      "scene": {
+        "width": 1280,
+        "height": 686
+      },
+      "scale": 0.7605466428995841,
+      "rendered": {
+        "width": 1280,
+        "height": 710.3505644682115
+      },
+      "crop": {
+        "top": 12.175282234105737,
+        "bottom": 12.175282234105737,
+        "left": 0,
+        "right": 0
+      },
+      "visibleSourceY": {
+        "start": 16.008593749999964,
+        "end": 917.99140625
+      },
+      "visiblePercent": 96.57203559957173,
+      "objectFit": "cover"
+    },
+    {
+      "name": "mobile-spring",
+      "viewport": {
+        "width": 390,
+        "height": 844,
+        "scrollHeight": 990
+      },
+      "header": {
+        "width": 390,
+        "height": 64,
+        "top": 96.5,
+        "bottom": 160.5
+      },
+      "stats": {
+        "width": 390,
+        "height": 220.640625,
+        "top": 160.5,
+        "bottom": 381.140625
+      },
+      "forest": {
+        "width": 390,
+        "height": 512,
+        "top": 381.140625,
+        "bottom": 893.140625
+      },
+      "footer": {
+        "width": 390,
+        "height": 64.390625,
+        "top": 925.453125,
+        "bottom": 989.84375
+      },
+      "card": {
+        "width": 390,
+        "height": 893.34375,
+        "top": 96.5,
+        "bottom": 989.84375
+      },
+      "source": {
+        "width": 1672,
+        "height": 941
+      },
+      "scene": {
+        "width": 390,
+        "height": 508
+      },
+      "scale": 0.5398512221041445,
+      "rendered": {
+        "width": 902.6312433581296,
+        "height": 507.99999999999994
+      },
+      "crop": {
+        "top": 0,
+        "bottom": 0,
+        "left": 256.3156216790648,
+        "right": 256.3156216790648
+      },
+      "visibleSourceY": {
+        "start": 0,
+        "end": 941.0000000000001
+      },
+      "visiblePercent": 100.00000000000003,
+      "objectFit": "cover"
+    }
+  ],
+  "depthMatrix": [
+    {
+      "character": "gorani",
+      "statue": "left",
+      "position": "behind",
+      "expected": "behind",
+      "actual": "PASS",
+      "characterZ": 12920,
+      "statueZ": 13157,
+      "relation": "behind",
+      "canvases": 1
+    },
+    {
+      "character": "gorani",
+      "statue": "left",
+      "position": "front",
+      "expected": "front",
+      "actual": "PASS",
+      "characterZ": 13452,
+      "statueZ": 13157,
+      "relation": "front",
+      "canvases": 1
+    },
+    {
+      "character": "gorani",
+      "statue": "right",
+      "position": "behind",
+      "expected": "behind",
+      "actual": "PASS",
+      "characterZ": 12210,
+      "statueZ": 12413,
+      "relation": "behind",
+      "canvases": 1
+    },
+    {
+      "character": "gorani",
+      "statue": "right",
+      "position": "front",
+      "expected": "front",
+      "actual": "PASS",
+      "characterZ": 12698,
+      "statueZ": 12413,
+      "relation": "front",
+      "canvases": 1
+    },
+    {
+      "character": "daramji",
+      "statue": "left",
+      "position": "behind",
+      "expected": "behind",
+      "actual": "PASS",
+      "characterZ": 12920,
+      "statueZ": 13157,
+      "relation": "behind",
+      "canvases": 1
+    },
+    {
+      "character": "daramji",
+      "statue": "left",
+      "position": "front",
+      "expected": "front",
+      "actual": "PASS",
+      "characterZ": 13452,
+      "statueZ": 13157,
+      "relation": "front",
+      "canvases": 1
+    },
+    {
+      "character": "daramji",
+      "statue": "right",
+      "position": "behind",
+      "expected": "behind",
+      "actual": "PASS",
+      "characterZ": 12210,
+      "statueZ": 12413,
+      "relation": "behind",
+      "canvases": 1
+    },
+    {
+      "character": "daramji",
+      "statue": "right",
+      "position": "front",
+      "expected": "front",
+      "actual": "PASS",
+      "characterZ": 12698,
+      "statueZ": 12413,
+      "relation": "front",
+      "canvases": 1
+    },
+    {
+      "character": "daramji",
+      "statue": "left",
+      "position": "behind",
+      "expected": "behind",
+      "actual": "PASS",
+      "characterZ": 12888,
+      "statueZ": 13107,
+      "relation": "behind",
+      "canvases": 1
+    },
+    {
+      "character": "daramji",
+      "statue": "left",
+      "position": "front",
+      "expected": "front",
+      "actual": "PASS",
+      "characterZ": 13402,
+      "statueZ": 13107,
+      "relation": "front",
+      "canvases": 1
+    }
+  ],
+  "mixedDepth": [
+    {
+      "arrangement": "gorani-front/daramji-behind",
+      "actual": "PASS",
+      "gorani": 13452,
+      "daramji": 12920,
+      "statue": 13157
+    },
+    {
+      "arrangement": "gorani-behind/daramji-front",
+      "actual": "PASS",
+      "gorani": 12920,
+      "daramji": 13452,
+      "statue": 13157
+    }
+  ],
+  "accessory": {
+    "parentStage": true,
+    "stageZ": 12920,
+    "statueZ": 13157,
+    "actual": "PASS"
+  },
+  "mobileDepth": [
+    {
+      "character": "daramji",
+      "statue": "left",
+      "position": "behind",
+      "actual": "PASS"
+    },
+    {
+      "character": "daramji",
+      "statue": "left",
+      "position": "front",
+      "actual": "PASS"
+    }
+  ],
+  "dragTransition": [
+    {
+      "position": "front",
+      "relation": "front",
+      "actual": "PASS"
+    },
+    {
+      "position": "behind",
+      "relation": "behind",
+      "actual": "PASS"
+    },
+    {
+      "position": "front",
+      "relation": "front",
+      "actual": "PASS"
+    }
+  ],
+  "noStatue": {
+    "statues": 0,
+    "stages": 2,
+    "actual": "PASS"
+  }
+}

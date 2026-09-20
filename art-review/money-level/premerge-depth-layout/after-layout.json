@@ -1,0 +1,53 @@
+{
+  "scroll": 1002,
+  "header": 57.84375,
+  "stats": 82.265625,
+  "forest": 690,
+  "client": [
+    1280,
+    686
+  ],
+  "footer": 58.390625,
+  "card": 924.8125,
+  "natural": [
+    1672,
+    941
+  ],
+  "renderedH": 720.3827751196172,
+  "crop": 17.191387559808618,
+  "visibleY": [
+    22.456250000000008,
+    918.54375
+  ],
+  "coverage": 0.9522715196599362,
+  "stages": [
+    {
+      "id": "gorani",
+      "ready": "true",
+      "z": "12530",
+      "left": "behind",
+      "right": "front",
+      "canvas": 1
+    },
+    {
+      "id": "daramji",
+      "ready": "true",
+      "z": "12498",
+      "left": "behind",
+      "right": "front",
+      "canvas": 1
+    }
+  ],
+  "statues": [
+    {
+      "slot": "left",
+      "z": "13157",
+      "ground": "78.893"
+    },
+    {
+      "slot": "right",
+      "z": "12413",
+      "ground": "60.319"
+    }
+  ]
+}

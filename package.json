@@ -80,6 +80,8 @@
     "check:money-level-tax-stage-scale": "npx --yes tsx scripts/check-money-level-tax-stage-scale.mts",
     "check:money-level-follow-up-browser": "node scripts/check-money-level-follow-up-browser.mjs",
     "check:money-level-world-follow-up": "npx --yes tsx scripts/check-money-level-world-follow-up.mts",
+    "check:money-level-statue-depth": "npx --yes tsx scripts/check-money-level-statue-depth.mts",
+    "check:money-level-premerge-depth-browser": "node scripts/check-money-level-premerge-depth-browser.mjs",
     "check:money-level-world-v2": "npx --yes tsx scripts/check-money-level-world-v2.mts",
     "check:money-level-tax-safe-frame": "npx --yes tsx scripts/check-money-level-tax-safe-frame.mts",
     "check:money-level-world-v2-browser": "node scripts/check-money-level-world-v2-browser.mjs",

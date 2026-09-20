@@ -25,6 +25,7 @@ import { GORANI_BENCH_POSE } from "@/lib/money-level/forest/character-pose";
 import { cameraTranslation, clampCameraX, createForestCamera, edgePanSpeed, resolveGestureIntent, screenToWorld, TOUCH_SLOP_PX, type ForestCamera, type GestureIntent } from "@/lib/money-level/forest/camera";
 import { FISHING_VISUAL_CONFIG, fishingRodGeometry, GORANI_BENCH_VISUAL_OFFSET_Y_PX, type SemanticActivityZone } from "@/lib/money-level/forest/activity-zones";
 import { FISHING_BOBBER, fishingLineAngleDeg, projectForestPoint, statueSlotPlacement } from "@/lib/money-level/forest/landmarks";
+import { compareStatueGroundDepth, forestGroundDepthZ, screenGroundPercent } from "@/lib/money-level/forest/statue-depth";
 import { perspectiveScale, setForestSceneViewport, imagePointToScene, type ScenePoint } from "@/lib/money-level/forest/navigation";
 import { FOREST_SCENE, HOUSE_ART_FAMILY, resolveForestBackground, resolveForestHouseAsset } from "@/lib/money-level/forest/scene-config";
 import { brokerageHouseLabelPoint, houseWorldToViewport, taxHouseLabelPoint, TAX_LABEL_WORLD } from "@/lib/money-level/forest/house-geometry";
@@ -61,6 +62,8 @@ declare global {
       startFishingAs: (id: CharacterId) => boolean;
       startBenchSitting: (id: CharacterId) => boolean;
       dropCharacter: (id: CharacterId, source: ScenePoint) => void;
+      dragCharacterTo: (id: CharacterId, source: ScenePoint) => void;
+      setAccessoryForQa: (id: CharacterId, category: "hat" | "face", accessory: string) => void;
       startActivity: (id: CharacterId, zone: SemanticActivityZone["id"]) => boolean;
       ceremonyOwners: () => ReturnType<CharacterActivityCoordinator["getCeremonyOwners"]>;
       startPondWatch: () => boolean;
@@ -110,7 +113,8 @@ export default function MoneyLevelScene({
   const weatherRef = useRef(weather);
   weatherRef.current = weather;
   const lightingFilterId = `world-object-lighting-${useId().replace(/:/g, "")}`;
-  const stageRef = useRef<HTMLDivElement>(null);
+  const goraniStageRef = useRef<HTMLDivElement>(null);
+  const daramjiStageRef = useRef<HTMLDivElement>(null);
   const cameraRef = useRef(createForestCamera(1320, 520, false));
   const statuesRef = useRef({ left: leftStatue, right: rightStatue });
   statuesRef.current = { left: leftStatue, right: rightStatue };
@@ -151,12 +155,13 @@ export default function MoneyLevelScene({
 
   useEffect(() => {
     const scene = sceneRef.current;
-    const stageElement = stageRef.current;
-    if (!scene || !stageElement) return;
+    const stageElements = { gorani: goraniStageRef.current, daramji: daramjiStageRef.current };
+    const stageElement = stageElements.gorani;
+    if (!scene || !stageElement || !stageElements.daramji) return;
 
     let cancelled = false;
     const initialization = new AbortController();
-    let stage: SpineStage | null = null;
+    const stages: Partial<Record<CharacterId, SpineStage>> = {};
     let interactionTimer = 0;
     const cleanupListeners: Array<() => void> = [];
     const mobile = () => window.innerWidth <= MOBILE_BREAKPOINT;
@@ -210,6 +215,22 @@ export default function MoneyLevelScene({
       stageElement.dataset[`${id}Animation`] = states[id].animation;
       stageElement.dataset[`${id}Accessory`] = states[id].hat || states[id].face || "none";
       stageElement.dataset[`${id}Facing`] = position.facing;
+      const actorStage = stageElements[id];
+      if (actorStage) {
+        actorStage.style.zIndex = String(forestGroundDepthZ(position.y, "character"));
+        actorStage.dataset.groundY = position.y.toFixed(3);
+        for (const slot of ["left", "right"] as const) {
+          const statue = statuesRef.current[slot];
+          if (statue === "none") {
+            actorStage.dataset[`depth${slot === "left" ? "Left" : "Right"}`] = "none";
+            continue;
+          }
+          const size = { width: scene.clientWidth, height: scene.clientHeight };
+          const placement = statueSlotPlacement(slot, size, mobile());
+          const statueGround = screenGroundPercent(placement.visibleBottomY, size.height);
+          actorStage.dataset[`depth${slot === "left" ? "Left" : "Right"}`] = compareStatueGroundDepth(position.y, statueGround);
+        }
+      }
     };
 
     for (const id of ["gorani", "daramji"] as const) {
@@ -227,7 +248,11 @@ export default function MoneyLevelScene({
       });
     }
 
-    refreshStatuesRef.current = () => { controllers.gorani.refreshStatueAvailability(); controllers.daramji.refreshStatueAvailability(); };
+    refreshStatuesRef.current = () => {
+      controllers.gorani.refreshStatueAvailability();
+      controllers.daramji.refreshStatueAvailability();
+      (["gorani", "daramji"] as const).forEach((id) => updateCharacterDom(id, positions[id], controllers[id].getPhase()));
+    };
     reprojectCharactersRef.current = (previous, next) => { controllers.gorani.reproject(previous, next); controllers.daramji.reproject(previous, next); };
 
     const updateFishingVisual = (id: CharacterId, hand: BoneScreenPoint) => {
@@ -483,26 +508,31 @@ export default function MoneyLevelScene({
     });
     renderInteractionDebug();
 
-    void SpineStage.create({
-      container: stageElement,
-      mode: "pair",
-      actors: (["gorani", "daramji"] as const).map((id) => ({ id, state: states[id], placement: () => worldPlacement(id) })),
-      boneObservers: (["gorani", "daramji"] as const).map((id) => ({ actorId: id, boneName: FISHING_VISUAL_CONFIG[id].handBone, point: FISHING_VISUAL_CONFIG[id].handPoint, onUpdate: (hand: BoneScreenPoint) => updateFishingVisual(id, hand) })),
-      onError: () => setCharacterError(true),
-      onContextRestored: () => setRuntimeVersion((version) => version + 1),
-      signal: initialization.signal,
-    }).then((createdStage) => {
+    const actorIds = ["gorani", "daramji"] as const;
+    void Promise.all(actorIds.map(async (id) => {
+      const createdStage = await SpineStage.create({
+        container: stageElements[id]!,
+        mode: "pair",
+        actors: [{ id, state: states[id], placement: () => worldPlacement(id) }],
+        boneObservers: [{ actorId: id, boneName: FISHING_VISUAL_CONFIG[id].handBone, point: FISHING_VISUAL_CONFIG[id].handPoint, onUpdate: (hand: BoneScreenPoint) => updateFishingVisual(id, hand) }],
+        onError: () => setCharacterError(true),
+        onContextRestored: () => setRuntimeVersion((version) => version + 1),
+        signal: initialization.signal,
+      });
+      stages[id] = createdStage;
+      return createdStage;
+    })).then((createdStages) => {
       if (cancelled) {
-        createdStage.dispose();
+        createdStages.forEach((createdStage) => createdStage.dispose());
         return;
       }
-      stage = createdStage;
-      stageElement.dataset.ready = "true";
+      actorIds.forEach((id) => { stageElements[id]!.dataset.ready = "true"; });
       controllers.gorani.start();
       controllers.daramji.start();
     }).catch((error: unknown) => {
       if (cancelled) return;
-      stageElement.dataset.ready = "false";
+      initialization.abort();
+      actorIds.forEach((id) => { stageElements[id]!.dataset.ready = "false"; });
       setCharacterError(true);
       if (process.env.NODE_ENV !== "production") console.warn("[Money Level] Spine initialization failed", error);
     });
@@ -524,6 +554,11 @@ export default function MoneyLevelScene({
         startFishingAs: (id) => controllers[id].startActivityAtZone("fishing_dock"),
         startBenchSitting: (id) => controllers[id].startActivityAtZone("bench_slot"),
         dropCharacter: (id, source) => { controllers[id].beginDrag(); controllers[id].endDrag(imagePointToScene(source, mobile() ? "mobile" : "desktop")); },
+        dragCharacterTo: (id, source) => { controllers[id].beginDrag(); controllers[id].updateDrag(imagePointToScene(source, mobile() ? "mobile" : "desktop")); },
+        setAccessoryForQa: (id, category, accessory) => {
+          states[id].hat = category === "hat" ? accessory : "";
+          states[id].face = category === "face" ? accessory : "";
+        },
         startActivity: (id, zone) => controllers[id].startActivityAtZone(zone),
         ceremonyOwners: () => activities.getCeremonyOwners(),
         startPondWatch: () => controllers.daramji.startActivityAtZone("pond_watch"),
@@ -552,7 +587,7 @@ export default function MoneyLevelScene({
       if (panSession && scene.hasPointerCapture(panSession.pointerId)) scene.releasePointerCapture(panSession.pointerId);
       controllers.gorani.stop();
       controllers.daramji.stop();
-      stage?.dispose();
+      Object.values(stages).forEach((createdStage) => createdStage.dispose());
       activeRuntimeCount = Math.max(0, activeRuntimeCount - 1);
       if (activeRuntimeCount > 0) stageElement.dataset.activeRuntimeCount = String(activeRuntimeCount);
       else delete stageElement.dataset.activeRuntimeCount;
@@ -604,7 +639,7 @@ export default function MoneyLevelScene({
   } as CSSProperties;
 
   return (
-    <section ref={sceneRef} className="forest-scene" data-ambient={ambientEnabled ? "on" : "off"} data-special-event={specialEvent} aria-label="고라니와 다람쥐가 사는 숲">
+    <section ref={sceneRef} className="forest-scene" style={worldObjectStyle} data-ambient={ambientEnabled ? "on" : "off"} data-special-event={specialEvent} aria-label="고라니와 다람쥐가 사는 숲">
       <svg width="0" height="0" aria-hidden="true" style={{ position: "absolute" }}>
         <defs>
           <filter id={lightingFilterId} colorInterpolationFilters="sRGB" x="0%" y="0%" width="100%" height="100%">
@@ -645,24 +680,28 @@ export default function MoneyLevelScene({
           <filter id={`${lightingFilterId}-statue`} colorInterpolationFilters="sRGB"><feColorMatrix type="matrix" values={objectLighting.statue.colorMatrix} /></filter>
         </defs>
       </svg>
-      <div className="scene-world" style={worldObjectStyle}>
+      <div className="scene-world">
         <WeatherBackground season={season} timeOfDay={timeOfDay} weather={weather} />
         {ambientEnabled ? <div className="pond-shimmer-layer ambient-motion-layer" aria-hidden="true" /> : null}
         <div className="house-place brokerage-house"><HouseVisual kind="brokerage" stage={brokerageStage} sceneSize={sceneSize} asset={brokerageHouseAsset} /></div>
         <div className="house-place tax-house"><HouseVisual kind="tax" stage={taxStage} sceneSize={sceneSize} asset={taxHouseAsset} /></div>
-        {(["left", "right"] as const).map((slot) => {
-          const statue = slot === "left" ? leftStatue : rightStatue;
-          if (statue === "none") return null;
-          const placement = statuePlacements[slot];
-          return <img key={slot} className="forest-statue" data-statue-slot={slot} src={`/money-level/art/statues/${statue}.png`} alt={`${slot === "left" ? "왼쪽" : "오른쪽"} 받침대의 곰 조각상`} style={{ left: placement.x, top: placement.y, "--statue-width": `${placement.width}px` } as CSSProperties} draggable={false} />;
-        })}
         <div className="character-ground-layer" aria-hidden="true">
           <CharacterAnchor id="gorani" layer="shadow" /><CharacterAnchor id="daramji" layer="shadow" />
         </div>
       </div>
       {ambientEnabled && specialEvent === "payday-leaf-shower" ? <PaydayLeafShower layer="far" count={48} /> : null}
-      {/* Render only the camera viewport, not a translated/clipped full-world canvas. */}
-      <div ref={stageRef} className="spine-forest-stage" data-runtime-version={runtimeVersion} />
+      <div className="forest-depth-layer" aria-label="숲 오브젝트 깊이 레이어">
+        {(["left", "right"] as const).map((slot) => {
+          const statue = slot === "left" ? leftStatue : rightStatue;
+          if (statue === "none") return null;
+          const placement = statuePlacements[slot];
+          const groundPercent = screenGroundPercent(placement.visibleBottomY, sceneSize.height);
+          return <img key={slot} className="forest-statue" data-statue-slot={slot} data-ground-y={groundPercent.toFixed(3)} src={`/money-level/art/statues/${statue}.png`} alt={`${slot === "left" ? "왼쪽" : "오른쪽"} 받침대의 곰 조각상`} style={{ left: placement.x, top: placement.y, zIndex: forestGroundDepthZ(groundPercent, "statue"), "--statue-width": `${placement.width}px` } as CSSProperties} draggable={false} />;
+        })}
+        {/* Separate canvases let each character sort independently around both statues. */}
+        <div ref={goraniStageRef} className="spine-forest-stage" data-character-stage="gorani" data-runtime-version={runtimeVersion} />
+        <div ref={daramjiStageRef} className="spine-forest-stage" data-character-stage="daramji" data-runtime-version={runtimeVersion} />
+      </div>
       <div className="scene-activity-layer" aria-hidden="true">
         <span className="pond-activity fishing-activity" hidden>
           <img className="fishing-rod" src="/money-level/art/props/fishing-rod.webp" alt="" draggable={false} />

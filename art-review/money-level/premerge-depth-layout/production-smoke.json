@@ -1,0 +1,15 @@
+{
+  "status": "PASS",
+  "runtimeConsoleErrors": 0,
+  "pageErrors": 0,
+  "failedRequests": 0,
+  "characterStages": 2,
+  "characterCanvases": 2,
+  "statues": 2,
+  "background": "/money-level/art/background/seasonal/forest-fall-night-cloudy.webp",
+  "backgroundCoverage": 0.9522715196599362,
+  "houseAssets": [
+    "/money-level/art/houses/temporary-house-fall.webp",
+    "/money-level/art/houses/temporary-camp-fall.webp"
+  ]
+}
