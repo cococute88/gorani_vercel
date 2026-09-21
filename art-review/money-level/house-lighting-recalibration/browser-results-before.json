@@ -1,0 +1,3972 @@
+{
+  "results": [
+    {
+      "layout": "desktop",
+      "group": "time-house",
+      "season": "spring",
+      "time": "morning",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-house-fall.webp",
+        "/money-level/art/houses/temporary-house-fall.webp"
+      ],
+      "houseFilter": "brightness(0.93) saturate(0.96) contrast(0.98) sepia(0.015) hue-rotate(0deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "0.98 0 0 0 0 0 1 0 0 0 0 0 1.035 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-spring-morning-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "50% 50%",
+        "sceneWidth": 1280,
+        "sceneHeight": 576,
+        "containerWidth": 1280,
+        "containerHeight": 572,
+        "coverScale": 0.7655502392344498,
+        "renderedWidth": 1280,
+        "renderedHeight": 720.3827751196172,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 74.19138755980862,
+        "cropBottom": 74.19138755980862,
+        "visibleSourceY": [
+          96.91250000000001,
+          844.0875
+        ],
+        "scaleX": 0.7655502392344498,
+        "scaleY": 0.7655502392344498
+      }
+    },
+    {
+      "layout": "desktop",
+      "group": "time-house",
+      "season": "spring",
+      "time": "day",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-house-fall.webp",
+        "/money-level/art/houses/temporary-house-fall.webp"
+      ],
+      "houseFilter": "brightness(1) saturate(1) contrast(1) sepia(0) hue-rotate(0deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-spring-day-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "50% 50%",
+        "sceneWidth": 1280,
+        "sceneHeight": 576,
+        "containerWidth": 1280,
+        "containerHeight": 572,
+        "coverScale": 0.7655502392344498,
+        "renderedWidth": 1280,
+        "renderedHeight": 720.3827751196172,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 74.19138755980862,
+        "cropBottom": 74.19138755980862,
+        "visibleSourceY": [
+          96.91250000000001,
+          844.0875
+        ],
+        "scaleX": 0.7655502392344498,
+        "scaleY": 0.7655502392344498
+      }
+    },
+    {
+      "layout": "desktop",
+      "group": "time-house",
+      "season": "spring",
+      "time": "evening",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-house-fall.webp",
+        "/money-level/art/houses/temporary-house-fall.webp"
+      ],
+      "houseFilter": "brightness(0.82) saturate(0.86) contrast(1) sepia(0) hue-rotate(-12deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "1.08 0 0 0 0 0 0.94 0 0 0 0 0 0.97 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-spring-evening-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "50% 50%",
+        "sceneWidth": 1280,
+        "sceneHeight": 576,
+        "containerWidth": 1280,
+        "containerHeight": 572,
+        "coverScale": 0.7655502392344498,
+        "renderedWidth": 1280,
+        "renderedHeight": 720.3827751196172,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 74.19138755980862,
+        "cropBottom": 74.19138755980862,
+        "visibleSourceY": [
+          96.91250000000001,
+          844.0875
+        ],
+        "scaleX": 0.7655502392344498,
+        "scaleY": 0.7655502392344498
+      }
+    },
+    {
+      "layout": "desktop",
+      "group": "time-house",
+      "season": "spring",
+      "time": "night",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-house-fall.webp",
+        "/money-level/art/houses/temporary-house-fall.webp"
+      ],
+      "houseFilter": "brightness(0.67) saturate(0.88) contrast(1) sepia(0) hue-rotate(8deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "0.7 0 0 0 0 0 0.88 0 0 0 0 0 1.16 0 0 0 0 0 1 0",
+      "transfers": [
+        "<feComponentTransfer in=\"houseBase\" result=\"opaqueBase\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"nightColor\" result=\"crispNight\"><feFuncR type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncR><feFuncG type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncG><feFuncB type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncB></feComponentTransfer>",
+        "<feComponentTransfer in=\"warmPixels\" result=\"practicalMask\"><feFuncA type=\"linear\" slope=\"0.55\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"SourceGraphic\" result=\"opaquePractical\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>"
+      ],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-spring-night-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "50% 50%",
+        "sceneWidth": 1280,
+        "sceneHeight": 576,
+        "containerWidth": 1280,
+        "containerHeight": 572,
+        "coverScale": 0.7655502392344498,
+        "renderedWidth": 1280,
+        "renderedHeight": 720.3827751196172,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 74.19138755980862,
+        "cropBottom": 74.19138755980862,
+        "visibleSourceY": [
+          96.91250000000001,
+          844.0875
+        ],
+        "scaleX": 0.7655502392344498,
+        "scaleY": 0.7655502392344498
+      }
+    },
+    {
+      "layout": "desktop",
+      "group": "time-house",
+      "season": "fall",
+      "time": "morning",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-house-fall.webp",
+        "/money-level/art/houses/temporary-house-fall.webp"
+      ],
+      "houseFilter": "brightness(0.93) saturate(0.96) contrast(0.98) sepia(0.015) hue-rotate(0deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "0.98 0 0 0 0 0 1 0 0 0 0 0 1.035 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-fall-morning-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "50% 50%",
+        "sceneWidth": 1280,
+        "sceneHeight": 576,
+        "containerWidth": 1280,
+        "containerHeight": 572,
+        "coverScale": 0.7655502392344498,
+        "renderedWidth": 1280,
+        "renderedHeight": 720.3827751196172,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 74.19138755980862,
+        "cropBottom": 74.19138755980862,
+        "visibleSourceY": [
+          96.91250000000001,
+          844.0875
+        ],
+        "scaleX": 0.7655502392344498,
+        "scaleY": 0.7655502392344498
+      }
+    },
+    {
+      "layout": "desktop",
+      "group": "time-house",
+      "season": "fall",
+      "time": "day",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-house-fall.webp",
+        "/money-level/art/houses/temporary-house-fall.webp"
+      ],
+      "houseFilter": "brightness(1) saturate(1) contrast(1) sepia(0) hue-rotate(0deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-fall-day-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "50% 50%",
+        "sceneWidth": 1280,
+        "sceneHeight": 576,
+        "containerWidth": 1280,
+        "containerHeight": 572,
+        "coverScale": 0.7655502392344498,
+        "renderedWidth": 1280,
+        "renderedHeight": 720.3827751196172,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 74.19138755980862,
+        "cropBottom": 74.19138755980862,
+        "visibleSourceY": [
+          96.91250000000001,
+          844.0875
+        ],
+        "scaleX": 0.7655502392344498,
+        "scaleY": 0.7655502392344498
+      }
+    },
+    {
+      "layout": "desktop",
+      "group": "time-house",
+      "season": "fall",
+      "time": "evening",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-house-fall.webp",
+        "/money-level/art/houses/temporary-house-fall.webp"
+      ],
+      "houseFilter": "brightness(0.82) saturate(0.86) contrast(1) sepia(0) hue-rotate(-12deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "1.08 0 0 0 0 0 0.94 0 0 0 0 0 0.97 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-fall-evening-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "50% 50%",
+        "sceneWidth": 1280,
+        "sceneHeight": 576,
+        "containerWidth": 1280,
+        "containerHeight": 572,
+        "coverScale": 0.7655502392344498,
+        "renderedWidth": 1280,
+        "renderedHeight": 720.3827751196172,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 74.19138755980862,
+        "cropBottom": 74.19138755980862,
+        "visibleSourceY": [
+          96.91250000000001,
+          844.0875
+        ],
+        "scaleX": 0.7655502392344498,
+        "scaleY": 0.7655502392344498
+      }
+    },
+    {
+      "layout": "desktop",
+      "group": "time-house",
+      "season": "fall",
+      "time": "night",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-house-fall.webp",
+        "/money-level/art/houses/temporary-house-fall.webp"
+      ],
+      "houseFilter": "brightness(0.67) saturate(0.88) contrast(1) sepia(0) hue-rotate(8deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "0.7 0 0 0 0 0 0.88 0 0 0 0 0 1.16 0 0 0 0 0 1 0",
+      "transfers": [
+        "<feComponentTransfer in=\"houseBase\" result=\"opaqueBase\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"nightColor\" result=\"crispNight\"><feFuncR type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncR><feFuncG type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncG><feFuncB type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncB></feComponentTransfer>",
+        "<feComponentTransfer in=\"warmPixels\" result=\"practicalMask\"><feFuncA type=\"linear\" slope=\"0.55\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"SourceGraphic\" result=\"opaquePractical\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>"
+      ],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-fall-night-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "50% 50%",
+        "sceneWidth": 1280,
+        "sceneHeight": 576,
+        "containerWidth": 1280,
+        "containerHeight": 572,
+        "coverScale": 0.7655502392344498,
+        "renderedWidth": 1280,
+        "renderedHeight": 720.3827751196172,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 74.19138755980862,
+        "cropBottom": 74.19138755980862,
+        "visibleSourceY": [
+          96.91250000000001,
+          844.0875
+        ],
+        "scaleX": 0.7655502392344498,
+        "scaleY": 0.7655502392344498
+      }
+    },
+    {
+      "layout": "desktop",
+      "group": "time-house",
+      "season": "winter",
+      "time": "morning",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-house-winter.webp",
+        "/money-level/art/houses/temporary-house-winter.webp"
+      ],
+      "houseFilter": "brightness(0.93) saturate(0.96) contrast(0.98) sepia(0.015) hue-rotate(0deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "0.98 0 0 0 0 0 1 0 0 0 0 0 1.035 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-winter-morning-sunny.webp",
+        "naturalWidth": 1683,
+        "naturalHeight": 934,
+        "sourceAspect": 1.8019271948608138,
+        "objectFit": "cover",
+        "objectPosition": "50% 50%",
+        "sceneWidth": 1280,
+        "sceneHeight": 576,
+        "containerWidth": 1280,
+        "containerHeight": 572,
+        "coverScale": 0.7605466428995841,
+        "renderedWidth": 1280,
+        "renderedHeight": 710.3505644682115,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 69.17528223410574,
+        "cropBottom": 69.17528223410574,
+        "visibleSourceY": [
+          90.95468749999996,
+          843.0453124999999
+        ],
+        "scaleX": 0.7605466428995841,
+        "scaleY": 0.7605466428995841
+      }
+    },
+    {
+      "layout": "desktop",
+      "group": "time-house",
+      "season": "winter",
+      "time": "day",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-house-winter.webp",
+        "/money-level/art/houses/temporary-house-winter.webp"
+      ],
+      "houseFilter": "brightness(1) saturate(1) contrast(1) sepia(0) hue-rotate(0deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-winter-day-sunny.webp",
+        "naturalWidth": 1683,
+        "naturalHeight": 934,
+        "sourceAspect": 1.8019271948608138,
+        "objectFit": "cover",
+        "objectPosition": "50% 50%",
+        "sceneWidth": 1280,
+        "sceneHeight": 576,
+        "containerWidth": 1280,
+        "containerHeight": 572,
+        "coverScale": 0.7605466428995841,
+        "renderedWidth": 1280,
+        "renderedHeight": 710.3505644682115,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 69.17528223410574,
+        "cropBottom": 69.17528223410574,
+        "visibleSourceY": [
+          90.95468749999996,
+          843.0453124999999
+        ],
+        "scaleX": 0.7605466428995841,
+        "scaleY": 0.7605466428995841
+      }
+    },
+    {
+      "layout": "desktop",
+      "group": "time-house",
+      "season": "winter",
+      "time": "evening",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-house-winter.webp",
+        "/money-level/art/houses/temporary-house-winter.webp"
+      ],
+      "houseFilter": "brightness(0.82) saturate(0.86) contrast(1) sepia(0) hue-rotate(-12deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "1.08 0 0 0 0 0 0.94 0 0 0 0 0 0.97 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-winter-evening-sunny.webp",
+        "naturalWidth": 1683,
+        "naturalHeight": 934,
+        "sourceAspect": 1.8019271948608138,
+        "objectFit": "cover",
+        "objectPosition": "50% 50%",
+        "sceneWidth": 1280,
+        "sceneHeight": 576,
+        "containerWidth": 1280,
+        "containerHeight": 572,
+        "coverScale": 0.7605466428995841,
+        "renderedWidth": 1280,
+        "renderedHeight": 710.3505644682115,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 69.17528223410574,
+        "cropBottom": 69.17528223410574,
+        "visibleSourceY": [
+          90.95468749999996,
+          843.0453124999999
+        ],
+        "scaleX": 0.7605466428995841,
+        "scaleY": 0.7605466428995841
+      }
+    },
+    {
+      "layout": "desktop",
+      "group": "time-house",
+      "season": "winter",
+      "time": "night",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-house-winter.webp",
+        "/money-level/art/houses/temporary-house-winter.webp"
+      ],
+      "houseFilter": "brightness(0.67) saturate(0.88) contrast(1) sepia(0) hue-rotate(8deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "0.7 0 0 0 0 0 0.88 0 0 0 0 0 1.16 0 0 0 0 0 1 0",
+      "transfers": [
+        "<feComponentTransfer in=\"houseBase\" result=\"opaqueBase\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"nightColor\" result=\"crispNight\"><feFuncR type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncR><feFuncG type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncG><feFuncB type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncB></feComponentTransfer>",
+        "<feComponentTransfer in=\"warmPixels\" result=\"practicalMask\"><feFuncA type=\"linear\" slope=\"0.55\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"SourceGraphic\" result=\"opaquePractical\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>"
+      ],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-winter-night-sunny.webp",
+        "naturalWidth": 1683,
+        "naturalHeight": 934,
+        "sourceAspect": 1.8019271948608138,
+        "objectFit": "cover",
+        "objectPosition": "50% 50%",
+        "sceneWidth": 1280,
+        "sceneHeight": 576,
+        "containerWidth": 1280,
+        "containerHeight": 572,
+        "coverScale": 0.7605466428995841,
+        "renderedWidth": 1280,
+        "renderedHeight": 710.3505644682115,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 69.17528223410574,
+        "cropBottom": 69.17528223410574,
+        "visibleSourceY": [
+          90.95468749999996,
+          843.0453124999999
+        ],
+        "scaleX": 0.7605466428995841,
+        "scaleY": 0.7605466428995841
+      }
+    },
+    {
+      "layout": "desktop",
+      "group": "asset-material",
+      "season": "spring",
+      "stage": "camp",
+      "time": "day",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-camp-spring-summer.webp",
+        "/money-level/art/houses/temporary-camp-spring-summer.webp"
+      ],
+      "houseFilter": "brightness(1) saturate(1) contrast(1) sepia(0) hue-rotate(0deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-spring-day-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "50% 50%",
+        "sceneWidth": 1280,
+        "sceneHeight": 576,
+        "containerWidth": 1280,
+        "containerHeight": 572,
+        "coverScale": 0.7655502392344498,
+        "renderedWidth": 1280,
+        "renderedHeight": 720.3827751196172,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 74.19138755980862,
+        "cropBottom": 74.19138755980862,
+        "visibleSourceY": [
+          96.91250000000001,
+          844.0875
+        ],
+        "scaleX": 0.7655502392344498,
+        "scaleY": 0.7655502392344498
+      }
+    },
+    {
+      "layout": "desktop",
+      "group": "asset-material",
+      "season": "spring",
+      "stage": "camp",
+      "time": "evening",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-camp-spring-summer.webp",
+        "/money-level/art/houses/temporary-camp-spring-summer.webp"
+      ],
+      "houseFilter": "brightness(0.82) saturate(0.86) contrast(1) sepia(0) hue-rotate(-12deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "1.08 0 0 0 0 0 0.94 0 0 0 0 0 0.97 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-spring-evening-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "50% 50%",
+        "sceneWidth": 1280,
+        "sceneHeight": 576,
+        "containerWidth": 1280,
+        "containerHeight": 572,
+        "coverScale": 0.7655502392344498,
+        "renderedWidth": 1280,
+        "renderedHeight": 720.3827751196172,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 74.19138755980862,
+        "cropBottom": 74.19138755980862,
+        "visibleSourceY": [
+          96.91250000000001,
+          844.0875
+        ],
+        "scaleX": 0.7655502392344498,
+        "scaleY": 0.7655502392344498
+      }
+    },
+    {
+      "layout": "desktop",
+      "group": "asset-material",
+      "season": "spring",
+      "stage": "camp",
+      "time": "night",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-camp-spring-summer.webp",
+        "/money-level/art/houses/temporary-camp-spring-summer.webp"
+      ],
+      "houseFilter": "brightness(0.67) saturate(0.88) contrast(1) sepia(0) hue-rotate(8deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "0.7 0 0 0 0 0 0.88 0 0 0 0 0 1.16 0 0 0 0 0 1 0",
+      "transfers": [
+        "<feComponentTransfer in=\"houseBase\" result=\"opaqueBase\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"nightColor\" result=\"crispNight\"><feFuncR type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncR><feFuncG type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncG><feFuncB type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncB></feComponentTransfer>",
+        "<feComponentTransfer in=\"warmPixels\" result=\"practicalMask\"><feFuncA type=\"linear\" slope=\"0.55\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"SourceGraphic\" result=\"opaquePractical\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>"
+      ],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-spring-night-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "50% 50%",
+        "sceneWidth": 1280,
+        "sceneHeight": 576,
+        "containerWidth": 1280,
+        "containerHeight": 572,
+        "coverScale": 0.7655502392344498,
+        "renderedWidth": 1280,
+        "renderedHeight": 720.3827751196172,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 74.19138755980862,
+        "cropBottom": 74.19138755980862,
+        "visibleSourceY": [
+          96.91250000000001,
+          844.0875
+        ],
+        "scaleX": 0.7655502392344498,
+        "scaleY": 0.7655502392344498
+      }
+    },
+    {
+      "layout": "desktop",
+      "group": "asset-material",
+      "season": "spring",
+      "stage": "tent-neutral",
+      "time": "day",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-tent-neutral.webp",
+        "/money-level/art/houses/temporary-tent-neutral.webp"
+      ],
+      "houseFilter": "brightness(1) saturate(1) contrast(1) sepia(0) hue-rotate(0deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-spring-day-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "50% 50%",
+        "sceneWidth": 1280,
+        "sceneHeight": 576,
+        "containerWidth": 1280,
+        "containerHeight": 572,
+        "coverScale": 0.7655502392344498,
+        "renderedWidth": 1280,
+        "renderedHeight": 720.3827751196172,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 74.19138755980862,
+        "cropBottom": 74.19138755980862,
+        "visibleSourceY": [
+          96.91250000000001,
+          844.0875
+        ],
+        "scaleX": 0.7655502392344498,
+        "scaleY": 0.7655502392344498
+      }
+    },
+    {
+      "layout": "desktop",
+      "group": "asset-material",
+      "season": "spring",
+      "stage": "tent-neutral",
+      "time": "evening",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-tent-neutral.webp",
+        "/money-level/art/houses/temporary-tent-neutral.webp"
+      ],
+      "houseFilter": "brightness(0.82) saturate(0.86) contrast(1) sepia(0) hue-rotate(-12deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "1.08 0 0 0 0 0 0.94 0 0 0 0 0 0.97 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-spring-evening-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "50% 50%",
+        "sceneWidth": 1280,
+        "sceneHeight": 576,
+        "containerWidth": 1280,
+        "containerHeight": 572,
+        "coverScale": 0.7655502392344498,
+        "renderedWidth": 1280,
+        "renderedHeight": 720.3827751196172,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 74.19138755980862,
+        "cropBottom": 74.19138755980862,
+        "visibleSourceY": [
+          96.91250000000001,
+          844.0875
+        ],
+        "scaleX": 0.7655502392344498,
+        "scaleY": 0.7655502392344498
+      }
+    },
+    {
+      "layout": "desktop",
+      "group": "asset-material",
+      "season": "spring",
+      "stage": "tent-neutral",
+      "time": "night",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-tent-neutral.webp",
+        "/money-level/art/houses/temporary-tent-neutral.webp"
+      ],
+      "houseFilter": "brightness(0.67) saturate(0.88) contrast(1) sepia(0) hue-rotate(8deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "0.7 0 0 0 0 0 0.88 0 0 0 0 0 1.16 0 0 0 0 0 1 0",
+      "transfers": [
+        "<feComponentTransfer in=\"houseBase\" result=\"opaqueBase\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"nightColor\" result=\"crispNight\"><feFuncR type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncR><feFuncG type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncG><feFuncB type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncB></feComponentTransfer>",
+        "<feComponentTransfer in=\"warmPixels\" result=\"practicalMask\"><feFuncA type=\"linear\" slope=\"0.55\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"SourceGraphic\" result=\"opaquePractical\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>"
+      ],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-spring-night-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "50% 50%",
+        "sceneWidth": 1280,
+        "sceneHeight": 576,
+        "containerWidth": 1280,
+        "containerHeight": 572,
+        "coverScale": 0.7655502392344498,
+        "renderedWidth": 1280,
+        "renderedHeight": 720.3827751196172,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 74.19138755980862,
+        "cropBottom": 74.19138755980862,
+        "visibleSourceY": [
+          96.91250000000001,
+          844.0875
+        ],
+        "scaleX": 0.7655502392344498,
+        "scaleY": 0.7655502392344498
+      }
+    },
+    {
+      "layout": "desktop",
+      "group": "asset-material",
+      "season": "spring",
+      "stage": "tent-yellow",
+      "time": "day",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-tent-yellow.webp",
+        "/money-level/art/houses/temporary-tent-yellow.webp"
+      ],
+      "houseFilter": "brightness(1) saturate(1) contrast(1) sepia(0) hue-rotate(0deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-spring-day-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "50% 50%",
+        "sceneWidth": 1280,
+        "sceneHeight": 576,
+        "containerWidth": 1280,
+        "containerHeight": 572,
+        "coverScale": 0.7655502392344498,
+        "renderedWidth": 1280,
+        "renderedHeight": 720.3827751196172,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 74.19138755980862,
+        "cropBottom": 74.19138755980862,
+        "visibleSourceY": [
+          96.91250000000001,
+          844.0875
+        ],
+        "scaleX": 0.7655502392344498,
+        "scaleY": 0.7655502392344498
+      }
+    },
+    {
+      "layout": "desktop",
+      "group": "asset-material",
+      "season": "spring",
+      "stage": "tent-yellow",
+      "time": "evening",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-tent-yellow.webp",
+        "/money-level/art/houses/temporary-tent-yellow.webp"
+      ],
+      "houseFilter": "brightness(0.82) saturate(0.86) contrast(1) sepia(0) hue-rotate(-12deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "1.08 0 0 0 0 0 0.94 0 0 0 0 0 0.97 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-spring-evening-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "50% 50%",
+        "sceneWidth": 1280,
+        "sceneHeight": 576,
+        "containerWidth": 1280,
+        "containerHeight": 572,
+        "coverScale": 0.7655502392344498,
+        "renderedWidth": 1280,
+        "renderedHeight": 720.3827751196172,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 74.19138755980862,
+        "cropBottom": 74.19138755980862,
+        "visibleSourceY": [
+          96.91250000000001,
+          844.0875
+        ],
+        "scaleX": 0.7655502392344498,
+        "scaleY": 0.7655502392344498
+      }
+    },
+    {
+      "layout": "desktop",
+      "group": "asset-material",
+      "season": "spring",
+      "stage": "tent-yellow",
+      "time": "night",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-tent-yellow.webp",
+        "/money-level/art/houses/temporary-tent-yellow.webp"
+      ],
+      "houseFilter": "brightness(0.67) saturate(0.88) contrast(1) sepia(0) hue-rotate(8deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "0.7 0 0 0 0 0 0.88 0 0 0 0 0 1.16 0 0 0 0 0 1 0",
+      "transfers": [
+        "<feComponentTransfer in=\"houseBase\" result=\"opaqueBase\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"nightColor\" result=\"crispNight\"><feFuncR type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncR><feFuncG type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncG><feFuncB type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncB></feComponentTransfer>",
+        "<feComponentTransfer in=\"warmPixels\" result=\"practicalMask\"><feFuncA type=\"linear\" slope=\"0.55\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"SourceGraphic\" result=\"opaquePractical\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>"
+      ],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-spring-night-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "50% 50%",
+        "sceneWidth": 1280,
+        "sceneHeight": 576,
+        "containerWidth": 1280,
+        "containerHeight": 572,
+        "coverScale": 0.7655502392344498,
+        "renderedWidth": 1280,
+        "renderedHeight": 720.3827751196172,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 74.19138755980862,
+        "cropBottom": 74.19138755980862,
+        "visibleSourceY": [
+          96.91250000000001,
+          844.0875
+        ],
+        "scaleX": 0.7655502392344498,
+        "scaleY": 0.7655502392344498
+      }
+    },
+    {
+      "layout": "desktop",
+      "group": "asset-material",
+      "season": "fall",
+      "stage": "camp",
+      "time": "day",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-camp-fall.webp",
+        "/money-level/art/houses/temporary-camp-fall.webp"
+      ],
+      "houseFilter": "brightness(1) saturate(1) contrast(1) sepia(0) hue-rotate(0deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-fall-day-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "50% 50%",
+        "sceneWidth": 1280,
+        "sceneHeight": 576,
+        "containerWidth": 1280,
+        "containerHeight": 572,
+        "coverScale": 0.7655502392344498,
+        "renderedWidth": 1280,
+        "renderedHeight": 720.3827751196172,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 74.19138755980862,
+        "cropBottom": 74.19138755980862,
+        "visibleSourceY": [
+          96.91250000000001,
+          844.0875
+        ],
+        "scaleX": 0.7655502392344498,
+        "scaleY": 0.7655502392344498
+      }
+    },
+    {
+      "layout": "desktop",
+      "group": "asset-material",
+      "season": "fall",
+      "stage": "camp",
+      "time": "evening",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-camp-fall.webp",
+        "/money-level/art/houses/temporary-camp-fall.webp"
+      ],
+      "houseFilter": "brightness(0.82) saturate(0.86) contrast(1) sepia(0) hue-rotate(-12deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "1.08 0 0 0 0 0 0.94 0 0 0 0 0 0.97 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-fall-evening-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "50% 50%",
+        "sceneWidth": 1280,
+        "sceneHeight": 576,
+        "containerWidth": 1280,
+        "containerHeight": 572,
+        "coverScale": 0.7655502392344498,
+        "renderedWidth": 1280,
+        "renderedHeight": 720.3827751196172,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 74.19138755980862,
+        "cropBottom": 74.19138755980862,
+        "visibleSourceY": [
+          96.91250000000001,
+          844.0875
+        ],
+        "scaleX": 0.7655502392344498,
+        "scaleY": 0.7655502392344498
+      }
+    },
+    {
+      "layout": "desktop",
+      "group": "asset-material",
+      "season": "fall",
+      "stage": "camp",
+      "time": "night",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-camp-fall.webp",
+        "/money-level/art/houses/temporary-camp-fall.webp"
+      ],
+      "houseFilter": "brightness(0.67) saturate(0.88) contrast(1) sepia(0) hue-rotate(8deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "0.7 0 0 0 0 0 0.88 0 0 0 0 0 1.16 0 0 0 0 0 1 0",
+      "transfers": [
+        "<feComponentTransfer in=\"houseBase\" result=\"opaqueBase\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"nightColor\" result=\"crispNight\"><feFuncR type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncR><feFuncG type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncG><feFuncB type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncB></feComponentTransfer>",
+        "<feComponentTransfer in=\"warmPixels\" result=\"practicalMask\"><feFuncA type=\"linear\" slope=\"0.55\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"SourceGraphic\" result=\"opaquePractical\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>"
+      ],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-fall-night-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "50% 50%",
+        "sceneWidth": 1280,
+        "sceneHeight": 576,
+        "containerWidth": 1280,
+        "containerHeight": 572,
+        "coverScale": 0.7655502392344498,
+        "renderedWidth": 1280,
+        "renderedHeight": 720.3827751196172,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 74.19138755980862,
+        "cropBottom": 74.19138755980862,
+        "visibleSourceY": [
+          96.91250000000001,
+          844.0875
+        ],
+        "scaleX": 0.7655502392344498,
+        "scaleY": 0.7655502392344498
+      }
+    },
+    {
+      "layout": "desktop",
+      "group": "asset-material",
+      "season": "fall",
+      "stage": "tent-neutral",
+      "time": "day",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-tent-neutral.webp",
+        "/money-level/art/houses/temporary-tent-neutral.webp"
+      ],
+      "houseFilter": "brightness(1) saturate(1) contrast(1) sepia(0) hue-rotate(0deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-fall-day-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "50% 50%",
+        "sceneWidth": 1280,
+        "sceneHeight": 576,
+        "containerWidth": 1280,
+        "containerHeight": 572,
+        "coverScale": 0.7655502392344498,
+        "renderedWidth": 1280,
+        "renderedHeight": 720.3827751196172,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 74.19138755980862,
+        "cropBottom": 74.19138755980862,
+        "visibleSourceY": [
+          96.91250000000001,
+          844.0875
+        ],
+        "scaleX": 0.7655502392344498,
+        "scaleY": 0.7655502392344498
+      }
+    },
+    {
+      "layout": "desktop",
+      "group": "asset-material",
+      "season": "fall",
+      "stage": "tent-neutral",
+      "time": "evening",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-tent-neutral.webp",
+        "/money-level/art/houses/temporary-tent-neutral.webp"
+      ],
+      "houseFilter": "brightness(0.82) saturate(0.86) contrast(1) sepia(0) hue-rotate(-12deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "1.08 0 0 0 0 0 0.94 0 0 0 0 0 0.97 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-fall-evening-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "50% 50%",
+        "sceneWidth": 1280,
+        "sceneHeight": 576,
+        "containerWidth": 1280,
+        "containerHeight": 572,
+        "coverScale": 0.7655502392344498,
+        "renderedWidth": 1280,
+        "renderedHeight": 720.3827751196172,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 74.19138755980862,
+        "cropBottom": 74.19138755980862,
+        "visibleSourceY": [
+          96.91250000000001,
+          844.0875
+        ],
+        "scaleX": 0.7655502392344498,
+        "scaleY": 0.7655502392344498
+      }
+    },
+    {
+      "layout": "desktop",
+      "group": "asset-material",
+      "season": "fall",
+      "stage": "tent-neutral",
+      "time": "night",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-tent-neutral.webp",
+        "/money-level/art/houses/temporary-tent-neutral.webp"
+      ],
+      "houseFilter": "brightness(0.67) saturate(0.88) contrast(1) sepia(0) hue-rotate(8deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "0.7 0 0 0 0 0 0.88 0 0 0 0 0 1.16 0 0 0 0 0 1 0",
+      "transfers": [
+        "<feComponentTransfer in=\"houseBase\" result=\"opaqueBase\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"nightColor\" result=\"crispNight\"><feFuncR type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncR><feFuncG type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncG><feFuncB type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncB></feComponentTransfer>",
+        "<feComponentTransfer in=\"warmPixels\" result=\"practicalMask\"><feFuncA type=\"linear\" slope=\"0.55\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"SourceGraphic\" result=\"opaquePractical\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>"
+      ],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-fall-night-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "50% 50%",
+        "sceneWidth": 1280,
+        "sceneHeight": 576,
+        "containerWidth": 1280,
+        "containerHeight": 572,
+        "coverScale": 0.7655502392344498,
+        "renderedWidth": 1280,
+        "renderedHeight": 720.3827751196172,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 74.19138755980862,
+        "cropBottom": 74.19138755980862,
+        "visibleSourceY": [
+          96.91250000000001,
+          844.0875
+        ],
+        "scaleX": 0.7655502392344498,
+        "scaleY": 0.7655502392344498
+      }
+    },
+    {
+      "layout": "desktop",
+      "group": "asset-material",
+      "season": "fall",
+      "stage": "tent-yellow",
+      "time": "day",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-tent-yellow.webp",
+        "/money-level/art/houses/temporary-tent-yellow.webp"
+      ],
+      "houseFilter": "brightness(1) saturate(1) contrast(1) sepia(0) hue-rotate(0deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-fall-day-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "50% 50%",
+        "sceneWidth": 1280,
+        "sceneHeight": 576,
+        "containerWidth": 1280,
+        "containerHeight": 572,
+        "coverScale": 0.7655502392344498,
+        "renderedWidth": 1280,
+        "renderedHeight": 720.3827751196172,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 74.19138755980862,
+        "cropBottom": 74.19138755980862,
+        "visibleSourceY": [
+          96.91250000000001,
+          844.0875
+        ],
+        "scaleX": 0.7655502392344498,
+        "scaleY": 0.7655502392344498
+      }
+    },
+    {
+      "layout": "desktop",
+      "group": "asset-material",
+      "season": "fall",
+      "stage": "tent-yellow",
+      "time": "evening",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-tent-yellow.webp",
+        "/money-level/art/houses/temporary-tent-yellow.webp"
+      ],
+      "houseFilter": "brightness(0.82) saturate(0.86) contrast(1) sepia(0) hue-rotate(-12deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "1.08 0 0 0 0 0 0.94 0 0 0 0 0 0.97 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-fall-evening-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "50% 50%",
+        "sceneWidth": 1280,
+        "sceneHeight": 576,
+        "containerWidth": 1280,
+        "containerHeight": 572,
+        "coverScale": 0.7655502392344498,
+        "renderedWidth": 1280,
+        "renderedHeight": 720.3827751196172,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 74.19138755980862,
+        "cropBottom": 74.19138755980862,
+        "visibleSourceY": [
+          96.91250000000001,
+          844.0875
+        ],
+        "scaleX": 0.7655502392344498,
+        "scaleY": 0.7655502392344498
+      }
+    },
+    {
+      "layout": "desktop",
+      "group": "asset-material",
+      "season": "fall",
+      "stage": "tent-yellow",
+      "time": "night",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-tent-yellow.webp",
+        "/money-level/art/houses/temporary-tent-yellow.webp"
+      ],
+      "houseFilter": "brightness(0.67) saturate(0.88) contrast(1) sepia(0) hue-rotate(8deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "0.7 0 0 0 0 0 0.88 0 0 0 0 0 1.16 0 0 0 0 0 1 0",
+      "transfers": [
+        "<feComponentTransfer in=\"houseBase\" result=\"opaqueBase\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"nightColor\" result=\"crispNight\"><feFuncR type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncR><feFuncG type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncG><feFuncB type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncB></feComponentTransfer>",
+        "<feComponentTransfer in=\"warmPixels\" result=\"practicalMask\"><feFuncA type=\"linear\" slope=\"0.55\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"SourceGraphic\" result=\"opaquePractical\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>"
+      ],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-fall-night-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "50% 50%",
+        "sceneWidth": 1280,
+        "sceneHeight": 576,
+        "containerWidth": 1280,
+        "containerHeight": 572,
+        "coverScale": 0.7655502392344498,
+        "renderedWidth": 1280,
+        "renderedHeight": 720.3827751196172,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 74.19138755980862,
+        "cropBottom": 74.19138755980862,
+        "visibleSourceY": [
+          96.91250000000001,
+          844.0875
+        ],
+        "scaleX": 0.7655502392344498,
+        "scaleY": 0.7655502392344498
+      }
+    },
+    {
+      "layout": "desktop",
+      "group": "asset-material",
+      "season": "winter",
+      "stage": "camp",
+      "time": "day",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-camp-winter.webp",
+        "/money-level/art/houses/temporary-camp-winter.webp"
+      ],
+      "houseFilter": "brightness(1) saturate(1) contrast(1) sepia(0) hue-rotate(0deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-winter-day-sunny.webp",
+        "naturalWidth": 1683,
+        "naturalHeight": 934,
+        "sourceAspect": 1.8019271948608138,
+        "objectFit": "cover",
+        "objectPosition": "50% 50%",
+        "sceneWidth": 1280,
+        "sceneHeight": 576,
+        "containerWidth": 1280,
+        "containerHeight": 572,
+        "coverScale": 0.7605466428995841,
+        "renderedWidth": 1280,
+        "renderedHeight": 710.3505644682115,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 69.17528223410574,
+        "cropBottom": 69.17528223410574,
+        "visibleSourceY": [
+          90.95468749999996,
+          843.0453124999999
+        ],
+        "scaleX": 0.7605466428995841,
+        "scaleY": 0.7605466428995841
+      }
+    },
+    {
+      "layout": "desktop",
+      "group": "asset-material",
+      "season": "winter",
+      "stage": "camp",
+      "time": "evening",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-camp-winter.webp",
+        "/money-level/art/houses/temporary-camp-winter.webp"
+      ],
+      "houseFilter": "brightness(0.82) saturate(0.86) contrast(1) sepia(0) hue-rotate(-12deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "1.08 0 0 0 0 0 0.94 0 0 0 0 0 0.97 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-winter-evening-sunny.webp",
+        "naturalWidth": 1683,
+        "naturalHeight": 934,
+        "sourceAspect": 1.8019271948608138,
+        "objectFit": "cover",
+        "objectPosition": "50% 50%",
+        "sceneWidth": 1280,
+        "sceneHeight": 576,
+        "containerWidth": 1280,
+        "containerHeight": 572,
+        "coverScale": 0.7605466428995841,
+        "renderedWidth": 1280,
+        "renderedHeight": 710.3505644682115,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 69.17528223410574,
+        "cropBottom": 69.17528223410574,
+        "visibleSourceY": [
+          90.95468749999996,
+          843.0453124999999
+        ],
+        "scaleX": 0.7605466428995841,
+        "scaleY": 0.7605466428995841
+      }
+    },
+    {
+      "layout": "desktop",
+      "group": "asset-material",
+      "season": "winter",
+      "stage": "camp",
+      "time": "night",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-camp-winter.webp",
+        "/money-level/art/houses/temporary-camp-winter.webp"
+      ],
+      "houseFilter": "brightness(0.67) saturate(0.88) contrast(1) sepia(0) hue-rotate(8deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "0.7 0 0 0 0 0 0.88 0 0 0 0 0 1.16 0 0 0 0 0 1 0",
+      "transfers": [
+        "<feComponentTransfer in=\"houseBase\" result=\"opaqueBase\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"nightColor\" result=\"crispNight\"><feFuncR type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncR><feFuncG type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncG><feFuncB type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncB></feComponentTransfer>",
+        "<feComponentTransfer in=\"warmPixels\" result=\"practicalMask\"><feFuncA type=\"linear\" slope=\"0.55\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"SourceGraphic\" result=\"opaquePractical\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>"
+      ],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-winter-night-sunny.webp",
+        "naturalWidth": 1683,
+        "naturalHeight": 934,
+        "sourceAspect": 1.8019271948608138,
+        "objectFit": "cover",
+        "objectPosition": "50% 50%",
+        "sceneWidth": 1280,
+        "sceneHeight": 576,
+        "containerWidth": 1280,
+        "containerHeight": 572,
+        "coverScale": 0.7605466428995841,
+        "renderedWidth": 1280,
+        "renderedHeight": 710.3505644682115,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 69.17528223410574,
+        "cropBottom": 69.17528223410574,
+        "visibleSourceY": [
+          90.95468749999996,
+          843.0453124999999
+        ],
+        "scaleX": 0.7605466428995841,
+        "scaleY": 0.7605466428995841
+      }
+    },
+    {
+      "layout": "desktop",
+      "group": "asset-material",
+      "season": "winter",
+      "stage": "tent-neutral",
+      "time": "day",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-tent-neutral.webp",
+        "/money-level/art/houses/temporary-tent-neutral.webp"
+      ],
+      "houseFilter": "brightness(1) saturate(1) contrast(1) sepia(0) hue-rotate(0deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-winter-day-sunny.webp",
+        "naturalWidth": 1683,
+        "naturalHeight": 934,
+        "sourceAspect": 1.8019271948608138,
+        "objectFit": "cover",
+        "objectPosition": "50% 50%",
+        "sceneWidth": 1280,
+        "sceneHeight": 576,
+        "containerWidth": 1280,
+        "containerHeight": 572,
+        "coverScale": 0.7605466428995841,
+        "renderedWidth": 1280,
+        "renderedHeight": 710.3505644682115,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 69.17528223410574,
+        "cropBottom": 69.17528223410574,
+        "visibleSourceY": [
+          90.95468749999996,
+          843.0453124999999
+        ],
+        "scaleX": 0.7605466428995841,
+        "scaleY": 0.7605466428995841
+      }
+    },
+    {
+      "layout": "desktop",
+      "group": "asset-material",
+      "season": "winter",
+      "stage": "tent-neutral",
+      "time": "evening",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-tent-neutral.webp",
+        "/money-level/art/houses/temporary-tent-neutral.webp"
+      ],
+      "houseFilter": "brightness(0.82) saturate(0.86) contrast(1) sepia(0) hue-rotate(-12deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "1.08 0 0 0 0 0 0.94 0 0 0 0 0 0.97 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-winter-evening-sunny.webp",
+        "naturalWidth": 1683,
+        "naturalHeight": 934,
+        "sourceAspect": 1.8019271948608138,
+        "objectFit": "cover",
+        "objectPosition": "50% 50%",
+        "sceneWidth": 1280,
+        "sceneHeight": 576,
+        "containerWidth": 1280,
+        "containerHeight": 572,
+        "coverScale": 0.7605466428995841,
+        "renderedWidth": 1280,
+        "renderedHeight": 710.3505644682115,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 69.17528223410574,
+        "cropBottom": 69.17528223410574,
+        "visibleSourceY": [
+          90.95468749999996,
+          843.0453124999999
+        ],
+        "scaleX": 0.7605466428995841,
+        "scaleY": 0.7605466428995841
+      }
+    },
+    {
+      "layout": "desktop",
+      "group": "asset-material",
+      "season": "winter",
+      "stage": "tent-neutral",
+      "time": "night",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-tent-neutral.webp",
+        "/money-level/art/houses/temporary-tent-neutral.webp"
+      ],
+      "houseFilter": "brightness(0.67) saturate(0.88) contrast(1) sepia(0) hue-rotate(8deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "0.7 0 0 0 0 0 0.88 0 0 0 0 0 1.16 0 0 0 0 0 1 0",
+      "transfers": [
+        "<feComponentTransfer in=\"houseBase\" result=\"opaqueBase\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"nightColor\" result=\"crispNight\"><feFuncR type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncR><feFuncG type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncG><feFuncB type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncB></feComponentTransfer>",
+        "<feComponentTransfer in=\"warmPixels\" result=\"practicalMask\"><feFuncA type=\"linear\" slope=\"0.55\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"SourceGraphic\" result=\"opaquePractical\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>"
+      ],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-winter-night-sunny.webp",
+        "naturalWidth": 1683,
+        "naturalHeight": 934,
+        "sourceAspect": 1.8019271948608138,
+        "objectFit": "cover",
+        "objectPosition": "50% 50%",
+        "sceneWidth": 1280,
+        "sceneHeight": 576,
+        "containerWidth": 1280,
+        "containerHeight": 572,
+        "coverScale": 0.7605466428995841,
+        "renderedWidth": 1280,
+        "renderedHeight": 710.3505644682115,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 69.17528223410574,
+        "cropBottom": 69.17528223410574,
+        "visibleSourceY": [
+          90.95468749999996,
+          843.0453124999999
+        ],
+        "scaleX": 0.7605466428995841,
+        "scaleY": 0.7605466428995841
+      }
+    },
+    {
+      "layout": "desktop",
+      "group": "asset-material",
+      "season": "winter",
+      "stage": "tent-yellow",
+      "time": "day",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-tent-yellow.webp",
+        "/money-level/art/houses/temporary-tent-yellow.webp"
+      ],
+      "houseFilter": "brightness(1) saturate(1) contrast(1) sepia(0) hue-rotate(0deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-winter-day-sunny.webp",
+        "naturalWidth": 1683,
+        "naturalHeight": 934,
+        "sourceAspect": 1.8019271948608138,
+        "objectFit": "cover",
+        "objectPosition": "50% 50%",
+        "sceneWidth": 1280,
+        "sceneHeight": 576,
+        "containerWidth": 1280,
+        "containerHeight": 572,
+        "coverScale": 0.7605466428995841,
+        "renderedWidth": 1280,
+        "renderedHeight": 710.3505644682115,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 69.17528223410574,
+        "cropBottom": 69.17528223410574,
+        "visibleSourceY": [
+          90.95468749999996,
+          843.0453124999999
+        ],
+        "scaleX": 0.7605466428995841,
+        "scaleY": 0.7605466428995841
+      }
+    },
+    {
+      "layout": "desktop",
+      "group": "asset-material",
+      "season": "winter",
+      "stage": "tent-yellow",
+      "time": "evening",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-tent-yellow.webp",
+        "/money-level/art/houses/temporary-tent-yellow.webp"
+      ],
+      "houseFilter": "brightness(0.82) saturate(0.86) contrast(1) sepia(0) hue-rotate(-12deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "1.08 0 0 0 0 0 0.94 0 0 0 0 0 0.97 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-winter-evening-sunny.webp",
+        "naturalWidth": 1683,
+        "naturalHeight": 934,
+        "sourceAspect": 1.8019271948608138,
+        "objectFit": "cover",
+        "objectPosition": "50% 50%",
+        "sceneWidth": 1280,
+        "sceneHeight": 576,
+        "containerWidth": 1280,
+        "containerHeight": 572,
+        "coverScale": 0.7605466428995841,
+        "renderedWidth": 1280,
+        "renderedHeight": 710.3505644682115,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 69.17528223410574,
+        "cropBottom": 69.17528223410574,
+        "visibleSourceY": [
+          90.95468749999996,
+          843.0453124999999
+        ],
+        "scaleX": 0.7605466428995841,
+        "scaleY": 0.7605466428995841
+      }
+    },
+    {
+      "layout": "desktop",
+      "group": "asset-material",
+      "season": "winter",
+      "stage": "tent-yellow",
+      "time": "night",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-tent-yellow.webp",
+        "/money-level/art/houses/temporary-tent-yellow.webp"
+      ],
+      "houseFilter": "brightness(0.67) saturate(0.88) contrast(1) sepia(0) hue-rotate(8deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "0.7 0 0 0 0 0 0.88 0 0 0 0 0 1.16 0 0 0 0 0 1 0",
+      "transfers": [
+        "<feComponentTransfer in=\"houseBase\" result=\"opaqueBase\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"nightColor\" result=\"crispNight\"><feFuncR type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncR><feFuncG type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncG><feFuncB type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncB></feComponentTransfer>",
+        "<feComponentTransfer in=\"warmPixels\" result=\"practicalMask\"><feFuncA type=\"linear\" slope=\"0.55\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"SourceGraphic\" result=\"opaquePractical\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>"
+      ],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-winter-night-sunny.webp",
+        "naturalWidth": 1683,
+        "naturalHeight": 934,
+        "sourceAspect": 1.8019271948608138,
+        "objectFit": "cover",
+        "objectPosition": "50% 50%",
+        "sceneWidth": 1280,
+        "sceneHeight": 576,
+        "containerWidth": 1280,
+        "containerHeight": 572,
+        "coverScale": 0.7605466428995841,
+        "renderedWidth": 1280,
+        "renderedHeight": 710.3505644682115,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 69.17528223410574,
+        "cropBottom": 69.17528223410574,
+        "visibleSourceY": [
+          90.95468749999996,
+          843.0453124999999
+        ],
+        "scaleX": 0.7605466428995841,
+        "scaleY": 0.7605466428995841
+      }
+    },
+    {
+      "layout": "desktop",
+      "group": "weather-stress",
+      "season": "fall",
+      "time": "evening",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-house-fall.webp",
+        "/money-level/art/houses/temporary-house-fall.webp"
+      ],
+      "houseFilter": "brightness(0.82) saturate(0.86) contrast(1) sepia(0) hue-rotate(-12deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "1.08 0 0 0 0 0 0.94 0 0 0 0 0 0.97 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-fall-evening-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "50% 50%",
+        "sceneWidth": 1280,
+        "sceneHeight": 576,
+        "containerWidth": 1280,
+        "containerHeight": 572,
+        "coverScale": 0.7655502392344498,
+        "renderedWidth": 1280,
+        "renderedHeight": 720.3827751196172,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 74.19138755980862,
+        "cropBottom": 74.19138755980862,
+        "visibleSourceY": [
+          96.91250000000001,
+          844.0875
+        ],
+        "scaleX": 0.7655502392344498,
+        "scaleY": 0.7655502392344498
+      }
+    },
+    {
+      "layout": "desktop",
+      "group": "weather-stress",
+      "season": "fall",
+      "time": "evening",
+      "weather": "rain",
+      "assets": [
+        "/money-level/art/houses/temporary-house-fall.webp",
+        "/money-level/art/houses/temporary-house-fall.webp"
+      ],
+      "houseFilter": "brightness(0.746) saturate(0.722) contrast(1) sepia(0) hue-rotate(-12deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "1.026 0 0 0 0 0 0.931 0 0 0 0 0 1.004 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-fall-evening-rain.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "50% 50%",
+        "sceneWidth": 1280,
+        "sceneHeight": 576,
+        "containerWidth": 1280,
+        "containerHeight": 572,
+        "coverScale": 0.7655502392344498,
+        "renderedWidth": 1280,
+        "renderedHeight": 720.3827751196172,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 74.19138755980862,
+        "cropBottom": 74.19138755980862,
+        "visibleSourceY": [
+          96.91250000000001,
+          844.0875
+        ],
+        "scaleX": 0.7655502392344498,
+        "scaleY": 0.7655502392344498
+      }
+    },
+    {
+      "layout": "desktop",
+      "group": "weather-stress",
+      "season": "fall",
+      "time": "evening",
+      "weather": "thunderstorm",
+      "assets": [
+        "/money-level/art/houses/temporary-house-fall.webp",
+        "/money-level/art/houses/temporary-house-fall.webp"
+      ],
+      "houseFilter": "brightness(0.672) saturate(0.705) contrast(1) sepia(0) hue-rotate(-12deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "0.983 0 0 0 0 0 0.912 0 0 0 0 0 1.014 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-fall-evening-storm.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "50% 50%",
+        "sceneWidth": 1280,
+        "sceneHeight": 576,
+        "containerWidth": 1280,
+        "containerHeight": 572,
+        "coverScale": 0.7655502392344498,
+        "renderedWidth": 1280,
+        "renderedHeight": 720.3827751196172,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 74.19138755980862,
+        "cropBottom": 74.19138755980862,
+        "visibleSourceY": [
+          96.91250000000001,
+          844.0875
+        ],
+        "scaleX": 0.7655502392344498,
+        "scaleY": 0.7655502392344498
+      }
+    },
+    {
+      "layout": "desktop",
+      "group": "weather-stress",
+      "season": "fall",
+      "time": "night",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-house-fall.webp",
+        "/money-level/art/houses/temporary-house-fall.webp"
+      ],
+      "houseFilter": "brightness(0.67) saturate(0.88) contrast(1) sepia(0) hue-rotate(8deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "0.7 0 0 0 0 0 0.88 0 0 0 0 0 1.16 0 0 0 0 0 1 0",
+      "transfers": [
+        "<feComponentTransfer in=\"houseBase\" result=\"opaqueBase\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"nightColor\" result=\"crispNight\"><feFuncR type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncR><feFuncG type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncG><feFuncB type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncB></feComponentTransfer>",
+        "<feComponentTransfer in=\"warmPixels\" result=\"practicalMask\"><feFuncA type=\"linear\" slope=\"0.55\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"SourceGraphic\" result=\"opaquePractical\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>"
+      ],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-fall-night-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "50% 50%",
+        "sceneWidth": 1280,
+        "sceneHeight": 576,
+        "containerWidth": 1280,
+        "containerHeight": 572,
+        "coverScale": 0.7655502392344498,
+        "renderedWidth": 1280,
+        "renderedHeight": 720.3827751196172,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 74.19138755980862,
+        "cropBottom": 74.19138755980862,
+        "visibleSourceY": [
+          96.91250000000001,
+          844.0875
+        ],
+        "scaleX": 0.7655502392344498,
+        "scaleY": 0.7655502392344498
+      }
+    },
+    {
+      "layout": "desktop",
+      "group": "weather-stress",
+      "season": "fall",
+      "time": "night",
+      "weather": "rain",
+      "assets": [
+        "/money-level/art/houses/temporary-house-fall.webp",
+        "/money-level/art/houses/temporary-house-fall.webp"
+      ],
+      "houseFilter": "brightness(0.61) saturate(0.82) contrast(1) sepia(0) hue-rotate(8deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "0.665 0 0 0 0 0 0.871 0 0 0 0 0 1.201 0 0 0 0 0 1 0",
+      "transfers": [
+        "<feComponentTransfer in=\"houseBase\" result=\"opaqueBase\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"nightColor\" result=\"crispNight\"><feFuncR type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncR><feFuncG type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncG><feFuncB type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncB></feComponentTransfer>",
+        "<feComponentTransfer in=\"warmPixels\" result=\"practicalMask\"><feFuncA type=\"linear\" slope=\"0.55\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"SourceGraphic\" result=\"opaquePractical\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>"
+      ],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-fall-night-rain.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "50% 50%",
+        "sceneWidth": 1280,
+        "sceneHeight": 576,
+        "containerWidth": 1280,
+        "containerHeight": 572,
+        "coverScale": 0.7655502392344498,
+        "renderedWidth": 1280,
+        "renderedHeight": 720.3827751196172,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 74.19138755980862,
+        "cropBottom": 74.19138755980862,
+        "visibleSourceY": [
+          96.91250000000001,
+          844.0875
+        ],
+        "scaleX": 0.7655502392344498,
+        "scaleY": 0.7655502392344498
+      }
+    },
+    {
+      "layout": "desktop",
+      "group": "weather-stress",
+      "season": "fall",
+      "time": "night",
+      "weather": "thunderstorm",
+      "assets": [
+        "/money-level/art/houses/temporary-house-fall.webp",
+        "/money-level/art/houses/temporary-house-fall.webp"
+      ],
+      "houseFilter": "brightness(0.549) saturate(0.8) contrast(1) sepia(0) hue-rotate(8deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "0.637 0 0 0 0 0 0.854 0 0 0 0 0 1.212 0 0 0 0 0 1 0",
+      "transfers": [
+        "<feComponentTransfer in=\"houseBase\" result=\"opaqueBase\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"nightColor\" result=\"crispNight\"><feFuncR type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncR><feFuncG type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncG><feFuncB type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncB></feComponentTransfer>",
+        "<feComponentTransfer in=\"warmPixels\" result=\"practicalMask\"><feFuncA type=\"linear\" slope=\"0.55\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"SourceGraphic\" result=\"opaquePractical\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>"
+      ],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-fall-night-storm.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "50% 50%",
+        "sceneWidth": 1280,
+        "sceneHeight": 576,
+        "containerWidth": 1280,
+        "containerHeight": 572,
+        "coverScale": 0.7655502392344498,
+        "renderedWidth": 1280,
+        "renderedHeight": 720.3827751196172,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 74.19138755980862,
+        "cropBottom": 74.19138755980862,
+        "visibleSourceY": [
+          96.91250000000001,
+          844.0875
+        ],
+        "scaleX": 0.7655502392344498,
+        "scaleY": 0.7655502392344498
+      }
+    },
+    {
+      "layout": "desktop",
+      "group": "weather-stress",
+      "season": "winter",
+      "time": "night",
+      "weather": "snow",
+      "assets": [
+        "/money-level/art/houses/temporary-house-winter.webp",
+        "/money-level/art/houses/temporary-house-winter.webp"
+      ],
+      "houseFilter": "brightness(0.636) saturate(0.82) contrast(1) sepia(0) hue-rotate(8deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "0.672 0 0 0 0 0 0.889 0 0 0 0 0 1.212 0 0 0 0 0 1 0",
+      "transfers": [
+        "<feComponentTransfer in=\"houseBase\" result=\"opaqueBase\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"nightColor\" result=\"crispNight\"><feFuncR type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncR><feFuncG type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncG><feFuncB type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncB></feComponentTransfer>",
+        "<feComponentTransfer in=\"warmPixels\" result=\"practicalMask\"><feFuncA type=\"linear\" slope=\"0.55\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"SourceGraphic\" result=\"opaquePractical\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>"
+      ],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-winter-night-snow.webp",
+        "naturalWidth": 1683,
+        "naturalHeight": 934,
+        "sourceAspect": 1.8019271948608138,
+        "objectFit": "cover",
+        "objectPosition": "50% 50%",
+        "sceneWidth": 1280,
+        "sceneHeight": 576,
+        "containerWidth": 1280,
+        "containerHeight": 572,
+        "coverScale": 0.7605466428995841,
+        "renderedWidth": 1280,
+        "renderedHeight": 710.3505644682115,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 69.17528223410574,
+        "cropBottom": 69.17528223410574,
+        "visibleSourceY": [
+          90.95468749999996,
+          843.0453124999999
+        ],
+        "scaleX": 0.7605466428995841,
+        "scaleY": 0.7605466428995841
+      }
+    },
+    {
+      "layout": "mobile",
+      "group": "time-house",
+      "season": "spring",
+      "time": "morning",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-house-fall.webp",
+        "/money-level/art/houses/temporary-house-fall.webp"
+      ],
+      "houseFilter": "brightness(0.93) saturate(0.96) contrast(0.98) sepia(0.015) hue-rotate(0deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "0.98 0 0 0 0 0 1 0 0 0 0 0 1.035 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-spring-morning-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "51% 50%",
+        "sceneWidth": 390,
+        "sceneHeight": 512,
+        "containerWidth": 914.390625,
+        "containerHeight": 508,
+        "coverScale": 0.5468843450956937,
+        "renderedWidth": 914.3906249999999,
+        "renderedHeight": 514.6181687350478,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 3.3090843675238943,
+        "cropBottom": 3.3090843675238943,
+        "visibleSourceY": [
+          6.050793732164469,
+          934.9492062678355
+        ],
+        "scaleX": 0.5468843450956937,
+        "scaleY": 0.5468843450956937
+      }
+    },
+    {
+      "layout": "mobile",
+      "group": "time-house",
+      "season": "spring",
+      "time": "day",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-house-fall.webp",
+        "/money-level/art/houses/temporary-house-fall.webp"
+      ],
+      "houseFilter": "brightness(1) saturate(1) contrast(1) sepia(0) hue-rotate(0deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-spring-day-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "51% 50%",
+        "sceneWidth": 390,
+        "sceneHeight": 512,
+        "containerWidth": 914.390625,
+        "containerHeight": 508,
+        "coverScale": 0.5468843450956937,
+        "renderedWidth": 914.3906249999999,
+        "renderedHeight": 514.6181687350478,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 3.3090843675238943,
+        "cropBottom": 3.3090843675238943,
+        "visibleSourceY": [
+          6.050793732164469,
+          934.9492062678355
+        ],
+        "scaleX": 0.5468843450956937,
+        "scaleY": 0.5468843450956937
+      }
+    },
+    {
+      "layout": "mobile",
+      "group": "time-house",
+      "season": "spring",
+      "time": "evening",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-house-fall.webp",
+        "/money-level/art/houses/temporary-house-fall.webp"
+      ],
+      "houseFilter": "brightness(0.82) saturate(0.86) contrast(1) sepia(0) hue-rotate(-12deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "1.08 0 0 0 0 0 0.94 0 0 0 0 0 0.97 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-spring-evening-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "51% 50%",
+        "sceneWidth": 390,
+        "sceneHeight": 512,
+        "containerWidth": 914.390625,
+        "containerHeight": 508,
+        "coverScale": 0.5468843450956937,
+        "renderedWidth": 914.3906249999999,
+        "renderedHeight": 514.6181687350478,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 3.3090843675238943,
+        "cropBottom": 3.3090843675238943,
+        "visibleSourceY": [
+          6.050793732164469,
+          934.9492062678355
+        ],
+        "scaleX": 0.5468843450956937,
+        "scaleY": 0.5468843450956937
+      }
+    },
+    {
+      "layout": "mobile",
+      "group": "time-house",
+      "season": "spring",
+      "time": "night",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-house-fall.webp",
+        "/money-level/art/houses/temporary-house-fall.webp"
+      ],
+      "houseFilter": "brightness(0.67) saturate(0.88) contrast(1) sepia(0) hue-rotate(8deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "0.7 0 0 0 0 0 0.88 0 0 0 0 0 1.16 0 0 0 0 0 1 0",
+      "transfers": [
+        "<feComponentTransfer in=\"houseBase\" result=\"opaqueBase\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"nightColor\" result=\"crispNight\"><feFuncR type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncR><feFuncG type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncG><feFuncB type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncB></feComponentTransfer>",
+        "<feComponentTransfer in=\"warmPixels\" result=\"practicalMask\"><feFuncA type=\"linear\" slope=\"0.55\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"SourceGraphic\" result=\"opaquePractical\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>"
+      ],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-spring-night-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "51% 50%",
+        "sceneWidth": 390,
+        "sceneHeight": 512,
+        "containerWidth": 914.390625,
+        "containerHeight": 508,
+        "coverScale": 0.5468843450956937,
+        "renderedWidth": 914.3906249999999,
+        "renderedHeight": 514.6181687350478,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 3.3090843675238943,
+        "cropBottom": 3.3090843675238943,
+        "visibleSourceY": [
+          6.050793732164469,
+          934.9492062678355
+        ],
+        "scaleX": 0.5468843450956937,
+        "scaleY": 0.5468843450956937
+      }
+    },
+    {
+      "layout": "mobile",
+      "group": "time-house",
+      "season": "fall",
+      "time": "morning",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-house-fall.webp",
+        "/money-level/art/houses/temporary-house-fall.webp"
+      ],
+      "houseFilter": "brightness(0.93) saturate(0.96) contrast(0.98) sepia(0.015) hue-rotate(0deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "0.98 0 0 0 0 0 1 0 0 0 0 0 1.035 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-fall-morning-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "51% 50%",
+        "sceneWidth": 390,
+        "sceneHeight": 512,
+        "containerWidth": 914.390625,
+        "containerHeight": 508,
+        "coverScale": 0.5468843450956937,
+        "renderedWidth": 914.3906249999999,
+        "renderedHeight": 514.6181687350478,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 3.3090843675238943,
+        "cropBottom": 3.3090843675238943,
+        "visibleSourceY": [
+          6.050793732164469,
+          934.9492062678355
+        ],
+        "scaleX": 0.5468843450956937,
+        "scaleY": 0.5468843450956937
+      }
+    },
+    {
+      "layout": "mobile",
+      "group": "time-house",
+      "season": "fall",
+      "time": "day",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-house-fall.webp",
+        "/money-level/art/houses/temporary-house-fall.webp"
+      ],
+      "houseFilter": "brightness(1) saturate(1) contrast(1) sepia(0) hue-rotate(0deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-fall-day-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "51% 50%",
+        "sceneWidth": 390,
+        "sceneHeight": 512,
+        "containerWidth": 914.390625,
+        "containerHeight": 508,
+        "coverScale": 0.5468843450956937,
+        "renderedWidth": 914.3906249999999,
+        "renderedHeight": 514.6181687350478,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 3.3090843675238943,
+        "cropBottom": 3.3090843675238943,
+        "visibleSourceY": [
+          6.050793732164469,
+          934.9492062678355
+        ],
+        "scaleX": 0.5468843450956937,
+        "scaleY": 0.5468843450956937
+      }
+    },
+    {
+      "layout": "mobile",
+      "group": "time-house",
+      "season": "fall",
+      "time": "evening",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-house-fall.webp",
+        "/money-level/art/houses/temporary-house-fall.webp"
+      ],
+      "houseFilter": "brightness(0.82) saturate(0.86) contrast(1) sepia(0) hue-rotate(-12deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "1.08 0 0 0 0 0 0.94 0 0 0 0 0 0.97 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-fall-evening-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "51% 50%",
+        "sceneWidth": 390,
+        "sceneHeight": 512,
+        "containerWidth": 914.390625,
+        "containerHeight": 508,
+        "coverScale": 0.5468843450956937,
+        "renderedWidth": 914.3906249999999,
+        "renderedHeight": 514.6181687350478,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 3.3090843675238943,
+        "cropBottom": 3.3090843675238943,
+        "visibleSourceY": [
+          6.050793732164469,
+          934.9492062678355
+        ],
+        "scaleX": 0.5468843450956937,
+        "scaleY": 0.5468843450956937
+      }
+    },
+    {
+      "layout": "mobile",
+      "group": "time-house",
+      "season": "fall",
+      "time": "night",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-house-fall.webp",
+        "/money-level/art/houses/temporary-house-fall.webp"
+      ],
+      "houseFilter": "brightness(0.67) saturate(0.88) contrast(1) sepia(0) hue-rotate(8deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "0.7 0 0 0 0 0 0.88 0 0 0 0 0 1.16 0 0 0 0 0 1 0",
+      "transfers": [
+        "<feComponentTransfer in=\"houseBase\" result=\"opaqueBase\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"nightColor\" result=\"crispNight\"><feFuncR type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncR><feFuncG type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncG><feFuncB type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncB></feComponentTransfer>",
+        "<feComponentTransfer in=\"warmPixels\" result=\"practicalMask\"><feFuncA type=\"linear\" slope=\"0.55\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"SourceGraphic\" result=\"opaquePractical\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>"
+      ],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-fall-night-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "51% 50%",
+        "sceneWidth": 390,
+        "sceneHeight": 512,
+        "containerWidth": 914.390625,
+        "containerHeight": 508,
+        "coverScale": 0.5468843450956937,
+        "renderedWidth": 914.3906249999999,
+        "renderedHeight": 514.6181687350478,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 3.3090843675238943,
+        "cropBottom": 3.3090843675238943,
+        "visibleSourceY": [
+          6.050793732164469,
+          934.9492062678355
+        ],
+        "scaleX": 0.5468843450956937,
+        "scaleY": 0.5468843450956937
+      }
+    },
+    {
+      "layout": "mobile",
+      "group": "time-house",
+      "season": "winter",
+      "time": "morning",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-house-winter.webp",
+        "/money-level/art/houses/temporary-house-winter.webp"
+      ],
+      "houseFilter": "brightness(0.93) saturate(0.96) contrast(0.98) sepia(0.015) hue-rotate(0deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "0.98 0 0 0 0 0 1 0 0 0 0 0 1.035 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-winter-morning-sunny.webp",
+        "naturalWidth": 1683,
+        "naturalHeight": 934,
+        "sourceAspect": 1.8019271948608138,
+        "objectFit": "cover",
+        "objectPosition": "51% 50%",
+        "sceneWidth": 390,
+        "sceneHeight": 512,
+        "containerWidth": 914.390625,
+        "containerHeight": 508,
+        "coverScale": 0.5438972162740899,
+        "renderedWidth": 915.3790149892934,
+        "renderedHeight": 508,
+        "cropLeft": 0.4941949946467048,
+        "cropRight": 0.4941949946467048,
+        "cropTop": 0,
+        "cropBottom": 0,
+        "visibleSourceY": [
+          0,
+          934
+        ],
+        "scaleX": 0.5438972162740899,
+        "scaleY": 0.5438972162740899
+      }
+    },
+    {
+      "layout": "mobile",
+      "group": "time-house",
+      "season": "winter",
+      "time": "day",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-house-winter.webp",
+        "/money-level/art/houses/temporary-house-winter.webp"
+      ],
+      "houseFilter": "brightness(1) saturate(1) contrast(1) sepia(0) hue-rotate(0deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-winter-day-sunny.webp",
+        "naturalWidth": 1683,
+        "naturalHeight": 934,
+        "sourceAspect": 1.8019271948608138,
+        "objectFit": "cover",
+        "objectPosition": "51% 50%",
+        "sceneWidth": 390,
+        "sceneHeight": 512,
+        "containerWidth": 914.390625,
+        "containerHeight": 508,
+        "coverScale": 0.5438972162740899,
+        "renderedWidth": 915.3790149892934,
+        "renderedHeight": 508,
+        "cropLeft": 0.4941949946467048,
+        "cropRight": 0.4941949946467048,
+        "cropTop": 0,
+        "cropBottom": 0,
+        "visibleSourceY": [
+          0,
+          934
+        ],
+        "scaleX": 0.5438972162740899,
+        "scaleY": 0.5438972162740899
+      }
+    },
+    {
+      "layout": "mobile",
+      "group": "time-house",
+      "season": "winter",
+      "time": "evening",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-house-winter.webp",
+        "/money-level/art/houses/temporary-house-winter.webp"
+      ],
+      "houseFilter": "brightness(0.82) saturate(0.86) contrast(1) sepia(0) hue-rotate(-12deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "1.08 0 0 0 0 0 0.94 0 0 0 0 0 0.97 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-winter-evening-sunny.webp",
+        "naturalWidth": 1683,
+        "naturalHeight": 934,
+        "sourceAspect": 1.8019271948608138,
+        "objectFit": "cover",
+        "objectPosition": "51% 50%",
+        "sceneWidth": 390,
+        "sceneHeight": 512,
+        "containerWidth": 914.390625,
+        "containerHeight": 508,
+        "coverScale": 0.5438972162740899,
+        "renderedWidth": 915.3790149892934,
+        "renderedHeight": 508,
+        "cropLeft": 0.4941949946467048,
+        "cropRight": 0.4941949946467048,
+        "cropTop": 0,
+        "cropBottom": 0,
+        "visibleSourceY": [
+          0,
+          934
+        ],
+        "scaleX": 0.5438972162740899,
+        "scaleY": 0.5438972162740899
+      }
+    },
+    {
+      "layout": "mobile",
+      "group": "time-house",
+      "season": "winter",
+      "time": "night",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-house-winter.webp",
+        "/money-level/art/houses/temporary-house-winter.webp"
+      ],
+      "houseFilter": "brightness(0.67) saturate(0.88) contrast(1) sepia(0) hue-rotate(8deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "0.7 0 0 0 0 0 0.88 0 0 0 0 0 1.16 0 0 0 0 0 1 0",
+      "transfers": [
+        "<feComponentTransfer in=\"houseBase\" result=\"opaqueBase\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"nightColor\" result=\"crispNight\"><feFuncR type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncR><feFuncG type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncG><feFuncB type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncB></feComponentTransfer>",
+        "<feComponentTransfer in=\"warmPixels\" result=\"practicalMask\"><feFuncA type=\"linear\" slope=\"0.55\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"SourceGraphic\" result=\"opaquePractical\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>"
+      ],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-winter-night-sunny.webp",
+        "naturalWidth": 1683,
+        "naturalHeight": 934,
+        "sourceAspect": 1.8019271948608138,
+        "objectFit": "cover",
+        "objectPosition": "51% 50%",
+        "sceneWidth": 390,
+        "sceneHeight": 512,
+        "containerWidth": 914.390625,
+        "containerHeight": 508,
+        "coverScale": 0.5438972162740899,
+        "renderedWidth": 915.3790149892934,
+        "renderedHeight": 508,
+        "cropLeft": 0.4941949946467048,
+        "cropRight": 0.4941949946467048,
+        "cropTop": 0,
+        "cropBottom": 0,
+        "visibleSourceY": [
+          0,
+          934
+        ],
+        "scaleX": 0.5438972162740899,
+        "scaleY": 0.5438972162740899
+      }
+    },
+    {
+      "layout": "mobile",
+      "group": "asset-material",
+      "season": "spring",
+      "stage": "camp",
+      "time": "day",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-camp-spring-summer.webp",
+        "/money-level/art/houses/temporary-camp-spring-summer.webp"
+      ],
+      "houseFilter": "brightness(1) saturate(1) contrast(1) sepia(0) hue-rotate(0deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-spring-day-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "51% 50%",
+        "sceneWidth": 390,
+        "sceneHeight": 512,
+        "containerWidth": 914.390625,
+        "containerHeight": 508,
+        "coverScale": 0.5468843450956937,
+        "renderedWidth": 914.3906249999999,
+        "renderedHeight": 514.6181687350478,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 3.3090843675238943,
+        "cropBottom": 3.3090843675238943,
+        "visibleSourceY": [
+          6.050793732164469,
+          934.9492062678355
+        ],
+        "scaleX": 0.5468843450956937,
+        "scaleY": 0.5468843450956937
+      }
+    },
+    {
+      "layout": "mobile",
+      "group": "asset-material",
+      "season": "spring",
+      "stage": "camp",
+      "time": "evening",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-camp-spring-summer.webp",
+        "/money-level/art/houses/temporary-camp-spring-summer.webp"
+      ],
+      "houseFilter": "brightness(0.82) saturate(0.86) contrast(1) sepia(0) hue-rotate(-12deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "1.08 0 0 0 0 0 0.94 0 0 0 0 0 0.97 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-spring-evening-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "51% 50%",
+        "sceneWidth": 390,
+        "sceneHeight": 512,
+        "containerWidth": 914.390625,
+        "containerHeight": 508,
+        "coverScale": 0.5468843450956937,
+        "renderedWidth": 914.3906249999999,
+        "renderedHeight": 514.6181687350478,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 3.3090843675238943,
+        "cropBottom": 3.3090843675238943,
+        "visibleSourceY": [
+          6.050793732164469,
+          934.9492062678355
+        ],
+        "scaleX": 0.5468843450956937,
+        "scaleY": 0.5468843450956937
+      }
+    },
+    {
+      "layout": "mobile",
+      "group": "asset-material",
+      "season": "spring",
+      "stage": "camp",
+      "time": "night",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-camp-spring-summer.webp",
+        "/money-level/art/houses/temporary-camp-spring-summer.webp"
+      ],
+      "houseFilter": "brightness(0.67) saturate(0.88) contrast(1) sepia(0) hue-rotate(8deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "0.7 0 0 0 0 0 0.88 0 0 0 0 0 1.16 0 0 0 0 0 1 0",
+      "transfers": [
+        "<feComponentTransfer in=\"houseBase\" result=\"opaqueBase\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"nightColor\" result=\"crispNight\"><feFuncR type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncR><feFuncG type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncG><feFuncB type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncB></feComponentTransfer>",
+        "<feComponentTransfer in=\"warmPixels\" result=\"practicalMask\"><feFuncA type=\"linear\" slope=\"0.55\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"SourceGraphic\" result=\"opaquePractical\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>"
+      ],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-spring-night-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "51% 50%",
+        "sceneWidth": 390,
+        "sceneHeight": 512,
+        "containerWidth": 914.390625,
+        "containerHeight": 508,
+        "coverScale": 0.5468843450956937,
+        "renderedWidth": 914.3906249999999,
+        "renderedHeight": 514.6181687350478,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 3.3090843675238943,
+        "cropBottom": 3.3090843675238943,
+        "visibleSourceY": [
+          6.050793732164469,
+          934.9492062678355
+        ],
+        "scaleX": 0.5468843450956937,
+        "scaleY": 0.5468843450956937
+      }
+    },
+    {
+      "layout": "mobile",
+      "group": "asset-material",
+      "season": "spring",
+      "stage": "tent-neutral",
+      "time": "day",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-tent-neutral.webp",
+        "/money-level/art/houses/temporary-tent-neutral.webp"
+      ],
+      "houseFilter": "brightness(1) saturate(1) contrast(1) sepia(0) hue-rotate(0deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-spring-day-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "51% 50%",
+        "sceneWidth": 390,
+        "sceneHeight": 512,
+        "containerWidth": 914.390625,
+        "containerHeight": 508,
+        "coverScale": 0.5468843450956937,
+        "renderedWidth": 914.3906249999999,
+        "renderedHeight": 514.6181687350478,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 3.3090843675238943,
+        "cropBottom": 3.3090843675238943,
+        "visibleSourceY": [
+          6.050793732164469,
+          934.9492062678355
+        ],
+        "scaleX": 0.5468843450956937,
+        "scaleY": 0.5468843450956937
+      }
+    },
+    {
+      "layout": "mobile",
+      "group": "asset-material",
+      "season": "spring",
+      "stage": "tent-neutral",
+      "time": "evening",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-tent-neutral.webp",
+        "/money-level/art/houses/temporary-tent-neutral.webp"
+      ],
+      "houseFilter": "brightness(0.82) saturate(0.86) contrast(1) sepia(0) hue-rotate(-12deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "1.08 0 0 0 0 0 0.94 0 0 0 0 0 0.97 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-spring-evening-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "51% 50%",
+        "sceneWidth": 390,
+        "sceneHeight": 512,
+        "containerWidth": 914.390625,
+        "containerHeight": 508,
+        "coverScale": 0.5468843450956937,
+        "renderedWidth": 914.3906249999999,
+        "renderedHeight": 514.6181687350478,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 3.3090843675238943,
+        "cropBottom": 3.3090843675238943,
+        "visibleSourceY": [
+          6.050793732164469,
+          934.9492062678355
+        ],
+        "scaleX": 0.5468843450956937,
+        "scaleY": 0.5468843450956937
+      }
+    },
+    {
+      "layout": "mobile",
+      "group": "asset-material",
+      "season": "spring",
+      "stage": "tent-neutral",
+      "time": "night",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-tent-neutral.webp",
+        "/money-level/art/houses/temporary-tent-neutral.webp"
+      ],
+      "houseFilter": "brightness(0.67) saturate(0.88) contrast(1) sepia(0) hue-rotate(8deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "0.7 0 0 0 0 0 0.88 0 0 0 0 0 1.16 0 0 0 0 0 1 0",
+      "transfers": [
+        "<feComponentTransfer in=\"houseBase\" result=\"opaqueBase\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"nightColor\" result=\"crispNight\"><feFuncR type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncR><feFuncG type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncG><feFuncB type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncB></feComponentTransfer>",
+        "<feComponentTransfer in=\"warmPixels\" result=\"practicalMask\"><feFuncA type=\"linear\" slope=\"0.55\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"SourceGraphic\" result=\"opaquePractical\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>"
+      ],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-spring-night-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "51% 50%",
+        "sceneWidth": 390,
+        "sceneHeight": 512,
+        "containerWidth": 914.390625,
+        "containerHeight": 508,
+        "coverScale": 0.5468843450956937,
+        "renderedWidth": 914.3906249999999,
+        "renderedHeight": 514.6181687350478,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 3.3090843675238943,
+        "cropBottom": 3.3090843675238943,
+        "visibleSourceY": [
+          6.050793732164469,
+          934.9492062678355
+        ],
+        "scaleX": 0.5468843450956937,
+        "scaleY": 0.5468843450956937
+      }
+    },
+    {
+      "layout": "mobile",
+      "group": "asset-material",
+      "season": "spring",
+      "stage": "tent-yellow",
+      "time": "day",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-tent-yellow.webp",
+        "/money-level/art/houses/temporary-tent-yellow.webp"
+      ],
+      "houseFilter": "brightness(1) saturate(1) contrast(1) sepia(0) hue-rotate(0deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-spring-day-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "51% 50%",
+        "sceneWidth": 390,
+        "sceneHeight": 512,
+        "containerWidth": 914.390625,
+        "containerHeight": 508,
+        "coverScale": 0.5468843450956937,
+        "renderedWidth": 914.3906249999999,
+        "renderedHeight": 514.6181687350478,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 3.3090843675238943,
+        "cropBottom": 3.3090843675238943,
+        "visibleSourceY": [
+          6.050793732164469,
+          934.9492062678355
+        ],
+        "scaleX": 0.5468843450956937,
+        "scaleY": 0.5468843450956937
+      }
+    },
+    {
+      "layout": "mobile",
+      "group": "asset-material",
+      "season": "spring",
+      "stage": "tent-yellow",
+      "time": "evening",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-tent-yellow.webp",
+        "/money-level/art/houses/temporary-tent-yellow.webp"
+      ],
+      "houseFilter": "brightness(0.82) saturate(0.86) contrast(1) sepia(0) hue-rotate(-12deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "1.08 0 0 0 0 0 0.94 0 0 0 0 0 0.97 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-spring-evening-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "51% 50%",
+        "sceneWidth": 390,
+        "sceneHeight": 512,
+        "containerWidth": 914.390625,
+        "containerHeight": 508,
+        "coverScale": 0.5468843450956937,
+        "renderedWidth": 914.3906249999999,
+        "renderedHeight": 514.6181687350478,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 3.3090843675238943,
+        "cropBottom": 3.3090843675238943,
+        "visibleSourceY": [
+          6.050793732164469,
+          934.9492062678355
+        ],
+        "scaleX": 0.5468843450956937,
+        "scaleY": 0.5468843450956937
+      }
+    },
+    {
+      "layout": "mobile",
+      "group": "asset-material",
+      "season": "spring",
+      "stage": "tent-yellow",
+      "time": "night",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-tent-yellow.webp",
+        "/money-level/art/houses/temporary-tent-yellow.webp"
+      ],
+      "houseFilter": "brightness(0.67) saturate(0.88) contrast(1) sepia(0) hue-rotate(8deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "0.7 0 0 0 0 0 0.88 0 0 0 0 0 1.16 0 0 0 0 0 1 0",
+      "transfers": [
+        "<feComponentTransfer in=\"houseBase\" result=\"opaqueBase\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"nightColor\" result=\"crispNight\"><feFuncR type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncR><feFuncG type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncG><feFuncB type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncB></feComponentTransfer>",
+        "<feComponentTransfer in=\"warmPixels\" result=\"practicalMask\"><feFuncA type=\"linear\" slope=\"0.55\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"SourceGraphic\" result=\"opaquePractical\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>"
+      ],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-spring-night-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "51% 50%",
+        "sceneWidth": 390,
+        "sceneHeight": 512,
+        "containerWidth": 914.390625,
+        "containerHeight": 508,
+        "coverScale": 0.5468843450956937,
+        "renderedWidth": 914.3906249999999,
+        "renderedHeight": 514.6181687350478,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 3.3090843675238943,
+        "cropBottom": 3.3090843675238943,
+        "visibleSourceY": [
+          6.050793732164469,
+          934.9492062678355
+        ],
+        "scaleX": 0.5468843450956937,
+        "scaleY": 0.5468843450956937
+      }
+    },
+    {
+      "layout": "mobile",
+      "group": "asset-material",
+      "season": "fall",
+      "stage": "camp",
+      "time": "day",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-camp-fall.webp",
+        "/money-level/art/houses/temporary-camp-fall.webp"
+      ],
+      "houseFilter": "brightness(1) saturate(1) contrast(1) sepia(0) hue-rotate(0deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-fall-day-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "51% 50%",
+        "sceneWidth": 390,
+        "sceneHeight": 512,
+        "containerWidth": 914.390625,
+        "containerHeight": 508,
+        "coverScale": 0.5468843450956937,
+        "renderedWidth": 914.3906249999999,
+        "renderedHeight": 514.6181687350478,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 3.3090843675238943,
+        "cropBottom": 3.3090843675238943,
+        "visibleSourceY": [
+          6.050793732164469,
+          934.9492062678355
+        ],
+        "scaleX": 0.5468843450956937,
+        "scaleY": 0.5468843450956937
+      }
+    },
+    {
+      "layout": "mobile",
+      "group": "asset-material",
+      "season": "fall",
+      "stage": "camp",
+      "time": "evening",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-camp-fall.webp",
+        "/money-level/art/houses/temporary-camp-fall.webp"
+      ],
+      "houseFilter": "brightness(0.82) saturate(0.86) contrast(1) sepia(0) hue-rotate(-12deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "1.08 0 0 0 0 0 0.94 0 0 0 0 0 0.97 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-fall-evening-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "51% 50%",
+        "sceneWidth": 390,
+        "sceneHeight": 512,
+        "containerWidth": 914.390625,
+        "containerHeight": 508,
+        "coverScale": 0.5468843450956937,
+        "renderedWidth": 914.3906249999999,
+        "renderedHeight": 514.6181687350478,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 3.3090843675238943,
+        "cropBottom": 3.3090843675238943,
+        "visibleSourceY": [
+          6.050793732164469,
+          934.9492062678355
+        ],
+        "scaleX": 0.5468843450956937,
+        "scaleY": 0.5468843450956937
+      }
+    },
+    {
+      "layout": "mobile",
+      "group": "asset-material",
+      "season": "fall",
+      "stage": "camp",
+      "time": "night",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-camp-fall.webp",
+        "/money-level/art/houses/temporary-camp-fall.webp"
+      ],
+      "houseFilter": "brightness(0.67) saturate(0.88) contrast(1) sepia(0) hue-rotate(8deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "0.7 0 0 0 0 0 0.88 0 0 0 0 0 1.16 0 0 0 0 0 1 0",
+      "transfers": [
+        "<feComponentTransfer in=\"houseBase\" result=\"opaqueBase\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"nightColor\" result=\"crispNight\"><feFuncR type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncR><feFuncG type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncG><feFuncB type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncB></feComponentTransfer>",
+        "<feComponentTransfer in=\"warmPixels\" result=\"practicalMask\"><feFuncA type=\"linear\" slope=\"0.55\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"SourceGraphic\" result=\"opaquePractical\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>"
+      ],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-fall-night-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "51% 50%",
+        "sceneWidth": 390,
+        "sceneHeight": 512,
+        "containerWidth": 914.390625,
+        "containerHeight": 508,
+        "coverScale": 0.5468843450956937,
+        "renderedWidth": 914.3906249999999,
+        "renderedHeight": 514.6181687350478,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 3.3090843675238943,
+        "cropBottom": 3.3090843675238943,
+        "visibleSourceY": [
+          6.050793732164469,
+          934.9492062678355
+        ],
+        "scaleX": 0.5468843450956937,
+        "scaleY": 0.5468843450956937
+      }
+    },
+    {
+      "layout": "mobile",
+      "group": "asset-material",
+      "season": "fall",
+      "stage": "tent-neutral",
+      "time": "day",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-tent-neutral.webp",
+        "/money-level/art/houses/temporary-tent-neutral.webp"
+      ],
+      "houseFilter": "brightness(1) saturate(1) contrast(1) sepia(0) hue-rotate(0deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-fall-day-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "51% 50%",
+        "sceneWidth": 390,
+        "sceneHeight": 512,
+        "containerWidth": 914.390625,
+        "containerHeight": 508,
+        "coverScale": 0.5468843450956937,
+        "renderedWidth": 914.3906249999999,
+        "renderedHeight": 514.6181687350478,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 3.3090843675238943,
+        "cropBottom": 3.3090843675238943,
+        "visibleSourceY": [
+          6.050793732164469,
+          934.9492062678355
+        ],
+        "scaleX": 0.5468843450956937,
+        "scaleY": 0.5468843450956937
+      }
+    },
+    {
+      "layout": "mobile",
+      "group": "asset-material",
+      "season": "fall",
+      "stage": "tent-neutral",
+      "time": "evening",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-tent-neutral.webp",
+        "/money-level/art/houses/temporary-tent-neutral.webp"
+      ],
+      "houseFilter": "brightness(0.82) saturate(0.86) contrast(1) sepia(0) hue-rotate(-12deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "1.08 0 0 0 0 0 0.94 0 0 0 0 0 0.97 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-fall-evening-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "51% 50%",
+        "sceneWidth": 390,
+        "sceneHeight": 512,
+        "containerWidth": 914.390625,
+        "containerHeight": 508,
+        "coverScale": 0.5468843450956937,
+        "renderedWidth": 914.3906249999999,
+        "renderedHeight": 514.6181687350478,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 3.3090843675238943,
+        "cropBottom": 3.3090843675238943,
+        "visibleSourceY": [
+          6.050793732164469,
+          934.9492062678355
+        ],
+        "scaleX": 0.5468843450956937,
+        "scaleY": 0.5468843450956937
+      }
+    },
+    {
+      "layout": "mobile",
+      "group": "asset-material",
+      "season": "fall",
+      "stage": "tent-neutral",
+      "time": "night",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-tent-neutral.webp",
+        "/money-level/art/houses/temporary-tent-neutral.webp"
+      ],
+      "houseFilter": "brightness(0.67) saturate(0.88) contrast(1) sepia(0) hue-rotate(8deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "0.7 0 0 0 0 0 0.88 0 0 0 0 0 1.16 0 0 0 0 0 1 0",
+      "transfers": [
+        "<feComponentTransfer in=\"houseBase\" result=\"opaqueBase\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"nightColor\" result=\"crispNight\"><feFuncR type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncR><feFuncG type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncG><feFuncB type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncB></feComponentTransfer>",
+        "<feComponentTransfer in=\"warmPixels\" result=\"practicalMask\"><feFuncA type=\"linear\" slope=\"0.55\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"SourceGraphic\" result=\"opaquePractical\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>"
+      ],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-fall-night-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "51% 50%",
+        "sceneWidth": 390,
+        "sceneHeight": 512,
+        "containerWidth": 914.390625,
+        "containerHeight": 508,
+        "coverScale": 0.5468843450956937,
+        "renderedWidth": 914.3906249999999,
+        "renderedHeight": 514.6181687350478,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 3.3090843675238943,
+        "cropBottom": 3.3090843675238943,
+        "visibleSourceY": [
+          6.050793732164469,
+          934.9492062678355
+        ],
+        "scaleX": 0.5468843450956937,
+        "scaleY": 0.5468843450956937
+      }
+    },
+    {
+      "layout": "mobile",
+      "group": "asset-material",
+      "season": "fall",
+      "stage": "tent-yellow",
+      "time": "day",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-tent-yellow.webp",
+        "/money-level/art/houses/temporary-tent-yellow.webp"
+      ],
+      "houseFilter": "brightness(1) saturate(1) contrast(1) sepia(0) hue-rotate(0deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-fall-day-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "51% 50%",
+        "sceneWidth": 390,
+        "sceneHeight": 512,
+        "containerWidth": 914.390625,
+        "containerHeight": 508,
+        "coverScale": 0.5468843450956937,
+        "renderedWidth": 914.3906249999999,
+        "renderedHeight": 514.6181687350478,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 3.3090843675238943,
+        "cropBottom": 3.3090843675238943,
+        "visibleSourceY": [
+          6.050793732164469,
+          934.9492062678355
+        ],
+        "scaleX": 0.5468843450956937,
+        "scaleY": 0.5468843450956937
+      }
+    },
+    {
+      "layout": "mobile",
+      "group": "asset-material",
+      "season": "fall",
+      "stage": "tent-yellow",
+      "time": "evening",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-tent-yellow.webp",
+        "/money-level/art/houses/temporary-tent-yellow.webp"
+      ],
+      "houseFilter": "brightness(0.82) saturate(0.86) contrast(1) sepia(0) hue-rotate(-12deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "1.08 0 0 0 0 0 0.94 0 0 0 0 0 0.97 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-fall-evening-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "51% 50%",
+        "sceneWidth": 390,
+        "sceneHeight": 512,
+        "containerWidth": 914.390625,
+        "containerHeight": 508,
+        "coverScale": 0.5468843450956937,
+        "renderedWidth": 914.3906249999999,
+        "renderedHeight": 514.6181687350478,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 3.3090843675238943,
+        "cropBottom": 3.3090843675238943,
+        "visibleSourceY": [
+          6.050793732164469,
+          934.9492062678355
+        ],
+        "scaleX": 0.5468843450956937,
+        "scaleY": 0.5468843450956937
+      }
+    },
+    {
+      "layout": "mobile",
+      "group": "asset-material",
+      "season": "fall",
+      "stage": "tent-yellow",
+      "time": "night",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-tent-yellow.webp",
+        "/money-level/art/houses/temporary-tent-yellow.webp"
+      ],
+      "houseFilter": "brightness(0.67) saturate(0.88) contrast(1) sepia(0) hue-rotate(8deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "0.7 0 0 0 0 0 0.88 0 0 0 0 0 1.16 0 0 0 0 0 1 0",
+      "transfers": [
+        "<feComponentTransfer in=\"houseBase\" result=\"opaqueBase\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"nightColor\" result=\"crispNight\"><feFuncR type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncR><feFuncG type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncG><feFuncB type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncB></feComponentTransfer>",
+        "<feComponentTransfer in=\"warmPixels\" result=\"practicalMask\"><feFuncA type=\"linear\" slope=\"0.55\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"SourceGraphic\" result=\"opaquePractical\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>"
+      ],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-fall-night-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "51% 50%",
+        "sceneWidth": 390,
+        "sceneHeight": 512,
+        "containerWidth": 914.390625,
+        "containerHeight": 508,
+        "coverScale": 0.5468843450956937,
+        "renderedWidth": 914.3906249999999,
+        "renderedHeight": 514.6181687350478,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 3.3090843675238943,
+        "cropBottom": 3.3090843675238943,
+        "visibleSourceY": [
+          6.050793732164469,
+          934.9492062678355
+        ],
+        "scaleX": 0.5468843450956937,
+        "scaleY": 0.5468843450956937
+      }
+    },
+    {
+      "layout": "mobile",
+      "group": "asset-material",
+      "season": "winter",
+      "stage": "camp",
+      "time": "day",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-camp-winter.webp",
+        "/money-level/art/houses/temporary-camp-winter.webp"
+      ],
+      "houseFilter": "brightness(1) saturate(1) contrast(1) sepia(0) hue-rotate(0deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-winter-day-sunny.webp",
+        "naturalWidth": 1683,
+        "naturalHeight": 934,
+        "sourceAspect": 1.8019271948608138,
+        "objectFit": "cover",
+        "objectPosition": "51% 50%",
+        "sceneWidth": 390,
+        "sceneHeight": 512,
+        "containerWidth": 914.390625,
+        "containerHeight": 508,
+        "coverScale": 0.5438972162740899,
+        "renderedWidth": 915.3790149892934,
+        "renderedHeight": 508,
+        "cropLeft": 0.4941949946467048,
+        "cropRight": 0.4941949946467048,
+        "cropTop": 0,
+        "cropBottom": 0,
+        "visibleSourceY": [
+          0,
+          934
+        ],
+        "scaleX": 0.5438972162740899,
+        "scaleY": 0.5438972162740899
+      }
+    },
+    {
+      "layout": "mobile",
+      "group": "asset-material",
+      "season": "winter",
+      "stage": "camp",
+      "time": "evening",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-camp-winter.webp",
+        "/money-level/art/houses/temporary-camp-winter.webp"
+      ],
+      "houseFilter": "brightness(0.82) saturate(0.86) contrast(1) sepia(0) hue-rotate(-12deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "1.08 0 0 0 0 0 0.94 0 0 0 0 0 0.97 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-winter-evening-sunny.webp",
+        "naturalWidth": 1683,
+        "naturalHeight": 934,
+        "sourceAspect": 1.8019271948608138,
+        "objectFit": "cover",
+        "objectPosition": "51% 50%",
+        "sceneWidth": 390,
+        "sceneHeight": 512,
+        "containerWidth": 914.390625,
+        "containerHeight": 508,
+        "coverScale": 0.5438972162740899,
+        "renderedWidth": 915.3790149892934,
+        "renderedHeight": 508,
+        "cropLeft": 0.4941949946467048,
+        "cropRight": 0.4941949946467048,
+        "cropTop": 0,
+        "cropBottom": 0,
+        "visibleSourceY": [
+          0,
+          934
+        ],
+        "scaleX": 0.5438972162740899,
+        "scaleY": 0.5438972162740899
+      }
+    },
+    {
+      "layout": "mobile",
+      "group": "asset-material",
+      "season": "winter",
+      "stage": "camp",
+      "time": "night",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-camp-winter.webp",
+        "/money-level/art/houses/temporary-camp-winter.webp"
+      ],
+      "houseFilter": "brightness(0.67) saturate(0.88) contrast(1) sepia(0) hue-rotate(8deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "0.7 0 0 0 0 0 0.88 0 0 0 0 0 1.16 0 0 0 0 0 1 0",
+      "transfers": [
+        "<feComponentTransfer in=\"houseBase\" result=\"opaqueBase\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"nightColor\" result=\"crispNight\"><feFuncR type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncR><feFuncG type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncG><feFuncB type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncB></feComponentTransfer>",
+        "<feComponentTransfer in=\"warmPixels\" result=\"practicalMask\"><feFuncA type=\"linear\" slope=\"0.55\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"SourceGraphic\" result=\"opaquePractical\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>"
+      ],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-winter-night-sunny.webp",
+        "naturalWidth": 1683,
+        "naturalHeight": 934,
+        "sourceAspect": 1.8019271948608138,
+        "objectFit": "cover",
+        "objectPosition": "51% 50%",
+        "sceneWidth": 390,
+        "sceneHeight": 512,
+        "containerWidth": 914.390625,
+        "containerHeight": 508,
+        "coverScale": 0.5438972162740899,
+        "renderedWidth": 915.3790149892934,
+        "renderedHeight": 508,
+        "cropLeft": 0.4941949946467048,
+        "cropRight": 0.4941949946467048,
+        "cropTop": 0,
+        "cropBottom": 0,
+        "visibleSourceY": [
+          0,
+          934
+        ],
+        "scaleX": 0.5438972162740899,
+        "scaleY": 0.5438972162740899
+      }
+    },
+    {
+      "layout": "mobile",
+      "group": "asset-material",
+      "season": "winter",
+      "stage": "tent-neutral",
+      "time": "day",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-tent-neutral.webp",
+        "/money-level/art/houses/temporary-tent-neutral.webp"
+      ],
+      "houseFilter": "brightness(1) saturate(1) contrast(1) sepia(0) hue-rotate(0deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-winter-day-sunny.webp",
+        "naturalWidth": 1683,
+        "naturalHeight": 934,
+        "sourceAspect": 1.8019271948608138,
+        "objectFit": "cover",
+        "objectPosition": "51% 50%",
+        "sceneWidth": 390,
+        "sceneHeight": 512,
+        "containerWidth": 914.390625,
+        "containerHeight": 508,
+        "coverScale": 0.5438972162740899,
+        "renderedWidth": 915.3790149892934,
+        "renderedHeight": 508,
+        "cropLeft": 0.4941949946467048,
+        "cropRight": 0.4941949946467048,
+        "cropTop": 0,
+        "cropBottom": 0,
+        "visibleSourceY": [
+          0,
+          934
+        ],
+        "scaleX": 0.5438972162740899,
+        "scaleY": 0.5438972162740899
+      }
+    },
+    {
+      "layout": "mobile",
+      "group": "asset-material",
+      "season": "winter",
+      "stage": "tent-neutral",
+      "time": "evening",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-tent-neutral.webp",
+        "/money-level/art/houses/temporary-tent-neutral.webp"
+      ],
+      "houseFilter": "brightness(0.82) saturate(0.86) contrast(1) sepia(0) hue-rotate(-12deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "1.08 0 0 0 0 0 0.94 0 0 0 0 0 0.97 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-winter-evening-sunny.webp",
+        "naturalWidth": 1683,
+        "naturalHeight": 934,
+        "sourceAspect": 1.8019271948608138,
+        "objectFit": "cover",
+        "objectPosition": "51% 50%",
+        "sceneWidth": 390,
+        "sceneHeight": 512,
+        "containerWidth": 914.390625,
+        "containerHeight": 508,
+        "coverScale": 0.5438972162740899,
+        "renderedWidth": 915.3790149892934,
+        "renderedHeight": 508,
+        "cropLeft": 0.4941949946467048,
+        "cropRight": 0.4941949946467048,
+        "cropTop": 0,
+        "cropBottom": 0,
+        "visibleSourceY": [
+          0,
+          934
+        ],
+        "scaleX": 0.5438972162740899,
+        "scaleY": 0.5438972162740899
+      }
+    },
+    {
+      "layout": "mobile",
+      "group": "asset-material",
+      "season": "winter",
+      "stage": "tent-neutral",
+      "time": "night",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-tent-neutral.webp",
+        "/money-level/art/houses/temporary-tent-neutral.webp"
+      ],
+      "houseFilter": "brightness(0.67) saturate(0.88) contrast(1) sepia(0) hue-rotate(8deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "0.7 0 0 0 0 0 0.88 0 0 0 0 0 1.16 0 0 0 0 0 1 0",
+      "transfers": [
+        "<feComponentTransfer in=\"houseBase\" result=\"opaqueBase\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"nightColor\" result=\"crispNight\"><feFuncR type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncR><feFuncG type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncG><feFuncB type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncB></feComponentTransfer>",
+        "<feComponentTransfer in=\"warmPixels\" result=\"practicalMask\"><feFuncA type=\"linear\" slope=\"0.55\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"SourceGraphic\" result=\"opaquePractical\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>"
+      ],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-winter-night-sunny.webp",
+        "naturalWidth": 1683,
+        "naturalHeight": 934,
+        "sourceAspect": 1.8019271948608138,
+        "objectFit": "cover",
+        "objectPosition": "51% 50%",
+        "sceneWidth": 390,
+        "sceneHeight": 512,
+        "containerWidth": 914.390625,
+        "containerHeight": 508,
+        "coverScale": 0.5438972162740899,
+        "renderedWidth": 915.3790149892934,
+        "renderedHeight": 508,
+        "cropLeft": 0.4941949946467048,
+        "cropRight": 0.4941949946467048,
+        "cropTop": 0,
+        "cropBottom": 0,
+        "visibleSourceY": [
+          0,
+          934
+        ],
+        "scaleX": 0.5438972162740899,
+        "scaleY": 0.5438972162740899
+      }
+    },
+    {
+      "layout": "mobile",
+      "group": "asset-material",
+      "season": "winter",
+      "stage": "tent-yellow",
+      "time": "day",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-tent-yellow.webp",
+        "/money-level/art/houses/temporary-tent-yellow.webp"
+      ],
+      "houseFilter": "brightness(1) saturate(1) contrast(1) sepia(0) hue-rotate(0deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-winter-day-sunny.webp",
+        "naturalWidth": 1683,
+        "naturalHeight": 934,
+        "sourceAspect": 1.8019271948608138,
+        "objectFit": "cover",
+        "objectPosition": "51% 50%",
+        "sceneWidth": 390,
+        "sceneHeight": 512,
+        "containerWidth": 914.390625,
+        "containerHeight": 508,
+        "coverScale": 0.5438972162740899,
+        "renderedWidth": 915.3790149892934,
+        "renderedHeight": 508,
+        "cropLeft": 0.4941949946467048,
+        "cropRight": 0.4941949946467048,
+        "cropTop": 0,
+        "cropBottom": 0,
+        "visibleSourceY": [
+          0,
+          934
+        ],
+        "scaleX": 0.5438972162740899,
+        "scaleY": 0.5438972162740899
+      }
+    },
+    {
+      "layout": "mobile",
+      "group": "asset-material",
+      "season": "winter",
+      "stage": "tent-yellow",
+      "time": "evening",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-tent-yellow.webp",
+        "/money-level/art/houses/temporary-tent-yellow.webp"
+      ],
+      "houseFilter": "brightness(0.82) saturate(0.86) contrast(1) sepia(0) hue-rotate(-12deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "1.08 0 0 0 0 0 0.94 0 0 0 0 0 0.97 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-winter-evening-sunny.webp",
+        "naturalWidth": 1683,
+        "naturalHeight": 934,
+        "sourceAspect": 1.8019271948608138,
+        "objectFit": "cover",
+        "objectPosition": "51% 50%",
+        "sceneWidth": 390,
+        "sceneHeight": 512,
+        "containerWidth": 914.390625,
+        "containerHeight": 508,
+        "coverScale": 0.5438972162740899,
+        "renderedWidth": 915.3790149892934,
+        "renderedHeight": 508,
+        "cropLeft": 0.4941949946467048,
+        "cropRight": 0.4941949946467048,
+        "cropTop": 0,
+        "cropBottom": 0,
+        "visibleSourceY": [
+          0,
+          934
+        ],
+        "scaleX": 0.5438972162740899,
+        "scaleY": 0.5438972162740899
+      }
+    },
+    {
+      "layout": "mobile",
+      "group": "asset-material",
+      "season": "winter",
+      "stage": "tent-yellow",
+      "time": "night",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-tent-yellow.webp",
+        "/money-level/art/houses/temporary-tent-yellow.webp"
+      ],
+      "houseFilter": "brightness(0.67) saturate(0.88) contrast(1) sepia(0) hue-rotate(8deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "0.7 0 0 0 0 0 0.88 0 0 0 0 0 1.16 0 0 0 0 0 1 0",
+      "transfers": [
+        "<feComponentTransfer in=\"houseBase\" result=\"opaqueBase\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"nightColor\" result=\"crispNight\"><feFuncR type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncR><feFuncG type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncG><feFuncB type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncB></feComponentTransfer>",
+        "<feComponentTransfer in=\"warmPixels\" result=\"practicalMask\"><feFuncA type=\"linear\" slope=\"0.55\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"SourceGraphic\" result=\"opaquePractical\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>"
+      ],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-winter-night-sunny.webp",
+        "naturalWidth": 1683,
+        "naturalHeight": 934,
+        "sourceAspect": 1.8019271948608138,
+        "objectFit": "cover",
+        "objectPosition": "51% 50%",
+        "sceneWidth": 390,
+        "sceneHeight": 512,
+        "containerWidth": 914.390625,
+        "containerHeight": 508,
+        "coverScale": 0.5438972162740899,
+        "renderedWidth": 915.3790149892934,
+        "renderedHeight": 508,
+        "cropLeft": 0.4941949946467048,
+        "cropRight": 0.4941949946467048,
+        "cropTop": 0,
+        "cropBottom": 0,
+        "visibleSourceY": [
+          0,
+          934
+        ],
+        "scaleX": 0.5438972162740899,
+        "scaleY": 0.5438972162740899
+      }
+    },
+    {
+      "layout": "mobile",
+      "group": "weather-stress",
+      "season": "fall",
+      "time": "evening",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-house-fall.webp",
+        "/money-level/art/houses/temporary-house-fall.webp"
+      ],
+      "houseFilter": "brightness(0.82) saturate(0.86) contrast(1) sepia(0) hue-rotate(-12deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "1.08 0 0 0 0 0 0.94 0 0 0 0 0 0.97 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-fall-evening-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "51% 50%",
+        "sceneWidth": 390,
+        "sceneHeight": 512,
+        "containerWidth": 914.390625,
+        "containerHeight": 508,
+        "coverScale": 0.5468843450956937,
+        "renderedWidth": 914.3906249999999,
+        "renderedHeight": 514.6181687350478,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 3.3090843675238943,
+        "cropBottom": 3.3090843675238943,
+        "visibleSourceY": [
+          6.050793732164469,
+          934.9492062678355
+        ],
+        "scaleX": 0.5468843450956937,
+        "scaleY": 0.5468843450956937
+      }
+    },
+    {
+      "layout": "mobile",
+      "group": "weather-stress",
+      "season": "fall",
+      "time": "evening",
+      "weather": "rain",
+      "assets": [
+        "/money-level/art/houses/temporary-house-fall.webp",
+        "/money-level/art/houses/temporary-house-fall.webp"
+      ],
+      "houseFilter": "brightness(0.746) saturate(0.722) contrast(1) sepia(0) hue-rotate(-12deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "1.026 0 0 0 0 0 0.931 0 0 0 0 0 1.004 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-fall-evening-rain.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "51% 50%",
+        "sceneWidth": 390,
+        "sceneHeight": 512,
+        "containerWidth": 914.390625,
+        "containerHeight": 508,
+        "coverScale": 0.5468843450956937,
+        "renderedWidth": 914.3906249999999,
+        "renderedHeight": 514.6181687350478,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 3.3090843675238943,
+        "cropBottom": 3.3090843675238943,
+        "visibleSourceY": [
+          6.050793732164469,
+          934.9492062678355
+        ],
+        "scaleX": 0.5468843450956937,
+        "scaleY": 0.5468843450956937
+      }
+    },
+    {
+      "layout": "mobile",
+      "group": "weather-stress",
+      "season": "fall",
+      "time": "evening",
+      "weather": "thunderstorm",
+      "assets": [
+        "/money-level/art/houses/temporary-house-fall.webp",
+        "/money-level/art/houses/temporary-house-fall.webp"
+      ],
+      "houseFilter": "brightness(0.672) saturate(0.705) contrast(1) sepia(0) hue-rotate(-12deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "0.983 0 0 0 0 0 0.912 0 0 0 0 0 1.014 0 0 0 0 0 1 0",
+      "transfers": [],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-fall-evening-storm.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "51% 50%",
+        "sceneWidth": 390,
+        "sceneHeight": 512,
+        "containerWidth": 914.390625,
+        "containerHeight": 508,
+        "coverScale": 0.5468843450956937,
+        "renderedWidth": 914.3906249999999,
+        "renderedHeight": 514.6181687350478,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 3.3090843675238943,
+        "cropBottom": 3.3090843675238943,
+        "visibleSourceY": [
+          6.050793732164469,
+          934.9492062678355
+        ],
+        "scaleX": 0.5468843450956937,
+        "scaleY": 0.5468843450956937
+      }
+    },
+    {
+      "layout": "mobile",
+      "group": "weather-stress",
+      "season": "fall",
+      "time": "night",
+      "weather": "sunny",
+      "assets": [
+        "/money-level/art/houses/temporary-house-fall.webp",
+        "/money-level/art/houses/temporary-house-fall.webp"
+      ],
+      "houseFilter": "brightness(0.67) saturate(0.88) contrast(1) sepia(0) hue-rotate(8deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "0.7 0 0 0 0 0 0.88 0 0 0 0 0 1.16 0 0 0 0 0 1 0",
+      "transfers": [
+        "<feComponentTransfer in=\"houseBase\" result=\"opaqueBase\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"nightColor\" result=\"crispNight\"><feFuncR type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncR><feFuncG type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncG><feFuncB type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncB></feComponentTransfer>",
+        "<feComponentTransfer in=\"warmPixels\" result=\"practicalMask\"><feFuncA type=\"linear\" slope=\"0.55\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"SourceGraphic\" result=\"opaquePractical\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>"
+      ],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-fall-night-sunny.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "51% 50%",
+        "sceneWidth": 390,
+        "sceneHeight": 512,
+        "containerWidth": 914.390625,
+        "containerHeight": 508,
+        "coverScale": 0.5468843450956937,
+        "renderedWidth": 914.3906249999999,
+        "renderedHeight": 514.6181687350478,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 3.3090843675238943,
+        "cropBottom": 3.3090843675238943,
+        "visibleSourceY": [
+          6.050793732164469,
+          934.9492062678355
+        ],
+        "scaleX": 0.5468843450956937,
+        "scaleY": 0.5468843450956937
+      }
+    },
+    {
+      "layout": "mobile",
+      "group": "weather-stress",
+      "season": "fall",
+      "time": "night",
+      "weather": "rain",
+      "assets": [
+        "/money-level/art/houses/temporary-house-fall.webp",
+        "/money-level/art/houses/temporary-house-fall.webp"
+      ],
+      "houseFilter": "brightness(0.61) saturate(0.82) contrast(1) sepia(0) hue-rotate(8deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "0.665 0 0 0 0 0 0.871 0 0 0 0 0 1.201 0 0 0 0 0 1 0",
+      "transfers": [
+        "<feComponentTransfer in=\"houseBase\" result=\"opaqueBase\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"nightColor\" result=\"crispNight\"><feFuncR type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncR><feFuncG type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncG><feFuncB type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncB></feComponentTransfer>",
+        "<feComponentTransfer in=\"warmPixels\" result=\"practicalMask\"><feFuncA type=\"linear\" slope=\"0.55\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"SourceGraphic\" result=\"opaquePractical\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>"
+      ],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-fall-night-rain.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "51% 50%",
+        "sceneWidth": 390,
+        "sceneHeight": 512,
+        "containerWidth": 914.390625,
+        "containerHeight": 508,
+        "coverScale": 0.5468843450956937,
+        "renderedWidth": 914.3906249999999,
+        "renderedHeight": 514.6181687350478,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 3.3090843675238943,
+        "cropBottom": 3.3090843675238943,
+        "visibleSourceY": [
+          6.050793732164469,
+          934.9492062678355
+        ],
+        "scaleX": 0.5468843450956937,
+        "scaleY": 0.5468843450956937
+      }
+    },
+    {
+      "layout": "mobile",
+      "group": "weather-stress",
+      "season": "fall",
+      "time": "night",
+      "weather": "thunderstorm",
+      "assets": [
+        "/money-level/art/houses/temporary-house-fall.webp",
+        "/money-level/art/houses/temporary-house-fall.webp"
+      ],
+      "houseFilter": "brightness(0.549) saturate(0.8) contrast(1) sepia(0) hue-rotate(8deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "0.637 0 0 0 0 0 0.854 0 0 0 0 0 1.212 0 0 0 0 0 1 0",
+      "transfers": [
+        "<feComponentTransfer in=\"houseBase\" result=\"opaqueBase\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"nightColor\" result=\"crispNight\"><feFuncR type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncR><feFuncG type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncG><feFuncB type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncB></feComponentTransfer>",
+        "<feComponentTransfer in=\"warmPixels\" result=\"practicalMask\"><feFuncA type=\"linear\" slope=\"0.55\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"SourceGraphic\" result=\"opaquePractical\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>"
+      ],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-fall-night-storm.webp",
+        "naturalWidth": 1672,
+        "naturalHeight": 941,
+        "sourceAspect": 1.7768331562167907,
+        "objectFit": "cover",
+        "objectPosition": "51% 50%",
+        "sceneWidth": 390,
+        "sceneHeight": 512,
+        "containerWidth": 914.390625,
+        "containerHeight": 508,
+        "coverScale": 0.5468843450956937,
+        "renderedWidth": 914.3906249999999,
+        "renderedHeight": 514.6181687350478,
+        "cropLeft": 0,
+        "cropRight": 0,
+        "cropTop": 3.3090843675238943,
+        "cropBottom": 3.3090843675238943,
+        "visibleSourceY": [
+          6.050793732164469,
+          934.9492062678355
+        ],
+        "scaleX": 0.5468843450956937,
+        "scaleY": 0.5468843450956937
+      }
+    },
+    {
+      "layout": "mobile",
+      "group": "weather-stress",
+      "season": "winter",
+      "time": "night",
+      "weather": "snow",
+      "assets": [
+        "/money-level/art/houses/temporary-house-winter.webp",
+        "/money-level/art/houses/temporary-house-winter.webp"
+      ],
+      "houseFilter": "brightness(0.636) saturate(0.82) contrast(1) sepia(0) hue-rotate(8deg) url(\"#world-object-lighting-r0\") drop-shadow(rgba(43, 54, 44, 0.13) 0px 7px 6px)",
+      "matrix": "0.672 0 0 0 0 0 0.889 0 0 0 0 0 1.212 0 0 0 0 0 1 0",
+      "transfers": [
+        "<feComponentTransfer in=\"houseBase\" result=\"opaqueBase\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"nightColor\" result=\"crispNight\"><feFuncR type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncR><feFuncG type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncG><feFuncB type=\"linear\" slope=\"1.12\" intercept=\"-0.06000000000000005\"></feFuncB></feComponentTransfer>",
+        "<feComponentTransfer in=\"warmPixels\" result=\"practicalMask\"><feFuncA type=\"linear\" slope=\"0.55\"></feFuncA></feComponentTransfer>",
+        "<feComponentTransfer in=\"SourceGraphic\" result=\"opaquePractical\"><feFuncA type=\"table\" tableValues=\"1 1\"></feFuncA></feComponentTransfer>"
+      ],
+      "background": {
+        "src": "/money-level/art/background/seasonal/forest-winter-night-snow.webp",
+        "naturalWidth": 1683,
+        "naturalHeight": 934,
+        "sourceAspect": 1.8019271948608138,
+        "objectFit": "cover",
+        "objectPosition": "51% 50%",
+        "sceneWidth": 390,
+        "sceneHeight": 512,
+        "containerWidth": 914.390625,
+        "containerHeight": 508,
+        "coverScale": 0.5438972162740899,
+        "renderedWidth": 915.3790149892934,
+        "renderedHeight": 508,
+        "cropLeft": 0.4941949946467048,
+        "cropRight": 0.4941949946467048,
+        "cropTop": 0,
+        "cropBottom": 0,
+        "visibleSourceY": [
+          0,
+          934
+        ],
+        "scaleX": 0.5438972162740899,
+        "scaleY": 0.5438972162740899
+      }
+    }
+  ],
+  "projections": [
+    {
+      "layout": "desktop",
+      "season": "spring",
+      "src": "/money-level/art/background/seasonal/forest-spring-day-sunny.webp",
+      "naturalWidth": 1672,
+      "naturalHeight": 941,
+      "sourceAspect": 1.7768331562167907,
+      "objectFit": "cover",
+      "objectPosition": "50% 50%",
+      "sceneWidth": 1280,
+      "sceneHeight": 576,
+      "containerWidth": 1280,
+      "containerHeight": 572,
+      "coverScale": 0.7655502392344498,
+      "renderedWidth": 1280,
+      "renderedHeight": 720.3827751196172,
+      "cropLeft": 0,
+      "cropRight": 0,
+      "cropTop": 74.19138755980862,
+      "cropBottom": 74.19138755980862,
+      "visibleSourceY": [
+        96.91250000000001,
+        844.0875
+      ],
+      "scaleX": 0.7655502392344498,
+      "scaleY": 0.7655502392344498
+    },
+    {
+      "layout": "desktop",
+      "season": "fall",
+      "src": "/money-level/art/background/seasonal/forest-fall-day-sunny.webp",
+      "naturalWidth": 1672,
+      "naturalHeight": 941,
+      "sourceAspect": 1.7768331562167907,
+      "objectFit": "cover",
+      "objectPosition": "50% 50%",
+      "sceneWidth": 1280,
+      "sceneHeight": 576,
+      "containerWidth": 1280,
+      "containerHeight": 572,
+      "coverScale": 0.7655502392344498,
+      "renderedWidth": 1280,
+      "renderedHeight": 720.3827751196172,
+      "cropLeft": 0,
+      "cropRight": 0,
+      "cropTop": 74.19138755980862,
+      "cropBottom": 74.19138755980862,
+      "visibleSourceY": [
+        96.91250000000001,
+        844.0875
+      ],
+      "scaleX": 0.7655502392344498,
+      "scaleY": 0.7655502392344498
+    },
+    {
+      "layout": "desktop",
+      "season": "winter",
+      "src": "/money-level/art/background/seasonal/forest-winter-day-sunny.webp",
+      "naturalWidth": 1683,
+      "naturalHeight": 934,
+      "sourceAspect": 1.8019271948608138,
+      "objectFit": "cover",
+      "objectPosition": "50% 50%",
+      "sceneWidth": 1280,
+      "sceneHeight": 576,
+      "containerWidth": 1280,
+      "containerHeight": 572,
+      "coverScale": 0.7605466428995841,
+      "renderedWidth": 1280,
+      "renderedHeight": 710.3505644682115,
+      "cropLeft": 0,
+      "cropRight": 0,
+      "cropTop": 69.17528223410574,
+      "cropBottom": 69.17528223410574,
+      "visibleSourceY": [
+        90.95468749999996,
+        843.0453124999999
+      ],
+      "scaleX": 0.7605466428995841,
+      "scaleY": 0.7605466428995841
+    },
+    {
+      "layout": "mobile",
+      "season": "spring",
+      "src": "/money-level/art/background/seasonal/forest-spring-day-sunny.webp",
+      "naturalWidth": 1672,
+      "naturalHeight": 941,
+      "sourceAspect": 1.7768331562167907,
+      "objectFit": "cover",
+      "objectPosition": "51% 50%",
+      "sceneWidth": 390,
+      "sceneHeight": 512,
+      "containerWidth": 914.390625,
+      "containerHeight": 508,
+      "coverScale": 0.5468843450956937,
+      "renderedWidth": 914.3906249999999,
+      "renderedHeight": 514.6181687350478,
+      "cropLeft": 0,
+      "cropRight": 0,
+      "cropTop": 3.3090843675238943,
+      "cropBottom": 3.3090843675238943,
+      "visibleSourceY": [
+        6.050793732164469,
+        934.9492062678355
+      ],
+      "scaleX": 0.5468843450956937,
+      "scaleY": 0.5468843450956937
+    },
+    {
+      "layout": "mobile",
+      "season": "fall",
+      "src": "/money-level/art/background/seasonal/forest-fall-day-sunny.webp",
+      "naturalWidth": 1672,
+      "naturalHeight": 941,
+      "sourceAspect": 1.7768331562167907,
+      "objectFit": "cover",
+      "objectPosition": "51% 50%",
+      "sceneWidth": 390,
+      "sceneHeight": 512,
+      "containerWidth": 914.390625,
+      "containerHeight": 508,
+      "coverScale": 0.5468843450956937,
+      "renderedWidth": 914.3906249999999,
+      "renderedHeight": 514.6181687350478,
+      "cropLeft": 0,
+      "cropRight": 0,
+      "cropTop": 3.3090843675238943,
+      "cropBottom": 3.3090843675238943,
+      "visibleSourceY": [
+        6.050793732164469,
+        934.9492062678355
+      ],
+      "scaleX": 0.5468843450956937,
+      "scaleY": 0.5468843450956937
+    },
+    {
+      "layout": "mobile",
+      "season": "winter",
+      "src": "/money-level/art/background/seasonal/forest-winter-day-sunny.webp",
+      "naturalWidth": 1683,
+      "naturalHeight": 934,
+      "sourceAspect": 1.8019271948608138,
+      "objectFit": "cover",
+      "objectPosition": "51% 50%",
+      "sceneWidth": 390,
+      "sceneHeight": 512,
+      "containerWidth": 914.390625,
+      "containerHeight": 508,
+      "coverScale": 0.5438972162740899,
+      "renderedWidth": 915.3790149892934,
+      "renderedHeight": 508,
+      "cropLeft": 0.4941949946467048,
+      "cropRight": 0.4941949946467048,
+      "cropTop": 0,
+      "cropBottom": 0,
+      "visibleSourceY": [
+        0,
+        934
+      ],
+      "scaleX": 0.5438972162740899,
+      "scaleY": 0.5438972162740899
+    }
+  ],
+  "failedRequests": [],
+  "errors": []
+}

@@ -1,0 +1,64 @@
+{
+  "viewport": {
+    "w": 1320,
+    "h": 900,
+    "scrollHeight": 956
+  },
+  "shell": {
+    "top": 57,
+    "left": 0,
+    "width": 1320,
+    "height": 898.96875,
+    "bottom": 955.96875
+  },
+  "card": {
+    "top": 75,
+    "left": 18,
+    "width": 1284,
+    "height": 862.96875,
+    "bottom": 937.96875
+  },
+  "top": {
+    "top": 77,
+    "left": 20,
+    "width": 1280,
+    "height": 74,
+    "bottom": 151
+  },
+  "hud": {
+    "top": 151,
+    "left": 20,
+    "width": 1280,
+    "height": 110.265625,
+    "bottom": 261.265625
+  },
+  "scene": {
+    "top": 261.265625,
+    "left": 20,
+    "width": 1280,
+    "height": 576,
+    "bottom": 837.265625
+  },
+  "footer": {
+    "top": 869.578125,
+    "left": 20,
+    "width": 1280,
+    "height": 66.390625,
+    "bottom": 935.96875
+  },
+  "natural": {
+    "w": 1672,
+    "h": 941
+  },
+  "render": {
+    "width": 1280,
+    "height": 720.3827751196172
+  },
+  "cropTop": 74.19138755980862,
+  "cropBottom": 74.19138755980862,
+  "visibleSourceY": [
+    96.91250000000001,
+    844.0875
+  ],
+  "coverage": 0.7940223166843783
+}

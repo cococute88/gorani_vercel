@@ -3,7 +3,13 @@
 
 import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
 import type { MoneyLevelHouseStage } from "@/lib/money-level/house-stages";
-import type { MoneyLevelStatue, MoneyLevelTimeOfDay, MoneyLevelWeather } from "@/lib/money-level/types";
+import type {
+  MoneyLevelForestSpecialEvent,
+  MoneyLevelSceneWeather,
+  MoneyLevelSeason,
+  MoneyLevelStatue,
+  MoneyLevelTimeOfDay,
+} from "@/lib/money-level/types";
 import {
   BEHAVIOR_CONFIG,
   CHARACTER_CONFIG,
@@ -19,8 +25,9 @@ import { GORANI_BENCH_POSE } from "@/lib/money-level/forest/character-pose";
 import { cameraTranslation, clampCameraX, createForestCamera, edgePanSpeed, resolveGestureIntent, screenToWorld, TOUCH_SLOP_PX, type ForestCamera, type GestureIntent } from "@/lib/money-level/forest/camera";
 import { FISHING_VISUAL_CONFIG, fishingRodGeometry, GORANI_BENCH_VISUAL_OFFSET_Y_PX, type SemanticActivityZone } from "@/lib/money-level/forest/activity-zones";
 import { FISHING_BOBBER, fishingLineAngleDeg, projectForestPoint, statueSlotPlacement } from "@/lib/money-level/forest/landmarks";
+import { compareStatueGroundDepth, forestGroundDepthZ, screenGroundPercent } from "@/lib/money-level/forest/statue-depth";
 import { perspectiveScale, setForestSceneViewport, imagePointToScene, type ScenePoint } from "@/lib/money-level/forest/navigation";
-import { FOREST_SCENE, HOUSE_ART_FAMILY, resolveForestBackground } from "@/lib/money-level/forest/scene-config";
+import { FOREST_SCENE, HOUSE_ART_FAMILY, resolveForestBackground, resolveForestHouseAsset } from "@/lib/money-level/forest/scene-config";
 import { brokerageHouseLabelPoint, houseWorldToViewport, taxHouseLabelPoint, TAX_LABEL_WORLD } from "@/lib/money-level/forest/house-geometry";
 import { resolveHouseVisualFrame, type HouseVisualFrame } from "@/lib/money-level/forest/tax-artwork";
 import type { SceneAsset } from "@/lib/money-level/forest/scene-config";
@@ -55,6 +62,8 @@ declare global {
       startFishingAs: (id: CharacterId) => boolean;
       startBenchSitting: (id: CharacterId) => boolean;
       dropCharacter: (id: CharacterId, source: ScenePoint) => void;
+      dragCharacterTo: (id: CharacterId, source: ScenePoint) => void;
+      setAccessoryForQa: (id: CharacterId, category: "hat" | "face", accessory: string) => void;
       startActivity: (id: CharacterId, zone: SemanticActivityZone["id"]) => boolean;
       ceremonyOwners: () => ReturnType<CharacterActivityCoordinator["getCeremonyOwners"]>;
       startPondWatch: () => boolean;
@@ -71,6 +80,8 @@ export default function MoneyLevelScene({
   brokerageLevel,
   taxLevel,
   weather,
+  season,
+  specialEvent,
   timeOfDay,
   ambientEnabled,
   previewOverridesEnabled,
@@ -86,7 +97,9 @@ export default function MoneyLevelScene({
   taxValue: number;
   brokerageLevel: number;
   taxLevel: number;
-  weather: MoneyLevelWeather;
+  weather: MoneyLevelSceneWeather;
+  season: MoneyLevelSeason;
+  specialEvent: MoneyLevelForestSpecialEvent;
   timeOfDay: MoneyLevelTimeOfDay;
   ambientEnabled: boolean;
   previewOverridesEnabled: boolean;
@@ -97,8 +110,11 @@ export default function MoneyLevelScene({
   phrase: string;
 }) {
   const sceneRef = useRef<HTMLElement>(null);
+  const weatherRef = useRef(weather);
+  weatherRef.current = weather;
   const lightingFilterId = `world-object-lighting-${useId().replace(/:/g, "")}`;
-  const stageRef = useRef<HTMLDivElement>(null);
+  const goraniStageRef = useRef<HTMLDivElement>(null);
+  const daramjiStageRef = useRef<HTMLDivElement>(null);
   const cameraRef = useRef(createForestCamera(1320, 520, false));
   const statuesRef = useRef({ left: leftStatue, right: rightStatue });
   statuesRef.current = { left: leftStatue, right: rightStatue };
@@ -139,15 +155,14 @@ export default function MoneyLevelScene({
 
   useEffect(() => {
     const scene = sceneRef.current;
-    const stageElement = stageRef.current;
-    if (!scene || !stageElement) return;
+    const stageElements = { gorani: goraniStageRef.current, daramji: daramjiStageRef.current };
+    const stageElement = stageElements.gorani;
+    if (!scene || !stageElement || !stageElements.daramji) return;
 
     let cancelled = false;
     const initialization = new AbortController();
-    let stage: SpineStage | null = null;
+    const stages: Partial<Record<CharacterId, SpineStage>> = {};
     let interactionTimer = 0;
-    let lightningTimer = 0;
-    let lightningResetTimer = 0;
     const cleanupListeners: Array<() => void> = [];
     const mobile = () => window.innerWidth <= MOBILE_BREAKPOINT;
     const states: Record<CharacterId, CharacterState> = {
@@ -164,21 +179,6 @@ export default function MoneyLevelScene({
     activeRuntimeCount += 1;
     stageElement.dataset.activeRuntimeCount = String(activeRuntimeCount);
     setCharacterError(false);
-
-    const lightning = scene.querySelector<HTMLElement>(".lightning-layer");
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const scheduleLightning = () => {
-      if (weather !== "thunderstorm" || !ambientEnabled || reducedMotion || !lightning) return;
-      lightningTimer = window.setTimeout(() => {
-        lightning.dataset.flashCount = String(Number(lightning.dataset.flashCount ?? "0") + 1);
-        lightning.classList.add("is-flashing");
-        lightningResetTimer = window.setTimeout(() => {
-          lightning.classList.remove("is-flashing");
-          scheduleLightning();
-        }, 1_050);
-      }, 18_000 + Math.random() * 20_000);
-    };
-    scheduleLightning();
 
     const worldPlacement = (id: CharacterId) => {
       const viewportHeight = 270;
@@ -215,13 +215,29 @@ export default function MoneyLevelScene({
       stageElement.dataset[`${id}Animation`] = states[id].animation;
       stageElement.dataset[`${id}Accessory`] = states[id].hat || states[id].face || "none";
       stageElement.dataset[`${id}Facing`] = position.facing;
+      const actorStage = stageElements[id];
+      if (actorStage) {
+        actorStage.style.zIndex = String(forestGroundDepthZ(position.y, "character"));
+        actorStage.dataset.groundY = position.y.toFixed(3);
+        for (const slot of ["left", "right"] as const) {
+          const statue = statuesRef.current[slot];
+          if (statue === "none") {
+            actorStage.dataset[`depth${slot === "left" ? "Left" : "Right"}`] = "none";
+            continue;
+          }
+          const size = { width: scene.clientWidth, height: scene.clientHeight };
+          const placement = statueSlotPlacement(slot, size, mobile());
+          const statueGround = screenGroundPercent(placement.visibleBottomY, size.height);
+          actorStage.dataset[`depth${slot === "left" ? "Left" : "Right"}`] = compareStatueGroundDepth(position.y, statueGround);
+        }
+      }
     };
 
     for (const id of ["gorani", "daramji"] as const) {
       controllers[id] = new ForestBehaviorController({
         id,
         state: states[id],
-        weather: () => weather,
+        weather: () => weatherRef.current === "snow" ? "cloudy" : weatherRef.current,
         mobile,
         activities,
         statues: () => statuesRef.current,
@@ -232,7 +248,11 @@ export default function MoneyLevelScene({
       });
     }
 
-    refreshStatuesRef.current = () => { controllers.gorani.refreshStatueAvailability(); controllers.daramji.refreshStatueAvailability(); };
+    refreshStatuesRef.current = () => {
+      controllers.gorani.refreshStatueAvailability();
+      controllers.daramji.refreshStatueAvailability();
+      (["gorani", "daramji"] as const).forEach((id) => updateCharacterDom(id, positions[id], controllers[id].getPhase()));
+    };
     reprojectCharactersRef.current = (previous, next) => { controllers.gorani.reproject(previous, next); controllers.daramji.reproject(previous, next); };
 
     const updateFishingVisual = (id: CharacterId, hand: BoneScreenPoint) => {
@@ -488,26 +508,31 @@ export default function MoneyLevelScene({
     });
     renderInteractionDebug();
 
-    void SpineStage.create({
-      container: stageElement,
-      mode: "pair",
-      actors: (["gorani", "daramji"] as const).map((id) => ({ id, state: states[id], placement: () => worldPlacement(id) })),
-      boneObservers: (["gorani", "daramji"] as const).map((id) => ({ actorId: id, boneName: FISHING_VISUAL_CONFIG[id].handBone, point: FISHING_VISUAL_CONFIG[id].handPoint, onUpdate: (hand: BoneScreenPoint) => updateFishingVisual(id, hand) })),
-      onError: () => setCharacterError(true),
-      onContextRestored: () => setRuntimeVersion((version) => version + 1),
-      signal: initialization.signal,
-    }).then((createdStage) => {
+    const actorIds = ["gorani", "daramji"] as const;
+    void Promise.all(actorIds.map(async (id) => {
+      const createdStage = await SpineStage.create({
+        container: stageElements[id]!,
+        mode: "pair",
+        actors: [{ id, state: states[id], placement: () => worldPlacement(id) }],
+        boneObservers: [{ actorId: id, boneName: FISHING_VISUAL_CONFIG[id].handBone, point: FISHING_VISUAL_CONFIG[id].handPoint, onUpdate: (hand: BoneScreenPoint) => updateFishingVisual(id, hand) }],
+        onError: () => setCharacterError(true),
+        onContextRestored: () => setRuntimeVersion((version) => version + 1),
+        signal: initialization.signal,
+      });
+      stages[id] = createdStage;
+      return createdStage;
+    })).then((createdStages) => {
       if (cancelled) {
-        createdStage.dispose();
+        createdStages.forEach((createdStage) => createdStage.dispose());
         return;
       }
-      stage = createdStage;
-      stageElement.dataset.ready = "true";
+      actorIds.forEach((id) => { stageElements[id]!.dataset.ready = "true"; });
       controllers.gorani.start();
       controllers.daramji.start();
     }).catch((error: unknown) => {
       if (cancelled) return;
-      stageElement.dataset.ready = "false";
+      initialization.abort();
+      actorIds.forEach((id) => { stageElements[id]!.dataset.ready = "false"; });
       setCharacterError(true);
       if (process.env.NODE_ENV !== "production") console.warn("[Money Level] Spine initialization failed", error);
     });
@@ -529,6 +554,11 @@ export default function MoneyLevelScene({
         startFishingAs: (id) => controllers[id].startActivityAtZone("fishing_dock"),
         startBenchSitting: (id) => controllers[id].startActivityAtZone("bench_slot"),
         dropCharacter: (id, source) => { controllers[id].beginDrag(); controllers[id].endDrag(imagePointToScene(source, mobile() ? "mobile" : "desktop")); },
+        dragCharacterTo: (id, source) => { controllers[id].beginDrag(); controllers[id].updateDrag(imagePointToScene(source, mobile() ? "mobile" : "desktop")); },
+        setAccessoryForQa: (id, category, accessory) => {
+          states[id].hat = category === "hat" ? accessory : "";
+          states[id].face = category === "face" ? accessory : "";
+        },
         startActivity: (id, zone) => controllers[id].startActivityAtZone(zone),
         ceremonyOwners: () => activities.getCeremonyOwners(),
         startPondWatch: () => controllers.daramji.startActivityAtZone("pond_watch"),
@@ -546,9 +576,6 @@ export default function MoneyLevelScene({
       reprojectCharactersRef.current = null;
       initialization.abort();
       window.clearInterval(interactionTimer);
-      window.clearTimeout(lightningTimer);
-      window.clearTimeout(lightningResetTimer);
-      lightning?.classList.remove("is-flashing");
       if (dragSession) window.clearTimeout(dragSession.timer);
       window.cancelAnimationFrame(edgeFrame);
       scene.classList.remove("is-character-dragging");
@@ -560,7 +587,7 @@ export default function MoneyLevelScene({
       if (panSession && scene.hasPointerCapture(panSession.pointerId)) scene.releasePointerCapture(panSession.pointerId);
       controllers.gorani.stop();
       controllers.daramji.stop();
-      stage?.dispose();
+      Object.values(stages).forEach((createdStage) => createdStage.dispose());
       activeRuntimeCount = Math.max(0, activeRuntimeCount - 1);
       if (activeRuntimeCount > 0) stageElement.dataset.activeRuntimeCount = String(activeRuntimeCount);
       else delete stageElement.dataset.activeRuntimeCount;
@@ -568,7 +595,33 @@ export default function MoneyLevelScene({
         delete window.__MONEY_LEVEL_DEBUG__;
       }
     };
-  }, [ambientEnabled, previewOverridesEnabled, runtimeVersion, weather]);
+  }, [previewOverridesEnabled, runtimeVersion]);
+
+  useEffect(() => {
+    const lightning = sceneRef.current?.querySelector<HTMLElement>(".lightning-layer");
+    if (weather !== "thunderstorm" || !ambientEnabled || !lightning || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let flashTimer = 0;
+    let resetTimer = 0;
+    let cancelled = false;
+    const schedule = () => {
+      flashTimer = window.setTimeout(() => {
+        if (cancelled) return;
+        lightning.dataset.flashCount = String(Number(lightning.dataset.flashCount ?? "0") + 1);
+        lightning.classList.add("is-flashing");
+        resetTimer = window.setTimeout(() => {
+          lightning.classList.remove("is-flashing");
+          schedule();
+        }, 1_050);
+      }, 18_000 + Math.random() * 20_000);
+    };
+    schedule();
+    return () => {
+      cancelled = true;
+      window.clearTimeout(flashTimer);
+      window.clearTimeout(resetTimer);
+      lightning.classList.remove("is-flashing");
+    };
+  }, [ambientEnabled, weather]);
 
   const statuePlacements = {
     left: statueSlotPlacement("left", sceneSize, sceneSize.mobile),
@@ -578,13 +631,15 @@ export default function MoneyLevelScene({
   const houseAmbient = getHouseAmbientLighting(timeOfDay, weather);
   const ambientOpacity = houseAmbientEnabled ? houseAmbient.opacity : 0;
   const nightAmbient = houseAmbientEnabled ? houseAmbient.night : null;
+  const brokerageHouseAsset = resolveForestHouseAsset(season, brokerageStage.art);
+  const taxHouseAsset = resolveForestHouseAsset(season, taxStage.art);
   const worldObjectStyle = {
     "--money-level-house-lighting": `${objectLighting.house.filter} url(#${lightingFilterId})`,
     "--money-level-statue-lighting": `${objectLighting.statue.filter} url(#${lightingFilterId}-statue)`,
   } as CSSProperties;
 
   return (
-    <section ref={sceneRef} className="forest-scene" data-ambient={ambientEnabled ? "on" : "off"} aria-label="고라니와 다람쥐가 사는 숲">
+    <section ref={sceneRef} className="forest-scene" style={worldObjectStyle} data-ambient={ambientEnabled ? "on" : "off"} data-special-event={specialEvent} aria-label="고라니와 다람쥐가 사는 숲">
       <svg width="0" height="0" aria-hidden="true" style={{ position: "absolute" }}>
         <defs>
           <filter id={lightingFilterId} colorInterpolationFilters="sRGB" x="0%" y="0%" width="100%" height="100%">
@@ -625,23 +680,28 @@ export default function MoneyLevelScene({
           <filter id={`${lightingFilterId}-statue`} colorInterpolationFilters="sRGB"><feColorMatrix type="matrix" values={objectLighting.statue.colorMatrix} /></filter>
         </defs>
       </svg>
-      <div className="scene-world" style={worldObjectStyle}>
-        <WeatherBackground timeOfDay={timeOfDay} weather={weather} />
+      <div className="scene-world">
+        <WeatherBackground season={season} timeOfDay={timeOfDay} weather={weather} />
         {ambientEnabled ? <div className="pond-shimmer-layer ambient-motion-layer" aria-hidden="true" /> : null}
-        <div className="house-place brokerage-house"><HouseVisual kind="brokerage" stage={brokerageStage} sceneSize={sceneSize} /></div>
-        <div className="house-place tax-house"><HouseVisual kind="tax" stage={taxStage} sceneSize={sceneSize} /></div>
-        {(["left", "right"] as const).map((slot) => {
-          const statue = slot === "left" ? leftStatue : rightStatue;
-          if (statue === "none") return null;
-          const placement = statuePlacements[slot];
-          return <img key={slot} className="forest-statue" data-statue-slot={slot} src={`/money-level/art/statues/${statue}.png`} alt={`${slot === "left" ? "왼쪽" : "오른쪽"} 받침대의 곰 조각상`} style={{ left: placement.x, top: placement.y, "--statue-width": `${placement.width}px` } as CSSProperties} draggable={false} />;
-        })}
+        <div className="house-place brokerage-house"><HouseVisual kind="brokerage" stage={brokerageStage} sceneSize={sceneSize} asset={brokerageHouseAsset} /></div>
+        <div className="house-place tax-house"><HouseVisual kind="tax" stage={taxStage} sceneSize={sceneSize} asset={taxHouseAsset} /></div>
         <div className="character-ground-layer" aria-hidden="true">
           <CharacterAnchor id="gorani" layer="shadow" /><CharacterAnchor id="daramji" layer="shadow" />
         </div>
       </div>
-      {/* Render only the camera viewport, not a translated/clipped full-world canvas. */}
-      <div ref={stageRef} className="spine-forest-stage" data-runtime-version={runtimeVersion} />
+      {ambientEnabled && specialEvent === "payday-leaf-shower" ? <PaydayLeafShower layer="far" count={48} /> : null}
+      <div className="forest-depth-layer" aria-label="숲 오브젝트 깊이 레이어">
+        {(["left", "right"] as const).map((slot) => {
+          const statue = slot === "left" ? leftStatue : rightStatue;
+          if (statue === "none") return null;
+          const placement = statuePlacements[slot];
+          const groundPercent = screenGroundPercent(placement.visibleBottomY, sceneSize.height);
+          return <img key={slot} className="forest-statue" data-statue-slot={slot} data-ground-y={groundPercent.toFixed(3)} src={`/money-level/art/statues/${statue}.png`} alt={`${slot === "left" ? "왼쪽" : "오른쪽"} 받침대의 곰 조각상`} style={{ left: placement.x, top: placement.y, zIndex: forestGroundDepthZ(groundPercent, "statue"), "--statue-width": `${placement.width}px` } as CSSProperties} draggable={false} />;
+        })}
+        {/* Separate canvases let each character sort independently around both statues. */}
+        <div ref={goraniStageRef} className="spine-forest-stage" data-character-stage="gorani" data-runtime-version={runtimeVersion} />
+        <div ref={daramjiStageRef} className="spine-forest-stage" data-character-stage="daramji" data-runtime-version={runtimeVersion} />
+      </div>
       <div className="scene-activity-layer" aria-hidden="true">
         <span className="pond-activity fishing-activity" hidden>
           <img className="fishing-rod" src="/money-level/art/props/fishing-rod.webp" alt="" draggable={false} />
@@ -655,16 +715,17 @@ export default function MoneyLevelScene({
         <CharacterAnchor id="gorani" layer="hit" /><CharacterAnchor id="daramji" layer="hit" />
       </div>
       {ambientEnabled ? <>
-        <div className={`wind-layer wind-${resolveMoneyLevelWindIntensity(weather)} ambient-motion-layer`} aria-hidden="true">
+        <div className={`wind-layer wind-${specialEvent === "normal-windy" ? "breeze" : resolveMoneyLevelWindIntensity(weather)} ambient-motion-layer`} aria-hidden="true">
           {Array.from({ length: 8 }, (_, index) => <i key={index} style={{ "--i": index } as CSSProperties} />)}
         </div>
+        {specialEvent === "payday-leaf-shower" ? <PaydayLeafShower layer="front" count={72} /> : null}
         <div className="rain-layer ambient-motion-layer" aria-hidden="true">{Array.from({ length: 72 }, (_, index) => <i key={index} className={`rain-depth-${index % 3}`} style={rainDropStyle(index)} />)}</div>
         <div className="pond-ripple-layer ambient-motion-layer" aria-hidden="true">{POND_RIPPLES.map((ripple, index) => <i key={index} style={rippleStyle(ripple, index)} />)}</div>
         <div className="lightning-layer ambient-motion-layer" aria-hidden="true" />
       </> : null}
       <div className="scene-label-layer">
-        <HouseLabel kind="brokerage" text={brokerageText} value={brokerageValue} displayLevel={brokerageLevel} sceneSize={sceneSize} />
-        <HouseLabel kind="tax" text={taxText} value={taxValue} displayLevel={taxLevel} sceneSize={sceneSize} visualFrame={((FOREST_SCENE.stageAssets.tax as Partial<Record<MoneyLevelHouseStage["art"], SceneAsset>>)[taxStage.art] ?? FOREST_SCENE.familyFallbackAssets.tax[HOUSE_ART_FAMILY[taxStage.art]]).visualFrame} />
+        <HouseLabel kind="brokerage" text={brokerageText} value={brokerageValue} displayLevel={brokerageLevel} sceneSize={sceneSize} visualFrame={brokerageHouseAsset?.visualFrame} />
+        <HouseLabel kind="tax" text={taxText} value={taxValue} displayLevel={taxLevel} sceneSize={sceneSize} visualFrame={taxHouseAsset?.visualFrame} />
       </div>
       <div className="scene-weather"><span>{weatherIcon(weather)}</span><b>{weatherLabel(weather)}</b><small>{timeLabel(timeOfDay)}</small></div>
       <p className="forest-phrase">{phrase}</p>
@@ -672,8 +733,8 @@ export default function MoneyLevelScene({
   );
 }
 
-function WeatherBackground({ timeOfDay, weather }: { timeOfDay: MoneyLevelTimeOfDay; weather: MoneyLevelWeather }) {
-  const requestedSrc = resolveForestBackground(timeOfDay, weather);
+function WeatherBackground({ season, timeOfDay, weather }: { season: MoneyLevelSeason; timeOfDay: MoneyLevelTimeOfDay; weather: MoneyLevelSceneWeather }) {
+  const requestedSrc = resolveForestBackground(season, timeOfDay, weather);
   const activeSrcRef = useRef(requestedSrc);
   const transitionTimerRef = useRef(0);
   const frameRef = useRef(0);
@@ -719,6 +780,46 @@ function WeatherBackground({ timeOfDay, weather }: { timeOfDay: MoneyLevelTimeOf
   );
 }
 
+function PaydayLeafShower({ layer, count }: { layer: "far" | "front"; count: number }) {
+  return (
+    <div
+      className={`payday-leaf-shower payday-leaf-shower-${layer} ambient-motion-layer`}
+      data-leaf-count={count}
+      aria-hidden="true"
+    >
+      {Array.from({ length: count }, (_, index) => <i key={index} style={paydayLeafStyle(index, layer)} />)}
+    </div>
+  );
+}
+
+function paydayLeafStyle(index: number, layer: "far" | "front"): CSSProperties {
+  const front = layer === "front";
+  const seed = index + (front ? 47 : 3);
+  const size = (front ? 19 : 12) + (seed * 7 % (front ? 13 : 9));
+  const speed = (front ? 9.2 : 14.5) + (seed * 13 % 55) / 10;
+  const turn = 520 + (seed * 47 % 620);
+  const sway = -34 + (seed * 19 % 69);
+  const palette = front
+    ? ["#6bbd3f", "#a7da4f", "#43a946", "#c6e95c", "#55c05d"]
+    : ["#86c94f", "#b9e269", "#61b64f", "#9fd45a"];
+  return {
+    "--payday-leaf-x": `${-4 + (seed * 37 + index * 11) % 109}%`,
+    "--payday-leaf-size": `${size}px`,
+    "--payday-leaf-speed": `${speed.toFixed(1)}s`,
+    "--payday-leaf-delay": `${-((seed * 2.73) % speed).toFixed(2)}s`,
+    "--payday-leaf-color": palette[seed % palette.length],
+    "--payday-leaf-sway-a": `${Math.round(sway * -.7)}px`,
+    "--payday-leaf-sway-b": `${sway}px`,
+    "--payday-leaf-sway-c": `${Math.round(sway * -.45)}px`,
+    "--payday-leaf-sway-end": `${Math.round(sway * .65)}px`,
+    "--payday-leaf-turn-a": `${Math.round(turn * .28)}deg`,
+    "--payday-leaf-turn-b": `${Math.round(turn * .55)}deg`,
+    "--payday-leaf-turn-c": `${Math.round(turn * .82)}deg`,
+    "--payday-leaf-turn": `${turn}deg`,
+    "--payday-leaf-opacity": front ? (.82 + (seed % 4) * .05).toFixed(2) : (.6 + (seed % 4) * .06).toFixed(2),
+  } as CSSProperties;
+}
+
 const POND_RIPPLES = [
   { x: 62, y: 77, mobileX: 67, mobileY: 77, size: 16 },
   { x: 74, y: 70, mobileX: 82, mobileY: 70, size: 21 },
@@ -753,17 +854,16 @@ function rippleStyle(ripple: (typeof POND_RIPPLES)[number], index: number): CSSP
   } as CSSProperties;
 }
 
-function HouseVisual({ kind, stage, sceneSize }: { kind: "brokerage" | "tax"; stage: MoneyLevelHouseStage; sceneSize: { width: number; height: number; mobile: boolean } }) {
+function HouseVisual({ kind, stage, sceneSize, asset }: { kind: "brokerage" | "tax"; stage: MoneyLevelHouseStage; sceneSize: { width: number; height: number; mobile: boolean }; asset: SceneAsset | null }) {
   const family = HOUSE_ART_FAMILY[stage.art];
-  const accountAssets = FOREST_SCENE.stageAssets[kind] as Partial<Record<MoneyLevelHouseStage["art"], SceneAsset>>;
-  const asset = accountAssets[stage.art] ?? FOREST_SCENE.familyFallbackAssets[kind][family];
+  if (!asset) return null;
   const placement = resolveHouseVisualFrame(houseWorldToViewport(kind, sceneSize, sceneSize.mobile), asset.visualFrame);
   const composite = asset.composite ?? "masked";
   const style = {
     "--house-x": `${placement.x}px`, "--house-y": `${placement.y}px`, "--house-width": `${placement.width}px`,
   } as CSSProperties;
   return (
-    <article className={`house-card house-${kind} house-family-${family} house-composite-${composite}`} style={style} data-level={stage.level} data-art={stage.art} data-composite={composite} aria-label={`${kind === "brokerage" ? "위탁" : "절세"} 집, ${stage.label}`}>
+    <article className={`house-card house-${kind} house-family-${family} house-composite-${composite}`} style={style} data-level={stage.level} data-art={stage.art} data-asset-src={asset.src} data-composite={composite} aria-label={`${kind === "brokerage" ? "위탁" : "절세"} 집, ${stage.label}`}>
       <img className="house-art-image" src={asset.src} alt={asset.alt} draggable={false} />
     </article>
   );
@@ -771,7 +871,7 @@ function HouseVisual({ kind, stage, sceneSize }: { kind: "brokerage" | "tax"; st
 
 function HouseLabel({ kind, text, value, displayLevel, sceneSize, visualFrame }: { kind: "brokerage" | "tax"; text: string; value: number; displayLevel: number; sceneSize: { width: number; height: number; mobile: boolean }; visualFrame?: HouseVisualFrame }) {
   const title = kind === "brokerage" ? "위탁 집" : "절세 집";
-  const point = kind === "brokerage" ? brokerageHouseLabelPoint(sceneSize, sceneSize.mobile) : taxHouseLabelPoint(sceneSize, sceneSize.mobile, 0, visualFrame);
+  const point = kind === "brokerage" ? brokerageHouseLabelPoint(sceneSize, sceneSize.mobile, visualFrame) : taxHouseLabelPoint(sceneSize, sceneSize.mobile, 0, visualFrame);
   const half = 96;
   const rawX = projectForestPoint(TAX_LABEL_WORLD, sceneSize, sceneSize.mobile).x;
   // Clamp AFTER camera translation, then compensate the parent's transform.
@@ -786,6 +886,6 @@ function CharacterAnchor({ id, layer }: { id: CharacterId; layer: "shadow" | "hi
   return <span className="character-anchor character-hit-anchor" data-character-anchor={id}><span className="character-hit-target" id={`${id}-drag-target`} role="button" aria-label={`${id === "gorani" ? "고라니" : "다람쥐"} 옮기기`} tabIndex={0} style={style} /></span>;
 }
 
-function weatherLabel(value: MoneyLevelWeather): string { return ({ sunny: "맑음", cloudy: "흐림", rain: "비", thunderstorm: "천둥번개" } as const)[value]; }
-function weatherIcon(value: MoneyLevelWeather): string { return ({ sunny: "☀", cloudy: "☁", rain: "☂", thunderstorm: "ϟ" } as const)[value]; }
+function weatherLabel(value: MoneyLevelSceneWeather): string { return ({ sunny: "맑음", cloudy: "흐림", rain: "비", thunderstorm: "천둥번개", snow: "눈" } as const)[value]; }
+function weatherIcon(value: MoneyLevelSceneWeather): string { return ({ sunny: "☀", cloudy: "☁", rain: "☂", thunderstorm: "ϟ", snow: "❄" } as const)[value]; }
 function timeLabel(value: MoneyLevelTimeOfDay): string { return ({ morning: "아침", day: "낮", evening: "저녁", night: "밤" } as const)[value]; }

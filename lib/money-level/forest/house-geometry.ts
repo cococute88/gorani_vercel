@@ -1,5 +1,5 @@
 import { brokerageLabelPoint, FOREST_MASTER_SIZE, projectForestPoint } from "./landmarks";
-import type { HouseVisualFrame } from "./tax-artwork";
+import { resolveHouseVisualFrame, type HouseVisualFrame } from "./tax-artwork";
 
 export type HouseKind = "brokerage" | "tax";
 // Image-box centers/widths in the immutable 1683×935 background. Calibrated
@@ -13,14 +13,19 @@ export const HOUSE_WORLD_GEOMETRY = {
 } as const;
 export const TAX_LABEL_WORLD = { x: 1513, y: 363 } as const;
 
+function houseVisualTop(kind: HouseKind, scene: { width: number; height: number }, mobile: boolean, frame?: HouseVisualFrame) {
+  if (!frame) return Infinity;
+  const placement = resolveHouseVisualFrame(houseWorldToViewport(kind, scene, mobile), frame);
+  return placement.y + (frame.visibleBounds[1] - frame.canvas.height / 2) * placement.width / frame.canvas.width;
+}
+
 /** Card UI clamps separately from immutable house geometry. */
 export function taxHouseLabelPoint(scene: { width: number; height: number }, mobile: boolean, cameraTranslation = 0, frame?: HouseVisualFrame) {
   const point = projectForestPoint(TAX_LABEL_WORLD, scene, mobile);
   const halfWidth = 96; // 72px half-card + shared 24px outer inset.
-  const house = houseWorldToViewport("tax", scene, mobile);
   // The HUD may clamp horizontally over the object during camera pan. Keep its
   // bottom above the restored silhouette, using art pixels rather than ratios.
-  const visualTop = frame ? house.y + (frame.visibleBounds[1] - frame.reference.height / 2) * house.width / frame.reference.width : Infinity;
+  const visualTop = houseVisualTop("tax", scene, mobile, frame);
   return { x: Math.max(halfWidth, Math.min(scene.width - halfWidth, point.x + cameraTranslation)) - cameraTranslation,
     y: Math.max(32, Math.min(scene.height - 32, point.y, visualTop - 48)) };
 }
@@ -38,12 +43,11 @@ export function houseWorldToViewport(kind: HouseKind, scene: { width: number; he
 
 /** Labels are viewport UI: when clamping a card would cover the house in a
  * tight crop, put it above the image. The world object itself never moves. */
-export function brokerageHouseLabelPoint(scene: { width: number; height: number }, mobile: boolean) {
+export function brokerageHouseLabelPoint(scene: { width: number; height: number }, mobile: boolean, frame?: HouseVisualFrame) {
   const point = brokerageLabelPoint(scene, mobile);
   const house = houseWorldToViewport("brokerage", scene, mobile);
   const halfWidth = 72;
-  // Shared 1536×1024 art frame, with transparent/feathered side margins.
-  const top = house.y - house.width / 3;
+  const top = frame ? houseVisualTop("brokerage", scene, mobile, frame) : house.y - house.width / 3;
   if (point.x + halfWidth > house.x - house.width * .35
     && point.x - halfWidth < house.x + house.width * .4
     && point.y + 36 > top && point.y - 36 < house.y + house.width / 3) {

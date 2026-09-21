@@ -1,6 +1,7 @@
 import type { MoneyLevelHouseArt } from "../house-stages";
-import type { MoneyLevelTimeOfDay, MoneyLevelWeather } from "../types";
-import { TAX_VISUAL_FRAMES, type HouseVisualFrame } from "./tax-artwork";
+import type { MoneyLevelSceneWeather, MoneyLevelSeason, MoneyLevelTimeOfDay } from "../types";
+import { FOREST_SEASONS, FOREST_TIMES, isSeasonWeatherAvailable } from "./seasonal-backgrounds";
+import { TEMPORARY_HOUSE_VISUAL_FRAMES, type HouseVisualFrame } from "./tax-artwork";
 
 export interface SceneAsset {
   src: string;
@@ -9,81 +10,83 @@ export interface SceneAsset {
   visualFrame?: HouseVisualFrame;
 }
 
-export const FOREST_BACKGROUND_FALLBACK = "/money-level/art/background/forest-day-sunny-docked.webp";
-
-export const FOREST_WEATHER_BACKGROUNDS: Record<MoneyLevelTimeOfDay, Record<MoneyLevelWeather, string>> = {
-  morning: {
-    sunny: "/money-level/art/background/forest-morning-sunny-docked.webp",
-    cloudy: "/money-level/art/background/forest-morning-cloudy-docked.webp",
-    rain: "/money-level/art/background/forest-morning-rain-docked.webp",
-    thunderstorm: "/money-level/art/background/forest-morning-storm-docked.webp",
-  },
-  day: {
-    sunny: "/money-level/art/background/forest-day-sunny-docked.webp",
-    cloudy: "/money-level/art/background/forest-day-cloudy-docked.webp",
-    rain: "/money-level/art/background/forest-day-rain-docked.webp",
-    thunderstorm: "/money-level/art/background/forest-day-storm-docked.webp",
-  },
-  evening: {
-    sunny: "/money-level/art/background/forest-evening-sunny-docked.webp",
-    cloudy: "/money-level/art/background/forest-evening-cloudy-docked.webp",
-    rain: "/money-level/art/background/forest-evening-rain-docked.webp",
-    thunderstorm: "/money-level/art/background/forest-evening-storm-docked.webp",
-  },
-  night: {
-    sunny: "/money-level/art/background/forest-night-sunny-docked.webp",
-    cloudy: "/money-level/art/background/forest-night-cloudy-docked.webp",
-    rain: "/money-level/art/background/forest-night-rain-docked.webp",
-    thunderstorm: "/money-level/art/background/forest-night-storm-docked.webp",
-  },
+export const FOREST_BACKGROUND_FALLBACK = "/money-level/art/background/seasonal/forest-spring-day-sunny.webp";
+const WEATHER_FILE_SUFFIX: Record<MoneyLevelSceneWeather, string> = {
+  sunny: "sunny",
+  cloudy: "cloudy",
+  rain: "rain",
+  thunderstorm: "storm",
+  snow: "snow",
 };
 
-export function resolveForestBackground(time: MoneyLevelTimeOfDay, weather: MoneyLevelWeather): string {
-  return FOREST_WEATHER_BACKGROUNDS[time]?.[weather] ?? FOREST_BACKGROUND_FALLBACK;
+export type ForestBackgroundKey = `${MoneyLevelSeason}/${MoneyLevelTimeOfDay}/${MoneyLevelSceneWeather}`;
+
+export const FOREST_SEASONAL_BACKGROUND_MANIFEST: Readonly<Partial<Record<ForestBackgroundKey, string>>> = Object.freeze(
+  Object.fromEntries(FOREST_SEASONS.flatMap((season) => FOREST_TIMES.flatMap((time) =>
+    (Object.keys(WEATHER_FILE_SUFFIX) as MoneyLevelSceneWeather[])
+      .filter((weather) => isSeasonWeatherAvailable(season, weather))
+      .map((weather) => [
+        `${season}/${time}/${weather}`,
+        `/money-level/art/background/seasonal/forest-${season}-${time}-${WEATHER_FILE_SUFFIX[weather]}.webp`,
+      ]),
+  ))) as Partial<Record<ForestBackgroundKey, string>>,
+);
+
+export function resolveForestBackground(
+  season: MoneyLevelSeason,
+  time: MoneyLevelTimeOfDay,
+  weather: MoneyLevelSceneWeather,
+): string {
+  return FOREST_SEASONAL_BACKGROUND_MANIFEST[`${season}/${time}/${weather}`] ?? FOREST_BACKGROUND_FALLBACK;
 }
 
-const TAX_CAMP_PLUS: SceneAsset = {
-  src: "/money-level/art/houses/tax-stage-10-15-camp-plus.webp",
-  alt: "모닥불과 돗자리, 작은 생활 소품이 있는 소박한 야영지",
-};
+type TemporaryHouseSource = "camp-spring-summer" | "camp-fall" | "camp-winter" | "tent-neutral" | "tent-yellow" | "house-fall" | "house-winter";
 
-const TAX_SMALL_WHITE_TENT: SceneAsset = {
-  src: "/money-level/art/houses/tax-stage-15-20-small-white-tent.webp",
-  alt: "작은 하얀 천막과 모닥불이 있는 야영지",
-};
-
-const TAX_LARGE_WHITE_TENT: SceneAsset = {
-  src: "/money-level/art/houses/tax-stage-20-25-large-white-tent.webp",
-  alt: "큰 하얀 천막과 간단한 침구가 있는 야영지",
-};
-
-const TAX_COLORED_TENT: SceneAsset = {
-  src: "/money-level/art/houses/tax-stage-25-30-colored-tent.webp",
-  alt: "노란 천막과 모닥불, 풍성한 생활 소품이 있는 캠프",
-};
-
-const BROKERAGE_SMALL_CABIN: SceneAsset = {
-  src: "/money-level/art/houses/brokerage-stage-35-40-small-cabin.webp",
-  alt: "꽃과 초록 지붕이 있는 작은 오두막",
-};
-
-// Tax only; Brokerage's shared early-camp fallback retains approved art.
-function taxAlphaAsset(asset: SceneAsset): SceneAsset {
-  const name = asset.src.split("/").pop()!.replace(".webp", "");
-  return { ...asset, src: asset.src.replace(".webp", "-alpha-v2.webp"),
-    composite: "alpha", visualFrame: TAX_VISUAL_FRAMES[name] };
-}
-
-const BROKERAGE_EXPANDED_CABIN: SceneAsset = {
-  src: "/money-level/art/houses/brokerage-stage-40-45-expanded-cabin-alpha.webp",
-  alt: "꽃과 초록 지붕이 있는 확장 오두막",
+const temporaryAsset = (source: TemporaryHouseSource, frame: keyof typeof TEMPORARY_HOUSE_VISUAL_FRAMES, alt: string): SceneAsset => ({
+  src: `/money-level/art/houses/temporary-${source}.webp`,
+  alt,
   composite: "alpha",
+  visualFrame: TEMPORARY_HOUSE_VISUAL_FRAMES[frame],
+});
+
+export const TEMPORARY_HOUSE_ASSETS = {
+  "camp-spring-summer": temporaryAsset("camp-spring-summer", "camp-spring-summer", "모닥불과 돗자리, 바구니와 랜턴이 있는 포근한 야영지"),
+  "camp-fall": temporaryAsset("camp-fall", "camp-fall", "가을 낙엽 사이 모닥불과 돗자리가 있는 야영지"),
+  "camp-winter": temporaryAsset("camp-winter", "camp-winter", "눈밭의 모닥불과 돗자리, 랜턴이 있는 겨울 야영지"),
+  "tent-neutral": temporaryAsset("tent-neutral", "tent-neutral-small", "하얀 천막과 모닥불이 있는 야영지"),
+  "tent-yellow": temporaryAsset("tent-yellow", "tent-yellow", "노란 천막과 모닥불, 생활 소품이 있는 야영지"),
+  "house-fall": temporaryAsset("house-fall", "house-fall", "가을 낙엽과 꽃으로 둘러싸인 아늑한 집"),
+  "house-winter": temporaryAsset("house-winter", "house-winter", "눈 덮인 지붕과 따뜻한 창문이 있는 겨울 집"),
+} as const;
+
+const TEMPORARY_LARGE_TENT_ASSET: SceneAsset = {
+  ...TEMPORARY_HOUSE_ASSETS["tent-neutral"],
+  visualFrame: TEMPORARY_HOUSE_VISUAL_FRAMES["tent-neutral-large"],
 };
 
-const BROKERAGE_PROPER_HOUSE: SceneAsset = {
-  src: "/money-level/art/houses/brokerage-stage-45-50-proper-house.webp",
-  alt: "넓은 현관과 정원이 있는 정식 초록 지붕 주택",
-};
+const CAMP_ASSET_BY_SEASON = {
+  spring: TEMPORARY_HOUSE_ASSETS["camp-spring-summer"],
+  summer: TEMPORARY_HOUSE_ASSETS["camp-spring-summer"],
+  fall: TEMPORARY_HOUSE_ASSETS["camp-fall"],
+  winter: TEMPORARY_HOUSE_ASSETS["camp-winter"],
+} satisfies Record<MoneyLevelSeason, SceneAsset>;
+
+const HOUSE_ASSET_BY_SEASON = {
+  // Temporary art fallback until additional user-approved Spring/Summer stage assets are supplied.
+  spring: TEMPORARY_HOUSE_ASSETS["house-fall"],
+  summer: TEMPORARY_HOUSE_ASSETS["house-fall"],
+  fall: TEMPORARY_HOUSE_ASSETS["house-fall"],
+  winter: TEMPORARY_HOUSE_ASSETS["house-winter"],
+} satisfies Record<MoneyLevelSeason, SceneAsset>;
+
+export function resolveForestHouseAsset(season: MoneyLevelSeason, art: MoneyLevelHouseArt): SceneAsset | null {
+  if (art === "clearing") return null;
+  if (art === "camp" || art === "camp-plus") return CAMP_ASSET_BY_SEASON[season];
+  if (art === "tent-small") return TEMPORARY_HOUSE_ASSETS["tent-neutral"];
+  if (art === "tent-large") return TEMPORARY_LARGE_TENT_ASSET;
+  if (art === "tent-color") return TEMPORARY_HOUSE_ASSETS["tent-yellow"];
+  return HOUSE_ASSET_BY_SEASON[season];
+}
 
 export const FOREST_SCENE = {
   background: {
@@ -94,28 +97,11 @@ export const FOREST_SCENE = {
     desktop: "50% 50%",
     mobile: "51% 50%",
   },
-  stageAssets: {
-    brokerage: {
-      cabin: BROKERAGE_SMALL_CABIN,
-      "cabin-expanded": BROKERAGE_EXPANDED_CABIN,
-      house: BROKERAGE_PROPER_HOUSE,
-    },
-    tax: {
-      "camp-plus": taxAlphaAsset(TAX_CAMP_PLUS),
-      "tent-small": taxAlphaAsset(TAX_SMALL_WHITE_TENT),
-      "tent-large": taxAlphaAsset(TAX_LARGE_WHITE_TENT),
-      "tent-color": taxAlphaAsset(TAX_COLORED_TENT),
-    },
-  } satisfies Record<"brokerage" | "tax", Partial<Record<MoneyLevelHouseArt, SceneAsset>>>,
-  familyFallbackAssets: {
-    brokerage: { camp: TAX_CAMP_PLUS, cottage: BROKERAGE_EXPANDED_CABIN },
-    tax: { camp: taxAlphaAsset(TAX_CAMP_PLUS), cottage: taxAlphaAsset(TAX_COLORED_TENT) },
-  } satisfies Record<"brokerage" | "tax", Record<"camp" | "cottage", SceneAsset>>,
 } as const;
 
 /**
- * Current MVP ships production art for the two stages visible with the mock data.
- * Every stage still resolves through this table, so future art drops only replace URLs.
+ * Visual family remains a CSS concern. Asset selection is centralized in
+ * resolveForestHouseAsset so no runtime stage can fall back to legacy art.
  */
 export const HOUSE_ART_FAMILY: Record<MoneyLevelHouseArt, "camp" | "cottage"> = {
   clearing: "camp",

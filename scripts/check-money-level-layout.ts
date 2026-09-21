@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { BROKERAGE_LABEL, brokerageLabelPoint, FISHING_BOBBER, fishingLineAngleDeg, projectForestPoint, STATUE_SLOTS, statueSlotPlacement, DOCK_WAYPOINTS } from "../lib/money-level/forest/landmarks";
 import { auditNavigation, getWaypoint, isPointInWalkableRegion, setForestSceneViewport, waypointPoint } from "../lib/money-level/forest/navigation";
 import { getActivityZone } from "../lib/money-level/forest/activity-zones";
-import { FOREST_SCENE, HOUSE_ART_FAMILY, resolveForestBackground } from "../lib/money-level/forest/scene-config";
+import { resolveForestBackground, resolveForestHouseAsset } from "../lib/money-level/forest/scene-config";
 import { houseWorldToViewport, HOUSE_WORLD_GEOMETRY } from "../lib/money-level/forest/house-geometry";
 import { getWorldObjectLighting } from "../lib/money-level/forest/world-object-lighting";
 import { MONEY_LEVEL_HOUSE_STAGES } from "../lib/money-level/house-stages";
@@ -37,8 +37,8 @@ function webpSize(file: string): { width: number; height: number } {
 
 for (const time of ["morning", "day", "evening", "night"] as const) {
   for (const [weather, fileWeather] of [["sunny", "sunny"], ["cloudy", "cloudy"], ["rain", "rain"], ["thunderstorm", "storm"]] as const) {
-    const url = `/money-level/art/background/forest-${time}-${fileWeather}-docked.webp`;
-    assert.equal(resolveForestBackground(time as MoneyLevelTimeOfDay, weather as MoneyLevelWeather), url);
+    const url = `/money-level/art/background/seasonal/forest-summer-${time}-${fileWeather}.webp`;
+    assert.equal(resolveForestBackground("summer", time as MoneyLevelTimeOfDay, weather as MoneyLevelWeather), url);
     assert.deepEqual(webpSize(path.join(root, "public", url)), { width: 1683, height: 935 });
     const candidate = readFileSync(path.join(root, `art-review/money-level/new-layout/hybrid/forest-${time}-${fileWeather}.png`));
     assert.equal(candidate.readUInt32BE(16), 1683);
@@ -104,11 +104,16 @@ assert.equal(STATUE_SLOTS.right.bottomLiftPx, 3);
 assert.equal(STATUE_SLOTS.right.screenOffsetXPx, 1);
 assert.equal(HOUSE_WORLD_GEOMETRY.tax.x, 1246.884);
 for (const stage of MONEY_LEVEL_HOUSE_STAGES) {
-  const explicit = FOREST_SCENE.stageAssets.tax as Record<string, { src: string } | undefined>;
-  const fallback = FOREST_SCENE.familyFallbackAssets.tax[HOUSE_ART_FAMILY[stage.art]];
-  const asset = explicit[stage.art] ?? fallback;
-  assert.ok(asset.src.startsWith("/money-level/art/houses/"), `tax stage ${stage.level} uses the shared right-lot anchor`);
-  assert.deepEqual(webpSize(path.join(root, "public", asset.src)), { width: 1536, height: 1024 }, `tax stage ${stage.level} source size`);
+  for (const season of ["spring", "summer", "fall", "winter"] as const) {
+    const asset = resolveForestHouseAsset(season, stage.art);
+    if (stage.art === "clearing") {
+      assert.equal(asset, null, `${season} clearing remains empty`);
+      continue;
+    }
+    assert.ok(asset?.src.startsWith("/money-level/art/houses/temporary-"), `${season} stage ${stage.level} uses approved temporary art`);
+    const size = webpSize(path.join(root, "public", asset!.src));
+    assert.ok((size.width === 1536 && size.height === 1024) || (size.width === 1448 && size.height === 1086), `${season} stage ${stage.level} source size`);
+  }
 }
 const representativeLighting = [
   ["day", "sunny"], ["evening", "sunny"], ["evening", "rain"], ["night", "sunny"], ["night", "thunderstorm"],
@@ -117,20 +122,21 @@ for (const [time, weather] of representativeLighting) {
   const lighting = getWorldObjectLighting(time, weather);
   assert.ok(lighting.house.filter.includes("brightness("));
   assert.ok(lighting.statue.filter.includes("sepia("));
-  assert.ok(lighting.statue.brightness >= lighting.house.brightness, `${time}/${weather} small statues stay readable`);
+  assert.ok(lighting.statue.brightness >= .565, `${time}/${weather} approved statue exposure stays readable`);
+  assert.ok(lighting.house.brightness >= .685, `${time}/${weather} recalibrated house exposure stays readable`);
 }
 for (const time of ["morning", "day", "evening", "night"] as const) {
   for (const weather of ["sunny", "cloudy", "rain", "thunderstorm"] as const) {
     const lighting = getWorldObjectLighting(time, weather);
-    assert.ok(lighting.house.brightness >= .549 && lighting.house.brightness <= 1, `${time}/${weather} house exposure`);
+    assert.ok(lighting.house.brightness >= .685 && lighting.house.brightness <= 1, `${time}/${weather} house exposure`);
     assert.ok(lighting.statue.brightness >= .565 && lighting.statue.brightness <= 1, `${time}/${weather} statue exposure`);
     assert.ok(lighting.house.saturation >= .59, `${time}/${weather} material colors remain distinct`);
-    if (time === "day" || time === "morning") assert.equal(lighting.house.colorMatrix, lighting.statue.colorMatrix, `${time}/${weather} preserved ambient`);
+    if (time === "day") assert.equal(lighting.house.colorMatrix, lighting.statue.colorMatrix, `${time}/${weather} identity ambient`);
   }
 }
 assert.equal(getWorldObjectLighting("day", "sunny").house.brightness, 1);
-assert.equal(getWorldObjectLighting("evening", "sunny").house.brightness, .82);
-assert.equal(getWorldObjectLighting("night", "thunderstorm").house.brightness, .549);
+assert.equal(getWorldObjectLighting("evening", "sunny").house.brightness, .91);
+assert.equal(getWorldObjectLighting("night", "thunderstorm").house.brightness, .685);
 assert.equal(BROKERAGE_LABEL.desktop.x, 170);
 assert.equal(BROKERAGE_LABEL.mobile.x, 170, "cards use a shared world anchor at every ratio");
 const wideCardRight = brokerageLabelPoint({ width: 1320, height: 520 }, false).x + 72;

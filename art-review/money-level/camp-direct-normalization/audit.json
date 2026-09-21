@@ -1,0 +1,151 @@
+{
+  "status": "PASS",
+  "acceptancePolicy": [
+    "real browser comparison at identical Forest frame/world position",
+    "rug/firepit/props and complete visual silhouette",
+    "centre and ground contact",
+    "alpha area is diagnostic only and is not a PASS criterion"
+  ],
+  "master": {
+    "file": "tax-stage-10-15-camp-plus-alpha-v2.webp",
+    "sha256": "af367c678ac56b24e12ccc0a22df3a2b2166577959911883f82ee60bd9129701",
+    "dimensions": [
+      1536,
+      1024
+    ]
+  },
+  "records": [
+    {
+      "name": "spring-summer",
+      "file": "temporary-camp-spring-summer.webp",
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "bytes": 364158,
+      "oldSha256": "468865fae498799cd23844d4aa210cb99c980ac6f2ee87e96931a594f3b7a7a9",
+      "newSha256": "7ff8177a8f2b362712883a378a71d91aea219c7552689d3f56c2e8cb7f7f4dc1",
+      "directPixelTransform": {
+        "uniformScale": 0.633283,
+        "translate": [
+          251.9,
+          330.58
+        ]
+      },
+      "runtimeFrame": "identity 1536x1024; ground=(768,900)",
+      "masterBoundsAlpha8": [
+        157,
+        346,
+        1299,
+        959
+      ],
+      "finalBoundsAlpha8": [
+        293,
+        483,
+        1162,
+        918
+      ],
+      "masterCoreBoundsAlpha240": [
+        199,
+        389,
+        1256,
+        917
+      ],
+      "finalCoreBoundsAlpha240": [
+        294,
+        484,
+        1161,
+        917
+      ],
+      "visualFinding": "The first core-area fit still made the rug/firepit look large; browser review applied an additional 0.82 visual scale."
+    },
+    {
+      "name": "fall",
+      "file": "temporary-camp-fall.webp",
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "bytes": 569216,
+      "oldSha256": "f359f053d59fbe8fb385d2d49e2a73d4f401a229d7b9f9ea7792f57b96703e94",
+      "newSha256": "418676a6edb05525e4eb176b76ed207c15b72e8c8bf4937fddd36314529225e8",
+      "directPixelTransform": {
+        "uniformScale": 0.721366,
+        "translate": [
+          180.34,
+          238.19
+        ]
+      },
+      "runtimeFrame": "identity 1536x1024; ground=(768,900)",
+      "masterBoundsAlpha8": [
+        157,
+        346,
+        1299,
+        959
+      ],
+      "finalBoundsAlpha8": [
+        227,
+        353,
+        1227,
+        918
+      ],
+      "masterCoreBoundsAlpha240": [
+        199,
+        389,
+        1256,
+        917
+      ],
+      "finalCoreBoundsAlpha240": [
+        228,
+        354,
+        1224,
+        917
+      ],
+      "visualFinding": "The opaque rug/firepit/prop core was visually close after the first browser-checked direct fit."
+    },
+    {
+      "name": "winter",
+      "file": "temporary-camp-winter.webp",
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "bytes": 641946,
+      "oldSha256": "2c0e4bd23b511913fd86066c95de48a7e8dac5c39ec0603e2eb7d17e85b7fc11",
+      "newSha256": "3b8791b3e0ab5ea448b64963fe5f90fd5536c2268e39c954469074b2bb8194a3",
+      "directPixelTransform": {
+        "uniformScale": 0.891955,
+        "translate": [
+          81.28,
+          99.08
+        ]
+      },
+      "runtimeFrame": "identity 1536x1024; ground=(768,900)",
+      "masterBoundsAlpha8": [
+        157,
+        346,
+        1299,
+        959
+      ],
+      "finalBoundsAlpha8": [
+        182,
+        361,
+        1273,
+        938
+      ],
+      "masterCoreBoundsAlpha240": [
+        199,
+        389,
+        1256,
+        917
+      ],
+      "finalCoreBoundsAlpha240": [
+        203,
+        385,
+        1252,
+        917
+      ],
+      "visualFinding": "The opaque rug/firepit/prop core was visually close after the first browser-checked direct fit; premultiplied resizing removed edge matte."
+    }
+  ]
+}

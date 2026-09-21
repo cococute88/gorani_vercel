@@ -1,0 +1,2354 @@
+[
+  {
+    "layout": "desktop",
+    "season": "spring",
+    "stage": "camp",
+    "runtimeCount": 1,
+    "cards": [
+      {
+        "src": "/money-level/art/houses/temporary-camp-spring-summer.webp",
+        "complete": true,
+        "naturalWidth": 1536,
+        "composite": "alpha",
+        "box": {
+          "left": 264.140625,
+          "top": 381.90625,
+          "right": 672.578125,
+          "bottom": 654.1875,
+          "width": 408.4375,
+          "height": 272.28125
+        },
+        "label": {
+          "left": 77.28125,
+          "top": 456.90625,
+          "right": 221.28125,
+          "bottom": 500.90625
+        }
+      },
+      {
+        "src": "/money-level/art/houses/temporary-camp-spring-summer.webp",
+        "complete": true,
+        "naturalWidth": 1536,
+        "composite": "alpha",
+        "box": {
+          "left": 799.546875,
+          "top": 422.765625,
+          "right": 1124.640625,
+          "bottom": 639.484375,
+          "width": 325.09375,
+          "height": 216.71875
+        },
+        "label": {
+          "left": 1098.703125,
+          "top": 403.765625,
+          "right": 1242.703125,
+          "bottom": 447.765625
+        }
+      }
+    ],
+    "labels": 2
+  },
+  {
+    "layout": "desktop",
+    "season": "spring",
+    "stage": "camp-plus",
+    "runtimeCount": 1,
+    "cards": [
+      {
+        "src": "/money-level/art/houses/temporary-camp-spring-summer.webp",
+        "complete": true,
+        "naturalWidth": 1536,
+        "composite": "alpha",
+        "box": {
+          "left": 264.140625,
+          "top": 381.90625,
+          "right": 672.578125,
+          "bottom": 654.1875,
+          "width": 408.4375,
+          "height": 272.28125
+        },
+        "label": {
+          "left": 77.28125,
+          "top": 456.90625,
+          "right": 221.28125,
+          "bottom": 500.90625
+        }
+      },
+      {
+        "src": "/money-level/art/houses/temporary-camp-spring-summer.webp",
+        "complete": true,
+        "naturalWidth": 1536,
+        "composite": "alpha",
+        "box": {
+          "left": 799.546875,
+          "top": 422.765625,
+          "right": 1124.640625,
+          "bottom": 639.484375,
+          "width": 325.09375,
+          "height": 216.71875
+        },
+        "label": {
+          "left": 1098.703125,
+          "top": 403.765625,
+          "right": 1242.703125,
+          "bottom": 447.765625
+        }
+      }
+    ],
+    "labels": 2
+  },
+  {
+    "layout": "desktop",
+    "season": "spring",
+    "stage": "tent-small",
+    "runtimeCount": 1,
+    "cards": [
+      {
+        "src": "/money-level/art/houses/temporary-tent-neutral.webp",
+        "complete": true,
+        "naturalWidth": 1448,
+        "composite": "alpha",
+        "box": {
+          "left": 265.2890625,
+          "top": 370.296875,
+          "right": 636.8046875,
+          "bottom": 648.921875,
+          "width": 371.515625,
+          "height": 278.625
+        },
+        "label": {
+          "left": 77.28125,
+          "top": 456.90625,
+          "right": 221.28125,
+          "bottom": 500.90625
+        }
+      },
+      {
+        "src": "/money-level/art/houses/temporary-tent-neutral.webp",
+        "complete": true,
+        "naturalWidth": 1448,
+        "composite": "alpha",
+        "box": {
+          "left": 800.4609375,
+          "top": 413.5234375,
+          "right": 1096.1640625,
+          "bottom": 635.2890625,
+          "width": 295.703125,
+          "height": 221.765625
+        },
+        "label": {
+          "left": 1098.703125,
+          "top": 358.015625,
+          "right": 1242.703125,
+          "bottom": 402.015625
+        }
+      }
+    ],
+    "labels": 2
+  },
+  {
+    "layout": "desktop",
+    "season": "spring",
+    "stage": "tent-large",
+    "runtimeCount": 1,
+    "cards": [
+      {
+        "src": "/money-level/art/houses/temporary-tent-neutral.webp",
+        "complete": true,
+        "naturalWidth": 1448,
+        "composite": "alpha",
+        "box": {
+          "left": 256.1328125,
+          "top": 323.4375,
+          "right": 693.4296875,
+          "bottom": 651.40625,
+          "width": 437.296875,
+          "height": 327.96875
+        },
+        "label": {
+          "left": 77.28125,
+          "top": 456.90625,
+          "right": 221.28125,
+          "bottom": 500.90625
+        }
+      },
+      {
+        "src": "/money-level/art/houses/temporary-tent-neutral.webp",
+        "complete": true,
+        "naturalWidth": 1448,
+        "composite": "alpha",
+        "box": {
+          "left": 793.171875,
+          "top": 376.2109375,
+          "right": 1141.234375,
+          "bottom": 637.2578125,
+          "width": 348.0625,
+          "height": 261.046875
+        },
+        "label": {
+          "left": 1098.703125,
+          "top": 323.28125,
+          "right": 1242.703125,
+          "bottom": 367.28125
+        }
+      }
+    ],
+    "labels": 2
+  },
+  {
+    "layout": "desktop",
+    "season": "spring",
+    "stage": "tent-color",
+    "runtimeCount": 1,
+    "cards": [
+      {
+        "src": "/money-level/art/houses/temporary-tent-yellow.webp",
+        "complete": true,
+        "naturalWidth": 1536,
+        "composite": "alpha",
+        "box": {
+          "left": 250.9765625,
+          "top": 343.109375,
+          "right": 704.3671875,
+          "bottom": 645.359375,
+          "width": 453.390625,
+          "height": 302.25
+        },
+        "label": {
+          "left": 77.28125,
+          "top": 456.90625,
+          "right": 221.28125,
+          "bottom": 500.90625
+        }
+      },
+      {
+        "src": "/money-level/art/houses/temporary-tent-yellow.webp",
+        "complete": true,
+        "naturalWidth": 1536,
+        "composite": "alpha",
+        "box": {
+          "left": 789.0625,
+          "top": 391.8671875,
+          "right": 1149.9375,
+          "bottom": 632.4453125,
+          "width": 360.875,
+          "height": 240.578125
+        },
+        "label": {
+          "left": 1098.703125,
+          "top": 326.5625,
+          "right": 1242.703125,
+          "bottom": 370.5625
+        }
+      }
+    ],
+    "labels": 2
+  },
+  {
+    "layout": "desktop",
+    "season": "spring",
+    "stage": "house",
+    "runtimeCount": 1,
+    "cards": [
+      {
+        "src": "/money-level/art/houses/temporary-house-fall.webp",
+        "complete": true,
+        "naturalWidth": 1448,
+        "composite": "alpha",
+        "box": {
+          "left": 253.2578125,
+          "top": 287.0859375,
+          "right": 699.7109375,
+          "bottom": 621.9140625,
+          "width": 446.453125,
+          "height": 334.828125
+        },
+        "label": {
+          "left": 77.28125,
+          "top": 456.90625,
+          "right": 221.28125,
+          "bottom": 500.90625
+        }
+      },
+      {
+        "src": "/money-level/art/houses/temporary-house-fall.webp",
+        "complete": true,
+        "naturalWidth": 1448,
+        "composite": "alpha",
+        "box": {
+          "left": 790.8671875,
+          "top": 347.2890625,
+          "right": 1146.2265625,
+          "bottom": 613.8046875,
+          "width": 355.359375,
+          "height": 266.515625
+        },
+        "label": {
+          "left": 1098.703125,
+          "top": 279.984375,
+          "right": 1242.703125,
+          "bottom": 323.984375
+        }
+      }
+    ],
+    "labels": 2
+  },
+  {
+    "layout": "desktop",
+    "season": "summer",
+    "stage": "camp",
+    "runtimeCount": 1,
+    "cards": [
+      {
+        "src": "/money-level/art/houses/temporary-camp-spring-summer.webp",
+        "complete": true,
+        "naturalWidth": 1536,
+        "composite": "alpha",
+        "box": {
+          "left": 264.140625,
+          "top": 381.90625,
+          "right": 672.578125,
+          "bottom": 654.1875,
+          "width": 408.4375,
+          "height": 272.28125
+        },
+        "label": {
+          "left": 77.28125,
+          "top": 456.90625,
+          "right": 221.28125,
+          "bottom": 500.90625
+        }
+      },
+      {
+        "src": "/money-level/art/houses/temporary-camp-spring-summer.webp",
+        "complete": true,
+        "naturalWidth": 1536,
+        "composite": "alpha",
+        "box": {
+          "left": 799.546875,
+          "top": 422.765625,
+          "right": 1124.640625,
+          "bottom": 639.484375,
+          "width": 325.09375,
+          "height": 216.71875
+        },
+        "label": {
+          "left": 1098.703125,
+          "top": 403.765625,
+          "right": 1242.703125,
+          "bottom": 447.765625
+        }
+      }
+    ],
+    "labels": 2
+  },
+  {
+    "layout": "desktop",
+    "season": "summer",
+    "stage": "camp-plus",
+    "runtimeCount": 1,
+    "cards": [
+      {
+        "src": "/money-level/art/houses/temporary-camp-spring-summer.webp",
+        "complete": true,
+        "naturalWidth": 1536,
+        "composite": "alpha",
+        "box": {
+          "left": 264.140625,
+          "top": 381.90625,
+          "right": 672.578125,
+          "bottom": 654.1875,
+          "width": 408.4375,
+          "height": 272.28125
+        },
+        "label": {
+          "left": 77.28125,
+          "top": 456.90625,
+          "right": 221.28125,
+          "bottom": 500.90625
+        }
+      },
+      {
+        "src": "/money-level/art/houses/temporary-camp-spring-summer.webp",
+        "complete": true,
+        "naturalWidth": 1536,
+        "composite": "alpha",
+        "box": {
+          "left": 799.546875,
+          "top": 422.765625,
+          "right": 1124.640625,
+          "bottom": 639.484375,
+          "width": 325.09375,
+          "height": 216.71875
+        },
+        "label": {
+          "left": 1098.703125,
+          "top": 403.765625,
+          "right": 1242.703125,
+          "bottom": 447.765625
+        }
+      }
+    ],
+    "labels": 2
+  },
+  {
+    "layout": "desktop",
+    "season": "summer",
+    "stage": "tent-small",
+    "runtimeCount": 1,
+    "cards": [
+      {
+        "src": "/money-level/art/houses/temporary-tent-neutral.webp",
+        "complete": true,
+        "naturalWidth": 1448,
+        "composite": "alpha",
+        "box": {
+          "left": 265.2890625,
+          "top": 370.296875,
+          "right": 636.8046875,
+          "bottom": 648.921875,
+          "width": 371.515625,
+          "height": 278.625
+        },
+        "label": {
+          "left": 77.28125,
+          "top": 456.90625,
+          "right": 221.28125,
+          "bottom": 500.90625
+        }
+      },
+      {
+        "src": "/money-level/art/houses/temporary-tent-neutral.webp",
+        "complete": true,
+        "naturalWidth": 1448,
+        "composite": "alpha",
+        "box": {
+          "left": 800.4609375,
+          "top": 413.5234375,
+          "right": 1096.1640625,
+          "bottom": 635.2890625,
+          "width": 295.703125,
+          "height": 221.765625
+        },
+        "label": {
+          "left": 1098.703125,
+          "top": 358.015625,
+          "right": 1242.703125,
+          "bottom": 402.015625
+        }
+      }
+    ],
+    "labels": 2
+  },
+  {
+    "layout": "desktop",
+    "season": "summer",
+    "stage": "tent-large",
+    "runtimeCount": 1,
+    "cards": [
+      {
+        "src": "/money-level/art/houses/temporary-tent-neutral.webp",
+        "complete": true,
+        "naturalWidth": 1448,
+        "composite": "alpha",
+        "box": {
+          "left": 256.1328125,
+          "top": 323.4375,
+          "right": 693.4296875,
+          "bottom": 651.40625,
+          "width": 437.296875,
+          "height": 327.96875
+        },
+        "label": {
+          "left": 77.28125,
+          "top": 456.90625,
+          "right": 221.28125,
+          "bottom": 500.90625
+        }
+      },
+      {
+        "src": "/money-level/art/houses/temporary-tent-neutral.webp",
+        "complete": true,
+        "naturalWidth": 1448,
+        "composite": "alpha",
+        "box": {
+          "left": 793.171875,
+          "top": 376.2109375,
+          "right": 1141.234375,
+          "bottom": 637.2578125,
+          "width": 348.0625,
+          "height": 261.046875
+        },
+        "label": {
+          "left": 1098.703125,
+          "top": 323.28125,
+          "right": 1242.703125,
+          "bottom": 367.28125
+        }
+      }
+    ],
+    "labels": 2
+  },
+  {
+    "layout": "desktop",
+    "season": "summer",
+    "stage": "tent-color",
+    "runtimeCount": 1,
+    "cards": [
+      {
+        "src": "/money-level/art/houses/temporary-tent-yellow.webp",
+        "complete": true,
+        "naturalWidth": 1536,
+        "composite": "alpha",
+        "box": {
+          "left": 250.9765625,
+          "top": 343.109375,
+          "right": 704.3671875,
+          "bottom": 645.359375,
+          "width": 453.390625,
+          "height": 302.25
+        },
+        "label": {
+          "left": 77.28125,
+          "top": 456.90625,
+          "right": 221.28125,
+          "bottom": 500.90625
+        }
+      },
+      {
+        "src": "/money-level/art/houses/temporary-tent-yellow.webp",
+        "complete": true,
+        "naturalWidth": 1536,
+        "composite": "alpha",
+        "box": {
+          "left": 789.0625,
+          "top": 391.8671875,
+          "right": 1149.9375,
+          "bottom": 632.4453125,
+          "width": 360.875,
+          "height": 240.578125
+        },
+        "label": {
+          "left": 1098.703125,
+          "top": 326.5625,
+          "right": 1242.703125,
+          "bottom": 370.5625
+        }
+      }
+    ],
+    "labels": 2
+  },
+  {
+    "layout": "desktop",
+    "season": "summer",
+    "stage": "house",
+    "runtimeCount": 1,
+    "cards": [
+      {
+        "src": "/money-level/art/houses/temporary-house-fall.webp",
+        "complete": true,
+        "naturalWidth": 1448,
+        "composite": "alpha",
+        "box": {
+          "left": 253.2578125,
+          "top": 287.0859375,
+          "right": 699.7109375,
+          "bottom": 621.9140625,
+          "width": 446.453125,
+          "height": 334.828125
+        },
+        "label": {
+          "left": 77.28125,
+          "top": 456.90625,
+          "right": 221.28125,
+          "bottom": 500.90625
+        }
+      },
+      {
+        "src": "/money-level/art/houses/temporary-house-fall.webp",
+        "complete": true,
+        "naturalWidth": 1448,
+        "composite": "alpha",
+        "box": {
+          "left": 790.8671875,
+          "top": 347.2890625,
+          "right": 1146.2265625,
+          "bottom": 613.8046875,
+          "width": 355.359375,
+          "height": 266.515625
+        },
+        "label": {
+          "left": 1098.703125,
+          "top": 279.984375,
+          "right": 1242.703125,
+          "bottom": 323.984375
+        }
+      }
+    ],
+    "labels": 2
+  },
+  {
+    "layout": "desktop",
+    "season": "fall",
+    "stage": "camp",
+    "runtimeCount": 1,
+    "cards": [
+      {
+        "src": "/money-level/art/houses/temporary-camp-fall.webp",
+        "complete": true,
+        "naturalWidth": 1536,
+        "composite": "alpha",
+        "box": {
+          "left": 276.25,
+          "top": 395.03125,
+          "right": 656.375,
+          "bottom": 648.4375,
+          "width": 380.125,
+          "height": 253.40625
+        },
+        "label": {
+          "left": 77.28125,
+          "top": 456.90625,
+          "right": 221.28125,
+          "bottom": 500.90625
+        }
+      },
+      {
+        "src": "/money-level/art/houses/temporary-camp-fall.webp",
+        "complete": true,
+        "naturalWidth": 1536,
+        "composite": "alpha",
+        "box": {
+          "left": 809.171875,
+          "top": 433.2109375,
+          "right": 1111.734375,
+          "bottom": 634.9140625,
+          "width": 302.5625,
+          "height": 201.703125
+        },
+        "label": {
+          "left": 1098.703125,
+          "top": 394.53125,
+          "right": 1242.703125,
+          "bottom": 438.53125
+        }
+      }
+    ],
+    "labels": 2
+  },
+  {
+    "layout": "desktop",
+    "season": "fall",
+    "stage": "camp-plus",
+    "runtimeCount": 1,
+    "cards": [
+      {
+        "src": "/money-level/art/houses/temporary-camp-fall.webp",
+        "complete": true,
+        "naturalWidth": 1536,
+        "composite": "alpha",
+        "box": {
+          "left": 276.25,
+          "top": 395.03125,
+          "right": 656.375,
+          "bottom": 648.4375,
+          "width": 380.125,
+          "height": 253.40625
+        },
+        "label": {
+          "left": 77.28125,
+          "top": 456.90625,
+          "right": 221.28125,
+          "bottom": 500.90625
+        }
+      },
+      {
+        "src": "/money-level/art/houses/temporary-camp-fall.webp",
+        "complete": true,
+        "naturalWidth": 1536,
+        "composite": "alpha",
+        "box": {
+          "left": 809.171875,
+          "top": 433.2109375,
+          "right": 1111.734375,
+          "bottom": 634.9140625,
+          "width": 302.5625,
+          "height": 201.703125
+        },
+        "label": {
+          "left": 1098.703125,
+          "top": 394.53125,
+          "right": 1242.703125,
+          "bottom": 438.53125
+        }
+      }
+    ],
+    "labels": 2
+  },
+  {
+    "layout": "desktop",
+    "season": "fall",
+    "stage": "tent-small",
+    "runtimeCount": 1,
+    "cards": [
+      {
+        "src": "/money-level/art/houses/temporary-tent-neutral.webp",
+        "complete": true,
+        "naturalWidth": 1448,
+        "composite": "alpha",
+        "box": {
+          "left": 265.2890625,
+          "top": 370.296875,
+          "right": 636.8046875,
+          "bottom": 648.921875,
+          "width": 371.515625,
+          "height": 278.625
+        },
+        "label": {
+          "left": 77.28125,
+          "top": 456.90625,
+          "right": 221.28125,
+          "bottom": 500.90625
+        }
+      },
+      {
+        "src": "/money-level/art/houses/temporary-tent-neutral.webp",
+        "complete": true,
+        "naturalWidth": 1448,
+        "composite": "alpha",
+        "box": {
+          "left": 800.4609375,
+          "top": 413.5234375,
+          "right": 1096.1640625,
+          "bottom": 635.2890625,
+          "width": 295.703125,
+          "height": 221.765625
+        },
+        "label": {
+          "left": 1098.703125,
+          "top": 358.015625,
+          "right": 1242.703125,
+          "bottom": 402.015625
+        }
+      }
+    ],
+    "labels": 2
+  },
+  {
+    "layout": "desktop",
+    "season": "fall",
+    "stage": "tent-large",
+    "runtimeCount": 1,
+    "cards": [
+      {
+        "src": "/money-level/art/houses/temporary-tent-neutral.webp",
+        "complete": true,
+        "naturalWidth": 1448,
+        "composite": "alpha",
+        "box": {
+          "left": 256.1328125,
+          "top": 323.4375,
+          "right": 693.4296875,
+          "bottom": 651.40625,
+          "width": 437.296875,
+          "height": 327.96875
+        },
+        "label": {
+          "left": 77.28125,
+          "top": 456.90625,
+          "right": 221.28125,
+          "bottom": 500.90625
+        }
+      },
+      {
+        "src": "/money-level/art/houses/temporary-tent-neutral.webp",
+        "complete": true,
+        "naturalWidth": 1448,
+        "composite": "alpha",
+        "box": {
+          "left": 793.171875,
+          "top": 376.2109375,
+          "right": 1141.234375,
+          "bottom": 637.2578125,
+          "width": 348.0625,
+          "height": 261.046875
+        },
+        "label": {
+          "left": 1098.703125,
+          "top": 323.28125,
+          "right": 1242.703125,
+          "bottom": 367.28125
+        }
+      }
+    ],
+    "labels": 2
+  },
+  {
+    "layout": "desktop",
+    "season": "fall",
+    "stage": "tent-color",
+    "runtimeCount": 1,
+    "cards": [
+      {
+        "src": "/money-level/art/houses/temporary-tent-yellow.webp",
+        "complete": true,
+        "naturalWidth": 1536,
+        "composite": "alpha",
+        "box": {
+          "left": 250.9765625,
+          "top": 343.109375,
+          "right": 704.3671875,
+          "bottom": 645.359375,
+          "width": 453.390625,
+          "height": 302.25
+        },
+        "label": {
+          "left": 77.28125,
+          "top": 456.90625,
+          "right": 221.28125,
+          "bottom": 500.90625
+        }
+      },
+      {
+        "src": "/money-level/art/houses/temporary-tent-yellow.webp",
+        "complete": true,
+        "naturalWidth": 1536,
+        "composite": "alpha",
+        "box": {
+          "left": 789.0625,
+          "top": 391.8671875,
+          "right": 1149.9375,
+          "bottom": 632.4453125,
+          "width": 360.875,
+          "height": 240.578125
+        },
+        "label": {
+          "left": 1098.703125,
+          "top": 326.5625,
+          "right": 1242.703125,
+          "bottom": 370.5625
+        }
+      }
+    ],
+    "labels": 2
+  },
+  {
+    "layout": "desktop",
+    "season": "fall",
+    "stage": "house",
+    "runtimeCount": 1,
+    "cards": [
+      {
+        "src": "/money-level/art/houses/temporary-house-fall.webp",
+        "complete": true,
+        "naturalWidth": 1448,
+        "composite": "alpha",
+        "box": {
+          "left": 253.2578125,
+          "top": 287.0859375,
+          "right": 699.7109375,
+          "bottom": 621.9140625,
+          "width": 446.453125,
+          "height": 334.828125
+        },
+        "label": {
+          "left": 77.28125,
+          "top": 456.90625,
+          "right": 221.28125,
+          "bottom": 500.90625
+        }
+      },
+      {
+        "src": "/money-level/art/houses/temporary-house-fall.webp",
+        "complete": true,
+        "naturalWidth": 1448,
+        "composite": "alpha",
+        "box": {
+          "left": 790.8671875,
+          "top": 347.2890625,
+          "right": 1146.2265625,
+          "bottom": 613.8046875,
+          "width": 355.359375,
+          "height": 266.515625
+        },
+        "label": {
+          "left": 1098.703125,
+          "top": 279.984375,
+          "right": 1242.703125,
+          "bottom": 323.984375
+        }
+      }
+    ],
+    "labels": 2
+  },
+  {
+    "layout": "desktop",
+    "season": "winter",
+    "stage": "camp",
+    "runtimeCount": 1,
+    "cards": [
+      {
+        "src": "/money-level/art/houses/temporary-camp-winter.webp",
+        "complete": true,
+        "naturalWidth": 1536,
+        "composite": "alpha",
+        "box": {
+          "left": 253.8359375,
+          "top": 355.8359375,
+          "right": 698.7578125,
+          "bottom": 652.4453125,
+          "width": 444.921875,
+          "height": 296.609375
+        },
+        "label": {
+          "left": 77.28125,
+          "top": 456.90625,
+          "right": 221.28125,
+          "bottom": 500.90625
+        }
+      },
+      {
+        "src": "/money-level/art/houses/temporary-camp-winter.webp",
+        "complete": true,
+        "naturalWidth": 1536,
+        "composite": "alpha",
+        "box": {
+          "left": 791.3359375,
+          "top": 402,
+          "right": 1145.4765625,
+          "bottom": 638.09375,
+          "width": 354.140625,
+          "height": 236.09375
+        },
+        "label": {
+          "left": 1098.703125,
+          "top": 399.546875,
+          "right": 1242.703125,
+          "bottom": 443.546875
+        }
+      }
+    ],
+    "labels": 2
+  },
+  {
+    "layout": "desktop",
+    "season": "winter",
+    "stage": "camp-plus",
+    "runtimeCount": 1,
+    "cards": [
+      {
+        "src": "/money-level/art/houses/temporary-camp-winter.webp",
+        "complete": true,
+        "naturalWidth": 1536,
+        "composite": "alpha",
+        "box": {
+          "left": 253.8359375,
+          "top": 355.8359375,
+          "right": 698.7578125,
+          "bottom": 652.4453125,
+          "width": 444.921875,
+          "height": 296.609375
+        },
+        "label": {
+          "left": 77.28125,
+          "top": 456.90625,
+          "right": 221.28125,
+          "bottom": 500.90625
+        }
+      },
+      {
+        "src": "/money-level/art/houses/temporary-camp-winter.webp",
+        "complete": true,
+        "naturalWidth": 1536,
+        "composite": "alpha",
+        "box": {
+          "left": 791.3359375,
+          "top": 402,
+          "right": 1145.4765625,
+          "bottom": 638.09375,
+          "width": 354.140625,
+          "height": 236.09375
+        },
+        "label": {
+          "left": 1098.703125,
+          "top": 399.546875,
+          "right": 1242.703125,
+          "bottom": 443.546875
+        }
+      }
+    ],
+    "labels": 2
+  },
+  {
+    "layout": "desktop",
+    "season": "winter",
+    "stage": "tent-small",
+    "runtimeCount": 1,
+    "cards": [
+      {
+        "src": "/money-level/art/houses/temporary-tent-neutral.webp",
+        "complete": true,
+        "naturalWidth": 1448,
+        "composite": "alpha",
+        "box": {
+          "left": 265.2890625,
+          "top": 370.296875,
+          "right": 636.8046875,
+          "bottom": 648.921875,
+          "width": 371.515625,
+          "height": 278.625
+        },
+        "label": {
+          "left": 77.28125,
+          "top": 456.90625,
+          "right": 221.28125,
+          "bottom": 500.90625
+        }
+      },
+      {
+        "src": "/money-level/art/houses/temporary-tent-neutral.webp",
+        "complete": true,
+        "naturalWidth": 1448,
+        "composite": "alpha",
+        "box": {
+          "left": 800.4609375,
+          "top": 413.5234375,
+          "right": 1096.1640625,
+          "bottom": 635.2890625,
+          "width": 295.703125,
+          "height": 221.765625
+        },
+        "label": {
+          "left": 1098.703125,
+          "top": 358.015625,
+          "right": 1242.703125,
+          "bottom": 402.015625
+        }
+      }
+    ],
+    "labels": 2
+  },
+  {
+    "layout": "desktop",
+    "season": "winter",
+    "stage": "tent-large",
+    "runtimeCount": 1,
+    "cards": [
+      {
+        "src": "/money-level/art/houses/temporary-tent-neutral.webp",
+        "complete": true,
+        "naturalWidth": 1448,
+        "composite": "alpha",
+        "box": {
+          "left": 256.1328125,
+          "top": 323.4375,
+          "right": 693.4296875,
+          "bottom": 651.40625,
+          "width": 437.296875,
+          "height": 327.96875
+        },
+        "label": {
+          "left": 77.28125,
+          "top": 456.90625,
+          "right": 221.28125,
+          "bottom": 500.90625
+        }
+      },
+      {
+        "src": "/money-level/art/houses/temporary-tent-neutral.webp",
+        "complete": true,
+        "naturalWidth": 1448,
+        "composite": "alpha",
+        "box": {
+          "left": 793.171875,
+          "top": 376.2109375,
+          "right": 1141.234375,
+          "bottom": 637.2578125,
+          "width": 348.0625,
+          "height": 261.046875
+        },
+        "label": {
+          "left": 1098.703125,
+          "top": 323.28125,
+          "right": 1242.703125,
+          "bottom": 367.28125
+        }
+      }
+    ],
+    "labels": 2
+  },
+  {
+    "layout": "desktop",
+    "season": "winter",
+    "stage": "tent-color",
+    "runtimeCount": 1,
+    "cards": [
+      {
+        "src": "/money-level/art/houses/temporary-tent-yellow.webp",
+        "complete": true,
+        "naturalWidth": 1536,
+        "composite": "alpha",
+        "box": {
+          "left": 250.9765625,
+          "top": 343.109375,
+          "right": 704.3671875,
+          "bottom": 645.359375,
+          "width": 453.390625,
+          "height": 302.25
+        },
+        "label": {
+          "left": 77.28125,
+          "top": 456.90625,
+          "right": 221.28125,
+          "bottom": 500.90625
+        }
+      },
+      {
+        "src": "/money-level/art/houses/temporary-tent-yellow.webp",
+        "complete": true,
+        "naturalWidth": 1536,
+        "composite": "alpha",
+        "box": {
+          "left": 789.0625,
+          "top": 391.8671875,
+          "right": 1149.9375,
+          "bottom": 632.4453125,
+          "width": 360.875,
+          "height": 240.578125
+        },
+        "label": {
+          "left": 1098.703125,
+          "top": 326.5625,
+          "right": 1242.703125,
+          "bottom": 370.5625
+        }
+      }
+    ],
+    "labels": 2
+  },
+  {
+    "layout": "desktop",
+    "season": "winter",
+    "stage": "house",
+    "runtimeCount": 1,
+    "cards": [
+      {
+        "src": "/money-level/art/houses/temporary-house-winter.webp",
+        "complete": true,
+        "naturalWidth": 1536,
+        "composite": "alpha",
+        "box": {
+          "left": 239.375,
+          "top": 311.140625,
+          "right": 712.96875,
+          "bottom": 626.859375,
+          "width": 473.59375,
+          "height": 315.71875
+        },
+        "label": {
+          "left": 77.28125,
+          "top": 456.90625,
+          "right": 221.28125,
+          "bottom": 500.90625
+        }
+      },
+      {
+        "src": "/money-level/art/houses/temporary-house-winter.webp",
+        "complete": true,
+        "naturalWidth": 1536,
+        "composite": "alpha",
+        "box": {
+          "left": 779.8359375,
+          "top": 366.4296875,
+          "right": 1156.7890625,
+          "bottom": 617.7265625,
+          "width": 376.953125,
+          "height": 251.296875
+        },
+        "label": {
+          "left": 1098.703125,
+          "top": 299.609375,
+          "right": 1242.703125,
+          "bottom": 343.609375
+        }
+      }
+    ],
+    "labels": 2
+  },
+  {
+    "layout": "mobile",
+    "season": "spring",
+    "stage": "camp",
+    "runtimeCount": 1,
+    "cards": [
+      {
+        "src": "/money-level/art/houses/temporary-camp-spring-summer.webp",
+        "complete": true,
+        "naturalWidth": 1536,
+        "composite": "alpha",
+        "box": {
+          "left": -93.046875,
+          "top": 517.5859375,
+          "right": 198.734375,
+          "bottom": 712.1015625,
+          "width": 291.78125,
+          "height": 194.515625
+        },
+        "label": {
+          "left": 24,
+          "top": 497.359375,
+          "right": 168,
+          "bottom": 541.359375
+        }
+      },
+      {
+        "src": "/money-level/art/houses/temporary-camp-spring-summer.webp",
+        "complete": true,
+        "naturalWidth": 1536,
+        "composite": "alpha",
+        "box": {
+          "left": 289.4453125,
+          "top": 546.765625,
+          "right": 521.6796875,
+          "bottom": 701.578125,
+          "width": 232.234375,
+          "height": 154.8125
+        },
+        "label": {
+          "left": 222,
+          "top": 513.203125,
+          "right": 366,
+          "bottom": 557.203125
+        }
+      }
+    ],
+    "labels": 2
+  },
+  {
+    "layout": "mobile",
+    "season": "spring",
+    "stage": "camp-plus",
+    "runtimeCount": 1,
+    "cards": [
+      {
+        "src": "/money-level/art/houses/temporary-camp-spring-summer.webp",
+        "complete": true,
+        "naturalWidth": 1536,
+        "composite": "alpha",
+        "box": {
+          "left": -93.046875,
+          "top": 517.5859375,
+          "right": 198.734375,
+          "bottom": 712.1015625,
+          "width": 291.78125,
+          "height": 194.515625
+        },
+        "label": {
+          "left": 24,
+          "top": 497.359375,
+          "right": 168,
+          "bottom": 541.359375
+        }
+      },
+      {
+        "src": "/money-level/art/houses/temporary-camp-spring-summer.webp",
+        "complete": true,
+        "naturalWidth": 1536,
+        "composite": "alpha",
+        "box": {
+          "left": 289.4453125,
+          "top": 546.765625,
+          "right": 521.6796875,
+          "bottom": 701.578125,
+          "width": 232.234375,
+          "height": 154.8125
+        },
+        "label": {
+          "left": 222,
+          "top": 513.203125,
+          "right": 366,
+          "bottom": 557.203125
+        }
+      }
+    ],
+    "labels": 2
+  },
+  {
+    "layout": "mobile",
+    "season": "spring",
+    "stage": "tent-small",
+    "runtimeCount": 1,
+    "cards": [
+      {
+        "src": "/money-level/art/houses/temporary-tent-neutral.webp",
+        "complete": true,
+        "naturalWidth": 1448,
+        "composite": "alpha",
+        "box": {
+          "left": -92.21875,
+          "top": 509.2890625,
+          "right": 173.1875,
+          "bottom": 708.3359375,
+          "width": 265.40625,
+          "height": 199.046875
+        },
+        "label": {
+          "left": 24,
+          "top": 456.296875,
+          "right": 168,
+          "bottom": 500.296875
+        }
+      },
+      {
+        "src": "/money-level/art/houses/temporary-tent-neutral.webp",
+        "complete": true,
+        "naturalWidth": 1448,
+        "composite": "alpha",
+        "box": {
+          "left": 290.09375,
+          "top": 540.15625,
+          "right": 501.34375,
+          "bottom": 698.59375,
+          "width": 211.25,
+          "height": 158.4375
+        },
+        "label": {
+          "left": 222,
+          "top": 480.515625,
+          "right": 366,
+          "bottom": 524.515625
+        }
+      }
+    ],
+    "labels": 2
+  },
+  {
+    "layout": "mobile",
+    "season": "spring",
+    "stage": "tent-large",
+    "runtimeCount": 1,
+    "cards": [
+      {
+        "src": "/money-level/art/houses/temporary-tent-neutral.webp",
+        "complete": true,
+        "naturalWidth": 1448,
+        "composite": "alpha",
+        "box": {
+          "left": -98.7578125,
+          "top": 475.8125,
+          "right": 213.6328125,
+          "bottom": 710.09375,
+          "width": 312.390625,
+          "height": 234.28125
+        },
+        "label": {
+          "left": 24,
+          "top": 425.125,
+          "right": 168,
+          "bottom": 469.125
+        }
+      },
+      {
+        "src": "/money-level/art/houses/temporary-tent-neutral.webp",
+        "complete": true,
+        "naturalWidth": 1448,
+        "composite": "alpha",
+        "box": {
+          "left": 284.8828125,
+          "top": 513.53125,
+          "right": 533.5234375,
+          "bottom": 700,
+          "width": 248.640625,
+          "height": 186.46875
+        },
+        "label": {
+          "left": 222,
+          "top": 455.703125,
+          "right": 366,
+          "bottom": 499.703125
+        }
+      }
+    ],
+    "labels": 2
+  },
+  {
+    "layout": "mobile",
+    "season": "spring",
+    "stage": "tent-color",
+    "runtimeCount": 1,
+    "cards": [
+      {
+        "src": "/money-level/art/houses/temporary-tent-yellow.webp",
+        "complete": true,
+        "naturalWidth": 1536,
+        "composite": "alpha",
+        "box": {
+          "left": -102.4453125,
+          "top": 491.5546875,
+          "right": 221.4453125,
+          "bottom": 707.4765625,
+          "width": 323.890625,
+          "height": 215.921875
+        },
+        "label": {
+          "left": 24,
+          "top": 429.765625,
+          "right": 168,
+          "bottom": 473.765625
+        }
+      },
+      {
+        "src": "/money-level/art/houses/temporary-tent-yellow.webp",
+        "complete": true,
+        "naturalWidth": 1536,
+        "composite": "alpha",
+        "box": {
+          "left": 281.9453125,
+          "top": 526.3984375,
+          "right": 539.7421875,
+          "bottom": 698.2578125,
+          "width": 257.796875,
+          "height": 171.859375
+        },
+        "label": {
+          "left": 222,
+          "top": 459.75,
+          "right": 366,
+          "bottom": 503.75
+        }
+      }
+    ],
+    "labels": 2
+  },
+  {
+    "layout": "mobile",
+    "season": "spring",
+    "stage": "house",
+    "runtimeCount": 1,
+    "cards": [
+      {
+        "src": "/money-level/art/houses/temporary-house-fall.webp",
+        "complete": true,
+        "naturalWidth": 1448,
+        "composite": "alpha",
+        "box": {
+          "left": -100.8125,
+          "top": 451.5234375,
+          "right": 218.125,
+          "bottom": 690.7265625,
+          "width": 318.9375,
+          "height": 239.203125
+        },
+        "label": {
+          "left": 24,
+          "top": 406.828125,
+          "right": 168,
+          "bottom": 450.828125
+        }
+      },
+      {
+        "src": "/money-level/art/houses/temporary-house-fall.webp",
+        "complete": true,
+        "naturalWidth": 1448,
+        "composite": "alpha",
+        "box": {
+          "left": 283.2421875,
+          "top": 494.5390625,
+          "right": 537.1015625,
+          "bottom": 684.9296875,
+          "width": 253.859375,
+          "height": 190.390625
+        },
+        "label": {
+          "left": 222,
+          "top": 426.46875,
+          "right": 366,
+          "bottom": 470.46875
+        }
+      }
+    ],
+    "labels": 2
+  },
+  {
+    "layout": "mobile",
+    "season": "summer",
+    "stage": "camp",
+    "runtimeCount": 1,
+    "cards": [
+      {
+        "src": "/money-level/art/houses/temporary-camp-spring-summer.webp",
+        "complete": true,
+        "naturalWidth": 1536,
+        "composite": "alpha",
+        "box": {
+          "left": -93.046875,
+          "top": 517.5859375,
+          "right": 198.734375,
+          "bottom": 712.1015625,
+          "width": 291.78125,
+          "height": 194.515625
+        },
+        "label": {
+          "left": 24,
+          "top": 497.359375,
+          "right": 168,
+          "bottom": 541.359375
+        }
+      },
+      {
+        "src": "/money-level/art/houses/temporary-camp-spring-summer.webp",
+        "complete": true,
+        "naturalWidth": 1536,
+        "composite": "alpha",
+        "box": {
+          "left": 289.4453125,
+          "top": 546.765625,
+          "right": 521.6796875,
+          "bottom": 701.578125,
+          "width": 232.234375,
+          "height": 154.8125
+        },
+        "label": {
+          "left": 222,
+          "top": 513.203125,
+          "right": 366,
+          "bottom": 557.203125
+        }
+      }
+    ],
+    "labels": 2
+  },
+  {
+    "layout": "mobile",
+    "season": "summer",
+    "stage": "camp-plus",
+    "runtimeCount": 1,
+    "cards": [
+      {
+        "src": "/money-level/art/houses/temporary-camp-spring-summer.webp",
+        "complete": true,
+        "naturalWidth": 1536,
+        "composite": "alpha",
+        "box": {
+          "left": -93.046875,
+          "top": 517.5859375,
+          "right": 198.734375,
+          "bottom": 712.1015625,
+          "width": 291.78125,
+          "height": 194.515625
+        },
+        "label": {
+          "left": 24,
+          "top": 497.359375,
+          "right": 168,
+          "bottom": 541.359375
+        }
+      },
+      {
+        "src": "/money-level/art/houses/temporary-camp-spring-summer.webp",
+        "complete": true,
+        "naturalWidth": 1536,
+        "composite": "alpha",
+        "box": {
+          "left": 289.4453125,
+          "top": 546.765625,
+          "right": 521.6796875,
+          "bottom": 701.578125,
+          "width": 232.234375,
+          "height": 154.8125
+        },
+        "label": {
+          "left": 222,
+          "top": 513.203125,
+          "right": 366,
+          "bottom": 557.203125
+        }
+      }
+    ],
+    "labels": 2
+  },
+  {
+    "layout": "mobile",
+    "season": "summer",
+    "stage": "tent-small",
+    "runtimeCount": 1,
+    "cards": [
+      {
+        "src": "/money-level/art/houses/temporary-tent-neutral.webp",
+        "complete": true,
+        "naturalWidth": 1448,
+        "composite": "alpha",
+        "box": {
+          "left": -92.21875,
+          "top": 509.2890625,
+          "right": 173.1875,
+          "bottom": 708.3359375,
+          "width": 265.40625,
+          "height": 199.046875
+        },
+        "label": {
+          "left": 24,
+          "top": 456.296875,
+          "right": 168,
+          "bottom": 500.296875
+        }
+      },
+      {
+        "src": "/money-level/art/houses/temporary-tent-neutral.webp",
+        "complete": true,
+        "naturalWidth": 1448,
+        "composite": "alpha",
+        "box": {
+          "left": 290.09375,
+          "top": 540.15625,
+          "right": 501.34375,
+          "bottom": 698.59375,
+          "width": 211.25,
+          "height": 158.4375
+        },
+        "label": {
+          "left": 222,
+          "top": 480.515625,
+          "right": 366,
+          "bottom": 524.515625
+        }
+      }
+    ],
+    "labels": 2
+  },
+  {
+    "layout": "mobile",
+    "season": "summer",
+    "stage": "tent-large",
+    "runtimeCount": 1,
+    "cards": [
+      {
+        "src": "/money-level/art/houses/temporary-tent-neutral.webp",
+        "complete": true,
+        "naturalWidth": 1448,
+        "composite": "alpha",
+        "box": {
+          "left": -98.7578125,
+          "top": 475.8125,
+          "right": 213.6328125,
+          "bottom": 710.09375,
+          "width": 312.390625,
+          "height": 234.28125
+        },
+        "label": {
+          "left": 24,
+          "top": 425.125,
+          "right": 168,
+          "bottom": 469.125
+        }
+      },
+      {
+        "src": "/money-level/art/houses/temporary-tent-neutral.webp",
+        "complete": true,
+        "naturalWidth": 1448,
+        "composite": "alpha",
+        "box": {
+          "left": 284.8828125,
+          "top": 513.53125,
+          "right": 533.5234375,
+          "bottom": 700,
+          "width": 248.640625,
+          "height": 186.46875
+        },
+        "label": {
+          "left": 222,
+          "top": 455.703125,
+          "right": 366,
+          "bottom": 499.703125
+        }
+      }
+    ],
+    "labels": 2
+  },
+  {
+    "layout": "mobile",
+    "season": "summer",
+    "stage": "tent-color",
+    "runtimeCount": 1,
+    "cards": [
+      {
+        "src": "/money-level/art/houses/temporary-tent-yellow.webp",
+        "complete": true,
+        "naturalWidth": 1536,
+        "composite": "alpha",
+        "box": {
+          "left": -102.4453125,
+          "top": 491.5546875,
+          "right": 221.4453125,
+          "bottom": 707.4765625,
+          "width": 323.890625,
+          "height": 215.921875
+        },
+        "label": {
+          "left": 24,
+          "top": 429.765625,
+          "right": 168,
+          "bottom": 473.765625
+        }
+      },
+      {
+        "src": "/money-level/art/houses/temporary-tent-yellow.webp",
+        "complete": true,
+        "naturalWidth": 1536,
+        "composite": "alpha",
+        "box": {
+          "left": 281.9453125,
+          "top": 526.3984375,
+          "right": 539.7421875,
+          "bottom": 698.2578125,
+          "width": 257.796875,
+          "height": 171.859375
+        },
+        "label": {
+          "left": 222,
+          "top": 459.75,
+          "right": 366,
+          "bottom": 503.75
+        }
+      }
+    ],
+    "labels": 2
+  },
+  {
+    "layout": "mobile",
+    "season": "summer",
+    "stage": "house",
+    "runtimeCount": 1,
+    "cards": [
+      {
+        "src": "/money-level/art/houses/temporary-house-fall.webp",
+        "complete": true,
+        "naturalWidth": 1448,
+        "composite": "alpha",
+        "box": {
+          "left": -100.8125,
+          "top": 451.5234375,
+          "right": 218.125,
+          "bottom": 690.7265625,
+          "width": 318.9375,
+          "height": 239.203125
+        },
+        "label": {
+          "left": 24,
+          "top": 406.828125,
+          "right": 168,
+          "bottom": 450.828125
+        }
+      },
+      {
+        "src": "/money-level/art/houses/temporary-house-fall.webp",
+        "complete": true,
+        "naturalWidth": 1448,
+        "composite": "alpha",
+        "box": {
+          "left": 283.2421875,
+          "top": 494.5390625,
+          "right": 537.1015625,
+          "bottom": 684.9296875,
+          "width": 253.859375,
+          "height": 190.390625
+        },
+        "label": {
+          "left": 222,
+          "top": 426.46875,
+          "right": 366,
+          "bottom": 470.46875
+        }
+      }
+    ],
+    "labels": 2
+  },
+  {
+    "layout": "mobile",
+    "season": "fall",
+    "stage": "camp",
+    "runtimeCount": 1,
+    "cards": [
+      {
+        "src": "/money-level/art/houses/temporary-camp-fall.webp",
+        "complete": true,
+        "naturalWidth": 1536,
+        "composite": "alpha",
+        "box": {
+          "left": -84.3828125,
+          "top": 526.953125,
+          "right": 187.1640625,
+          "bottom": 707.984375,
+          "width": 271.546875,
+          "height": 181.03125
+        },
+        "label": {
+          "left": 24,
+          "top": 489.0625,
+          "right": 168,
+          "bottom": 533.0625
+        }
+      },
+      {
+        "src": "/money-level/art/houses/temporary-camp-fall.webp",
+        "complete": true,
+        "naturalWidth": 1536,
+        "composite": "alpha",
+        "box": {
+          "left": 296.3203125,
+          "top": 554.234375,
+          "right": 512.4609375,
+          "bottom": 698.328125,
+          "width": 216.140625,
+          "height": 144.09375
+        },
+        "label": {
+          "left": 222,
+          "top": 506.59375,
+          "right": 366,
+          "bottom": 550.59375
+        }
+      }
+    ],
+    "labels": 2
+  },
+  {
+    "layout": "mobile",
+    "season": "fall",
+    "stage": "camp-plus",
+    "runtimeCount": 1,
+    "cards": [
+      {
+        "src": "/money-level/art/houses/temporary-camp-fall.webp",
+        "complete": true,
+        "naturalWidth": 1536,
+        "composite": "alpha",
+        "box": {
+          "left": -84.3828125,
+          "top": 526.953125,
+          "right": 187.1640625,
+          "bottom": 707.984375,
+          "width": 271.546875,
+          "height": 181.03125
+        },
+        "label": {
+          "left": 24,
+          "top": 489.0625,
+          "right": 168,
+          "bottom": 533.0625
+        }
+      },
+      {
+        "src": "/money-level/art/houses/temporary-camp-fall.webp",
+        "complete": true,
+        "naturalWidth": 1536,
+        "composite": "alpha",
+        "box": {
+          "left": 296.3203125,
+          "top": 554.234375,
+          "right": 512.4609375,
+          "bottom": 698.328125,
+          "width": 216.140625,
+          "height": 144.09375
+        },
+        "label": {
+          "left": 222,
+          "top": 506.59375,
+          "right": 366,
+          "bottom": 550.59375
+        }
+      }
+    ],
+    "labels": 2
+  },
+  {
+    "layout": "mobile",
+    "season": "fall",
+    "stage": "tent-small",
+    "runtimeCount": 1,
+    "cards": [
+      {
+        "src": "/money-level/art/houses/temporary-tent-neutral.webp",
+        "complete": true,
+        "naturalWidth": 1448,
+        "composite": "alpha",
+        "box": {
+          "left": -92.21875,
+          "top": 509.2890625,
+          "right": 173.1875,
+          "bottom": 708.3359375,
+          "width": 265.40625,
+          "height": 199.046875
+        },
+        "label": {
+          "left": 24,
+          "top": 456.296875,
+          "right": 168,
+          "bottom": 500.296875
+        }
+      },
+      {
+        "src": "/money-level/art/houses/temporary-tent-neutral.webp",
+        "complete": true,
+        "naturalWidth": 1448,
+        "composite": "alpha",
+        "box": {
+          "left": 290.09375,
+          "top": 540.15625,
+          "right": 501.34375,
+          "bottom": 698.59375,
+          "width": 211.25,
+          "height": 158.4375
+        },
+        "label": {
+          "left": 222,
+          "top": 480.515625,
+          "right": 366,
+          "bottom": 524.515625
+        }
+      }
+    ],
+    "labels": 2
+  },
+  {
+    "layout": "mobile",
+    "season": "fall",
+    "stage": "tent-large",
+    "runtimeCount": 1,
+    "cards": [
+      {
+        "src": "/money-level/art/houses/temporary-tent-neutral.webp",
+        "complete": true,
+        "naturalWidth": 1448,
+        "composite": "alpha",
+        "box": {
+          "left": -98.7578125,
+          "top": 475.8125,
+          "right": 213.6328125,
+          "bottom": 710.09375,
+          "width": 312.390625,
+          "height": 234.28125
+        },
+        "label": {
+          "left": 24,
+          "top": 425.125,
+          "right": 168,
+          "bottom": 469.125
+        }
+      },
+      {
+        "src": "/money-level/art/houses/temporary-tent-neutral.webp",
+        "complete": true,
+        "naturalWidth": 1448,
+        "composite": "alpha",
+        "box": {
+          "left": 284.8828125,
+          "top": 513.53125,
+          "right": 533.5234375,
+          "bottom": 700,
+          "width": 248.640625,
+          "height": 186.46875
+        },
+        "label": {
+          "left": 222,
+          "top": 455.703125,
+          "right": 366,
+          "bottom": 499.703125
+        }
+      }
+    ],
+    "labels": 2
+  },
+  {
+    "layout": "mobile",
+    "season": "fall",
+    "stage": "tent-color",
+    "runtimeCount": 1,
+    "cards": [
+      {
+        "src": "/money-level/art/houses/temporary-tent-yellow.webp",
+        "complete": true,
+        "naturalWidth": 1536,
+        "composite": "alpha",
+        "box": {
+          "left": -102.4453125,
+          "top": 491.5546875,
+          "right": 221.4453125,
+          "bottom": 707.4765625,
+          "width": 323.890625,
+          "height": 215.921875
+        },
+        "label": {
+          "left": 24,
+          "top": 429.765625,
+          "right": 168,
+          "bottom": 473.765625
+        }
+      },
+      {
+        "src": "/money-level/art/houses/temporary-tent-yellow.webp",
+        "complete": true,
+        "naturalWidth": 1536,
+        "composite": "alpha",
+        "box": {
+          "left": 281.9453125,
+          "top": 526.3984375,
+          "right": 539.7421875,
+          "bottom": 698.2578125,
+          "width": 257.796875,
+          "height": 171.859375
+        },
+        "label": {
+          "left": 222,
+          "top": 459.75,
+          "right": 366,
+          "bottom": 503.75
+        }
+      }
+    ],
+    "labels": 2
+  },
+  {
+    "layout": "mobile",
+    "season": "fall",
+    "stage": "house",
+    "runtimeCount": 1,
+    "cards": [
+      {
+        "src": "/money-level/art/houses/temporary-house-fall.webp",
+        "complete": true,
+        "naturalWidth": 1448,
+        "composite": "alpha",
+        "box": {
+          "left": -100.8125,
+          "top": 451.5234375,
+          "right": 218.125,
+          "bottom": 690.7265625,
+          "width": 318.9375,
+          "height": 239.203125
+        },
+        "label": {
+          "left": 24,
+          "top": 406.828125,
+          "right": 168,
+          "bottom": 450.828125
+        }
+      },
+      {
+        "src": "/money-level/art/houses/temporary-house-fall.webp",
+        "complete": true,
+        "naturalWidth": 1448,
+        "composite": "alpha",
+        "box": {
+          "left": 283.2421875,
+          "top": 494.5390625,
+          "right": 537.1015625,
+          "bottom": 684.9296875,
+          "width": 253.859375,
+          "height": 190.390625
+        },
+        "label": {
+          "left": 222,
+          "top": 426.46875,
+          "right": 366,
+          "bottom": 470.46875
+        }
+      }
+    ],
+    "labels": 2
+  },
+  {
+    "layout": "mobile",
+    "season": "winter",
+    "stage": "camp",
+    "runtimeCount": 1,
+    "cards": [
+      {
+        "src": "/money-level/art/houses/temporary-camp-winter.webp",
+        "complete": true,
+        "naturalWidth": 1536,
+        "composite": "alpha",
+        "box": {
+          "left": -100.40625,
+          "top": 498.9609375,
+          "right": 217.4375,
+          "bottom": 710.8515625,
+          "width": 317.84375,
+          "height": 211.890625
+        },
+        "label": {
+          "left": 24,
+          "top": 493.578125,
+          "right": 168,
+          "bottom": 537.578125
+        }
+      },
+      {
+        "src": "/money-level/art/houses/temporary-camp-winter.webp",
+        "complete": true,
+        "naturalWidth": 1536,
+        "composite": "alpha",
+        "box": {
+          "left": 283.5703125,
+          "top": 531.9375,
+          "right": 536.5546875,
+          "bottom": 700.59375,
+          "width": 252.984375,
+          "height": 168.65625
+        },
+        "label": {
+          "left": 222,
+          "top": 510.1875,
+          "right": 366,
+          "bottom": 554.1875
+        }
+      }
+    ],
+    "labels": 2
+  },
+  {
+    "layout": "mobile",
+    "season": "winter",
+    "stage": "camp-plus",
+    "runtimeCount": 1,
+    "cards": [
+      {
+        "src": "/money-level/art/houses/temporary-camp-winter.webp",
+        "complete": true,
+        "naturalWidth": 1536,
+        "composite": "alpha",
+        "box": {
+          "left": -100.40625,
+          "top": 498.9609375,
+          "right": 217.4375,
+          "bottom": 710.8515625,
+          "width": 317.84375,
+          "height": 211.890625
+        },
+        "label": {
+          "left": 24,
+          "top": 493.578125,
+          "right": 168,
+          "bottom": 537.578125
+        }
+      },
+      {
+        "src": "/money-level/art/houses/temporary-camp-winter.webp",
+        "complete": true,
+        "naturalWidth": 1536,
+        "composite": "alpha",
+        "box": {
+          "left": 283.5703125,
+          "top": 531.9375,
+          "right": 536.5546875,
+          "bottom": 700.59375,
+          "width": 252.984375,
+          "height": 168.65625
+        },
+        "label": {
+          "left": 222,
+          "top": 510.1875,
+          "right": 366,
+          "bottom": 554.1875
+        }
+      }
+    ],
+    "labels": 2
+  },
+  {
+    "layout": "mobile",
+    "season": "winter",
+    "stage": "tent-small",
+    "runtimeCount": 1,
+    "cards": [
+      {
+        "src": "/money-level/art/houses/temporary-tent-neutral.webp",
+        "complete": true,
+        "naturalWidth": 1448,
+        "composite": "alpha",
+        "box": {
+          "left": -92.21875,
+          "top": 509.2890625,
+          "right": 173.1875,
+          "bottom": 708.3359375,
+          "width": 265.40625,
+          "height": 199.046875
+        },
+        "label": {
+          "left": 24,
+          "top": 456.296875,
+          "right": 168,
+          "bottom": 500.296875
+        }
+      },
+      {
+        "src": "/money-level/art/houses/temporary-tent-neutral.webp",
+        "complete": true,
+        "naturalWidth": 1448,
+        "composite": "alpha",
+        "box": {
+          "left": 290.09375,
+          "top": 540.15625,
+          "right": 501.34375,
+          "bottom": 698.59375,
+          "width": 211.25,
+          "height": 158.4375
+        },
+        "label": {
+          "left": 222,
+          "top": 480.515625,
+          "right": 366,
+          "bottom": 524.515625
+        }
+      }
+    ],
+    "labels": 2
+  },
+  {
+    "layout": "mobile",
+    "season": "winter",
+    "stage": "tent-large",
+    "runtimeCount": 1,
+    "cards": [
+      {
+        "src": "/money-level/art/houses/temporary-tent-neutral.webp",
+        "complete": true,
+        "naturalWidth": 1448,
+        "composite": "alpha",
+        "box": {
+          "left": -98.7578125,
+          "top": 475.8125,
+          "right": 213.6328125,
+          "bottom": 710.09375,
+          "width": 312.390625,
+          "height": 234.28125
+        },
+        "label": {
+          "left": 24,
+          "top": 425.125,
+          "right": 168,
+          "bottom": 469.125
+        }
+      },
+      {
+        "src": "/money-level/art/houses/temporary-tent-neutral.webp",
+        "complete": true,
+        "naturalWidth": 1448,
+        "composite": "alpha",
+        "box": {
+          "left": 284.8828125,
+          "top": 513.53125,
+          "right": 533.5234375,
+          "bottom": 700,
+          "width": 248.640625,
+          "height": 186.46875
+        },
+        "label": {
+          "left": 222,
+          "top": 455.703125,
+          "right": 366,
+          "bottom": 499.703125
+        }
+      }
+    ],
+    "labels": 2
+  },
+  {
+    "layout": "mobile",
+    "season": "winter",
+    "stage": "tent-color",
+    "runtimeCount": 1,
+    "cards": [
+      {
+        "src": "/money-level/art/houses/temporary-tent-yellow.webp",
+        "complete": true,
+        "naturalWidth": 1536,
+        "composite": "alpha",
+        "box": {
+          "left": -102.4453125,
+          "top": 491.5546875,
+          "right": 221.4453125,
+          "bottom": 707.4765625,
+          "width": 323.890625,
+          "height": 215.921875
+        },
+        "label": {
+          "left": 24,
+          "top": 429.765625,
+          "right": 168,
+          "bottom": 473.765625
+        }
+      },
+      {
+        "src": "/money-level/art/houses/temporary-tent-yellow.webp",
+        "complete": true,
+        "naturalWidth": 1536,
+        "composite": "alpha",
+        "box": {
+          "left": 281.9453125,
+          "top": 526.3984375,
+          "right": 539.7421875,
+          "bottom": 698.2578125,
+          "width": 257.796875,
+          "height": 171.859375
+        },
+        "label": {
+          "left": 222,
+          "top": 459.75,
+          "right": 366,
+          "bottom": 503.75
+        }
+      }
+    ],
+    "labels": 2
+  },
+  {
+    "layout": "mobile",
+    "season": "winter",
+    "stage": "house",
+    "runtimeCount": 1,
+    "cards": [
+      {
+        "src": "/money-level/art/houses/temporary-house-winter.webp",
+        "complete": true,
+        "naturalWidth": 1536,
+        "composite": "alpha",
+        "box": {
+          "left": -110.71875,
+          "top": 468.71875,
+          "right": 227.59375,
+          "bottom": 694.25,
+          "width": 338.3125,
+          "height": 225.53125
+        },
+        "label": {
+          "left": 24,
+          "top": 406.828125,
+          "right": 168,
+          "bottom": 450.828125
+        }
+      },
+      {
+        "src": "/money-level/art/houses/temporary-house-winter.webp",
+        "complete": true,
+        "naturalWidth": 1536,
+        "composite": "alpha",
+        "box": {
+          "left": 275.359375,
+          "top": 508.2109375,
+          "right": 544.640625,
+          "bottom": 687.7265625,
+          "width": 269.28125,
+          "height": 179.515625
+        },
+        "label": {
+          "left": 222,
+          "top": 440.484375,
+          "right": 366,
+          "bottom": 484.484375
+        }
+      }
+    ],
+    "labels": 2
+  }
+]

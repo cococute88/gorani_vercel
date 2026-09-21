@@ -70,7 +70,8 @@
 .moneyLevelRoot .house-art-image{ display: block; width: 100%; height: auto; user-select: none; filter: var(--money-level-house-lighting) drop-shadow(0 7px 6px rgba(43,54,44,.13)); transition: filter .5s ease; }
 .moneyLevelRoot .house-composite-masked .house-art-image{ -webkit-mask-image: radial-gradient(ellipse 49% 47% at 50% 55%,#000 67%,transparent 100%); mask-image: radial-gradient(ellipse 49% 47% at 50% 55%,#000 67%,transparent 100%); }
 .moneyLevelRoot .house-composite-masked.house-family-camp .house-art-image{ -webkit-mask-image: radial-gradient(ellipse 39% 35% at 50% 61%,#000 58%,transparent 100%); mask-image: radial-gradient(ellipse 39% 35% at 50% 61%,#000 58%,transparent 100%); }
-.moneyLevelRoot .forest-statue{ position: absolute; z-index: 3; display: block; width: var(--statue-width); height: auto; pointer-events: none; user-select: none; transform: translate(-50%,-100%); filter: var(--money-level-statue-lighting) drop-shadow(0 2px 1px rgba(35,42,31,.21)); transition: filter .5s ease; }
+.moneyLevelRoot .forest-depth-layer{ position: absolute; inset: 0; z-index: 4; pointer-events: none; }
+.moneyLevelRoot .forest-statue{ position: absolute; display: block; width: var(--statue-width); height: auto; pointer-events: none; user-select: none; transform: translate3d(var(--forest-camera-translation,0px),0,0) translate(-50%,-100%); filter: var(--money-level-statue-lighting) drop-shadow(0 2px 1px rgba(35,42,31,.21)); transition: filter .5s ease; }
 .moneyLevelRoot .scene-label-layer{ position: absolute; inset: 0; z-index: 11; pointer-events: none; }
 .moneyLevelRoot .house-label{ position: absolute; top: var(--label-y); left: var(--label-x); display: block; width: 144px; max-width: 144px; min-width: 0; box-sizing: border-box; padding: 6px 6px 6px 8px; border: 2px solid #876b4c; border-radius: 8px 10px 7px 9px; color: #55422c; background: linear-gradient(145deg,#fff8dc,#eed39d); box-shadow: inset 0 0 0 2px rgba(255,255,255,.5),0 4px 0 rgba(92,66,39,.2); transform: translate(-50%,-50%); text-align: left; }
 .moneyLevelRoot .house-leaf{ color: #678d48; font-size: 1.1rem; }
@@ -84,7 +85,7 @@
 
 .moneyLevelRoot .character-ground-layer, .moneyLevelRoot .scene-activity-layer, .moneyLevelRoot .character-interaction-layer{ position: absolute; inset: 0; pointer-events: none; }
 .moneyLevelRoot .character-ground-layer{ z-index: 3; }
-.moneyLevelRoot .spine-forest-stage{ position: absolute; inset: 0; z-index: 4; filter: var(--money-level-character-time-ambient) var(--money-level-character-weather-ambient); pointer-events: none; transition: filter .5s ease; }
+.moneyLevelRoot .spine-forest-stage{ position: absolute; inset: 0; filter: var(--money-level-character-time-ambient) var(--money-level-character-weather-ambient); pointer-events: none; transition: filter .5s ease; }
 .moneyLevelRoot .scene-activity-layer{ z-index: 5; }
 .moneyLevelRoot .character-interaction-layer{ z-index: 12; }
 .moneyLevelRoot .scene-only .spine-forest-stage, .moneyLevelRoot .scene-only .character-ground-layer, .moneyLevelRoot .scene-only .scene-activity-layer, .moneyLevelRoot .scene-only .character-interaction-layer{ display: none; }
@@ -146,6 +147,13 @@
 .moneyLevelRoot .wind-layer{ z-index: 8; }
 .moneyLevelRoot .rain-layer, .moneyLevelRoot .pond-ripple-layer{ z-index: 9; }
 .moneyLevelRoot .lightning-layer{ z-index: 10; opacity: 0; }
+.moneyLevelRoot .payday-leaf-shower{ position: absolute; inset: 0; overflow: hidden; pointer-events: none; contain: layout paint; }
+.moneyLevelRoot .payday-leaf-shower-far{ z-index: 3; }
+.moneyLevelRoot .payday-leaf-shower-front{ z-index: 8; }
+.moneyLevelRoot .payday-leaf-shower i{ position: absolute; top: -16%; left: var(--payday-leaf-x); width: var(--payday-leaf-size); height: calc(var(--payday-leaf-size) * .64); border: 1px solid rgba(35,99,40,.38); border-radius: 88% 20% 84% 24%; background: var(--payday-leaf-color); box-shadow: inset -2px -1px rgba(35,92,39,.24),0 2px 3px rgba(30,70,34,.3); opacity: 0; transform-origin: 36% 62%; animation: money-level-payday-leaf-shower var(--payday-leaf-speed) cubic-bezier(.37,.08,.64,.96) infinite; animation-delay: var(--payday-leaf-delay); will-change: transform,opacity; }
+.moneyLevelRoot .payday-leaf-shower i::after{ position: absolute; left: 18%; top: 48%; width: 68%; height: 1px; border-radius: 999px; background: rgba(31,89,38,.48); content: ""; transform: rotate(-8deg); transform-origin: left center; }
+.moneyLevelRoot .payday-leaf-shower-far i{ filter: blur(.15px); }
+.moneyLevelRoot .time-night .payday-leaf-shower i{ filter: brightness(.73) saturate(.78); }
 .moneyLevelRoot .weather-rain .rain-layer, .moneyLevelRoot .weather-rain .pond-ripple-layer, .moneyLevelRoot .weather-thunderstorm .rain-layer, .moneyLevelRoot .weather-thunderstorm .pond-ripple-layer, .moneyLevelRoot .weather-thunderstorm .lightning-layer, .moneyLevelRoot .wind-breeze, .moneyLevelRoot .wind-strong{ display: block; }
 .moneyLevelRoot .ambient-off .ambient-motion-layer{ display: none !important; }
 
@@ -181,6 +189,7 @@
 @keyframes money-level-sky-drift { to { transform: translate3d(1.4%,.25%,0) scale(1.015); } }
 @keyframes money-level-leaf-breeze { 0%,49% { opacity: 0; transform: translate3d(0,12px,0) rotate(0); } 52% { opacity: .35; } 57% { transform: translate3d(28vw,-14px,0) rotate(120deg); } 62% { transform: translate3d(56vw,22px,0) rotate(270deg); } 67% { opacity: .3; transform: translate3d(84vw,-6px,0) rotate(430deg); } 71%,100% { opacity: 0; transform: translate3d(112vw,17px,0) rotate(570deg); } }
 @keyframes money-level-leaf-strong { 0%,20% { opacity: 0; transform: translate3d(0,-12px,0) rotate(0); } 25% { opacity: var(--leaf-peak,.58); } 43% { transform: translate3d(31vw,21px,0) rotate(230deg); } 61% { transform: translate3d(62vw,-28px,0) rotate(510deg); } 78% { opacity: var(--leaf-fade,.5); transform: translate3d(91vw,32px,0) rotate(760deg); } 84%,100% { opacity: 0; transform: translate3d(116vw,-8px,0) rotate(970deg); } }
+@keyframes money-level-payday-leaf-shower { 0% { opacity: 0; transform: translate3d(0,-8vh,0) rotate(0deg) scale(.88); } 5% { opacity: var(--payday-leaf-opacity); } 26% { transform: translate3d(calc(3vw + var(--payday-leaf-sway-a)),29vh,0) rotate(var(--payday-leaf-turn-a)); } 52% { opacity: var(--payday-leaf-opacity); transform: translate3d(calc(7vw + var(--payday-leaf-sway-b)),59vh,0) rotate(var(--payday-leaf-turn-b)); } 77% { transform: translate3d(calc(11vw + var(--payday-leaf-sway-c)),89vh,0) rotate(var(--payday-leaf-turn-c)); } 95% { opacity: var(--payday-leaf-opacity); } 100% { opacity: 0; transform: translate3d(calc(15vw + var(--payday-leaf-sway-end)),124vh,0) rotate(var(--payday-leaf-turn)) scale(1.04); } }
 @keyframes money-level-pond-ripple { 0%,66% { opacity: 0; transform: translate(-50%,-50%) scale(.3); } 70% { opacity: .25; } 86% { opacity: 0; transform: translate(-50%,-50%) scale(1.35); } 100% { opacity: 0; } }
 @keyframes money-level-lightning-flash { 0%,100% { opacity: 0; } 13% { opacity: .58; } 30% { opacity: .11; } 45% { opacity: .4; } 65% { opacity: .08; } 82% { opacity: 0; } }
 
@@ -191,6 +200,7 @@
 .moneyLevelRoot .weather-cloudy{ --money-level-character-weather-ambient: brightness(.99) saturate(.99); }
 .moneyLevelRoot .weather-rain{ --money-level-character-weather-ambient: brightness(.98) saturate(.98); }
 .moneyLevelRoot .weather-thunderstorm{ --money-level-character-weather-ambient: brightness(.96) saturate(.97); }
+.moneyLevelRoot .weather-snow{ --money-level-character-weather-ambient: brightness(.99) saturate(.96); }
 .moneyLevelRoot .time-morning .practical-lighting-layer{ background: radial-gradient(circle at 29% 50%,rgba(255,188,104,.035),transparent 8%),radial-gradient(circle at 72% 56%,rgba(255,173,77,.03),transparent 10%); mix-blend-mode: screen; }
 .moneyLevelRoot .time-evening .practical-lighting-layer{ background: radial-gradient(circle at 29% 50%,rgba(255,151,58,.08),transparent 8%),radial-gradient(circle at 72% 56%,rgba(255,139,42,.07),transparent 10%); mix-blend-mode: screen; }
 .moneyLevelRoot .time-night .practical-lighting-layer{ background: radial-gradient(circle at 29% 50%,rgba(255,160,65,.09),transparent 6%),radial-gradient(circle at 72% 56%,rgba(255,144,45,.07),transparent 7%); mix-blend-mode: screen; }
@@ -248,6 +258,19 @@
   .moneyLevelRoot .forest-scene{ height: 560px; }
 }
 
+@media (min-width: 881px) {
+  .moneyLevelRoot .forest-shell{ min-height: calc(100dvh - 56px); padding-block: 10px; }
+  .moneyLevelRoot .topbar{ min-height: 56px; padding: 5px 18px; }
+  .moneyLevelRoot .brand-mark{ width: 40px; height: 40px; font-size: 1.45rem; }
+  .moneyLevelRoot .icon-button{ width: 40px; height: 40px; }
+  .moneyLevelRoot .money-hud{ padding: 5px 18px 6px; }
+  .moneyLevelRoot .retirement-card{ padding: 6px 11px; }
+  .moneyLevelRoot .progress-track{ height: 8px; margin: 4px 0 2px; }
+  .moneyLevelRoot .heart-row{ padding: 5px 11px; }
+  .moneyLevelRoot .forest-scene{ height: clamp(610px,calc(100dvh - 210px),725px); min-height: 610px; }
+  .moneyLevelRoot .forest-footer{ min-height: 54px; padding: 5px 16px; }
+}
+
 @media (max-width: 560px) {
   .moneyLevelRoot .forest-shell{ display: block; min-height: 100dvh; padding: 0; background: #fff9e8; }
   .moneyLevelRoot .forest-card{ width: 100%; min-height: 100dvh; border: 0; border-radius: 0; box-shadow: none; }
@@ -281,6 +304,7 @@
   .moneyLevelRoot .time-evening .practical-lighting-layer{ background: radial-gradient(circle at 20% 43%,rgba(255,151,58,.08),transparent 8%),radial-gradient(circle at 72% 50%,rgba(255,139,42,.07),transparent 10%); }
   .moneyLevelRoot .time-night .practical-lighting-layer{ background: radial-gradient(circle at 20% 43%,rgba(255,160,65,.09),transparent 6%),radial-gradient(circle at 72% 50%,rgba(255,144,45,.07),transparent 7%); }
   .moneyLevelRoot .weather-rain .rain-layer i:nth-child(n+35), .moneyLevelRoot .weather-thunderstorm .rain-layer i:nth-child(n+49), .moneyLevelRoot .weather-thunderstorm .wind-strong i:nth-child(n+6){ display: none; }
+  .moneyLevelRoot .payday-leaf-shower-far i:nth-child(n+33), .moneyLevelRoot .payday-leaf-shower-front i:nth-child(n+41){ display: none; }
   .moneyLevelRoot .scene-weather{ top: 8px; right: 8px; padding: 5px 8px; }
   .moneyLevelRoot .forest-phrase{ bottom: 10px; max-width: calc(100% - 20px); padding: 7px 12px; overflow: hidden; text-overflow: ellipsis; font-size: .71rem; }
   .moneyLevelRoot .forest-footer{ position: sticky; bottom: 0; z-index: 8; min-height: 62px; padding: 8px 10px calc(8px + env(safe-area-inset-bottom)); background: rgba(255,249,232,.96); backdrop-filter: blur(10px); }
@@ -296,7 +320,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .moneyLevelRoot *, .moneyLevelRoot *::before, .moneyLevelRoot *::after{ scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
-  .moneyLevelRoot .wind-layer, .moneyLevelRoot .pond-ripple-layer, .moneyLevelRoot .lightning-layer{ display: none !important; }
+  .moneyLevelRoot .wind-layer, .moneyLevelRoot .payday-leaf-shower, .moneyLevelRoot .pond-ripple-layer, .moneyLevelRoot .lightning-layer{ display: none !important; }
   .moneyLevelRoot .sky-drift-layer::before, .moneyLevelRoot .pond-shimmer-layer::before{ animation: none !important; opacity: .025 !important; }
   .moneyLevelRoot .rain-layer i{ opacity: .1 !important; animation-duration: 4.6s !important; animation-iteration-count: infinite !important; }
 }

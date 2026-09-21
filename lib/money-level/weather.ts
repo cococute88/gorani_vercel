@@ -1,4 +1,5 @@
-import type { MoneyLevelTimeOfDay, MoneyLevelWeather, MoneyLevelWindIntensity } from "./types";
+import { getSeoulCalendarDate, resolveSeoulTimeOfDay } from "./forest/seoul-time";
+import type { MoneyLevelSceneWeather, MoneyLevelTimeOfDay, MoneyLevelWeather, MoneyLevelWindIntensity } from "./types";
 
 export function hashMoneyLevelDate(dateKey: string): number {
   let hash = 2166136261;
@@ -10,7 +11,8 @@ export function hashMoneyLevelDate(dateKey: string): number {
 }
 
 export function resolveMoneyLevelSeededWeather(date: Date): MoneyLevelWeather {
-  const key = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
+  const seoul = getSeoulCalendarDate(date);
+  const key = `${seoul.year}-${seoul.month}-${seoul.day}`;
   const roll = hashMoneyLevelDate(key) / 0x1_0000_0000;
   if (roll < 0.6) return "sunny";
   if (roll < 0.85) return "cloudy";
@@ -21,14 +23,10 @@ export function resolveMoneyLevelSeededWeather(date: Date): MoneyLevelWeather {
 export const resolveMoneyLevelWeather = resolveMoneyLevelSeededWeather;
 
 export function resolveMoneyLevelTimeOfDay(date: Date): MoneyLevelTimeOfDay {
-  const hour = date.getHours();
-  if (hour >= 5 && hour < 9) return "morning";
-  if (hour >= 9 && hour < 16) return "day";
-  if (hour >= 16 && hour < 19) return "evening";
-  return "night";
+  return resolveSeoulTimeOfDay(date);
 }
 
-export function resolveMoneyLevelWindIntensity(weather: MoneyLevelWeather): MoneyLevelWindIntensity {
+export function resolveMoneyLevelWindIntensity(weather: MoneyLevelSceneWeather): MoneyLevelWindIntensity {
   if (weather === "thunderstorm") return "strong";
   if (weather === "cloudy" || weather === "rain") return "breeze";
   return "none";

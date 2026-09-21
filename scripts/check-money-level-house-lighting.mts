@@ -12,9 +12,9 @@ const skies = { sunny: [1, 1, [1, 1, 1]], cloudy: [.96, .96, [.98, 1, 1.015]],
   rain: [.91, .94, [.95, .99, 1.035]], thunderstorm: [.82, .9, [.91, .97, 1.045]] } as const;
 const round = (n: number) => Number(n.toFixed(3));
 const approvedHouseTimes = {
-  morning: [.93, .96, .015, 0, .98, [.98, 1, 1.035]],
+  morning: [.965, .98, .008, 0, .99, [.99, 1, 1.018]],
   day: [1, 1, 0, 0, 1, [1, 1, 1]],
-  evening: [.82, .86, 0, -12, 1, [1.08, .94, .97]],
+  evening: [.91, .93, 0, -6, 1, [1.04, .97, .985]],
 } as const;
 const approvedHouseWeather = { sunny: [1,[1,1,1]], cloudy: [.86,[.98,1,1.015]], rain: [.84,[.95,.99,1.035]], thunderstorm: [.82,[.91,.97,1.045]] } as const;
 for (const time of Object.keys(times) as Array<keyof typeof times>) {
@@ -39,14 +39,17 @@ for (const time of Object.keys(times) as Array<keyof typeof times>) {
     }
   }
 }
-for (const [weather,expected] of Object.entries({ sunny:.88,cloudy:.84,rain:.82,thunderstorm:.80 })) {
+for (const [weather,expected] of Object.entries({ sunny:.94,cloudy:.92,rain:.91,thunderstorm:.90 })) {
   const key=weather as keyof typeof skies, ambient=getHouseAmbientLighting("night",key);
   assert.equal(getWorldObjectLighting("night",key).house.saturation,expected,"Night weather is not desaturated twice");
-  assert.equal(ambient.night?.blendMode,"hard-light");assert.equal(ambient.night.opacity,.15);assert.equal(ambient.night.contrast,1.12);
-  assert.ok(ambient.opacity>=.18&&ambient.opacity<=.22);
+  assert.equal(ambient.night?.blendMode,"hard-light");assert.equal(ambient.night.opacity,.075);assert.equal(ambient.night.contrast,1.06);
+  assert.ok(ambient.opacity>=.09&&ambient.opacity<=.11);
 }
 assert.equal(getWorldObjectLighting("day", "sunny").house.filter, "brightness(1) saturate(1) contrast(1) sepia(0) hue-rotate(0deg)");
-assert.equal(getWorldObjectLighting("morning", "sunny").house.filter, "brightness(0.93) saturate(0.96) contrast(0.98) sepia(0.015) hue-rotate(0deg)");
+assert.equal(getWorldObjectLighting("morning", "sunny").house.filter, "brightness(0.965) saturate(0.98) contrast(0.99) sepia(0.008) hue-rotate(0deg)");
+assert.equal(getWorldObjectLighting("evening", "sunny").house.filter, "brightness(0.91) saturate(0.93) contrast(1) sepia(0) hue-rotate(-6deg)");
+assert.equal(getWorldObjectLighting("night", "sunny").house.filter, "brightness(0.835) saturate(0.94) contrast(1) sepia(0) hue-rotate(4deg)");
+assert.equal(getHouseAmbientLighting("evening", "sunny").opacity, .018);
 assert.equal(getWorldObjectLighting("evening", "sunny").house.sepia, 0);
 assert.notEqual(getWorldObjectLighting("night", "sunny").house.colorMatrix, getWorldObjectLighting("night", "sunny").statue.colorMatrix);
 const scene = readFileSync("components/money-level/MoneyLevelScene.tsx", "utf8");

@@ -7,6 +7,15 @@ import path from "node:path";
 const base = process.env.MONEY_LEVEL_QA_URL ?? "http://127.0.0.1:3001";
 const output = process.env.MONEY_LEVEL_QA_OUTPUT ?? path.join(tmpdir(), "money-level-house-world-qa");
 const washed = path.join(process.cwd(), "art-review/money-level/house-crisp-review");
+const temporaryFrames = {
+  "temporary-camp-spring-summer.webp": { canvas: [1536, 1024], ground: [768, 900] },
+  "temporary-camp-fall.webp": { canvas: [1536, 1024], ground: [768, 900] },
+  "temporary-camp-winter.webp": { canvas: [1536, 1024], ground: [768, 900] },
+  "temporary-tent-neutral.webp": { canvas: [1448, 1086], ground: [748, 1016] },
+  "temporary-tent-yellow.webp": { canvas: [1536, 1024], ground: [764, 976] },
+  "temporary-house-fall.webp": { canvas: [1448, 1086], ground: [723, 1048] },
+  "temporary-house-winter.webp": { canvas: [1536, 1024], ground: [768, 970] },
+};
 await mkdir(output, { recursive: true });
 const browser = await chromium.launch({ channel: "chrome", headless: true });
 const results = [], review = [], errors = [];
@@ -23,21 +32,27 @@ try {
     await page.setViewportSize({ width, height });
     await page.goto(`${base}/money-level?time=day&weather=sunny`);
     await ready(page);
-    const geometry = await page.evaluate(() => {
+    const geometry = await page.evaluate((frames) => {
       const scene = document.querySelector(".forest-scene"), bg = document.querySelector(".scene-background-current");
       const b = bg.getBoundingClientRect(), s = scene.getBoundingClientRect();
       const scale = Math.max(b.width / 1683, b.height / 935), cropY = (935 * scale - b.height) / 2;
       return [...document.querySelectorAll(".house-card")].map(h => {
-        const box = h.getBoundingClientRect();
+        const box = h.getBoundingClientRect(), image = h.querySelector("img"), name = image.getAttribute("src").split("/").pop(), frame = frames[name];
+        const groundScreenX = box.x + frame.ground[0] / frame.canvas[0] * box.width;
+        const groundScreenY = box.y + frame.ground[1] / frame.canvas[1] * box.height;
         return { kind: h.classList.contains("house-brokerage") ? "brokerage" : "tax",
-          x: (box.x + box.width / 2 - b.x) / scale,
-          y: (box.y + box.height / 2 - b.y + cropY) / scale,
-          width: box.width / scale, sceneWidth: s.width, sceneHeight: scene.clientHeight };
+          src: image.getAttribute("src"),
+          groundX: (groundScreenX - b.x) / scale,
+          groundY: (groundScreenY - b.y + cropY) / scale,
+          sceneWidth: s.width, sceneHeight: scene.clientHeight };
       });
-    });
+    }, temporaryFrames);
     for (const h of geometry) {
-      const expected = h.kind === "brokerage" ? [599.805, 390.35, 622.71] : [1246.884, 414.905, 495.6435];
-      for (const [i, value] of [h.x, h.y, h.width].entries()) assert.ok(Math.abs(value - expected[i]) < .1, `rendered ${h.kind} master coordinate stable: ${value} vs ${expected[i]}`);
+      const world = h.kind === "brokerage" ? [599.805, 390.35, 622.71] : [1246.884, 414.905, 495.6435];
+      const expectedGround = [world[0], world[1] + world[2] * 388 / 1536];
+      assert.ok(h.src.includes("/money-level/art/houses/temporary-"), `${h.kind} cannot resolve legacy art`);
+      assert.ok(Math.abs(h.groundX - expectedGround[0]) < .1, `rendered ${h.kind} ground x stable: ${h.groundX} vs ${expectedGround[0]}`);
+      assert.ok(Math.abs(h.groundY - expectedGround[1]) < .1, `rendered ${h.kind} ground y stable: ${h.groundY} vs ${expectedGround[1]}`);
     }
     const name = `geometry-${width}-${height}.png`;
     await page.locator(".forest-scene").screenshot({ path: path.join(output, name) });
