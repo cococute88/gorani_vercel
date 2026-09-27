@@ -62,7 +62,35 @@ const temporaryHouseAssets = [
   "art/houses/temporary-house-winter.webp",
 ];
 assert.equal(temporaryHouseAssets.length, 7, "Temporary house hotfix must reuse exactly seven approved illustrations");
-const required = [...pngMasters, ...webpRenditions, ...taxAlphaRenditions, ...temporaryHouseAssets, ...timeBackgrounds, ...dockedBackgrounds, ...seasonalBackgrounds, ...statueAssets, ...retainedSourceArtifacts];
+const dedicatedStageAssets = [
+  "art/houses/brokerage-stage-30-35-micro-house.webp",
+  "art/houses/brokerage-stage-50-55-workshop-house.webp",
+  "art/houses/brokerage-stage-55-60-two-story.webp",
+  "art/houses/brokerage-stage-60-65-two-story-garden.webp",
+  "art/houses/brokerage-stage-65-70-two-story-veranda.webp",
+  "art/houses/brokerage-stage-70-75-two-story-large.webp",
+  "art/houses/brokerage-stage-75-80-two-story-annex.webp",
+  "art/houses/brokerage-stage-80-85-mansion.webp",
+  "art/houses/brokerage-stage-85-90-mansion-garden.webp",
+  "art/houses/brokerage-stage-90-95-grand-mansion.webp",
+  "art/houses/brokerage-stage-95-100-grand-mansion-annex.webp",
+  "art/houses/tax-stage-30-35-micro-house.webp",
+  "art/houses/tax-stage-35-40-small-cabin.webp",
+  "art/houses/tax-stage-40-45-expanded-cabin.webp",
+  "art/houses/tax-stage-45-50-proper-house.webp",
+  "art/houses/tax-stage-50-55-workshop-house.webp",
+  "art/houses/tax-stage-55-60-two-story.webp",
+  "art/houses/tax-stage-60-65-two-story-garden.webp",
+  "art/houses/tax-stage-65-70-two-story-veranda.webp",
+  "art/houses/tax-stage-70-75-two-story-large.webp",
+  "art/houses/tax-stage-75-80-two-story-annex.webp",
+  "art/houses/tax-stage-80-85-mansion.webp",
+  "art/houses/tax-stage-85-90-mansion-garden.webp",
+  "art/houses/tax-stage-90-95-grand-mansion.webp",
+  "art/houses/tax-stage-95-100-grand-mansion-annex.webp",
+];
+assert.equal(dedicatedStageAssets.length, 25, "Only missing stages receive new runtime art");
+const required = [...pngMasters, ...webpRenditions, ...taxAlphaRenditions, ...temporaryHouseAssets, ...dedicatedStageAssets, ...timeBackgrounds, ...dockedBackgrounds, ...seasonalBackgrounds, ...statueAssets, ...retainedSourceArtifacts];
 
 async function assertExactCase(relativePath) {
   let current = assetRoot;
@@ -96,10 +124,11 @@ for (const file of seasonalBackgrounds) {
   assert.equal(header.toString("ascii", 0, 4), "RIFF", `Expected WebP RIFF header: ${file}`);
   assert.equal(header.toString("ascii", 8, 12), "WEBP", `Expected WebP payload: ${file}`);
 }
-for (const file of temporaryHouseAssets) {
+for (const file of [...temporaryHouseAssets, ...dedicatedStageAssets]) {
   const header = (await readFile(path.join(assetRoot, file))).subarray(0, 32);
   assert.equal(header.toString("ascii", 0, 4), "RIFF", `Expected WebP RIFF header: ${file}`);
   assert.equal(header.toString("ascii", 8, 12), "WEBP", `Expected WebP payload: ${file}`);
+  assert((await stat(path.join(assetRoot, file))).size > 80_000, `House art is unexpectedly small: ${file}`);
 }
 const sceneComponent = await readFile(path.join(root, "components", "money-level", "MoneyLevelScene.tsx"), "utf8");
 const settingsComponent = await readFile(path.join(root, "lib", "money-level", "settings.ts"), "utf8");
@@ -144,8 +173,8 @@ for (const file of webpRenditions) {
   const publicUrl = `/money-level/${file}`;
   // The former connector rendition is retained as a source artifact, never as a visual layer.
   if (file.endsWith("dock-connector.webp")) continue;
-  // Legacy house renditions remain rollback-safe repository assets, but the
-  // temporary seasonal resolver must never select them at runtime.
+  // House masters have separately audited runtime routes and are verified
+  // through the stage resolver below.
   if (file.startsWith("art/houses/")) continue;
   const fishingRodUsed = file.endsWith("fishing-rod.webp")
     && (await readFile(path.join(root, "components", "money-level", "MoneyLevelScene.tsx"), "utf8")).includes(publicUrl);
@@ -155,6 +184,9 @@ for (const file of webpRenditions) {
 // centralized seasonal manifest is verified in Production.
 assert(scene.includes("FOREST_SEASONAL_BACKGROUND_MANIFEST") && scene.includes("/seasonal/forest-${season}-${time}-${WEATHER_FILE_SUFFIX[weather]}.webp"), "Seasonal backgrounds must resolve through the centralized manifest");
 assert(scene.includes("resolveForestHouseAsset") && scene.includes("/money-level/art/houses/temporary-${source}.webp"), "Temporary house art must resolve through one centralized manifest");
+for (const file of dedicatedStageAssets) {
+  assert(scene.includes(path.basename(file, ".webp")), `Dedicated stage art is not reachable from the resolver: ${file}`);
+}
 assert(!`${catalog}\n${scene}`.match(/\/money-level\/art\/[^"']+\.png/), "Runtime scene config must not load environmental PNG masters");
 assert(!`${catalog}\n${scene}`.includes("curation"), "Production config must not import curation assets");
 console.log(`Money Level assets OK: ${actual.length} exact-case files`);

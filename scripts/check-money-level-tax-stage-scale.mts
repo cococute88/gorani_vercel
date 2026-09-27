@@ -31,7 +31,7 @@ function mapBounds(frame: HouseVisualFrame) {
 // fit here: unlike tents, the replacement camps have different silhouettes,
 // so equal alpha area is not equal perceived size.
 for (const testCase of campCases) {
-  const asset = resolveForestHouseAsset(testCase.season, testCase.art);
+  const asset = resolveForestHouseAsset("tax", testCase.season, testCase.art);
   assert.ok(asset?.src.endsWith(testCase.src), `${testCase.season}/${testCase.art} source mapping`);
   assert.ok(asset.visualFrame, `${testCase.season}/${testCase.art} visual frame`);
   assert.equal(asset.visualFrame.reference.width, 1536, `${testCase.season}/${testCase.art} identity width`);
@@ -42,7 +42,7 @@ for (const testCase of campCases) {
 }
 
 for (const testCase of tentCases) {
-  const asset = resolveForestHouseAsset(testCase.season, testCase.art);
+  const asset = resolveForestHouseAsset("tax", testCase.season, testCase.art);
   assert.ok(asset?.src.endsWith(testCase.src), `${testCase.season}/${testCase.art} source mapping`);
   assert.ok(asset.visualFrame, `${testCase.season}/${testCase.art} visual frame`);
   const actual = mapBounds(asset.visualFrame);
@@ -61,8 +61,8 @@ for (const testCase of tentCases) {
   assert.ok(Math.abs(actual[3] - my1) < 0.01, `${testCase.art} bottom baseline`);
 }
 
-const small = resolveForestHouseAsset("spring", "tent-small");
-const large = resolveForestHouseAsset("spring", "tent-large");
+const small = resolveForestHouseAsset("tax", "spring", "tent-small");
+const large = resolveForestHouseAsset("tax", "spring", "tent-large");
 assert.equal(small?.src, large?.src, "one approved neutral tent file is intentionally reused");
 assert.notEqual(small?.visualFrame, large?.visualFrame, "small and large stages require distinct alpha-v2 master frames");
 

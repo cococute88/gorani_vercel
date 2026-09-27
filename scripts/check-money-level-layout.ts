@@ -30,6 +30,12 @@ function webpSize(file: string): { width: number; height: number } {
     assert.equal(bits >>> 29, 0, "supported lossless WebP version");
     return { width: (bits & 0x3fff) + 1, height: ((bits >>> 14) & 0x3fff) + 1 };
   }
+  if (data.toString("ascii", 12, 16) === "VP8X") {
+    return {
+      width: data[24] + (data[25] << 8) + (data[26] << 16) + 1,
+      height: data[27] + (data[28] << 8) + (data[29] << 16) + 1,
+    };
+  }
   assert.equal(data.toString("ascii", 12, 16), "VP8 ");
   assert.equal(data.toString("hex", 23, 26), "9d012a");
   return { width: data.readUInt16LE(26) & 0x3fff, height: data.readUInt16LE(28) & 0x3fff };
@@ -105,14 +111,22 @@ assert.equal(STATUE_SLOTS.right.screenOffsetXPx, 1);
 assert.equal(HOUSE_WORLD_GEOMETRY.tax.x, 1246.884);
 for (const stage of MONEY_LEVEL_HOUSE_STAGES) {
   for (const season of ["spring", "summer", "fall", "winter"] as const) {
-    const asset = resolveForestHouseAsset(season, stage.art);
-    if (stage.art === "clearing") {
-      assert.equal(asset, null, `${season} clearing remains empty`);
-      continue;
+    for (const kind of ["brokerage", "tax"] as const) {
+      const asset = resolveForestHouseAsset(kind, season, stage.art);
+      if (stage.art === "clearing") {
+        assert.equal(asset, null, `${kind}/${season} clearing remains empty`);
+        continue;
+      }
+      if (stage.level <= 5) assert.ok(asset?.src.startsWith("/money-level/art/houses/temporary-"), `${kind}/${season} stage ${stage.level} preserves approved early art`);
+      else assert.ok(asset?.src.includes(`/money-level/art/houses/${kind}-stage-`), `${kind}/${season} stage ${stage.level} has dedicated art`);
+      const size = webpSize(path.join(root, "public", asset!.src));
+      assert.ok(
+        (size.width === 1536 && size.height === 1024)
+          || (size.width === 1448 && size.height === 1086)
+          || (size.width === 1254 && size.height === 1254),
+        `${kind}/${season} stage ${stage.level} source size`,
+      );
     }
-    assert.ok(asset?.src.startsWith("/money-level/art/houses/temporary-"), `${season} stage ${stage.level} uses approved temporary art`);
-    const size = webpSize(path.join(root, "public", asset!.src));
-    assert.ok((size.width === 1536 && size.height === 1024) || (size.width === 1448 && size.height === 1086), `${season} stage ${stage.level} source size`);
   }
 }
 const representativeLighting = [

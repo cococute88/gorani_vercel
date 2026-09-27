@@ -15,13 +15,12 @@ const stageCases = [
   { name: "tent-small", value: 1.75e8, art: "tent-small" },
   { name: "tent-large", value: 2.25e8, art: "tent-large" },
   { name: "tent-color", value: 2.75e8, art: "tent-color" },
-  { name: "house", value: 3.25e8, art: "micro-house" },
 ];
 const expected = {
-  spring: { camp: "temporary-camp-spring-summer.webp", "camp-plus": "temporary-camp-spring-summer.webp", "tent-small": "temporary-tent-neutral.webp", "tent-large": "temporary-tent-neutral.webp", "tent-color": "temporary-tent-yellow.webp", house: "temporary-house-fall.webp" },
-  summer: { camp: "temporary-camp-spring-summer.webp", "camp-plus": "temporary-camp-spring-summer.webp", "tent-small": "temporary-tent-neutral.webp", "tent-large": "temporary-tent-neutral.webp", "tent-color": "temporary-tent-yellow.webp", house: "temporary-house-fall.webp" },
-  fall: { camp: "temporary-camp-fall.webp", "camp-plus": "temporary-camp-fall.webp", "tent-small": "temporary-tent-neutral.webp", "tent-large": "temporary-tent-neutral.webp", "tent-color": "temporary-tent-yellow.webp", house: "temporary-house-fall.webp" },
-  winter: { camp: "temporary-camp-winter.webp", "camp-plus": "temporary-camp-winter.webp", "tent-small": "temporary-tent-neutral.webp", "tent-large": "temporary-tent-neutral.webp", "tent-color": "temporary-tent-yellow.webp", house: "temporary-house-winter.webp" },
+  spring: { camp: "temporary-camp-spring-summer.webp", "camp-plus": "temporary-camp-spring-summer.webp", "tent-small": "temporary-tent-neutral.webp", "tent-large": "temporary-tent-neutral.webp", "tent-color": "temporary-tent-yellow.webp" },
+  summer: { camp: "temporary-camp-spring-summer.webp", "camp-plus": "temporary-camp-spring-summer.webp", "tent-small": "temporary-tent-neutral.webp", "tent-large": "temporary-tent-neutral.webp", "tent-color": "temporary-tent-yellow.webp" },
+  fall: { camp: "temporary-camp-fall.webp", "camp-plus": "temporary-camp-fall.webp", "tent-small": "temporary-tent-neutral.webp", "tent-large": "temporary-tent-neutral.webp", "tent-color": "temporary-tent-yellow.webp" },
+  winter: { camp: "temporary-camp-winter.webp", "camp-plus": "temporary-camp-winter.webp", "tent-small": "temporary-tent-neutral.webp", "tent-large": "temporary-tent-neutral.webp", "tent-color": "temporary-tent-yellow.webp" },
 };
 const assetPaths = [...new Set(Object.values(expected).flatMap((mapping) => Object.values(mapping)))].map((name) => `/money-level/art/houses/${name}`);
 const errors = [], failedRequests = [], results = [];
@@ -57,7 +56,7 @@ try {
     page.on("pageerror", (error) => errors.push(`${layout.name}: ${error.message}`));
     page.on("console", (message) => { if (message.type() === "error") errors.push(`${layout.name}: ${message.text()}`); });
     page.on("requestfailed", (request) => {
-      if (request.url().includes("/art/houses/temporary-")) failedRequests.push(`${request.url()}: ${request.failure()?.errorText}`);
+      if (request.url().includes("/art/houses/")) failedRequests.push(`${request.url()}: ${request.failure()?.errorText}`);
     });
 
     await page.goto(`${base}/money-level?date=${dates.spring}&time=day&weather=sunny`);
@@ -120,7 +119,8 @@ try {
     await setValue(page, 8.25e8);
     await page.goto(`${base}/money-level?date=${dates.winter}&time=day&weather=sunny`);
     await ready(page, "mansion");
-    assert.ok((await page.locator(".house-card").evaluateAll((cards) => cards.every((card) => card.dataset.assetSrc.endsWith("temporary-house-winter.webp")))));
+    const mansionAssets = await page.locator(".house-card").evaluateAll((cards) => cards.map((card) => card.dataset.assetSrc?.split("/").pop()).sort());
+    assert.deepEqual(mansionAssets, ["brokerage-stage-80-85-mansion.webp", "tax-stage-80-85-mansion.webp"]);
 
     if (layout.mobile) {
       const phaseBefore = await page.evaluate(() => ({ state: window.__MONEY_LEVEL_DEBUG__.state(), runtimes: window.__MONEY_LEVEL_DEBUG__.activeRuntimeCount() }));
@@ -164,7 +164,7 @@ try {
     }
     await context.close();
   }
-  assert.deepEqual(failedRequests, [], "temporary production house requests must not fail");
+  assert.deepEqual(failedRequests, [], "production house requests must not fail");
   assert.deepEqual(errors, [], "browser console/page errors");
   await writeFile(path.join(output, "results.json"), JSON.stringify(results, null, 2));
   console.log(JSON.stringify({ status: "PASS", scenarios: results.length, decodedAssets: assetPaths.length, failedRequests: failedRequests.length, errors: errors.length, output }));
