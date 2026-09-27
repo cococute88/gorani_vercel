@@ -1,8 +1,8 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- approved art renditions intentionally keep the existing scene loading path */
 
-import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
-import type { MoneyLevelHouseStage } from "@/lib/money-level/house-stages";
+import { useEffect, useId, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent } from "react";
+import { MONEY_LEVEL_HOUSE_STAGES, type MoneyLevelHouseStage } from "@/lib/money-level/house-stages";
 import type {
   MoneyLevelForestSpecialEvent,
   MoneyLevelSceneWeather,
@@ -113,8 +113,10 @@ export default function MoneyLevelScene({
   const weatherRef = useRef(weather);
   weatherRef.current = weather;
   const lightingFilterId = `world-object-lighting-${useId().replace(/:/g, "")}`;
+  const houseDialogId = `house-stage-dialog-${useId().replace(/:/g, "")}`;
   const goraniStageRef = useRef<HTMLDivElement>(null);
   const daramjiStageRef = useRef<HTMLDivElement>(null);
+  const houseTriggerRefs = useRef<Record<"brokerage" | "tax", HTMLSpanElement | null>>({ brokerage: null, tax: null });
   const cameraRef = useRef(createForestCamera(1320, 520, false));
   const statuesRef = useRef({ left: leftStatue, right: rightStatue });
   statuesRef.current = { left: leftStatue, right: rightStatue };
@@ -125,9 +127,23 @@ export default function MoneyLevelScene({
   const [characterError, setCharacterError] = useState(false);
   const [sceneSize, setSceneSize] = useState({ width: 1320, height: 520, mobile: false });
   const [houseAmbientEnabled, setHouseAmbientEnabled] = useState(true);
+  const [openHouse, setOpenHouse] = useState<"brokerage" | "tax" | null>(null);
   useEffect(() => {
     setHouseAmbientEnabled(!previewOverridesEnabled || new URLSearchParams(window.location.search).get("houseAmbient") !== "off");
   }, [previewOverridesEnabled]);
+
+  useEffect(() => {
+    if (!openHouse) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      const closing = openHouse;
+      setOpenHouse(null);
+      requestAnimationFrame(() => houseTriggerRefs.current[closing]?.focus());
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [openHouse]);
 
   useEffect(() => {
     const scene = sceneRef.current;
@@ -631,15 +647,33 @@ export default function MoneyLevelScene({
   const houseAmbient = getHouseAmbientLighting(timeOfDay, weather);
   const ambientOpacity = houseAmbientEnabled ? houseAmbient.opacity : 0;
   const nightAmbient = houseAmbientEnabled ? houseAmbient.night : null;
-  const brokerageHouseAsset = resolveForestHouseAsset(season, brokerageStage.art);
-  const taxHouseAsset = resolveForestHouseAsset(season, taxStage.art);
+  const brokerageHouseAsset = resolveForestHouseAsset("brokerage", season, brokerageStage.art);
+  const taxHouseAsset = resolveForestHouseAsset("tax", season, taxStage.art);
   const worldObjectStyle = {
     "--money-level-house-lighting": `${objectLighting.house.filter} url(#${lightingFilterId})`,
     "--money-level-statue-lighting": `${objectLighting.statue.filter} url(#${lightingFilterId}-statue)`,
   } as CSSProperties;
+  const closeHouseDetails = () => {
+    const closing = openHouse;
+    setOpenHouse(null);
+    if (closing) requestAnimationFrame(() => houseTriggerRefs.current[closing]?.focus());
+  };
+  const openHouseFromCoarseTap = (event: ReactMouseEvent<HTMLElement>) => {
+    const target = event.target as Element;
+    if (openHouse || target.closest(".house-interaction,.house-stage-overlay")) return;
+    for (const kind of ["brokerage", "tax"] as const) {
+      const hitTarget = sceneRef.current?.querySelector<HTMLElement>(`.house-${kind} .house-interaction`);
+      if (!hitTarget) continue;
+      const bounds = hitTarget.getBoundingClientRect();
+      if (event.clientX >= bounds.left && event.clientX <= bounds.right && event.clientY >= bounds.top && event.clientY <= bounds.bottom) {
+        setOpenHouse(kind);
+        return;
+      }
+    }
+  };
 
   return (
-    <section ref={sceneRef} className="forest-scene" style={worldObjectStyle} data-ambient={ambientEnabled ? "on" : "off"} data-special-event={specialEvent} aria-label="고라니와 다람쥐가 사는 숲">
+    <section ref={sceneRef} className="forest-scene" style={worldObjectStyle} data-ambient={ambientEnabled ? "on" : "off"} data-special-event={specialEvent} aria-label="고라니와 다람쥐가 사는 숲" onClick={openHouseFromCoarseTap}>
       <svg width="0" height="0" aria-hidden="true" style={{ position: "absolute" }}>
         <defs>
           <filter id={lightingFilterId} colorInterpolationFilters="sRGB" x="0%" y="0%" width="100%" height="100%">
@@ -683,8 +717,8 @@ export default function MoneyLevelScene({
       <div className="scene-world">
         <WeatherBackground season={season} timeOfDay={timeOfDay} weather={weather} />
         {ambientEnabled ? <div className="pond-shimmer-layer ambient-motion-layer" aria-hidden="true" /> : null}
-        <div className="house-place brokerage-house"><HouseVisual kind="brokerage" stage={brokerageStage} sceneSize={sceneSize} asset={brokerageHouseAsset} /></div>
-        <div className="house-place tax-house"><HouseVisual kind="tax" stage={taxStage} sceneSize={sceneSize} asset={taxHouseAsset} /></div>
+        <div className="house-place brokerage-house"><HouseVisual kind="brokerage" stage={brokerageStage} sceneSize={sceneSize} asset={brokerageHouseAsset} dialogId={houseDialogId} onOpen={() => setOpenHouse("brokerage")} triggerRef={(node) => { houseTriggerRefs.current.brokerage = node; }} /></div>
+        <div className="house-place tax-house"><HouseVisual kind="tax" stage={taxStage} sceneSize={sceneSize} asset={taxHouseAsset} dialogId={houseDialogId} onOpen={() => setOpenHouse("tax")} triggerRef={(node) => { houseTriggerRefs.current.tax = node; }} /></div>
         <div className="character-ground-layer" aria-hidden="true">
           <CharacterAnchor id="gorani" layer="shadow" /><CharacterAnchor id="daramji" layer="shadow" />
         </div>
@@ -727,6 +761,13 @@ export default function MoneyLevelScene({
         <HouseLabel kind="brokerage" text={brokerageText} value={brokerageValue} displayLevel={brokerageLevel} sceneSize={sceneSize} visualFrame={brokerageHouseAsset?.visualFrame} />
         <HouseLabel kind="tax" text={taxText} value={taxValue} displayLevel={taxLevel} sceneSize={sceneSize} visualFrame={taxHouseAsset?.visualFrame} />
       </div>
+      {openHouse ? <HouseStageDialog
+        id={houseDialogId}
+        kind={openHouse}
+        stage={openHouse === "brokerage" ? brokerageStage : taxStage}
+        value={openHouse === "brokerage" ? brokerageValue : taxValue}
+        onClose={closeHouseDetails}
+      /> : null}
       <div className="scene-weather"><span>{weatherIcon(weather)}</span><b>{weatherLabel(weather)}</b><small>{timeLabel(timeOfDay)}</small></div>
       <p className="forest-phrase">{phrase}</p>
     </section>
@@ -854,7 +895,7 @@ function rippleStyle(ripple: (typeof POND_RIPPLES)[number], index: number): CSSP
   } as CSSProperties;
 }
 
-function HouseVisual({ kind, stage, sceneSize, asset }: { kind: "brokerage" | "tax"; stage: MoneyLevelHouseStage; sceneSize: { width: number; height: number; mobile: boolean }; asset: SceneAsset | null }) {
+function HouseVisual({ kind, stage, sceneSize, asset, dialogId, onOpen, triggerRef }: { kind: "brokerage" | "tax"; stage: MoneyLevelHouseStage; sceneSize: { width: number; height: number; mobile: boolean }; asset: SceneAsset | null; dialogId: string; onOpen: () => void; triggerRef: (node: HTMLSpanElement | null) => void }) {
   const family = HOUSE_ART_FAMILY[stage.art];
   if (!asset) return null;
   const placement = resolveHouseVisualFrame(houseWorldToViewport(kind, sceneSize, sceneSize.mobile), asset.visualFrame);
@@ -862,11 +903,57 @@ function HouseVisual({ kind, stage, sceneSize, asset }: { kind: "brokerage" | "t
   const style = {
     "--house-x": `${placement.x}px`, "--house-y": `${placement.y}px`, "--house-width": `${placement.width}px`,
   } as CSSProperties;
+  const bounds = asset.visualFrame?.visibleBounds;
+  const canvas = asset.visualFrame?.canvas;
+  const hitStyle = bounds && canvas ? {
+    left: `${bounds[0] / canvas.width * 100}%`,
+    top: `${bounds[1] / canvas.height * 100}%`,
+    width: `${(bounds[2] - bounds[0]) / canvas.width * 100}%`,
+    height: `${(bounds[3] - bounds[1]) / canvas.height * 100}%`,
+  } : { left: "14%", top: "8%", width: "72%", height: "82%" };
+  const title = kind === "brokerage" ? "위탁 집" : "절세 집";
   return (
     <article className={`house-card house-${kind} house-family-${family} house-composite-${composite}`} style={style} data-level={stage.level} data-art={stage.art} data-asset-src={asset.src} data-composite={composite} aria-label={`${kind === "brokerage" ? "위탁" : "절세"} 집, ${stage.label}`}>
       <img className="house-art-image" src={asset.src} alt={asset.alt} draggable={false} />
+      <span ref={triggerRef} role="button" tabIndex={0} className="house-interaction" style={hitStyle} aria-label={`${title} 성장 단계 보기: Lv.${stage.level} ${stage.label}`} aria-haspopup="dialog" aria-controls={dialogId} onClick={onOpen} onKeyDown={(event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        onOpen();
+      }}><span className="sr-only">{title} 성장 단계 보기</span></span>
     </article>
   );
+}
+
+function HouseStageDialog({ id, kind, stage, value, onClose }: { id: string; kind: "brokerage" | "tax"; stage: MoneyLevelHouseStage; value: number; onClose: () => void }) {
+  const title = kind === "brokerage" ? "위탁 집" : "절세 집";
+  const next = stage.level < MONEY_LEVEL_HOUSE_STAGES.length - 1 ? MONEY_LEVEL_HOUSE_STAGES[stage.level + 1] : null;
+  const rangeMax = stage.max ?? stage.min + 50_000_000;
+  const progress = Math.max(0, Math.min(1, (value - stage.min) / Math.max(1, rangeMax - stage.min)));
+  const remaining = next ? Math.max(0, next.min - value) : 0;
+  return <div className="house-stage-overlay" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+    <section id={id} className="house-stage-dialog" role="dialog" aria-modal="true" aria-labelledby={`${id}-title`}>
+      <header><div><p>{title}</p><h2 id={`${id}-title`}>Lv.{stage.level} · {stage.label}</h2></div><button type="button" className="house-stage-close" aria-label="집 성장 정보 닫기" onClick={onClose} autoFocus>×</button></header>
+      <div className="house-stage-current"><span>현재 자산</span><strong>{formatEok(value)}</strong></div>
+      <div className="house-stage-progress" role="progressbar" aria-label="현재 집 단계 진행률" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress * 100)}><i style={{ width: `${progress * 100}%` }} /></div>
+      <div className="house-stage-range"><span>{formatEok(stage.min)}</span><span>{formatEok(rangeMax)}</span></div>
+      {next ? <div className="house-stage-next"><span>다음 단계</span><strong>Lv.{next.level} · {next.label}</strong><small>{formatEok(next.min)} · 앞으로 {formatEok(remaining)}</small></div> : <div className="house-stage-next is-complete"><span>성장 완료</span><strong>기본 20단계를 모두 달성했어요.</strong></div>}
+      <div className="house-stage-list" aria-label="전체 집 성장 단계">
+        {MONEY_LEVEL_HOUSE_STAGES.map((item) => {
+          const state = item.level === stage.level ? "current" : item.level < stage.level ? "done" : "future";
+          return <div key={item.level} className={`house-stage-row is-${state}`} aria-current={state === "current" ? "step" : undefined}><span aria-hidden="true">{state === "done" ? "✓" : state === "current" ? "●" : "○"}</span><b>Lv.{item.level}</b><strong>{item.label}</strong><small>{formatStageRange(item)}</small></div>;
+        })}
+      </div>
+    </section>
+  </div>;
+}
+
+function formatEok(value: number): string {
+  const amount = value / 100_000_000;
+  return `${amount.toLocaleString("ko-KR", { maximumFractionDigits: 2 })}억`;
+}
+
+function formatStageRange(stage: MoneyLevelHouseStage): string {
+  return `${formatEok(stage.min)}–${stage.max === null ? "∞" : formatEok(stage.max)}`;
 }
 
 function HouseLabel({ kind, text, value, displayLevel, sceneSize, visualFrame }: { kind: "brokerage" | "tax"; text: string; value: number; displayLevel: number; sceneSize: { width: number; height: number; mobile: boolean }; visualFrame?: HouseVisualFrame }) {
